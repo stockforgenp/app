@@ -22,6 +22,9 @@ import {
   Languages,
   Store,
   LogOut,
+  Building2,
+  UserCheck,
+  Truck,
 } from 'lucide-react';
 import { MODIFIER_LABEL } from '../../lib/hooks/useGlobalShortcuts.ts';
 import { useTheme } from '../../context/ThemeContext.tsx';
@@ -32,7 +35,10 @@ export type NavTab =
   | 'dashboard'
   | 'products'
   | 'sales'
+  | 'purchases'
   | 'inventory'
+  | 'vendors'
+  | 'customers'
   | 'history'
   | 'expenses'
   | 'staff'
@@ -71,6 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'dashboard', label: t('nav_dashboard'), icon: LayoutDashboard, shortcut: `${MODIFIER_LABEL}+D` },
     { id: 'products', label: t('nav_products'), icon: Package, shortcut: `${MODIFIER_LABEL}+P` },
     { id: 'sales', label: t('nav_sales'), icon: ShoppingCart, shortcut: `${MODIFIER_LABEL}+N` },
+    { id: 'purchases', label: t('nav_purchases', 'Purchases'), icon: Truck, shortcut: `${MODIFIER_LABEL}+B` },
     {
       id: 'inventory',
       label: t('nav_inventory'),
@@ -78,6 +85,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       shortcut: `${MODIFIER_LABEL}+I`,
       badge: lowStockCount > 0 ? lowStockCount : undefined,
     },
+    { id: 'vendors', label: t('nav_vendors', 'Vendors'), icon: Building2, shortcut: `${MODIFIER_LABEL}+V` },
+    { id: 'customers', label: t('nav_customers', 'Customers'), icon: UserCheck, shortcut: `${MODIFIER_LABEL}+C` },
     { id: 'history', label: t('nav_history'), icon: Receipt, shortcut: `${MODIFIER_LABEL}+H` },
     { id: 'expenses', label: t('nav_expenses'), icon: ReceiptText, shortcut: `${MODIFIER_LABEL}+E` },
     { id: 'staff', label: t('nav_staff'), icon: Users, shortcut: `${MODIFIER_LABEL}+U` },

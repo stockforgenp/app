@@ -15,7 +15,10 @@ import { Header } from './components/layout/Header.tsx';
 import { DashboardView } from './components/views/DashboardView.tsx';
 import { ProductsView } from './components/views/ProductsView.tsx';
 import { SalesView } from './components/views/SalesView.tsx';
+import { PurchasesView } from './components/views/PurchasesView.tsx';
 import { InventoryView } from './components/views/InventoryView.tsx';
+import { VendorsView } from './components/views/VendorsView.tsx';
+import { CustomersView } from './components/views/CustomersView.tsx';
 import { SalesHistoryView } from './components/views/SalesHistoryView.tsx';
 import { ExpensesView } from './components/views/ExpensesView.tsx';
 import { StaffView } from './components/views/StaffView.tsx';
@@ -48,7 +51,10 @@ export default function App() {
       'dashboard',
       'products',
       'sales',
+      'purchases',
       'inventory',
+      'vendors',
+      'customers',
       'history',
       'expenses',
       'staff',
@@ -338,6 +344,19 @@ export default function App() {
                 }
               />
               <Route
+                path="/purchases"
+                element={
+                  <PurchasesView
+                    currencySymbol={effectiveCurrencySymbol}
+                    onOpenCreateProduct={() => {
+                      handleClearActiveModals();
+                      setInitialOpenCreateProduct(true);
+                      handleNavigate('products');
+                    }}
+                  />
+                }
+              />
+              <Route
                 path="/inventory"
                 element={
                   <InventoryView
@@ -350,6 +369,24 @@ export default function App() {
                     onClearActiveModals={handleClearActiveModals}
                     onEditProduct={() => handleNavigate('products')}
                     onStartSaleWithProducts={handleStartSaleWithProducts}
+                  />
+                }
+              />
+              <Route
+                path="/vendors"
+                element={
+                  <VendorsView
+                    currencySymbol={effectiveCurrencySymbol}
+                    onNavigateToProducts={() => handleNavigate('products')}
+                  />
+                }
+              />
+              <Route
+                path="/customers"
+                element={
+                  <CustomersView
+                    currencySymbol={effectiveCurrencySymbol}
+                    onNavigateToSales={() => handleNavigate('sales')}
                   />
                 }
               />

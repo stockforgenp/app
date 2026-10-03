@@ -46,9 +46,21 @@ export const Header: React.FC<HeaderProps> = ({
       title: t('nav_sales'),
       subtitle: isNepali ? 'अनुकूलित मूल्य र छुट सहित नयाँ बिक्री बिलिङ' : 'Process multi-item transaction with custom pricing',
     },
+    purchases: {
+      title: t('nav_purchases', 'Purchases'),
+      subtitle: isNepali ? 'आपूर्तिकर्ताबाट बहु-वस्तु खरिद दाखिला, बिलिङ र मौज्दात वृद्धि' : 'Multi-item goods received, supplier billing, and stock inflow',
+    },
     inventory: {
       title: t('nav_inventory'),
       subtitle: isNepali ? 'मौज्दात परिमाण, मूल्याङ्कन र कारोबार अडिट' : 'Stock quantities, valuation, and movements',
+    },
+    vendors: {
+      title: t('nav_vendors', 'Vendors'),
+      subtitle: isNepali ? 'आपूर्तिकर्ता सूची, PAN/VAT विवरण र खरिद अभिलेख' : 'Supplier directory, PAN/VAT registry, and purchase logs',
+    },
+    customers: {
+      title: t('nav_customers', 'Customers'),
+      subtitle: isNepali ? 'ग्राहक विवरण, PAN/VAT सूची र खरिद कारोबार इतिहास' : 'Customer directory, PAN/VAT records, and order history',
     },
     history: {
       title: t('nav_history'),

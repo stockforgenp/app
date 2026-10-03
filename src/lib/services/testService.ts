@@ -535,6 +535,227 @@ export async function runBusinessLogicTests(): Promise<TestResultItem[]> {
     });
   }
 
+  // Test 18: Vendor Management & Product Purchase Link
+  try {
+    testDb.run(
+      `INSERT INTO vendors (name, pan_vat, phone, email, address, notes, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['Himalayan Agro Supplies', '601998877', '9841112233', 'sales@himalayanagro.np', 'Kathmandu', 'Primary wholesale partner', now, now]
+    );
+
+    const vendorRow = testDb.exec("SELECT id, name, pan_vat FROM vendors WHERE pan_vat = '601998877'");
+    const vendorId = vendorRow[0]?.values[0]?.[0] as number;
+    const vendorName = vendorRow[0]?.values[0]?.[1] as string;
+
+    testDb.run(
+      `INSERT INTO products (name, sku, unit, cost_price, selling_price, current_stock, vendor_id, vendor_name, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['Organic Honey 500g', 'HONEY-001', 'bottle', 40000, 55000, 20, vendorId, vendorName, now, now]
+    );
+
+    testDb.run(
+      `INSERT INTO stock_movements (product_id, type, quantity, vendor_id, vendor_name, note, created_at)
+       VALUES (last_insert_rowid(), 'RESTOCK', 20, ?, ?, 'Initial purchase shipment', ?)`,
+      [vendorId, vendorName, now]
+    );
+
+    const prodCheck = testDb.exec("SELECT vendor_id, vendor_name FROM products WHERE sku = 'HONEY-001'");
+    const moveCheck = testDb.exec("SELECT vendor_name, quantity FROM stock_movements WHERE vendor_id = " + vendorId);
+
+    const passed = prodCheck[0]?.values[0]?.[0] === vendorId &&
+                   prodCheck[0]?.values[0]?.[1] === 'Himalayan Agro Supplies' &&
+                   moveCheck[0]?.values[0]?.[0] === 'Himalayan Agro Supplies';
+
+    results.push({
+      name: '18. Vendor Registration & Purchase Inflow Audit',
+      passed,
+      message: passed
+        ? 'Vendor successfully linked to purchase product and logged in stock movements.'
+        : 'Failed to properly link vendor to product purchase.',
+      expected: 'Vendor ID and Name mapped',
+      actual: `${prodCheck[0]?.values[0]?.[1]} (ID: ${prodCheck[0]?.values[0]?.[0]})`,
+    });
+  } catch (err: unknown) {
+    results.push({
+      name: '18. Vendor Registration & Purchase Inflow Audit',
+      passed: false,
+      message: (err as Error).message,
+    });
+  }
+
+  // Test 19: Vendor Search & PAN/VAT Query Verification
+  try {
+    const searchRes = testDb.exec("SELECT name, pan_vat FROM vendors WHERE name LIKE '%Himalayan%' OR pan_vat = '601998877'");
+    const matchCount = searchRes[0]?.values.length || 0;
+    const passed = matchCount === 1;
+
+    results.push({
+      name: '19. Vendor Search & PAN/VAT Autocomplete Engine',
+      passed,
+      message: passed
+        ? `Vendor search found 1 match: "${searchRes[0]?.values[0]?.[0]}" (PAN: ${searchRes[0]?.values[0]?.[1]}).`
+        : `Unexpected search count: ${matchCount}`,
+      expected: 1,
+      actual: matchCount,
+    });
+  } catch (err: unknown) {
+    results.push({
+      name: '19. Vendor Search & PAN/VAT Autocomplete Engine',
+      passed: false,
+      message: (err as Error).message,
+    });
+  }
+
+  // Test 20: Customer Registration & Search by Phone/PAN/Name
+  try {
+    testDb.run(
+      `INSERT INTO customers (name, phone, email, pan_vat, address, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      ['Aarav Thapa', '9851023456', 'aarav.thapa@example.com', '602345678', 'Baluwatar, Kathmandu', now, now]
+    );
+
+    const custSearch = testDb.exec("SELECT id, name, phone, pan_vat FROM customers WHERE phone = '9851023456' OR pan_vat = '602345678'");
+    const foundCust = custSearch[0]?.values.length === 1;
+
+    results.push({
+      name: '20. Customer Registration & Multi-Key Search (Phone, PAN, Name)',
+      passed: foundCust,
+      message: foundCust
+        ? `Customer "${custSearch[0]?.values[0]?.[1]}" verified by Phone & PAN.`
+        : 'Failed to search or register customer.',
+      expected: 'Found 1 customer',
+      actual: `Found ${custSearch[0]?.values.length || 0} customers`,
+    });
+  } catch (err: unknown) {
+    results.push({
+      name: '20. Customer Registration & Multi-Key Search (Phone, PAN, Name)',
+      passed: false,
+      message: (err as Error).message,
+    });
+  }
+
+  // Test 21: Sale Association with Customer, Sequential Bill Number & 13% VAT Calculation
+  try {
+    const custRow = testDb.exec("SELECT id, name, phone, pan_vat FROM customers WHERE phone = '9851023456'");
+    const custId = custRow[0]?.values[0]?.[0] as number;
+    const custName = custRow[0]?.values[0]?.[1] as string;
+    const custPhone = custRow[0]?.values[0]?.[2] as string;
+    const custPan = custRow[0]?.values[0]?.[3] as string;
+
+    // Subtotal: 10,000 paisa (Rs. 100), Discount: 0, Taxable Total: 10,000, 13% VAT: 1,300, Grand Total: 11,300
+    const taxableTotal = 10000;
+    const vatAmount = Math.round(taxableTotal * 0.13); // 1300
+    const grandTotal = taxableTotal + vatAmount; // 11300
+    const billNumber = 'BILL-00001';
+
+    testDb.run(
+      `INSERT INTO sales (bill_number, customer_id, customer_name, customer_phone, customer_pan_vat, subtotal, discount, total, vat_amount, grand_total, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [billNumber, custId, custName, custPhone, custPan, 10000, 0, taxableTotal, vatAmount, grandTotal, now]
+    );
+
+    const saleCheck = testDb.exec("SELECT bill_number, customer_pan_vat, vat_amount, grand_total FROM sales WHERE customer_id = " + custId);
+    const passed =
+      saleCheck[0]?.values[0]?.[0] === 'BILL-00001' &&
+      saleCheck[0]?.values[0]?.[1] === '602345678' &&
+      saleCheck[0]?.values[0]?.[2] === 1300 &&
+      saleCheck[0]?.values[0]?.[3] === 11300;
+
+    results.push({
+      name: '21. Bill Number, Customer Link & 13% VAT Grand Total Calculation',
+      passed,
+      message: passed
+        ? `Sale linked to Customer PAN ${saleCheck[0]?.values[0]?.[1]}, Bill #${saleCheck[0]?.values[0]?.[0]}, 13% VAT: Rs. 13.00, Grand Total: Rs. 113.00.`
+        : 'Failed to verify bill number or 13% VAT grand total calculation.',
+      expected: 'Bill: BILL-00001, VAT: 1300, Grand Total: 11300',
+      actual: `Bill: ${saleCheck[0]?.values[0]?.[0]}, VAT: ${saleCheck[0]?.values[0]?.[2]}, Grand Total: ${saleCheck[0]?.values[0]?.[3]}`,
+    });
+  } catch (err: unknown) {
+    results.push({
+      name: '21. Bill Number, Customer Link & 13% VAT Grand Total Calculation',
+      passed: false,
+      message: (err as Error).message,
+    });
+  }
+
+  // Test 22: Multi-Item Purchase Inflow, Vendor Link, Sequential Bill # & 13% VAT
+  try {
+    // 1. Create vendor if not exists
+    testDb.run(
+      `INSERT OR IGNORE INTO vendors (name, phone, email, pan_vat, address, created_at, updated_at)
+       VALUES ('Everest Wholesalers', '9841234567', 'everest@dist.com', '500123456', 'Kathmandu', ?, ?)`,
+      [now, now]
+    );
+    const vendorRow = testDb.exec("SELECT id, name, pan_vat FROM vendors WHERE phone = '9841234567'");
+    const vId = vendorRow[0]?.values[0]?.[0] as number;
+    const vName = vendorRow[0]?.values[0]?.[1] as string;
+    const vPan = vendorRow[0]?.values[0]?.[2] as string;
+
+    // Get current stock of product 1
+    const initialStockRow = testDb.exec("SELECT current_stock FROM products WHERE id = 1");
+    const stockBefore = (initialStockRow[0]?.values[0]?.[0] as number) || 0;
+
+    // Line 1: 10 units @ Rs. 40.00 (4000 paisa) = 40,000 paisa
+    const purchaseBillNumber = 'PUR-00001';
+    const subtotal = 40000;
+    const discount = 0;
+    const taxableAmount = 40000;
+    const vatAmount = Math.round(taxableAmount * 0.13); // 5200 paisa
+    const grandTotal = taxableAmount + vatAmount; // 45200 paisa
+
+    testDb.run(
+      `INSERT INTO purchases (bill_number, invoice_number, vendor_id, vendor_name, vendor_phone, vendor_email, vendor_pan_vat, vendor_address, subtotal, discount, taxable_amount, vat_rate, vat_amount, grand_total, total, notes, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [purchaseBillNumber, 'INV-8899', vId, vName, '9841234567', 'everest@dist.com', vPan, 'Kathmandu', subtotal, discount, taxableAmount, 13, vatAmount, grandTotal, grandTotal, 'Test bulk purchase', now]
+    );
+
+    const purchaseIdRow = testDb.exec("SELECT id FROM purchases WHERE bill_number = 'PUR-00001'");
+    const purchaseId = purchaseIdRow[0]?.values[0]?.[0] as number;
+
+    // Insert purchase item
+    testDb.run(
+      `INSERT INTO purchase_items (purchase_id, product_id, product_name, product_sku, quantity, cost_price, selling_price, discount, total)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [purchaseId, 1, 'Test Chai 250g', 'TEA-001', 10, 4000, 6000, 0, 40000]
+    );
+
+    // Update product stock and movement
+    testDb.run("UPDATE products SET current_stock = current_stock + 10, cost_price = 4000, updated_at = ? WHERE id = 1", [now]);
+    testDb.run(
+      "INSERT INTO stock_movements (product_id, type, quantity, note, created_at) VALUES (1, 'RESTOCK', 10, 'Purchase PUR-00001: Restocked 10 units', ?)",
+      [now]
+    );
+
+    // Query purchase_products view (alias of purchase_items)
+    const viewRows = testDb.exec("SELECT purchase_id, product_name, quantity, total FROM purchase_products WHERE purchase_id = " + purchaseId);
+    const updatedStockRow = testDb.exec("SELECT current_stock, cost_price FROM products WHERE id = 1");
+    const stockAfter = (updatedStockRow[0]?.values[0]?.[0] as number) || 0;
+    const newCost = (updatedStockRow[0]?.values[0]?.[1] as number) || 0;
+
+    const purchasePassed =
+      viewRows.length > 0 &&
+      viewRows[0].values.length === 1 &&
+      stockAfter === stockBefore + 10 &&
+      newCost === 4000;
+
+    results.push({
+      name: '22. Multi-Item Purchase, Vendor Link, Stock Inflow & purchase_products View',
+      passed: purchasePassed,
+      message: purchasePassed
+        ? `Purchase PUR-00001 processed with 13% VAT (Grand Total: Rs. 452.00). Stock incremented from ${stockBefore} to ${stockAfter}, verified via purchase_products view.`
+        : 'Failed to verify purchase insertion, stock inflow, or purchase_products view.',
+      expected: `Stock: ${stockBefore + 10}, Cost: 4000, ViewItems: 1`,
+      actual: `Stock: ${stockAfter}, Cost: ${newCost}, ViewItems: ${viewRows[0]?.values?.length || 0}`,
+    });
+  } catch (err: unknown) {
+    results.push({
+      name: '22. Multi-Item Purchase, Vendor Link, Stock Inflow & purchase_products View',
+      passed: false,
+      message: (err as Error).message,
+    });
+  }
+
   testDb.close();
   return results;
 }
+

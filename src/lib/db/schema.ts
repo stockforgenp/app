@@ -19,6 +19,30 @@ CREATE TABLE IF NOT EXISTS shops (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS vendors (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT,
+  pan_vat TEXT,
+  address TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS customers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT,
+  pan_vat TEXT,
+  address TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS products (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -28,16 +52,27 @@ CREATE TABLE IF NOT EXISTS products (
   selling_price INTEGER NOT NULL,
   current_stock INTEGER NOT NULL DEFAULT 0,
   min_stock_alert INTEGER DEFAULT NULL,
+  vendor_id INTEGER REFERENCES vendors(id) ON DELETE SET NULL,
+  vendor_name TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS sales (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bill_number TEXT,
+  customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
   customer_name TEXT,
   customer_phone TEXT,
+  customer_email TEXT,
+  customer_pan_vat TEXT,
+  customer_address TEXT,
   subtotal INTEGER NOT NULL,
   discount INTEGER NOT NULL DEFAULT 0,
+  taxable_amount INTEGER,
+  vat_rate REAL DEFAULT 13.0,
+  vat_amount INTEGER NOT NULL DEFAULT 0,
+  grand_total INTEGER,
   total INTEGER NOT NULL,
   created_at TEXT NOT NULL
 );
@@ -53,12 +88,51 @@ CREATE TABLE IF NOT EXISTS sale_items (
   total INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS purchases (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bill_number TEXT,
+  invoice_number TEXT,
+  vendor_id INTEGER REFERENCES vendors(id) ON DELETE SET NULL,
+  vendor_name TEXT,
+  vendor_phone TEXT,
+  vendor_email TEXT,
+  vendor_pan_vat TEXT,
+  vendor_address TEXT,
+  subtotal INTEGER NOT NULL,
+  discount INTEGER NOT NULL DEFAULT 0,
+  taxable_amount INTEGER,
+  vat_rate REAL DEFAULT 13.0,
+  vat_amount INTEGER NOT NULL DEFAULT 0,
+  grand_total INTEGER,
+  total INTEGER NOT NULL,
+  notes TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS purchase_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  purchase_id INTEGER NOT NULL REFERENCES purchases(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id),
+  product_name TEXT,
+  product_sku TEXT,
+  quantity INTEGER NOT NULL,
+  cost_price INTEGER NOT NULL,
+  selling_price INTEGER,
+  discount INTEGER NOT NULL DEFAULT 0,
+  total INTEGER NOT NULL
+);
+
+-- Alias view for purchase_products as requested
+CREATE VIEW IF NOT EXISTS purchase_products AS SELECT * FROM purchase_items;
+
 CREATE TABLE IF NOT EXISTS stock_movements (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   product_id INTEGER NOT NULL REFERENCES products(id),
   type TEXT NOT NULL,
   quantity INTEGER NOT NULL,
   reference_id INTEGER,
+  vendor_id INTEGER REFERENCES vendors(id) ON DELETE SET NULL,
+  vendor_name TEXT,
   note TEXT,
   created_at TEXT NOT NULL
 );
@@ -115,6 +189,7 @@ CREATE INDEX IF NOT EXISTS idx_sale_items_sale_id ON sale_items(sale_id);
 CREATE INDEX IF NOT EXISTS idx_sale_items_product_id ON sale_items(product_id);
 CREATE INDEX IF NOT EXISTS idx_stock_movements_product_id ON stock_movements(product_id);
 CREATE INDEX IF NOT EXISTS idx_sales_created_at ON sales(created_at);
+CREATE INDEX IF NOT EXISTS idx_sales_bill_number ON sales(bill_number);
 CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
 CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category);
 CREATE INDEX IF NOT EXISTS idx_staff_status ON staff(status);
@@ -122,4 +197,19 @@ CREATE INDEX IF NOT EXISTS idx_salary_payments_staff_id ON salary_payments(staff
 CREATE INDEX IF NOT EXISTS idx_salary_payments_date ON salary_payments(payment_date);
 CREATE INDEX IF NOT EXISTS idx_salary_payments_period ON salary_payments(payment_period);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_shops_email ON shops(email);
+CREATE INDEX IF NOT EXISTS idx_vendors_name ON vendors(name);
+CREATE INDEX IF NOT EXISTS idx_vendors_pan_vat ON vendors(pan_vat);
+CREATE INDEX IF NOT EXISTS idx_vendors_phone ON vendors(phone);
+CREATE INDEX IF NOT EXISTS idx_products_vendor_id ON products(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_vendor_id ON stock_movements(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
+CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
+CREATE INDEX IF NOT EXISTS idx_customers_pan_vat ON customers(pan_vat);
+CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
+CREATE INDEX IF NOT EXISTS idx_sales_customer_id ON sales(customer_id);
+CREATE INDEX IF NOT EXISTS idx_purchases_vendor_id ON purchases(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_purchases_bill_number ON purchases(bill_number);
+CREATE INDEX IF NOT EXISTS idx_purchases_created_at ON purchases(created_at);
+CREATE INDEX IF NOT EXISTS idx_purchase_items_purchase_id ON purchase_items(purchase_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_items_product_id ON purchase_items(product_id);
 `;

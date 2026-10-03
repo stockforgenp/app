@@ -1,0 +1,709 @@
+/**
+ * Vendors Management View
+ * Dedicated section for supplier and vendor management.
+ * Tracks contact details, PAN/VAT registration, supplied products, and purchase history.
+ */
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import {
+  Building2,
+  Plus,
+  Search,
+  Phone,
+  Mail,
+  FileText,
+  MapPin,
+  Package,
+  DollarSign,
+  Copy,
+  Check,
+  Edit2,
+  Trash2,
+  AlertCircle,
+  ExternalLink,
+  Receipt,
+  Eye,
+} from 'lucide-react';
+import { Vendor, Product, CreateVendorInput } from '../../types/index.ts';
+import {
+  getAllVendors,
+  createVendor,
+  updateVendor,
+  deleteVendor,
+  getVendorProducts,
+} from '../../lib/services/vendorService.ts';
+import { formatCurrency, fromMinorUnits, formatDate } from '../../lib/utils/format.ts';
+import { Modal } from '../common/Modal.tsx';
+import { ConfirmDialog } from '../common/ConfirmDialog.tsx';
+import { ActionMenu } from '../common/ActionMenu.tsx';
+import { useToast } from '../../context/ToastContext.tsx';
+import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
+import { useLanguage } from '../../context/LanguageContext.tsx';
+
+interface VendorsViewProps {
+  currencySymbol: string;
+  onNavigateToProducts?: () => void;
+}
+
+export const VendorsView: React.FC<VendorsViewProps> = ({
+  currencySymbol,
+  onNavigateToProducts,
+}) => {
+  const { showToast } = useToast();
+  const { t, isNepali, formatNumberByLang } = useLanguage();
+
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [search, setSearch] = useState('');
+  const [copiedPan, setCopiedPan] = useState<string | null>(null);
+
+  // Modals
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+  const [deletingVendor, setDeletingVendor] = useState<Vendor | null>(null);
+
+  // Supplied products inspect modal
+  const [inspectVendor, setInspectVendor] = useState<Vendor | null>(null);
+  const [inspectProducts, setInspectProducts] = useState<Product[]>([]);
+
+  // Form Fields
+  const [formData, setFormData] = useState<CreateVendorInput>({
+    name: '',
+    pan_vat: '',
+    phone: '',
+    email: '',
+    address: '',
+    notes: '',
+  });
+
+  const loadVendors = useCallback(() => {
+    try {
+      setVendors(getAllVendors());
+    } catch (e) {
+      console.error('Error fetching vendors:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadVendors();
+    const unsubscribe = subscribeToDbChanges(loadVendors);
+    return unsubscribe;
+  }, [loadVendors]);
+
+  const handleOpenCreate = () => {
+    setEditingVendor(null);
+    setFormData({
+      name: '',
+      pan_vat: '',
+      phone: '',
+      email: '',
+      address: '',
+      notes: '',
+    });
+    setIsFormModalOpen(true);
+  };
+
+  const handleOpenEdit = (v: Vendor) => {
+    setEditingVendor(v);
+    setFormData({
+      name: v.name,
+      pan_vat: v.pan_vat || '',
+      phone: v.phone || '',
+      email: v.email || '',
+      address: v.address || '',
+      notes: v.notes || '',
+    });
+    setIsFormModalOpen(true);
+  };
+
+  const handleViewProducts = (v: Vendor) => {
+    try {
+      const prods = getVendorProducts(v.id);
+      setInspectProducts(prods);
+      setInspectVendor(v);
+    } catch (e) {
+      console.error('Error fetching vendor products:', e);
+    }
+  };
+
+  const handleCopyPan = (pan: string) => {
+    navigator.clipboard.writeText(pan);
+    setCopiedPan(pan);
+    showToast(isNepali ? 'PAN/VAT नम्बर प्रतिलिपि गरियो' : 'PAN/VAT copied to clipboard', 'info');
+    setTimeout(() => setCopiedPan(null), 2000);
+  };
+
+  const handleSubmitForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) {
+      showToast(isNepali ? 'आपूर्तिकर्ताको नाम आवश्यक छ' : 'Vendor name is required', 'warning');
+      return;
+    }
+
+    try {
+      if (editingVendor) {
+        updateVendor(editingVendor.id, formData);
+        showToast(
+          isNepali
+            ? `आपूर्तिकर्ता "${formData.name.trim()}" अद्यावधिक गरियो`
+            : `Vendor "${formData.name.trim()}" updated successfully`,
+          'success'
+        );
+      } else {
+        createVendor(formData);
+        showToast(
+          isNepali
+            ? `नयाँ आपूर्तिकर्ता "${formData.name.trim()}" सफलतापूर्वक थपियो`
+            : `Vendor "${formData.name.trim()}" created successfully`,
+          'success'
+        );
+      }
+      setIsFormModalOpen(false);
+      loadVendors();
+    } catch (err: unknown) {
+      showToast((err as Error).message, 'error');
+    }
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deletingVendor) return;
+    try {
+      deleteVendor(deletingVendor.id);
+      showToast(
+        isNepali
+          ? `आपूर्तिकर्ता "${deletingVendor.name}" हटाइयो`
+          : `Vendor "${deletingVendor.name}" deleted successfully`,
+        'success'
+      );
+      loadVendors();
+    } catch (err: unknown) {
+      showToast((err as Error).message, 'error');
+    } finally {
+      setDeletingVendor(null);
+    }
+  };
+
+  // Filtered vendors
+  const filteredVendors = useMemo(() => {
+    if (!search.trim()) return vendors;
+    const q = search.toLowerCase();
+    return vendors.filter(
+      (v) =>
+        v.name.toLowerCase().includes(q) ||
+        (v.pan_vat && v.pan_vat.toLowerCase().includes(q)) ||
+        (v.phone && v.phone.toLowerCase().includes(q)) ||
+        (v.email && v.email.toLowerCase().includes(q)) ||
+        (v.address && v.address.toLowerCase().includes(q))
+    );
+  }, [vendors, search]);
+
+  // Aggregate Metrics
+  const metrics = useMemo(() => {
+    const totalCount = vendors.length;
+    const withPanCount = vendors.filter((v) => !!v.pan_vat && v.pan_vat.trim() !== '').length;
+    const totalProducts = vendors.reduce((acc, v) => acc + (v.product_count || 0), 0);
+    const totalPurchasedMinor = vendors.reduce((acc, v) => acc + (v.total_purchased || 0), 0);
+
+    return {
+      totalCount,
+      withPanCount,
+      totalProducts,
+      totalPurchasedMinor,
+    };
+  }, [vendors]);
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      {/* Metrics Banner */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <motion.div
+          whileHover={{ y: -2 }}
+          className="bg-neutral-900 border border-neutral-800 p-4 rounded-xl flex items-center justify-between"
+        >
+          <div>
+            <p className="text-xs font-medium text-neutral-400">
+              {isNepali ? 'कुल आपूर्तिकर्ताहरू' : 'Total Vendors'}
+            </p>
+            <h3 className="text-2xl font-bold text-neutral-100 mt-1">
+              {formatNumberByLang(metrics.totalCount)}
+            </h3>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <Building2 className="w-5 h-5" />
+          </div>
+        </motion.div>
+
+        <motion.div
+          whileHover={{ y: -2 }}
+          className="bg-neutral-900 border border-neutral-800 p-4 rounded-xl flex items-center justify-between"
+        >
+          <div>
+            <p className="text-xs font-medium text-neutral-400">
+              {isNepali ? 'PAN / VAT दर्ता भएका' : 'PAN/VAT Registered'}
+            </p>
+            <h3 className="text-2xl font-bold text-sky-400 mt-1">
+              {formatNumberByLang(metrics.withPanCount)}
+            </h3>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center">
+            <FileText className="w-5 h-5" />
+          </div>
+        </motion.div>
+
+        <motion.div
+          whileHover={{ y: -2 }}
+          className="bg-neutral-900 border border-neutral-800 p-4 rounded-xl flex items-center justify-between"
+        >
+          <div>
+            <p className="text-xs font-medium text-neutral-400">
+              {isNepali ? 'सम्बन्धित सामानहरू' : 'Supplied Items'}
+            </p>
+            <h3 className="text-2xl font-bold text-amber-400 mt-1">
+              {formatNumberByLang(metrics.totalProducts)}
+            </h3>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
+            <Package className="w-5 h-5" />
+          </div>
+        </motion.div>
+
+        <motion.div
+          whileHover={{ y: -2 }}
+          className="bg-neutral-900 border border-neutral-800 p-4 rounded-xl flex items-center justify-between"
+        >
+          <div>
+            <p className="text-xs font-medium text-neutral-400">
+              {isNepali ? 'कुल खरिद रकम' : 'Total Purchased'}
+            </p>
+            <h3 className="text-2xl font-bold text-purple-400 mt-1">
+              {formatCurrency(metrics.totalPurchasedMinor, currencySymbol)}
+            </h3>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
+            <DollarSign className="w-5 h-5" />
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Action Header & Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+          <input
+            type="text"
+            placeholder={
+              isNepali
+                ? 'आपूर्तिकर्ताको नाम, PAN/VAT, फोन वा ठेगाना खोज्नुहोस्...'
+                : 'Search vendors by name, PAN/VAT, phone, address...'
+            }
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/60 transition-colors"
+          />
+        </div>
+
+        <button
+          onClick={handleOpenCreate}
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition-colors shadow-sm cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          <span>{isNepali ? 'नयाँ आपूर्तिकर्ता थप्नुहोस्' : 'Add Vendor'}</span>
+        </button>
+      </div>
+
+      {/* Vendors Data Table */}
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-neutral-950/70 text-xs font-semibold uppercase text-neutral-400 border-b border-neutral-800 tracking-wider">
+              <tr>
+                <th className="px-5 py-3.5">{isNepali ? 'आपूर्तिकर्ताको नाम' : 'Vendor / Supplier'}</th>
+                <th className="px-5 py-3.5">PAN / VAT</th>
+                <th className="px-5 py-3.5">{isNepali ? 'सम्पर्क' : 'Contact'}</th>
+                <th className="px-5 py-3.5">{isNepali ? 'ठेगाना' : 'Address'}</th>
+                <th className="px-5 py-3.5 text-center">{isNepali ? 'सामान' : 'Products'}</th>
+                <th className="px-5 py-3.5 text-right">{isNepali ? 'खरिद रकम' : 'Purchased'}</th>
+                <th className="px-5 py-3.5 text-right">{isNepali ? 'कार्य' : 'Actions'}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-800/60">
+              {filteredVendors.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-5 py-12 text-center text-neutral-500">
+                    <Building2 className="w-8 h-8 mx-auto mb-2 opacity-40 text-neutral-400" />
+                    <p className="font-medium">
+                      {search
+                        ? isNepali
+                          ? 'कुनै आपूर्तिकर्ता भेटिएन'
+                          : 'No matching vendors found'
+                        : isNepali
+                        ? 'कुनै आपूर्तिकर्ता दर्ता गरिएको छैन'
+                        : 'No vendors registered yet'}
+                    </p>
+                    <p className="text-xs text-neutral-500 mt-1">
+                      {search
+                        ? isNepali
+                          ? 'कृपया अन्य खोज शब्द प्रयोग गर्नुहोस्'
+                          : 'Try adjusting your search criteria'
+                        : isNepali
+                        ? 'सामान थप्दा वा यहाँबाट नयाँ आपूर्तिकर्ता जोड्न सक्नुहुन्छ'
+                        : 'Add vendors when purchasing products or create one directly here'}
+                    </p>
+                    {!search && (
+                      <button
+                        onClick={handleOpenCreate}
+                        className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>{isNepali ? 'पहिलो आपूर्तिकर्ता थप्नुहोस्' : 'Add First Vendor'}</span>
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ) : (
+                filteredVendors.map((vendor) => (
+                  <tr
+                    key={vendor.id}
+                    className="hover:bg-neutral-850/50 transition-colors group"
+                  >
+                    <td className="px-5 py-3.5">
+                      <div className="font-medium text-neutral-100 flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                          <Building2 className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold">{vendor.name}</p>
+                          {vendor.notes && (
+                            <p className="text-xs text-neutral-500 truncate max-w-xs">
+                              {vendor.notes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="px-5 py-3.5 whitespace-nowrap">
+                      {vendor.pan_vat ? (
+                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-neutral-800 border border-neutral-700/80 text-xs font-mono text-neutral-200">
+                          <span>{vendor.pan_vat}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyPan(vendor.pan_vat!)}
+                            title="Copy PAN/VAT"
+                            className="text-neutral-400 hover:text-emerald-400 transition-colors cursor-pointer p-0.5"
+                          >
+                            {copiedPan === vendor.pan_vat ? (
+                              <Check className="w-3 h-3 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3 h-3" />
+                            )}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-neutral-500 italic">
+                          {isNepali ? 'उल्लेख छैन' : 'Not recorded'}
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="px-5 py-3.5 whitespace-nowrap text-xs text-neutral-300">
+                      <div className="space-y-0.5">
+                        {vendor.phone && (
+                          <div className="flex items-center gap-1.5 text-neutral-300">
+                            <Phone className="w-3 h-3 text-neutral-500" />
+                            <span>{vendor.phone}</span>
+                          </div>
+                        )}
+                        {vendor.email && (
+                          <div className="flex items-center gap-1.5 text-neutral-400">
+                            <Mail className="w-3 h-3 text-neutral-500" />
+                            <span className="truncate max-w-[160px]">{vendor.email}</span>
+                          </div>
+                        )}
+                        {!vendor.phone && !vendor.email && (
+                          <span className="text-neutral-500 italic">—</span>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="px-5 py-3.5 text-xs text-neutral-300">
+                      {vendor.address ? (
+                        <div className="flex items-center gap-1.5 max-w-xs truncate">
+                          <MapPin className="w-3 h-3 text-neutral-500 shrink-0" />
+                          <span className="truncate">{vendor.address}</span>
+                        </div>
+                      ) : (
+                        <span className="text-neutral-500 italic">—</span>
+                      )}
+                    </td>
+
+                    <td className="px-5 py-3.5 whitespace-nowrap text-center">
+                      <button
+                        onClick={() => handleViewProducts(vendor)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-neutral-800 hover:bg-neutral-750 text-neutral-300 hover:text-neutral-100 border border-neutral-700/60 transition-colors cursor-pointer"
+                        title={isNepali ? 'सम्बन्धित सामानहरू हेर्नुहोस्' : 'View supplied products'}
+                      >
+                        <Package className="w-3 h-3 text-amber-400" />
+                        <span>{formatNumberByLang(vendor.product_count || 0)}</span>
+                      </button>
+                    </td>
+
+                    <td className="px-5 py-3.5 whitespace-nowrap text-right text-xs font-medium text-neutral-200">
+                      {formatCurrency(vendor.total_purchased || 0, currencySymbol)}
+                    </td>
+
+                    <td className="px-5 py-3.5 whitespace-nowrap text-right">
+                      <ActionMenu
+                        items={[
+                          {
+                            label: isNepali ? 'सामानहरू हेर्नुहोस्' : 'View Products',
+                            icon: <Eye className="w-4 h-4 text-amber-400" />,
+                            onClick: () => handleViewProducts(vendor),
+                          },
+                          {
+                            label: isNepali ? 'सम्पादन गर्नुहोस्' : 'Edit Vendor',
+                            icon: <Edit2 className="w-4 h-4 text-emerald-400" />,
+                            onClick: () => handleOpenEdit(vendor),
+                          },
+                          {
+                            label: isNepali ? 'हटाउनुहोस्' : 'Delete Vendor',
+                            icon: <Trash2 className="w-4 h-4 text-rose-400" />,
+                            variant: 'danger',
+                            onClick: () => setDeletingVendor(vendor),
+                          },
+                        ]}
+                      />
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Add / Edit Vendor Modal */}
+      <Modal
+        isOpen={isFormModalOpen}
+        onClose={() => setIsFormModalOpen(false)}
+        title={
+          editingVendor
+            ? isNepali
+              ? 'आपूर्तिकर्ता सम्पादन गर्नुहोस्'
+              : 'Edit Vendor Details'
+            : isNepali
+            ? 'नयाँ आपूर्तिकर्ता थप्नुहोस्'
+            : 'Add New Vendor'
+        }
+      >
+        <form onSubmit={handleSubmitForm} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-neutral-300 mb-1">
+              {isNepali ? 'आपूर्तिकर्ताको नाम' : 'Vendor / Business Name'}{' '}
+              <span className="text-rose-400">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              placeholder={isNepali ? 'जस्तै: सूर्य डिस्ट्रिब्युटर्स' : 'e.g. Acme Supplies Pvt. Ltd.'}
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                PAN / VAT {isNepali ? 'नम्बर' : 'Number'}
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 601234567"
+                value={formData.pan_vat || ''}
+                onChange={(e) => setFormData({ ...formData, pan_vat: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                {isNepali ? 'फोन नम्बर' : 'Phone / Mobile'}
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 9841234567"
+                value={formData.phone || ''}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                {isNepali ? 'इमेल ठेगाना' : 'Email Address'}
+              </label>
+              <input
+                type="email"
+                placeholder="vendor@example.com"
+                value={formData.email || ''}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                {isNepali ? 'ठेगाना / स्थान' : 'Address / Location'}
+              </label>
+              <input
+                type="text"
+                placeholder={isNepali ? 'जस्तै: नयाँ सडक, काठमाडौँ' : 'e.g. New Road, Kathmandu'}
+                value={formData.address || ''}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-neutral-300 mb-1">
+              {isNepali ? 'थप कैफियत / टिप्पणी' : 'Notes / Payment Terms'}
+            </label>
+            <textarea
+              rows={2}
+              placeholder={
+                isNepali
+                  ? 'जस्तै: क्रेडिट अवधि १५ दिन, डेलिभरी आइतबार'
+                  : 'e.g. Credit terms 15 days, weekly delivery on Sundays'
+              }
+              value={formData.notes || ''}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors resize-none"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-neutral-800">
+            <button
+              type="button"
+              onClick={() => setIsFormModalOpen(false)}
+              className="px-4 py-2 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors cursor-pointer"
+            >
+              {isNepali ? 'रद्द गर्नुहोस्' : 'Cancel'}
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors cursor-pointer"
+            >
+              {editingVendor
+                ? isNepali
+                  ? 'अद्यावधिक गर्नुहोस्'
+                  : 'Save Changes'
+                : isNepali
+                ? 'आपूर्तिकर्ता थप्नुहोस्'
+                : 'Create Vendor'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Inspect Supplied Products Modal */}
+      <Modal
+        isOpen={!!inspectVendor}
+        onClose={() => setInspectVendor(null)}
+        title={
+          inspectVendor
+            ? `${isNepali ? 'आपूर्तिकर्ताका सामानहरू' : 'Supplied Products'} — ${inspectVendor.name}`
+            : 'Supplied Products'
+        }
+      >
+        <div className="space-y-4">
+          <div className="bg-neutral-850 p-3 rounded-lg border border-neutral-800 flex items-center justify-between text-xs">
+            <div>
+              <p className="text-neutral-400">{isNepali ? 'PAN / VAT' : 'Tax ID'}</p>
+              <p className="font-mono text-neutral-200 mt-0.5">
+                {inspectVendor?.pan_vat || '—'}
+              </p>
+            </div>
+            {inspectVendor?.phone && (
+              <div>
+                <p className="text-neutral-400">{isNepali ? 'सम्पर्क' : 'Phone'}</p>
+                <p className="text-neutral-200 mt-0.5">{inspectVendor.phone}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-neutral-400">{isNepali ? 'जम्मा सामान' : 'Items Count'}</p>
+              <p className="text-neutral-200 font-semibold mt-0.5">
+                {formatNumberByLang(inspectProducts.length)}
+              </p>
+            </div>
+          </div>
+
+          <div className="max-h-72 overflow-y-auto rounded-lg border border-neutral-800">
+            {inspectProducts.length === 0 ? (
+              <div className="p-6 text-center text-neutral-500 text-xs">
+                {isNepali
+                  ? 'यस आपूर्तिकर्तासँग जोडिएका कुनै सामान फेला परेन।'
+                  : 'No products currently mapped to this vendor.'}
+              </div>
+            ) : (
+              <table className="w-full text-left text-xs">
+                <thead className="bg-neutral-950 text-neutral-400 border-b border-neutral-800 sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2">{isNepali ? 'सामानको नाम' : 'Product'}</th>
+                    <th className="px-3 py-2">SKU</th>
+                    <th className="px-3 py-2 text-right">{isNepali ? 'लागत मूल्य' : 'Cost Price'}</th>
+                    <th className="px-3 py-2 text-right">{isNepali ? 'बिक्री मूल्य' : 'Selling Price'}</th>
+                    <th className="px-3 py-2 text-right">{isNepali ? 'मौज्दात' : 'Stock'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-850">
+                  {inspectProducts.map((p) => (
+                    <tr key={p.id} className="hover:bg-neutral-850/50">
+                      <td className="px-3 py-2 font-medium text-neutral-100">{p.name}</td>
+                      <td className="px-3 py-2 font-mono text-neutral-400">{p.sku || '—'}</td>
+                      <td className="px-3 py-2 text-right text-neutral-300">
+                        {formatCurrency(p.cost_price, currencySymbol)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-emerald-400 font-medium">
+                        {formatCurrency(p.selling_price, currencySymbol)}
+                      </td>
+                      <td className="px-3 py-2 text-right font-medium text-neutral-200">
+                        {formatNumberByLang(p.current_stock)} {p.unit || 'pcs'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={() => setInspectVendor(null)}
+              className="px-4 py-2 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors cursor-pointer"
+            >
+              {isNepali ? 'बन्द गर्नुहोस्' : 'Close'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Vendor Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={!!deletingVendor}
+        title={isNepali ? 'आपूर्तिकर्ता मेटाउने पुष्टि' : 'Delete Vendor'}
+        message={
+          isNepali
+            ? `के तपाईं निश्चित हुनुहुन्छ कि आपूर्तिकर्ता "${deletingVendor?.name}" मेटाउन चाहनुहुन्छ? सम्बन्धित सामानहरू मेटिने छैनन् तर आपूर्तिकर्ताको नाम अनलिंक हुनेछ।`
+            : `Are you sure you want to delete vendor "${deletingVendor?.name}"? Linked products will not be deleted, but vendor association will be cleared.`
+        }
+        confirmText={isNepali ? 'मेटाउनुहोस्' : 'Delete'}
+        confirmVariant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeletingVendor(null)}
+      />
+    </div>
+  );
+};

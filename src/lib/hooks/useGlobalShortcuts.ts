@@ -30,6 +30,14 @@ export const SHORTCUT_REGISTRY: ShortcutDefinition[] = [
     displayKeys: `${MODIFIER_LABEL}+N`,
   },
   {
+    id: 'nav-purchases',
+    category: 'Navigation',
+    label: 'Purchases (Goods Inflow)',
+    description: 'Process multi-item purchase entries and supplier billing',
+    keys: ['ctrl+b', 'cmd+b', 'alt+b'],
+    displayKeys: `${MODIFIER_LABEL}+B`,
+  },
+  {
     id: 'nav-products',
     category: 'Navigation',
     label: 'Products Catalog',
@@ -52,6 +60,22 @@ export const SHORTCUT_REGISTRY: ShortcutDefinition[] = [
     description: 'Stock valuation, low stock warnings, and reordering',
     keys: ['ctrl+i', 'cmd+i', 'alt+i'],
     displayKeys: `${MODIFIER_LABEL}+I`,
+  },
+  {
+    id: 'nav-vendors',
+    category: 'Navigation',
+    label: 'Vendors & Suppliers',
+    description: 'Manage supplier directory, PAN/VAT info, and purchase records',
+    keys: ['ctrl+v', 'cmd+v', 'alt+v'],
+    displayKeys: `${MODIFIER_LABEL}+V`,
+  },
+  {
+    id: 'nav-customers',
+    category: 'Navigation',
+    label: 'Customers Directory',
+    description: 'Manage customer records, PAN/VAT info, and order history',
+    keys: ['alt+c', 'ctrl+shift+c', 'cmd+shift+c'],
+    displayKeys: `Alt+C`,
   },
   {
     id: 'nav-history',
@@ -284,6 +308,27 @@ export function useGlobalShortcuts({
       if ((isModifier && !e.shiftKey && key === 'i') || (isAlt && key === 'i')) {
         e.preventDefault();
         onNavigate('inventory');
+        return;
+      }
+
+      // Ctrl+B / Cmd+B or Alt+B: Purchases (only if not typing in input)
+      if (!inInput && ((isModifier && !e.shiftKey && key === 'b') || (isAlt && key === 'b'))) {
+        e.preventDefault();
+        onNavigate('purchases');
+        return;
+      }
+
+      // Ctrl+V / Cmd+V or Alt+V: Vendors (only if not typing in input)
+      if (!inInput && ((isModifier && !e.shiftKey && key === 'v') || (isAlt && key === 'v'))) {
+        e.preventDefault();
+        onNavigate('vendors');
+        return;
+      }
+
+      // Alt+C or Ctrl+Shift+C: Customers (only if not typing in input)
+      if (!inInput && ((isAlt && key === 'c') || (isModifier && e.shiftKey && key === 'c'))) {
+        e.preventDefault();
+        onNavigate('customers');
         return;
       }
 

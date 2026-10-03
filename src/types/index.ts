@@ -11,6 +11,8 @@ export interface Product {
   selling_price: number; // Default selling price
   current_stock: number;
   min_stock_alert?: number | null; // Specific minimum alert threshold (defaults to app low_stock_threshold if null)
+  vendor_id?: number | null;
+  vendor_name?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -26,7 +28,7 @@ export interface LowStockAlertItem {
   quantitySold: number;
 }
 
-export type StockMovementType = 'RESTOCK' | 'SALE' | 'ADJUSTMENT' | 'RETURN';
+export type StockMovementType = 'RESTOCK' | 'PURCHASE' | 'SALE' | 'ADJUSTMENT' | 'RETURN';
 
 export interface StockMovement {
   id: number;
@@ -37,16 +39,27 @@ export interface StockMovement {
   type: StockMovementType;
   quantity: number; // Positive for additions, negative for reductions
   reference_id: number | null; // e.g. sale_id
+  vendor_id?: number | null;
+  vendor_name?: string | null;
   note: string | null;
   created_at: string;
 }
 
 export interface Sale {
   id: number;
+  bill_number?: string | null;
+  customer_id?: number | null;
   customer_name?: string | null;
   customer_phone?: string | null;
+  customer_email?: string | null;
+  customer_pan_vat?: string | null;
+  customer_address?: string | null;
   subtotal: number;
   discount: number;
+  taxable_amount?: number;
+  vat_rate?: number;
+  vat_amount?: number;
+  grand_total?: number;
   total: number;
   cost_total?: number;
   gross_profit?: number;
@@ -76,6 +89,77 @@ export interface CartItem {
   quantity: number;
   actual_selling_price: number;
   discount: number; // Monetary discount
+}
+
+export interface Purchase {
+  id: number;
+  bill_number?: string | null;
+  invoice_number?: string | null;
+  vendor_id?: number | null;
+  vendor_name?: string | null;
+  vendor_phone?: string | null;
+  vendor_email?: string | null;
+  vendor_pan_vat?: string | null;
+  vendor_address?: string | null;
+  subtotal: number;
+  discount: number;
+  taxable_amount?: number;
+  vat_rate?: number;
+  vat_amount?: number;
+  grand_total?: number;
+  total: number;
+  notes?: string | null;
+  item_count?: number;
+  total_units?: number;
+  created_at: string;
+}
+
+export interface PurchaseItem {
+  id: number;
+  purchase_id: number;
+  product_id: number;
+  product_name?: string;
+  product_sku?: string | null;
+  product_unit?: string | null;
+  quantity: number;
+  cost_price: number; // Inflow purchase unit price
+  selling_price?: number | null; // Retail selling price if modified
+  discount: number;
+  total: number; // (quantity * cost_price) - discount
+}
+
+export interface PurchaseCartItem {
+  product: Product;
+  quantity: number;
+  cost_price: number; // Unit purchase price
+  selling_price?: number; // Retail selling price
+  discount: number; // Item discount
+}
+
+export interface ProcessPurchaseItemInput {
+  productId: number;
+  quantity: number;
+  costPrice: number;
+  sellingPrice?: number;
+  discount: number;
+}
+
+export interface ProcessPurchaseVendorInfo {
+  vendorId?: number | null;
+  vendorName?: string | null;
+  vendorPhone?: string | null;
+  vendorEmail?: string | null;
+  vendorPanVat?: string | null;
+  vendorAddress?: string | null;
+  invoiceNumber?: string | null;
+  notes?: string | null;
+  vendorInput?: {
+    name: string;
+    pan_vat?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+  };
 }
 
 export interface AppSettings {
@@ -124,6 +208,7 @@ export interface FinancialSummary {
   sales_count: number;
   revenue: number; // Net sales total
   discounts: number;
+  vat_collected?: number;
   cost_of_goods_sold: number;
   gross_profit: number;
   units_sold: number;
@@ -314,4 +399,50 @@ export interface MonthlyPayrollSummary {
   overall_status: 'fully_paid' | 'partially_paid' | 'unpaid';
   staff_statuses: StaffMonthlyPayrollStatus[];
   today_status: TodayPayrollStatus;
+}
+
+export interface Vendor {
+  id: number;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  pan_vat?: string | null;
+  address?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  product_count?: number;
+  total_purchased?: number;
+}
+
+export interface CreateVendorInput {
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  pan_vat?: string | null;
+  address?: string | null;
+  notes?: string | null;
+}
+
+export interface Customer {
+  id: number;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  pan_vat?: string | null;
+  address?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  sales_count?: number;
+  total_spent?: number;
+}
+
+export interface CreateCustomerInput {
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  pan_vat?: string | null;
+  address?: string | null;
+  notes?: string | null;
 }

@@ -57,7 +57,7 @@ function migrateDatabaseIfNeeded(db: Database) {
       changed = true;
     }
 
-    // Ensure products min_stock_alert and unit columns exist
+    // Ensure products min_stock_alert, unit, vendor_id, vendor_name columns exist
     const productTableInfo = db.exec("PRAGMA table_info(products);");
     if (productTableInfo.length > 0 && productTableInfo[0].values) {
       const colNames = productTableInfo[0].values.map((col: unknown[]) => col[1] as string);
@@ -67,6 +67,28 @@ function migrateDatabaseIfNeeded(db: Database) {
       }
       if (!colNames.includes('unit')) {
         db.run("ALTER TABLE products ADD COLUMN unit TEXT DEFAULT 'pcs';");
+        changed = true;
+      }
+      if (!colNames.includes('vendor_id')) {
+        db.run('ALTER TABLE products ADD COLUMN vendor_id INTEGER REFERENCES vendors(id) ON DELETE SET NULL;');
+        changed = true;
+      }
+      if (!colNames.includes('vendor_name')) {
+        db.run('ALTER TABLE products ADD COLUMN vendor_name TEXT;');
+        changed = true;
+      }
+    }
+
+    // Ensure stock_movements vendor_id and vendor_name columns exist
+    const movementTableInfo = db.exec("PRAGMA table_info(stock_movements);");
+    if (movementTableInfo.length > 0 && movementTableInfo[0].values) {
+      const colNames = movementTableInfo[0].values.map((col: unknown[]) => col[1] as string);
+      if (!colNames.includes('vendor_id')) {
+        db.run('ALTER TABLE stock_movements ADD COLUMN vendor_id INTEGER REFERENCES vendors(id) ON DELETE SET NULL;');
+        changed = true;
+      }
+      if (!colNames.includes('vendor_name')) {
+        db.run('ALTER TABLE stock_movements ADD COLUMN vendor_name TEXT;');
         changed = true;
       }
     }
@@ -81,6 +103,46 @@ function migrateDatabaseIfNeeded(db: Database) {
       if (!colNames.includes('customer_phone')) {
         db.run('ALTER TABLE sales ADD COLUMN customer_phone TEXT;');
         changed = true;
+      }
+      if (!colNames.includes('bill_number')) {
+        db.run('ALTER TABLE sales ADD COLUMN bill_number TEXT;');
+        db.run('CREATE INDEX IF NOT EXISTS idx_sales_bill_number ON sales(bill_number);');
+        changed = true;
+      }
+      if (!colNames.includes('taxable_amount')) {
+        db.run('ALTER TABLE sales ADD COLUMN taxable_amount INTEGER;');
+        changed = true;
+      }
+      if (!colNames.includes('vat_rate')) {
+        db.run('ALTER TABLE sales ADD COLUMN vat_rate REAL DEFAULT 13.0;');
+        changed = true;
+      }
+      if (!colNames.includes('vat_amount')) {
+        db.run('ALTER TABLE sales ADD COLUMN vat_amount INTEGER DEFAULT 0;');
+        changed = true;
+      }
+      if (!colNames.includes('grand_total')) {
+        db.run('ALTER TABLE sales ADD COLUMN grand_total INTEGER;');
+        changed = true;
+      }
+
+      // Backfill existing rows if bill_number or grand_total is missing
+      try {
+        db.run(`
+          UPDATE sales 
+          SET bill_number = 'BILL-' || substr('00000' || id, -5)
+          WHERE bill_number IS NULL OR bill_number = '';
+        `);
+        db.run(`
+          UPDATE sales 
+          SET taxable_amount = COALESCE(taxable_amount, subtotal - discount),
+              vat_rate = COALESCE(vat_rate, 13.0),
+              vat_amount = COALESCE(vat_amount, round((subtotal - discount) * 0.13)),
+              grand_total = COALESCE(grand_total, total)
+          WHERE grand_total IS NULL;
+        `);
+      } catch {
+        // Ignore backfill errors if tables empty
       }
     }
 
@@ -150,6 +212,60 @@ function migrateDatabaseIfNeeded(db: Database) {
         CREATE INDEX IF NOT EXISTS idx_salary_payments_staff_id ON salary_payments(staff_id);
         CREATE INDEX IF NOT EXISTS idx_salary_payments_date ON salary_payments(payment_date);
         CREATE INDEX IF NOT EXISTS idx_salary_payments_period ON salary_payments(payment_period);
+      `);
+      changed = true;
+    }
+
+    // Ensure purchases table exists
+    const purchasesTable = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='purchases';");
+    if (purchasesTable.length === 0 || purchasesTable[0].values.length === 0) {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS purchases (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          bill_number TEXT,
+          invoice_number TEXT,
+          vendor_id INTEGER REFERENCES vendors(id) ON DELETE SET NULL,
+          vendor_name TEXT,
+          vendor_phone TEXT,
+          vendor_email TEXT,
+          vendor_pan_vat TEXT,
+          vendor_address TEXT,
+          subtotal INTEGER NOT NULL,
+          discount INTEGER NOT NULL DEFAULT 0,
+          taxable_amount INTEGER,
+          vat_rate REAL DEFAULT 13.0,
+          vat_amount INTEGER NOT NULL DEFAULT 0,
+          grand_total INTEGER,
+          total INTEGER NOT NULL,
+          notes TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_purchases_vendor_id ON purchases(vendor_id);
+        CREATE INDEX IF NOT EXISTS idx_purchases_bill_number ON purchases(bill_number);
+        CREATE INDEX IF NOT EXISTS idx_purchases_created_at ON purchases(created_at);
+      `);
+      changed = true;
+    }
+
+    // Ensure purchase_items table exists
+    const purchaseItemsTable = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='purchase_items';");
+    if (purchaseItemsTable.length === 0 || purchaseItemsTable[0].values.length === 0) {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS purchase_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          purchase_id INTEGER NOT NULL REFERENCES purchases(id) ON DELETE CASCADE,
+          product_id INTEGER NOT NULL REFERENCES products(id),
+          product_name TEXT,
+          product_sku TEXT,
+          quantity INTEGER NOT NULL,
+          cost_price INTEGER NOT NULL,
+          selling_price INTEGER,
+          discount INTEGER NOT NULL DEFAULT 0,
+          total INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_purchase_items_purchase_id ON purchase_items(purchase_id);
+        CREATE INDEX IF NOT EXISTS idx_purchase_items_product_id ON purchase_items(product_id);
+        CREATE VIEW IF NOT EXISTS purchase_products AS SELECT * FROM purchase_items;
       `);
       changed = true;
     }

@@ -22,6 +22,9 @@ import {
   Sun,
   Moon,
   Languages,
+  Building2,
+  UserCheck,
+  Truck,
 } from 'lucide-react';
 import { NavTab } from '../layout/Sidebar.tsx';
 import { Product } from '../../types/index.ts';
@@ -100,6 +103,18 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         },
       },
       {
+        id: 'nav-purchases',
+        title: 'Purchases (Goods Inflow POS)',
+        subtitle: 'Process multi-item supplier purchases and restock items',
+        icon: Truck,
+        shortcut: `${MODIFIER_LABEL}+B`,
+        category: 'Screens',
+        action: () => {
+          onNavigate('purchases');
+          onClose();
+        },
+      },
+      {
         id: 'nav-products',
         title: 'Products Catalog',
         subtitle: 'Manage catalog items, pricing, and master data',
@@ -132,6 +147,30 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         category: 'Screens',
         action: () => {
           onNavigate('inventory');
+          onClose();
+        },
+      },
+      {
+        id: 'nav-vendors',
+        title: 'Vendors & Suppliers',
+        subtitle: 'Manage supplier contacts, PAN/VAT info, and purchase history',
+        icon: Building2,
+        shortcut: `${MODIFIER_LABEL}+V`,
+        category: 'Screens',
+        action: () => {
+          onNavigate('vendors');
+          onClose();
+        },
+      },
+      {
+        id: 'nav-customers',
+        title: 'Customers Directory',
+        subtitle: 'View customer contacts, PAN/VAT details, and purchase history',
+        icon: UserCheck,
+        shortcut: `${MODIFIER_LABEL}+C`,
+        category: 'Screens',
+        action: () => {
+          onNavigate('customers');
           onClose();
         },
       },

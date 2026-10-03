@@ -84,6 +84,8 @@ export function createProduct(data: {
   selling_price: number;
   current_stock: number;
   min_stock_alert?: number | null;
+  vendor_id?: number | null;
+  vendor_name?: string | null;
 }): Product {
   const now = new Date().toISOString();
   const name = data.name.trim();
@@ -97,12 +99,14 @@ export function createProduct(data: {
 
   const initialStock = Math.max(0, Math.floor(data.current_stock));
   const minStockAlert = data.min_stock_alert !== undefined ? data.min_stock_alert : null;
+  const vendorId = data.vendor_id ?? null;
+  const vendorName = data.vendor_name?.trim() || null;
 
   return transaction(() => {
     run(
-      `INSERT INTO products (name, sku, unit, cost_price, selling_price, current_stock, min_stock_alert, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [name, sku, unit, data.cost_price, data.selling_price, initialStock, minStockAlert, now, now]
+      `INSERT INTO products (name, sku, unit, cost_price, selling_price, current_stock, min_stock_alert, vendor_id, vendor_name, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, sku, unit, data.cost_price, data.selling_price, initialStock, minStockAlert, vendorId, vendorName, now, now]
     );
 
     const idRes = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
@@ -110,9 +114,9 @@ export function createProduct(data: {
 
     if (initialStock > 0) {
       run(
-        `INSERT INTO stock_movements (product_id, type, quantity, reference_id, note, created_at)
-         VALUES (?, 'RESTOCK', ?, NULL, 'Initial stock for new product', ?)`,
-        [newId, initialStock, now]
+        `INSERT INTO stock_movements (product_id, type, quantity, reference_id, vendor_id, vendor_name, note, created_at)
+         VALUES (?, 'RESTOCK', ?, NULL, ?, ?, 'Initial stock for new product', ?)`,
+        [newId, initialStock, vendorId, vendorName, now]
       );
     }
 
@@ -133,6 +137,8 @@ export function updateProduct(
     cost_price: number;
     selling_price: number;
     min_stock_alert?: number | null;
+    vendor_id?: number | null;
+    vendor_name?: string | null;
   }
 ): void {
   const now = new Date().toISOString();
@@ -146,12 +152,14 @@ export function updateProduct(
   }
 
   const minStockAlert = data.min_stock_alert !== undefined ? data.min_stock_alert : null;
+  const vendorId = data.vendor_id !== undefined ? data.vendor_id : null;
+  const vendorName = data.vendor_name !== undefined ? (data.vendor_name?.trim() || null) : null;
 
   run(
     `UPDATE products 
-     SET name = ?, sku = ?, unit = ?, cost_price = ?, selling_price = ?, min_stock_alert = ?, updated_at = ?
+     SET name = ?, sku = ?, unit = ?, cost_price = ?, selling_price = ?, min_stock_alert = ?, vendor_id = ?, vendor_name = ?, updated_at = ?
      WHERE id = ?`,
-    [name, sku, unit, data.cost_price, data.selling_price, minStockAlert, now, id]
+    [name, sku, unit, data.cost_price, data.selling_price, minStockAlert, vendorId, vendorName, now, id]
   );
 }
 
