@@ -6,8 +6,8 @@
  * - Product rankings: Best-selling by quantity, Highest revenue, Highest profit
  * - Interactive daily trend bar chart
  */
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useMemo } from "react";
+import { motion } from "framer-motion";
 import {
   TrendingUp,
   TrendingDown,
@@ -19,31 +19,37 @@ import {
   Boxes,
   Calendar,
   Layers,
-} from 'lucide-react';
-import { Input } from '../common/Input.tsx';
+} from "lucide-react";
+import { Input } from "../common/Input.tsx";
 import {
   DateFilterPreset,
   getDateRangeFromPreset,
   getFinancialSummary,
   getProductAnalytics,
   getDailySalesTrend,
-} from '../../lib/services/analyticsService.ts';
+} from "../../lib/services/analyticsService.ts";
 import {
   formatCurrency,
   formatNumber,
   formatDate,
-} from '../../lib/utils/format.ts';
-import { FinancialSummary, ProductAnalytics, DailySalesData } from '../../types/index.ts';
-import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
+} from "../../lib/utils/format.ts";
+import {
+  FinancialSummary,
+  ProductAnalytics,
+  DailySalesData,
+} from "../../types/index.ts";
+import { subscribeToDbChanges } from "../../lib/db/sqliteEngine.ts";
 
 interface AnalyticsViewProps {
   currencySymbol: string;
 }
 
-export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) => {
-  const [preset, setPreset] = useState<DateFilterPreset>('7days');
-  const [customStart, setCustomStart] = useState('');
-  const [customEnd, setCustomEnd] = useState('');
+export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
+  currencySymbol,
+}) => {
+  const [preset, setPreset] = useState<DateFilterPreset>("7days");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
 
   const [summary, setSummary] = useState<FinancialSummary>({
     sales_count: 0,
@@ -59,10 +65,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
   const [topProfit, setTopProfit] = useState<ProductAnalytics[]>([]);
   const [dailyTrend, setDailyTrend] = useState<DailySalesData[]>([]);
 
-  const [activeTab, setActiveTab] = useState<'selling' | 'revenue' | 'profit'>('selling');
+  const [activeTab, setActiveTab] = useState<"selling" | "revenue" | "profit">(
+    "selling",
+  );
 
   const activeRange = useMemo(() => {
-    if (preset === 'custom' && customStart && customEnd) {
+    if (preset === "custom" && customStart && customEnd) {
       return {
         startDate: `${customStart}T00:00:00.000Z`,
         endDate: `${customEnd}T23:59:59.999Z`,
@@ -73,18 +81,27 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
 
   const loadData = () => {
     try {
-      const sum = getFinancialSummary(activeRange.startDate, activeRange.endDate);
+      const sum = getFinancialSummary(
+        activeRange.startDate,
+        activeRange.endDate,
+      );
       setSummary(sum);
 
-      const productsData = getProductAnalytics(activeRange.startDate, activeRange.endDate);
+      const productsData = getProductAnalytics(
+        activeRange.startDate,
+        activeRange.endDate,
+      );
       setTopSelling(productsData.topSelling);
       setTopRevenue(productsData.topRevenue);
       setTopProfit(productsData.topProfit);
 
-      const trend = getDailySalesTrend(activeRange.startDate, activeRange.endDate);
+      const trend = getDailySalesTrend(
+        activeRange.startDate,
+        activeRange.endDate,
+      );
       setDailyTrend(trend);
     } catch (e) {
-      console.error('Error loading analytics:', e);
+      console.error("Error loading analytics:", e);
     }
   };
 
@@ -103,9 +120,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
       {/* Header & Date Range Selection */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-neutral-100">Financial Analytics</h1>
+          <h1 className="text-xl font-bold tracking-tight text-neutral-100">
+            Financial Analytics
+          </h1>
           <p className="text-xs text-neutral-400 mt-1">
-            Aggregated revenue, costs of goods sold, profit margins, and volume analytics
+            Aggregated revenue, costs of goods sold, profit margins, and volume
+            analytics
           </p>
         </div>
 
@@ -113,13 +133,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
         <div className="flex flex-wrap items-center gap-1.5 p-1 bg-neutral-950 rounded-lg border border-neutral-800">
           {(
             [
-              { id: 'today', label: 'Today' },
-              { id: 'yesterday', label: 'Yesterday' },
-              { id: '7days', label: 'Last 7 Days' },
-              { id: '30days', label: 'Last 30 Days' },
-              { id: 'month', label: 'This Month' },
-              { id: 'all', label: 'All Time' },
-              { id: 'custom', label: 'Custom' },
+              { id: "today", label: "Today" },
+              { id: "yesterday", label: "Yesterday" },
+              { id: "7days", label: "Last 7 Days" },
+              { id: "30days", label: "Last 30 Days" },
+              { id: "month", label: "This Month" },
+              { id: "all", label: "All Time" },
+              { id: "custom", label: "Custom" },
             ] as const
           ).map((item) => (
             <motion.button
@@ -128,15 +148,15 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
               onClick={() => setPreset(item.id)}
               className={`relative px-3 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                 preset === item.id
-                  ? 'text-neutral-100 font-semibold'
-                  : 'text-neutral-400 hover:text-neutral-200'
+                  ? "text-neutral-100 font-semibold"
+                  : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
               {preset === item.id && (
                 <motion.div
                   layoutId="analyticsPresetHighlight"
                   className="absolute inset-0 bg-neutral-800 rounded-md shadow-xs"
-                  transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 350 }}
                 />
               )}
               <span className="relative z-10">{item.label}</span>
@@ -146,10 +166,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
       </div>
 
       {/* Custom Date Inputs (when 'custom' preset is selected) */}
-      {preset === 'custom' && (
+      {preset === "custom" && (
         <div className="flex items-center gap-3 p-3 bg-neutral-900 rounded-xl border border-neutral-800 text-xs">
           <Calendar className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span className="text-neutral-300 font-medium shrink-0">Select Range:</span>
+          <span className="text-neutral-300 font-medium shrink-0">
+            Select Range:
+          </span>
           <Input
             type="date"
             value={customStart}
@@ -220,7 +242,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
             {formatCurrency(summary.gross_profit, currencySymbol)}
           </div>
           <div className="text-[11px] text-neutral-400 mt-1">
-            Margin: {summary.revenue > 0 ? `${((summary.gross_profit / summary.revenue) * 100).toFixed(1)}%` : '0.0%'}
+            Margin:{" "}
+            {summary.revenue > 0
+              ? `${((summary.gross_profit / summary.revenue) * 100).toFixed(1)}%`
+              : "0.0%"}
           </div>
         </motion.div>
 
@@ -247,7 +272,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
           <div className="flex items-baseline gap-3 mt-2">
             <span
               className={`text-2xl font-bold font-mono tabular-nums ${
-                (summary.net_profit ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                (summary.net_profit ?? 0) >= 0
+                  ? "text-emerald-400"
+                  : "text-rose-400"
               }`}
             >
               {formatCurrency(summary.net_profit ?? 0, currencySymbol)}
@@ -255,11 +282,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
             <span className="text-xs text-neutral-400">
               {summary.revenue > 0
                 ? `${(((summary.net_profit ?? 0) / summary.revenue) * 100).toFixed(1)}% net margin`
-                : ''}
+                : ""}
             </span>
           </div>
           <div className="text-[11px] text-neutral-400 mt-1">
-            Gross Profit ({formatCurrency(summary.gross_profit, currencySymbol)}) minus Total Expenses ({formatCurrency(summary.total_expenses ?? 0, currencySymbol)})
+            Gross Profit ({formatCurrency(summary.gross_profit, currencySymbol)}
+            ) minus Total Expenses (
+            {formatCurrency(summary.total_expenses ?? 0, currencySymbol)})
           </div>
         </div>
 
@@ -284,10 +313,16 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
             <Receipt className="w-3.5 h-3.5 text-neutral-400" />
           </div>
           <div className="text-sm font-bold font-mono text-neutral-100 mt-2">
-            {summary.sales_count} <span className="text-[11px] font-normal text-neutral-400">transactions</span>
+            {summary.sales_count}{" "}
+            <span className="text-[11px] font-normal text-neutral-400">
+              transactions
+            </span>
           </div>
           <div className="text-xs font-mono text-neutral-300 mt-0.5">
-            {summary.units_sold} <span className="text-[11px] font-normal text-neutral-400">units sold</span>
+            {summary.units_sold}{" "}
+            <span className="text-[11px] font-normal text-neutral-400">
+              units sold
+            </span>
           </div>
         </div>
       </div>
@@ -296,9 +331,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-neutral-100">Daily Sales & Gross Profit Trend</h2>
+            <h2 className="text-sm font-semibold text-neutral-100">
+              Daily Sales & Gross Profit Trend
+            </h2>
             <p className="text-xs text-neutral-400 mt-0.5">
-              Comparison of daily revenue (dark bar) vs daily gross profit (emerald bar)
+              Comparison of daily revenue (dark bar) vs daily gross profit
+              (emerald bar)
             </p>
           </div>
           <div className="flex items-center gap-4 text-xs font-mono">
@@ -321,10 +359,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
           <div className="pt-4 pb-2">
             <div className="flex items-end gap-3 h-48 border-b border-neutral-800 px-2 overflow-x-auto">
               {dailyTrend.map((day) => {
-                const revenueHeightPercent = Math.max(8, (day.revenue / maxTrendRevenue) * 100);
+                const revenueHeightPercent = Math.max(
+                  8,
+                  (day.revenue / maxTrendRevenue) * 100,
+                );
                 const profitHeightPercent = Math.max(
                   4,
-                  (Math.max(0, day.profit) / maxTrendRevenue) * 100
+                  (Math.max(0, day.profit) / maxTrendRevenue) * 100,
                 );
 
                 return (
@@ -335,8 +376,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
                     {/* Tooltip on hover */}
                     <div className="absolute -top-14 bg-neutral-950 border border-neutral-800 rounded px-2 py-1 text-[10px] text-neutral-200 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap shadow-xl">
                       <div>{formatDate(day.date)}</div>
-                      <div className="text-neutral-300 font-mono">Rev: {formatCurrency(day.revenue, currencySymbol)}</div>
-                      <div className="text-emerald-400 font-mono">Profit: {formatCurrency(day.profit, currencySymbol)}</div>
+                      <div className="text-neutral-300 font-mono">
+                        Rev: {formatCurrency(day.revenue, currencySymbol)}
+                      </div>
+                      <div className="text-emerald-400 font-mono">
+                        Profit: {formatCurrency(day.profit, currencySymbol)}
+                      </div>
                     </div>
 
                     <div className="w-full flex items-end justify-center gap-1 h-full pb-1">
@@ -367,7 +412,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
         <div className="p-4 border-b border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-neutral-100">Product Performance Analytics</h2>
+            <h2 className="text-sm font-semibold text-neutral-100">
+              Product Performance Analytics
+            </h2>
             <p className="text-xs text-neutral-400 mt-0.5">
               Inspect underlying sales numbers without subjective ranking labels
             </p>
@@ -376,31 +423,31 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
           {/* Segmented Filter for View Type */}
           <div className="flex items-center gap-1 bg-neutral-950 p-1 rounded-lg border border-neutral-800">
             <button
-              onClick={() => setActiveTab('selling')}
+              onClick={() => setActiveTab("selling")}
               className={`px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer ${
-                activeTab === 'selling'
-                  ? 'bg-neutral-800 text-neutral-100 font-semibold shadow-xs'
-                  : 'text-neutral-400 hover:text-neutral-200'
+                activeTab === "selling"
+                  ? "bg-neutral-800 text-neutral-100 font-semibold shadow-xs"
+                  : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
               By Units Sold
             </button>
             <button
-              onClick={() => setActiveTab('revenue')}
+              onClick={() => setActiveTab("revenue")}
               className={`px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer ${
-                activeTab === 'revenue'
-                  ? 'bg-neutral-800 text-neutral-100 font-semibold shadow-xs'
-                  : 'text-neutral-400 hover:text-neutral-200'
+                activeTab === "revenue"
+                  ? "bg-neutral-800 text-neutral-100 font-semibold shadow-xs"
+                  : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
               By Total Revenue
             </button>
             <button
-              onClick={() => setActiveTab('profit')}
+              onClick={() => setActiveTab("profit")}
               className={`px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer ${
-                activeTab === 'profit'
-                  ? 'bg-neutral-800 text-neutral-100 font-semibold shadow-xs'
-                  : 'text-neutral-400 hover:text-neutral-200'
+                activeTab === "profit"
+                  ? "bg-neutral-800 text-neutral-100 font-semibold shadow-xs"
+                  : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
               By Gross Profit
@@ -415,26 +462,35 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
               <tr>
                 <th className="py-2.5 px-6">Product</th>
                 <th className="py-2.5 px-4 font-mono">SKU</th>
-                <th className="py-2.5 px-4 text-right font-mono">Current Stock</th>
+                <th className="py-2.5 px-4 text-right font-mono">
+                  Current Stock
+                </th>
                 <th className="py-2.5 px-4 text-right font-mono">Units Sold</th>
-                <th className="py-2.5 px-4 text-right font-mono">Total Revenue</th>
+                <th className="py-2.5 px-4 text-right font-mono">
+                  Total Revenue
+                </th>
                 <th className="py-2.5 px-4 text-right font-mono">Total Cost</th>
-                <th className="py-2.5 px-6 text-right font-mono">Gross Profit</th>
+                <th className="py-2.5 px-6 text-right font-mono">
+                  Gross Profit
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800/60">
               {(() => {
                 const list =
-                  activeTab === 'selling'
+                  activeTab === "selling"
                     ? topSelling
-                    : activeTab === 'revenue'
-                    ? topRevenue
-                    : topProfit;
+                    : activeTab === "revenue"
+                      ? topRevenue
+                      : topProfit;
 
                 if (list.length === 0) {
                   return (
                     <tr>
-                      <td colSpan={7} className="py-10 text-center text-neutral-500">
+                      <td
+                        colSpan={7}
+                        className="py-10 text-center text-neutral-500"
+                      >
                         No product sales recorded in the selected date range.
                       </td>
                     </tr>
@@ -442,15 +498,22 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
                 }
 
                 return list.map((item, idx) => (
-                  <tr key={item.product_id} className="hover:bg-neutral-800/30 transition-colors">
+                  <tr
+                    key={item.product_id}
+                    className="hover:bg-neutral-800/30 transition-colors"
+                  >
                     <td className="py-3 px-6">
                       <div className="font-semibold text-neutral-200 flex items-center gap-2">
-                        <span className="font-mono text-neutral-500 text-[11px] w-4">{idx + 1}.</span>
+                        <span className="font-mono text-neutral-500 text-[11px] w-4">
+                          {idx + 1}.
+                        </span>
                         <span>{item.name}</span>
                       </div>
                     </td>
 
-                    <td className="py-3 px-4 font-mono text-neutral-400">{item.sku || '—'}</td>
+                    <td className="py-3 px-4 font-mono text-neutral-400">
+                      {item.sku || "—"}
+                    </td>
 
                     <td className="py-3 px-4 text-right font-mono text-neutral-300">
                       {item.current_stock}
@@ -458,7 +521,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
 
                     <td
                       className={`py-3 px-4 text-right font-mono font-bold ${
-                        activeTab === 'selling' ? 'text-emerald-400' : 'text-neutral-200'
+                        activeTab === "selling"
+                          ? "text-emerald-400"
+                          : "text-neutral-200"
                       }`}
                     >
                       {item.units_sold}
@@ -466,7 +531,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
 
                     <td
                       className={`py-3 px-4 text-right font-mono tabular-nums ${
-                        activeTab === 'revenue' ? 'text-emerald-400 font-bold' : 'text-neutral-300'
+                        activeTab === "revenue"
+                          ? "text-emerald-400 font-bold"
+                          : "text-neutral-300"
                       }`}
                     >
                       {formatCurrency(item.total_revenue, currencySymbol)}
@@ -478,7 +545,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
 
                     <td
                       className={`py-3 px-6 text-right font-mono font-bold tabular-nums ${
-                        activeTab === 'profit' ? 'text-emerald-400' : 'text-emerald-400/90'
+                        activeTab === "profit"
+                          ? "text-emerald-400"
+                          : "text-emerald-400/90"
                       }`}
                     >
                       {formatCurrency(item.total_profit, currencySymbol)}

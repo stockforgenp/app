@@ -68,6 +68,8 @@ import { PrintSalarySlipModal } from '../common/PrintSalarySlipModal.tsx';
 import { ActionMenu } from '../common/ActionMenu.tsx';
 import { Select } from '../common/Select.tsx';
 import { Input } from '../common/Input.tsx';
+import { DateFilterBar } from '../common/DateFilterBar.tsx';
+import { DatePreset } from '../../lib/utils/dateFilters.ts';
 import { useToast } from '../../context/ToastContext.tsx';
 import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
 
@@ -96,6 +98,9 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
   const [paymentSearch, setPaymentSearch] = useState('');
   const [selectedStaffFilter, setSelectedStaffFilter] = useState<number | 'all'>('all');
   const [selectedMethodFilter, setSelectedMethodFilter] = useState<string>('all');
+  const [paymentDatePreset, setPaymentDatePreset] = useState<DatePreset>('all');
+  const [paymentStartDate, setPaymentStartDate] = useState('');
+  const [paymentEndDate, setPaymentEndDate] = useState('');
 
   // Monthly status summary for the selected month/year
   const [monthlyStatus, setMonthlyStatus] = useState<MonthlyPayrollSummary>({
@@ -159,6 +164,8 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
       const staffFilter = selectedStaffFilter === 'all' ? undefined : selectedStaffFilter;
       const paymentRecords = getSalaryPayments({
         staffId: staffFilter,
+        startDate: paymentStartDate || undefined,
+        endDate: paymentEndDate || undefined,
         search: paymentSearch.trim() || undefined,
       });
       setPayments(paymentRecords);
@@ -171,7 +178,7 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
     } catch (err: any) {
       console.error('Error loading payroll data:', err);
     }
-  }, [selectedYear, selectedMonth, selectedStaffFilter, paymentSearch]);
+  }, [selectedYear, selectedMonth, selectedStaffFilter, paymentSearch, paymentStartDate, paymentEndDate]);
 
   useEffect(() => {
     loadData();
@@ -964,68 +971,86 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
       {activeTab === 'ledger' && (
         <div className="space-y-4">
           {/* Filter & Search Bar */}
-          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="flex-1 w-full">
-              <Input
-                type="text"
-                icon={Search}
-                sizeVariant="sm"
-                placeholder="Search payments by staff name, period, reference, or note..."
-                value={paymentSearch}
-                onChange={(e) => setPaymentSearch(e.target.value)}
-              />
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl space-y-3">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex-1 w-full">
+                <Input
+                  type="text"
+                  icon={Search}
+                  sizeVariant="sm"
+                  placeholder="Search payments by staff name, period, reference, or note..."
+                  value={paymentSearch}
+                  onChange={(e) => setPaymentSearch(e.target.value)}
+                />
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                {/* Staff Filter */}
+                <Select
+                  value={selectedStaffFilter}
+                  onChange={(e) =>
+                    setSelectedStaffFilter(
+                      e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10)
+                    )
+                  }
+                  containerClassName="w-48"
+                  sizeVariant="sm"
+                  options={[
+                    { value: 'all', label: 'All Employees' },
+                    ...staffList.map((s) => ({
+                      value: s.id,
+                      label: `${s.name} (${s.role})`,
+                    })),
+                  ]}
+                />
+
+                {/* Payment Method Filter */}
+                <Select
+                  value={selectedMethodFilter}
+                  onChange={(e) => setSelectedMethodFilter(e.target.value)}
+                  containerClassName="w-36"
+                  sizeVariant="sm"
+                  options={[
+                    { value: 'all', label: 'All Methods' },
+                    ...SALARY_PAYMENT_METHODS.map((m) => ({
+                      value: m,
+                      label: m,
+                    })),
+                  ]}
+                />
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
-              {/* Staff Filter */}
-              <Select
-                value={selectedStaffFilter}
-                onChange={(e) =>
-                  setSelectedStaffFilter(
-                    e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10)
-                  )
-                }
-                containerClassName="w-48"
-                sizeVariant="sm"
-                options={[
-                  { value: 'all', label: 'All Employees' },
-                  ...staffList.map((s) => ({
-                    value: s.id,
-                    label: `${s.name} (${s.role})`,
-                  })),
-                ]}
+            {/* Row 2: Date Range Presets & Date Pickers */}
+            <div className="pt-2 border-t border-neutral-800/80">
+              <DateFilterBar
+                preset={paymentDatePreset}
+                onPresetChange={(p, start, end) => {
+                  setPaymentDatePreset(p);
+                  setPaymentStartDate(start);
+                  setPaymentEndDate(end);
+                }}
+                startDate={paymentStartDate}
+                endDate={paymentEndDate}
+                onStartDateChange={setPaymentStartDate}
+                onEndDateChange={setPaymentEndDate}
+                hasActiveFilters={Boolean(
+                  selectedStaffFilter !== 'all' ||
+                  selectedMethodFilter !== 'all' ||
+                  paymentSearch ||
+                  paymentDatePreset !== 'all' ||
+                  paymentStartDate ||
+                  paymentEndDate
+                )}
+                onClear={() => {
+                  setSelectedStaffFilter('all');
+                  setSelectedMethodFilter('all');
+                  setPaymentSearch('');
+                  setPaymentDatePreset('all');
+                  setPaymentStartDate('');
+                  setPaymentEndDate('');
+                }}
               />
-
-              {/* Payment Method Filter */}
-              <Select
-                value={selectedMethodFilter}
-                onChange={(e) => setSelectedMethodFilter(e.target.value)}
-                containerClassName="w-36"
-                sizeVariant="sm"
-                options={[
-                  { value: 'all', label: 'All Methods' },
-                  ...SALARY_PAYMENT_METHODS.map((m) => ({
-                    value: m,
-                    label: m,
-                  })),
-                ]}
-              />
-
-              {(selectedStaffFilter !== 'all' ||
-                selectedMethodFilter !== 'all' ||
-                paymentSearch) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedStaffFilter('all');
-                    setSelectedMethodFilter('all');
-                    setPaymentSearch('');
-                  }}
-                  className="text-xs text-neutral-400 hover:text-neutral-200 px-2 py-1 transition-colors cursor-pointer"
-                >
-                  Reset
-                </button>
-              )}
             </div>
           </div>
 

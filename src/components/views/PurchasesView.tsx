@@ -44,6 +44,8 @@ import { PrintPurchaseBillModal } from '../common/PrintPurchaseBillModal.tsx';
 import { Modal } from '../common/Modal.tsx';
 import { ActionMenu } from '../common/ActionMenu.tsx';
 import { Input } from '../common/Input.tsx';
+import { DateFilterBar } from '../common/DateFilterBar.tsx';
+import { DatePreset, toIsoRange } from '../../lib/utils/dateFilters.ts';
 import {
   formatCurrency,
   toMinorUnits,
@@ -128,6 +130,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
   // Purchase History State
   const [historyList, setHistoryList] = useState<Purchase[]>([]);
   const [historySearch, setHistorySearch] = useState('');
+  const [historyDatePreset, setHistoryDatePreset] = useState<DatePreset>('all');
   const [historyStartDate, setHistoryStartDate] = useState('');
   const [historyEndDate, setHistoryEndDate] = useState('');
   const [inspectPurchaseDetail, setInspectPurchaseDetail] = useState<{
@@ -146,8 +149,9 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
   const loadHistory = () => {
     try {
       const opts: { startDate?: string; endDate?: string; search?: string } = {};
-      if (historyStartDate) opts.startDate = `${historyStartDate}T00:00:00.000Z`;
-      if (historyEndDate) opts.endDate = `${historyEndDate}T23:59:59.999Z`;
+      const { startIso, endIso } = toIsoRange(historyStartDate, historyEndDate);
+      if (startIso) opts.startDate = startIso;
+      if (endIso) opts.endDate = endIso;
       if (historySearch) opts.search = historySearch;
       setHistoryList(getPurchases(opts));
     } catch (e) {
@@ -1038,8 +1042,8 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
           </div>
 
           {/* Filter Bar */}
-          <div className="flex flex-col md:flex-row items-center gap-3 bg-neutral-900 p-3 rounded-xl border border-neutral-800">
-            <div className="flex-1 w-full">
+          <div className="flex flex-col gap-3 bg-neutral-900 p-3.5 rounded-xl border border-neutral-800">
+            <div className="w-full">
               <Input
                 type="text"
                 placeholder={
@@ -1056,38 +1060,28 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
               />
             </div>
 
-            <div className="flex items-center gap-2 w-full md:w-auto">
-              <div className="flex items-center gap-1.5 bg-neutral-950 px-3 py-1.5 rounded-lg border border-neutral-800 text-xs text-neutral-400">
-                <Calendar className="w-3.5 h-3.5 text-neutral-500" />
-                <Input
-                  type="date"
-                  value={historyStartDate}
-                  onChange={(e) => setHistoryStartDate(e.target.value)}
-                  containerClassName="w-auto"
-                  className="bg-transparent border-0 p-0 text-neutral-200 focus:outline-none text-xs"
-                />
-                <span>{isNepali ? 'देखि' : 'to'}</span>
-                <Input
-                  type="date"
-                  value={historyEndDate}
-                  onChange={(e) => setHistoryEndDate(e.target.value)}
-                  containerClassName="w-auto"
-                  className="bg-transparent border-0 p-0 text-neutral-200 focus:outline-none text-xs"
-                />
-              </div>
-
-              {(historyStartDate || historyEndDate || historySearch) && (
-                <button
-                  onClick={() => {
-                    setHistoryStartDate('');
-                    setHistoryEndDate('');
-                    setHistorySearch('');
-                  }}
-                  className="px-3 py-2 text-xs text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer"
-                >
-                  {isNepali ? 'रिसेट' : 'Reset'}
-                </button>
-              )}
+            <div className="pt-2 border-t border-neutral-800/80">
+              <DateFilterBar
+                preset={historyDatePreset}
+                onPresetChange={(p, start, end) => {
+                  setHistoryDatePreset(p);
+                  setHistoryStartDate(start);
+                  setHistoryEndDate(end);
+                }}
+                startDate={historyStartDate}
+                endDate={historyEndDate}
+                onStartDateChange={setHistoryStartDate}
+                onEndDateChange={setHistoryEndDate}
+                hasActiveFilters={Boolean(
+                  historyStartDate || historyEndDate || historySearch || historyDatePreset !== 'all'
+                )}
+                onClear={() => {
+                  setHistoryDatePreset('all');
+                  setHistoryStartDate('');
+                  setHistoryEndDate('');
+                  setHistorySearch('');
+                }}
+              />
             </div>
           </div>
 
