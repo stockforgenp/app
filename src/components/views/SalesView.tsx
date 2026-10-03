@@ -76,8 +76,12 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const [customerPhone, setCustomerPhone] = useState('');
   const [completedSaleInfo, setCompletedSaleInfo] = useState<{
     id: number;
+    billNumber?: string | null;
     subtotal: number;
     discount: number;
+    taxableAmount?: number;
+    vatAmount?: number;
+    grandTotal?: number;
     total: number;
     customerName?: string | null;
     customerPhone?: string | null;
@@ -509,18 +513,14 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const calculations = useMemo(() => {
     let subtotal = 0;
     let totalDiscount = 0;
-    let total = 0;
     let totalUnits = 0;
     let hasStockViolation = false;
     let violationMessage = '';
 
     for (const item of cart) {
       const gross = item.quantity * item.actual_selling_price;
-      const net = Math.max(0, gross - item.discount);
-
       subtotal += gross;
       totalDiscount += item.discount;
-      total += net;
       totalUnits += item.quantity;
 
       if (!allowNegativeStock && item.quantity > item.product.current_stock) {
@@ -529,10 +529,19 @@ export const SalesView: React.FC<SalesViewProps> = ({
       }
     }
 
+    const taxableAmount = Math.max(0, subtotal - totalDiscount);
+    const vatRate = 13.0;
+    const vatAmount = Math.round(taxableAmount * 0.13);
+    const grandTotal = taxableAmount + vatAmount;
+
     return {
       subtotal,
       totalDiscount,
-      total,
+      taxableAmount,
+      vatRate,
+      vatAmount,
+      grandTotal,
+      total: grandTotal,
       totalUnits,
       hasStockViolation,
       violationMessage,
@@ -599,9 +608,13 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
       setCompletedSaleInfo({
         id: sale.id,
+        billNumber: sale.bill_number,
         subtotal: sale.subtotal,
         discount: sale.discount,
-        total: sale.total,
+        taxableAmount: sale.taxable_amount,
+        vatAmount: sale.vat_amount,
+        grandTotal: sale.grand_total,
+        total: sale.grand_total ?? sale.total,
         customerName: sale.customer_name,
         customerPhone: sale.customer_phone,
       });
@@ -1199,28 +1212,47 @@ export const SalesView: React.FC<SalesViewProps> = ({
             {/* Calculations Breakdown */}
             <div className="p-5 bg-neutral-950 border-t border-neutral-800 space-y-3">
               <div className="flex items-center justify-between text-xs text-neutral-400">
-                <span>Subtotal (Gross)</span>
+                <span>{isNepali ? 'उप-जम्मा' : 'Subtotal (Gross)'}</span>
                 <span className="font-mono text-neutral-200">
                   {formatCurrency(calculations.subtotal, currencySymbol)}
                 </span>
               </div>
 
               <div className="flex items-center justify-between text-xs text-neutral-400">
-                <span>Total Item Discounts</span>
+                <span>{isNepali ? 'छुट' : 'Total Item Discounts'}</span>
                 <span className="font-mono text-amber-400">
                   - {formatCurrency(calculations.totalDiscount, currencySymbol)}
                 </span>
               </div>
 
+              <div className="flex items-center justify-between text-xs text-neutral-400">
+                <span>{isNepali ? 'करयोग्य रकम' : 'Taxable Amount'}</span>
+                <span className="font-mono text-neutral-200">
+                  {formatCurrency(calculations.taxableAmount, currencySymbol)}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-neutral-400">
+                <span className="flex items-center gap-1.5">
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-400 border border-sky-500/20 font-bold">
+                    13% VAT
+                  </span>
+                  <span>{isNepali ? 'मूल्य अभिवृद्धि कर' : 'VAT (13%)'}</span>
+                </span>
+                <span className="font-mono text-sky-400">
+                  + {formatCurrency(calculations.vatAmount, currencySymbol)}
+                </span>
+              </div>
+
               <div className="pt-2 border-t border-neutral-800 flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-bold text-neutral-100">Final Total Amount</div>
+                  <div className="text-sm font-bold text-neutral-100">{isNepali ? 'कुल भुक्तानी रकम' : 'Grand Total Due'}</div>
                   <div className="text-[11px] text-neutral-400">
-                    Snapshots stored immutably upon completion
+                    {isNepali ? '१३% भ्याट समावेश' : 'Includes 13% statutory VAT'}
                   </div>
                 </div>
                 <div className="text-xl font-bold font-mono text-emerald-400 tabular-nums">
-                  {formatCurrency(calculations.total, currencySymbol)}
+                  {formatCurrency(calculations.grandTotal, currencySymbol)}
                 </div>
               </div>
 
@@ -1247,7 +1279,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   title="Complete sale and record transaction (F2 or Enter)"
                 >
                   <CheckCircle className="w-4 h-4" />
-                  <span>Complete Sale & Deduct Stock ({formatCurrency(calculations.total, currencySymbol)})</span>
+                  <span>Complete Sale & Deduct Stock ({formatCurrency(calculations.grandTotal, currencySymbol)})</span>
                   <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono rounded bg-emerald-700/80 text-emerald-100 border border-emerald-500/40">
                     F2
                   </kbd>
@@ -1597,7 +1629,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
             <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
             <div>
               <div className="text-xs font-bold text-neutral-100 flex items-center flex-wrap gap-x-2">
-                <span>Transaction #{completedSaleInfo.id} Successfully Recorded</span>
+                <span>
+                  {completedSaleInfo.billNumber
+                    ? `Invoice ${completedSaleInfo.billNumber} (Sale #${completedSaleInfo.id})`
+                    : `Transaction #${completedSaleInfo.id}`} Successfully Recorded
+                </span>
                 {completedSaleInfo.customerName && (
                   <span className="font-normal text-emerald-300 text-xs">
                     · Customer: <span className="font-semibold text-neutral-100">{completedSaleInfo.customerName}</span>
@@ -1615,7 +1651,14 @@ export const SalesView: React.FC<SalesViewProps> = ({
                 )}
               </div>
               <div className="text-[11px] text-neutral-400 mt-0.5">
-                Total: <span className="font-mono text-emerald-300 font-semibold">{formatCurrency(completedSaleInfo.total, currencySymbol)}</span> · Subtotal: {formatCurrency(completedSaleInfo.subtotal, currencySymbol)} · Discounts: {formatCurrency(completedSaleInfo.discount, currencySymbol)}
+                Grand Total: <span className="font-mono text-emerald-300 font-semibold">{formatCurrency(completedSaleInfo.grandTotal ?? completedSaleInfo.total, currencySymbol)}</span>
+                {completedSaleInfo.vatAmount !== undefined && completedSaleInfo.vatAmount > 0 && (
+                  <span> · 13% VAT: <span className="font-mono text-sky-400">+{formatCurrency(completedSaleInfo.vatAmount, currencySymbol)}</span></span>
+                )}
+                <span> · Subtotal: {formatCurrency(completedSaleInfo.subtotal, currencySymbol)}</span>
+                {completedSaleInfo.discount > 0 && (
+                  <span> · Discounts: {formatCurrency(completedSaleInfo.discount, currencySymbol)}</span>
+                )}
               </div>
             </div>
           </div>

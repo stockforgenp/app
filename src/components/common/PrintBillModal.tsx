@@ -127,7 +127,7 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
       if (storeAddress) text += `${storeAddress}\n`;
       if (storePhone) text += `Tel: ${storePhone}\n`;
       text += `${lineSeparator}\n`;
-      text += `Bill #: INV-${sale.id.toString().padStart(6, '0')}\n`;
+      text += `Bill #: ${sale.bill_number || `BILL-${sale.id.toString().padStart(5, '0')}`}\n`;
       text += `Date: ${formatDateTime(sale.created_at)}\n`;
       if (sale.customer_name) text += `Customer: ${sale.customer_name}\n`;
       if (sale.customer_phone) text += `Phone: ${sale.customer_phone}\n`;
@@ -146,14 +146,20 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
         }
       });
 
+      const taxable = sale.taxable_amount ?? Math.max(0, sale.subtotal - sale.discount);
+      const vat = sale.vat_amount ?? Math.round(taxable * 0.13);
+      const grandTotal = sale.grand_total ?? sale.total;
+
       text += `${lineSeparator}\n`;
       text += `Subtotal:       ${formatCurrency(sale.subtotal, currencySymbol)}\n`;
       if (sale.discount > 0) {
         text += `Discount:      -${formatCurrency(sale.discount, currencySymbol)}\n`;
       }
+      text += `Taxable Amount: ${formatCurrency(taxable, currencySymbol)}\n`;
+      text += `13% VAT:       +${formatCurrency(vat, currencySymbol)}\n`;
       text += `Total Items:    ${items.length} (${totalUnits} units)\n`;
       text += `${doubleSeparator}\n`;
-      text += `*NET TOTAL:     ${formatCurrency(sale.total, currencySymbol)}*\n`;
+      text += `*GRAND TOTAL:   ${formatCurrency(grandTotal, currencySymbol)}*\n`;
       text += `${doubleSeparator}\n`;
       text += `${receiptFooter}\n`;
 
@@ -282,7 +288,7 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
               <div className="flex justify-between">
                 <span className="text-gray-500 font-medium">{isNepali ? 'बीजक नं:' : 'Invoice No:'}</span>
                 <span className="font-bold text-gray-900">
-                  INV-{sale.id.toString().padStart(6, '0')}
+                  {sale.bill_number || `BILL-${sale.id.toString().padStart(5, '0')}`}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -361,12 +367,22 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
                 </div>
               )}
 
+              {/* Taxable amount & 13% VAT */}
+              <div className="flex justify-between text-gray-600">
+                <span>{isNepali ? 'करयोग्य रकम:' : 'Taxable Amount:'}</span>
+                <span>{formatCurrency(sale.taxable_amount ?? Math.max(0, sale.subtotal - sale.discount), currencySymbol)}</span>
+              </div>
+              <div className="flex justify-between text-sky-700 font-medium">
+                <span>{isNepali ? '१३% भ्याट:' : '13% VAT:'}</span>
+                <span>+{formatCurrency(sale.vat_amount ?? Math.round((sale.taxable_amount ?? Math.max(0, sale.subtotal - sale.discount)) * 0.13), currencySymbol)}</span>
+              </div>
+
               <div className="flex justify-between items-baseline pt-1.5 border-t border-gray-300">
                 <span className="text-sm font-black text-gray-900 uppercase tracking-tight">
-                  {isNepali ? 'कुल भुक्तानी रकम:' : 'Net Amount Due:'}
+                  {isNepali ? 'कुल भुक्तानी रकम:' : 'Grand Total Due:'}
                 </span>
                 <span className="text-base font-black text-gray-900 font-mono">
-                  {formatCurrency(sale.total, currencySymbol)}
+                  {formatCurrency(sale.grand_total ?? sale.total, currencySymbol)}
                 </span>
               </div>
             </div>

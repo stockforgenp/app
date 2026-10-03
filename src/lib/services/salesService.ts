@@ -94,16 +94,31 @@ export function processSale(
       });
     }
 
+    const taxableAmount = Math.max(0, saleSubtotal - saleDiscount);
+    const vatRate = 13.0;
+    const vatAmount = Math.round(taxableAmount * 0.13);
+    const grandTotal = taxableAmount + vatAmount;
+
+    // Generate sequential bill number
+    const lastSale = queryOne<{ id: number }>('SELECT id FROM sales ORDER BY id DESC LIMIT 1');
+    const nextId = (lastSale?.id ?? 0) + 1;
+    const billNumber = `BILL-${nextId.toString().padStart(5, '0')}`;
+
     // 1. Insert Sales Record (including optional customer name and phone)
     run(
-      `INSERT INTO sales (customer_name, customer_phone, subtotal, discount, total, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO sales (bill_number, customer_name, customer_phone, subtotal, discount, taxable_amount, vat_rate, vat_amount, grand_total, total, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        billNumber,
         customerInfo?.customerName?.trim() || null,
         customerInfo?.customerPhone?.trim() || null,
         saleSubtotal,
         saleDiscount,
-        saleTotal,
+        taxableAmount,
+        vatRate,
+        vatAmount,
+        grandTotal,
+        grandTotal,
         now,
       ]
     );
@@ -185,10 +200,15 @@ export function getSales(options?: {
   let sql = `
     SELECT 
       s.id,
+      s.bill_number,
       s.customer_name,
       s.customer_phone,
       s.subtotal,
       s.discount,
+      s.taxable_amount,
+      s.vat_rate,
+      s.vat_amount,
+      s.grand_total,
       s.total,
       s.created_at,
       COUNT(si.id) as item_count,
@@ -216,13 +236,14 @@ export function getSales(options?: {
       CAST(s.id AS TEXT) LIKE ? OR
       s.customer_name LIKE ? OR
       s.customer_phone LIKE ? OR
+      s.bill_number LIKE ? OR
       s.id IN (
         SELECT sale_id FROM sale_items JOIN products ON sale_items.product_id = products.id
         WHERE products.name LIKE ?
       )
     )`);
     const term = `%${options.search.trim()}%`;
-    params.push(term, term, term, term);
+    params.push(term, term, term, term, term);
   }
 
   if (whereClauses.length > 0) {
@@ -243,10 +264,15 @@ export function getSaleWithItems(saleId: number): { sale: Sale; items: SaleItem[
   const sale = queryOne<Sale>(
     `SELECT 
        s.id,
+       s.bill_number,
        s.customer_name,
        s.customer_phone,
        s.subtotal,
        s.discount,
+       s.taxable_amount,
+       s.vat_rate,
+       s.vat_amount,
+       s.grand_total,
        s.total,
        s.created_at,
        COUNT(si.id) as item_count,

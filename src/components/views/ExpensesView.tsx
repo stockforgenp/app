@@ -49,14 +49,14 @@ import { Modal } from '../common/Modal.tsx';
 import { ActionMenu } from '../common/ActionMenu.tsx';
 import { Select } from '../common/Select.tsx';
 import { Input, Textarea } from '../common/Input.tsx';
-import { DateFilterBar } from '../common/DateFilterBar.tsx';
-import { DatePreset, calculateDateRange } from '../../lib/utils/dateFilters.ts';
 import { useToast } from '../../context/ToastContext.tsx';
 import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
 
 interface ExpensesViewProps {
   currencySymbol: string;
 }
+
+type DatePreset = 'all' | 'today' | 'yesterday' | '7days' | '30days' | 'month' | 'custom';
 
 export const ExpensesView: React.FC<ExpensesViewProps> = ({ currencySymbol }) => {
   const { showToast } = useToast();
@@ -94,14 +94,35 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ currencySymbol }) =>
 
   // Compute effective date range based on preset
   const computedDateRange = useMemo(() => {
-    if (datePreset === 'all') {
-      return { start: undefined, end: undefined };
+    const today = new Date();
+    const formatDateStr = (d: Date) => d.toISOString().split('T')[0];
+
+    if (datePreset === 'today') {
+      const str = formatDateStr(today);
+      return { start: str, end: str };
+    }
+    if (datePreset === 'yesterday') {
+      const yest = new Date(today.getTime() - 86400000);
+      const str = formatDateStr(yest);
+      return { start: str, end: str };
+    }
+    if (datePreset === '7days') {
+      const start = new Date(today.getTime() - 7 * 86400000);
+      return { start: formatDateStr(start), end: formatDateStr(today) };
+    }
+    if (datePreset === '30days') {
+      const start = new Date(today.getTime() - 30 * 86400000);
+      return { start: formatDateStr(start), end: formatDateStr(today) };
+    }
+    if (datePreset === 'month') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      return { start: formatDateStr(firstDay), end: formatDateStr(today) };
     }
     if (datePreset === 'custom') {
-      return { start: startDate || undefined, end: endDate || undefined };
+      return { start: startDate, end: endDate };
     }
-    const range = calculateDateRange(datePreset);
-    return { start: range.startDate || undefined, end: range.endDate || undefined };
+    // 'all'
+    return { start: undefined, end: undefined };
   }, [datePreset, startDate, endDate]);
 
   const loadData = useCallback(() => {
@@ -415,18 +436,45 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ currencySymbol }) =>
       )}
 
       {/* Filter and Control Bar */}
-      <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl space-y-3">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          {/* Search Input */}
-          <div className="flex-1 min-w-[220px]">
-            <Input
-              type="text"
-              icon={Search}
-              sizeVariant="sm"
-              placeholder="Search note, receipt ref, or category..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+      <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        {/* Search Input */}
+        <div className="flex-1 min-w-[220px]">
+          <Input
+            type="text"
+            icon={Search}
+            sizeVariant="sm"
+            placeholder="Search note, receipt ref, or category..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        {/* Date presets & filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Preset Buttons */}
+          <div className="flex items-center bg-neutral-950 p-0.5 rounded-lg border border-neutral-800">
+            {(
+              [
+                { id: 'all', label: 'All' },
+                { id: 'today', label: 'Today' },
+                { id: '7days', label: '7D' },
+                { id: '30days', label: '30D' },
+                { id: 'month', label: 'This Month' },
+                { id: 'custom', label: 'Custom' },
+              ] as const
+            ).map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setDatePreset(item.id)}
+                className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
+                  datePreset === item.id
+                    ? 'bg-neutral-800 text-neutral-100 shadow-xs'
+                    : 'text-neutral-400 hover:text-neutral-200'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
 
           {/* Category Filter */}
@@ -441,33 +489,31 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ currencySymbol }) =>
             ]}
           />
         </div>
-
-        {/* Date presets & filters */}
-        <div className="pt-2 border-t border-neutral-800/80">
-          <DateFilterBar
-            preset={datePreset}
-            onPresetChange={(p, start, end) => {
-              setDatePreset(p);
-              setStartDate(start);
-              setEndDate(end);
-            }}
-            startDate={startDate}
-            endDate={endDate}
-            onStartDateChange={setStartDate}
-            onEndDateChange={setEndDate}
-            hasActiveFilters={Boolean(
-              startDate || endDate || search || selectedCategory !== 'all' || datePreset !== 'all'
-            )}
-            onClear={() => {
-              setDatePreset('all');
-              setStartDate('');
-              setEndDate('');
-              setSelectedCategory('all');
-              setSearch('');
-            }}
-          />
-        </div>
       </div>
+
+      {/* Custom Date Pickers (if custom selected) */}
+      {datePreset === 'custom' && (
+        <div className="p-3 bg-neutral-900 border border-neutral-800 rounded-xl flex items-center gap-3 text-xs">
+          <span className="text-neutral-400 font-medium shrink-0">Custom Range:</span>
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              sizeVariant="sm"
+              containerClassName="w-auto"
+            />
+            <span className="text-neutral-500 shrink-0">to</span>
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              sizeVariant="sm"
+              containerClassName="w-auto"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Expenses Table */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xs">
