@@ -33,6 +33,8 @@ import {
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { useTheme } from '../../context/ThemeContext.tsx';
+import { Select } from '../common/Select.tsx';
+import { Input } from '../common/Input.tsx';
 
 const SHOP_TYPES = [
   'Grocery & Supermarket',
@@ -316,168 +318,111 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
             {mode === 'register' && (
               <form onSubmit={handleRegisterSubmit} className="space-y-4">
                 {/* Shop Name */}
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1">
-                    {isNepali ? 'पसलको नाम (Shop Name) *' : 'Shop Name *'}
-                  </label>
-                  <div className="relative">
-                    <Store className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      required
-                      placeholder={isNepali ? 'उदा. काभ्या जनरल स्टोर' : 'e.g. StockForge Retail Mart'}
-                      value={registerData.name}
-                      onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9.5 pr-3 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
+                <Input
+                  label={isNepali ? 'पसलको नाम (Shop Name) *' : 'Shop Name *'}
+                  icon={Store}
+                  type="text"
+                  required
+                  placeholder={isNepali ? 'उदा. काभ्या जनरल स्टोर' : 'e.g. StockForge Retail Mart'}
+                  value={registerData.name}
+                  onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
+                />
 
                 {/* Email and Phone */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">
-                      {isNepali ? 'सञ्चालकको इमेल (Email) *' : 'Owner / Admin Email *'}
-                    </label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="email"
-                        required
-                        placeholder="owner@store.com"
-                        value={registerData.email}
-                        onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
-                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9.5 pr-3 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                  </div>
+                  <Input
+                    label={isNepali ? 'सञ्चालकको इमेल (Email) *' : 'Owner / Admin Email *'}
+                    icon={Mail}
+                    type="email"
+                    required
+                    placeholder="owner@store.com"
+                    value={registerData.email}
+                    onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+                  />
 
-                  <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">
-                      {isNepali ? 'सम्पर्क फोन (Phone)' : 'Contact Phone'}
-                    </label>
-                    <div className="relative">
-                      <Phone className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="tel"
-                        placeholder={isNepali ? '९८०१२३४५६७' : '+977 9801234567'}
-                        value={registerData.phone}
-                        onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
-                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9.5 pr-3 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                  </div>
+                  <Input
+                    label={isNepali ? 'सम्पर्क फोन (Phone)' : 'Contact Phone'}
+                    icon={Phone}
+                    type="tel"
+                    placeholder={isNepali ? '९८०१२३४५६७' : '+977 9801234567'}
+                    value={registerData.phone}
+                    onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
+                  />
                 </div>
 
                 {/* Shop Type and Currency */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">
-                      {isNepali ? 'पसलको प्रकार (Shop Type) *' : 'Shop Category / Type *'}
-                    </label>
-                    <div className="relative">
-                      <Tag className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <select
-                        value={registerData.shop_type}
-                        onChange={(e) => setRegisterData({ ...registerData, shop_type: e.target.value })}
-                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9.5 pr-3 py-2 text-xs text-neutral-100 focus:outline-none focus:border-emerald-500 cursor-pointer"
-                      >
-                        {SHOP_TYPES.map((type) => (
-                          <option key={type} value={type} className="bg-neutral-900">
-                            {type}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
+                  <Select
+                    label={isNepali ? 'पसलको प्रकार (Shop Type)' : 'Shop Category / Type'}
+                    required
+                    icon={Tag}
+                    value={registerData.shop_type}
+                    onChange={(e) => setRegisterData({ ...registerData, shop_type: e.target.value })}
+                    options={SHOP_TYPES}
+                  />
 
-                  <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">
-                      {isNepali ? 'मुद्रा संकेत (Currency)' : 'Default Currency'}
-                    </label>
-                    <div className="relative">
-                      <Coins className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <select
-                        value={registerData.currency_symbol}
-                        onChange={(e) =>
-                          setRegisterData({ ...registerData, currency_symbol: e.target.value })
-                        }
-                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9.5 pr-3 py-2 text-xs text-neutral-100 font-mono focus:outline-none focus:border-emerald-500 cursor-pointer"
-                      >
-                        <option value="रु." className="bg-neutral-900">रु. (Nepali Rupee)</option>
-                        <option value="Rs." className="bg-neutral-900">Rs. (Rupee)</option>
-                        <option value="$" className="bg-neutral-900">$ (USD)</option>
-                        <option value="€" className="bg-neutral-900">€ (Euro)</option>
-                        <option value="£" className="bg-neutral-900">£ (GBP)</option>
-                      </select>
-                    </div>
-                  </div>
+                  <Select
+                    label={isNepali ? 'मुद्रा संकेत (Currency)' : 'Default Currency'}
+                    icon={Coins}
+                    value={registerData.currency_symbol}
+                    onChange={(e) =>
+                      setRegisterData({ ...registerData, currency_symbol: e.target.value })
+                    }
+                    options={[
+                      { value: 'रु.', label: 'रु. (Nepali Rupee)' },
+                      { value: 'Rs.', label: 'Rs. (Rupee)' },
+                      { value: '$', label: '$ (USD)' },
+                      { value: '€', label: '€ (Euro)' },
+                      { value: '£', label: '£ (GBP)' },
+                    ]}
+                  />
                 </div>
 
                 {/* Shop Address */}
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1">
-                    {isNepali ? 'पसलको ठेगाना (Store Address)' : 'Store Address (Prints on Bills)'}
-                  </label>
-                  <div className="relative">
-                    <MapPin className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      placeholder={isNepali ? 'उदा. न्युरोड, काठमाडौं' : 'e.g. 45 Commercial Street, New Road'}
-                      value={registerData.address}
-                      onChange={(e) => setRegisterData({ ...registerData, address: e.target.value })}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9.5 pr-3 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
+                <Input
+                  label={isNepali ? 'पसलको ठेगाना (Store Address)' : 'Store Address (Prints on Bills)'}
+                  icon={MapPin}
+                  type="text"
+                  placeholder={isNepali ? 'उदा. न्युरोड, काठमाडौं' : 'e.g. 45 Commercial Street, New Road'}
+                  value={registerData.address}
+                  onChange={(e) => setRegisterData({ ...registerData, address: e.target.value })}
+                />
 
                 {/* Passwords */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">
-                      {isNepali ? 'पासवर्ड (Password) *' : 'Password (min. 4 chars) *'}
-                    </label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        placeholder="••••••••"
-                        value={registerData.password}
-                        onChange={(e) =>
-                          setRegisterData({ ...registerData, password: e.target.value })
-                        }
-                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9.5 pr-9 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
-                      />
+                  <Input
+                    label={isNepali ? 'पासवर्ड (Password) *' : 'Password (min. 4 chars) *'}
+                    icon={Lock}
+                    rightIcon={
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs cursor-pointer"
+                        className="text-neutral-500 hover:text-neutral-300 text-xs cursor-pointer flex items-center"
                         title={showPassword ? 'Hide password' : 'Show password'}
                       >
                         {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       </button>
-                    </div>
-                  </div>
+                    }
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    placeholder="••••••••"
+                    value={registerData.password}
+                    onChange={(e) =>
+                      setRegisterData({ ...registerData, password: e.target.value })
+                    }
+                  />
 
-                  <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">
-                      {isNepali ? 'कन्फर्म पासवर्ड *' : 'Confirm Password *'}
-                    </label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        placeholder="••••••••"
-                        value={registerData.confirmPassword}
-                        onChange={(e) =>
-                          setRegisterData({ ...registerData, confirmPassword: e.target.value })
-                        }
-                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9.5 pr-3 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                  </div>
+                  <Input
+                    label={isNepali ? 'कन्फर्म पासवर्ड *' : 'Confirm Password *'}
+                    icon={Lock}
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    placeholder="••••••••"
+                    value={registerData.confirmPassword}
+                    onChange={(e) =>
+                      setRegisterData({ ...registerData, confirmPassword: e.target.value })
+                    }
+                  />
                 </div>
 
                 {/* THE USER REQUESTED CHECKBOX: "while registering, keep a check for seed test data" */}
@@ -490,7 +435,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                         : 'bg-neutral-950/80 border-neutral-800 hover:border-neutral-700'
                     }`}
                   >
-                    <input
+                    <Input
                       id="seed-test-data-check"
                       type="checkbox"
                       checked={registerData.seedTestData}
@@ -544,51 +489,40 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
             {mode === 'login' && (
               <form onSubmit={handleLoginSubmit} className="space-y-4">
                 {/* Email or Phone */}
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1">
-                    {isNepali ? 'इमेल वा फोन नम्बर *' : 'Registered Email or Phone *'}
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      required
-                      placeholder="owner@store.com or 9801234567"
-                      value={loginData.emailOrPhone}
-                      onChange={(e) =>
-                        setLoginData({ ...loginData, emailOrPhone: e.target.value })
-                      }
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9.5 pr-3 py-2.5 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
+                <Input
+                  label={isNepali ? 'इमेल वा फोन नम्बर *' : 'Registered Email or Phone *'}
+                  icon={Mail}
+                  type="text"
+                  required
+                  placeholder="owner@store.com or 9801234567"
+                  value={loginData.emailOrPhone}
+                  onChange={(e) =>
+                    setLoginData({ ...loginData, emailOrPhone: e.target.value })
+                  }
+                />
 
                 {/* Password */}
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1">
-                    {isNepali ? 'पासवर्ड *' : 'Password *'}
-                  </label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      placeholder="••••••••"
-                      value={loginData.password}
-                      onChange={(e) =>
-                        setLoginData({ ...loginData, password: e.target.value })
-                      }
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9.5 pr-9 py-2.5 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
-                    />
+                <Input
+                  label={isNepali ? 'पासवर्ड *' : 'Password *'}
+                  icon={Lock}
+                  rightIcon={
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs cursor-pointer"
+                      className="text-neutral-500 hover:text-neutral-300 text-xs cursor-pointer flex items-center"
+                      title={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
-                  </div>
-                </div>
+                  }
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  placeholder="••••••••"
+                  value={loginData.password}
+                  onChange={(e) =>
+                    setLoginData({ ...loginData, password: e.target.value })
+                  }
+                />
 
                 {/* Submit Button */}
                 <button

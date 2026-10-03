@@ -91,6 +91,30 @@ export interface CartItem {
   discount: number; // Monetary discount
 }
 
+export interface ProcessSaleItemInput {
+  productId: number;
+  quantity: number;
+  actualSellingPrice: number; // in minor units
+  discount: number; // in minor units
+}
+
+export interface ProcessSaleCustomerInfo {
+  customerId?: number | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  customerEmail?: string | null;
+  customerPanVat?: string | null;
+  customerAddress?: string | null;
+  customerInput?: {
+    name: string;
+    phone?: string;
+    email?: string;
+    pan_vat?: string;
+    address?: string;
+    notes?: string;
+  };
+}
+
 export interface Purchase {
   id: number;
   bill_number?: string | null;

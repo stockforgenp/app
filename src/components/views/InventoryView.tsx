@@ -63,6 +63,8 @@ import {
 import { Modal } from '../common/Modal.tsx';
 import { ConfirmDialog } from '../common/ConfirmDialog.tsx';
 import { ActionMenu } from '../common/ActionMenu.tsx';
+import { Select } from '../common/Select.tsx';
+import { Input } from '../common/Input.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
 import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
 import { useLanguage } from '../../context/LanguageContext.tsx';
@@ -814,9 +816,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         {/* Row 1: Search & Core Filters */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
           {/* Search Box */}
-          <div className="relative md:col-span-5">
-            <Search className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
+          <div className="md:col-span-5">
+            <Input
               type="text"
               placeholder={
                 viewTab === 'catalog'
@@ -825,65 +826,57 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9 pr-4 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              icon={Search}
+              clearable
+              onClear={() => setSearch('')}
+              className="py-2 text-xs"
             />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs cursor-pointer"
-              >
-                ✕
-              </button>
-            )}
           </div>
 
           {/* Vendor Filter Dropdown */}
-          <div className="md:col-span-4 relative">
-            <div className="relative">
-              <Building2 className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select
-                value={selectedVendorId}
-                onChange={(e) => setSelectedVendorId(e.target.value)}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9 pr-8 py-2 text-xs text-neutral-200 focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none"
-              >
-                <option value="all">🏢 {isNepali ? 'सबै आपूर्तिकर्ताहरू (All Vendors)' : 'All Vendors / Suppliers'}</option>
-                {vendors.map((v) => (
-                  <option key={v.id} value={String(v.id)}>
-                    {v.name} {v.pan_vat ? `(PAN: ${v.pan_vat})` : ''}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-neutral-500 text-xs">
-                ▼
-              </div>
-            </div>
+          <div className="md:col-span-4">
+            <Select
+              icon={Building2}
+              value={selectedVendorId}
+              onChange={(e) => setSelectedVendorId(e.target.value)}
+              options={[
+                {
+                  value: 'all',
+                  label: `🏢 ${isNepali ? 'सबै आपूर्तिकर्ताहरू (All Vendors)' : 'All Vendors / Suppliers'}`,
+                },
+                ...vendors.map((v) => ({
+                  value: String(v.id),
+                  label: `${v.name} ${v.pan_vat ? `(PAN: ${v.pan_vat})` : ''}`,
+                })),
+              ]}
+            />
           </div>
 
           {/* Stock Status Filter (for Catalog tab) or Movement Type (for Movement tab) */}
           <div className="md:col-span-3">
             {viewTab === 'catalog' ? (
-              <select
+              <Select
                 value={stockStatusFilter}
                 onChange={(e) => setStockStatusFilter(e.target.value as any)}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
-              >
-                <option value="all">{isNepali ? 'सबै मौज्दात अवस्था' : 'All Stock Levels'}</option>
-                <option value="in_stock">{isNepali ? 'मौज्दातमा उपलब्ध (> 0)' : 'In Stock (> 0)'}</option>
-                <option value="low_stock">⚠️ {isNepali ? 'कम मौज्दात मात्र (Low Stock)' : 'Low Stock (≤ threshold)'}</option>
-                <option value="out_of_stock">❌ {isNepali ? 'रित्तिएको मौज्दात (Out of Stock)' : 'Out of Stock (0)'}</option>
-              </select>
+                options={[
+                  { value: 'all', label: isNepali ? 'सबै मौज्दात अवस्था' : 'All Stock Levels' },
+                  { value: 'in_stock', label: isNepali ? 'मौज्दातमा उपलब्ध (> 0)' : 'In Stock (> 0)' },
+                  { value: 'low_stock', label: `⚠️ ${isNepali ? 'कम मौज्दात मात्र (Low Stock)' : 'Low Stock (≤ threshold)'}` },
+                  { value: 'out_of_stock', label: `❌ ${isNepali ? 'रित्तिएको मौज्दात (Out of Stock)' : 'Out of Stock (0)'}` },
+                ]}
+              />
             ) : (
-              <select
+              <Select
                 value={movementTypeFilter}
                 onChange={(e) => setMovementTypeFilter(e.target.value)}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-200 focus:outline-none focus:border-emerald-500 cursor-pointer font-mono"
-              >
-                <option value="ALL">All Movement Types</option>
-                <option value="RESTOCK">RESTOCK (Manual / Delivery)</option>
-                <option value="PURCHASE">PURCHASE (Supplier Order)</option>
-                <option value="SALE">SALE (Customer Order)</option>
-                <option value="ADJUSTMENT">ADJUSTMENT (Count Recount)</option>
-              </select>
+                options={[
+                  { value: 'ALL', label: 'All Movement Types' },
+                  { value: 'RESTOCK', label: 'RESTOCK (Manual / Delivery)' },
+                  { value: 'PURCHASE', label: 'PURCHASE (Supplier Order)' },
+                  { value: 'SALE', label: 'SALE (Customer Order)' },
+                  { value: 'ADJUSTMENT', label: 'ADJUSTMENT (Count Recount)' },
+                ]}
+              />
             )}
           </div>
         </div>
@@ -921,25 +914,27 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           {/* Date Picker Inputs & Clear Button */}
           <div className="flex items-center gap-2 w-full md:w-auto justify-end">
             <div className="flex items-center gap-1.5 bg-neutral-950 px-2.5 py-1 rounded-lg border border-neutral-800 text-neutral-300">
-              <input
+              <Input
                 type="date"
                 value={startDate}
                 onChange={(e) => {
                   setStartDate(e.target.value);
                   setDatePreset('custom');
                 }}
-                className="bg-transparent text-neutral-200 focus:outline-none text-xs"
+                containerClassName="w-auto"
+                className="bg-transparent border-0 p-0 text-neutral-200 focus:outline-none text-xs"
                 title="Start Date"
               />
               <span className="text-neutral-500 text-xs">{isNepali ? 'देखि' : 'to'}</span>
-              <input
+              <Input
                 type="date"
                 value={endDate}
                 onChange={(e) => {
                   setEndDate(e.target.value);
                   setDatePreset('custom');
                 }}
-                className="bg-transparent text-neutral-200 focus:outline-none text-xs"
+                containerClassName="w-auto"
+                className="bg-transparent border-0 p-0 text-neutral-200 focus:outline-none text-xs"
                 title="End Date"
               />
             </div>
@@ -967,7 +962,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 select-none">
                 <tr>
                   <th className="py-3 px-4 w-10 text-center">
-                    <input
+                    <Input
                       type="checkbox"
                       checked={
                         filteredProducts.length > 0 &&
@@ -1068,7 +1063,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         }`}
                       >
                         <td className="py-3 px-4 text-center">
-                          <input
+                          <Input
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleSelectProduct(p.id)}
@@ -1334,16 +1329,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       >
         <form onSubmit={handleSaveCreate} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-neutral-300 mb-1">
-              {t('prod_name', 'Product Name')} *
-            </label>
-            <input
+            <Input
+              label={`${t('prod_name', 'Product Name')} *`}
               type="text"
               required
               placeholder={isNepali ? 'उदा. कोकाकोला ५०० मि.लि.' : 'e.g. Coca Cola 500ml'}
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
             />
           </div>
 
@@ -1368,25 +1360,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 <span>{t('prod_sku_auto_btn', 'Auto-Generate')}</span>
               </button>
             </div>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder={t('prod_sku_placeholder', 'e.g. BEV-CC-500 (or leave blank to auto-generate)')}
-                value={formData.sku}
-                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
-              />
-              {formData.sku && (
-                <button
-                  type="button"
-                  onClick={() => setFormData((prev) => ({ ...prev, sku: '' }))}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs cursor-pointer"
-                  title="Clear SKU (will auto-generate upon saving)"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
+            <Input
+              type="text"
+              placeholder={t('prod_sku_placeholder', 'e.g. BEV-CC-500 (or leave blank to auto-generate)')}
+              value={formData.sku}
+              onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+              className="font-mono"
+              clearable
+              onClear={() => setFormData((prev) => ({ ...prev, sku: '' }))}
+            />
           </div>
 
           {/* Unit of Measure */}
@@ -1400,32 +1382,26 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               </span>
             </div>
             <div className="flex gap-2">
-              <input
+              <Input
                 type="text"
                 required
                 placeholder={t('prod_unit_placeholder', 'e.g. pcs, kg, ltr, box')}
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                className="flex-1 bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                className="font-mono"
+                containerClassName="flex-1"
               />
-              <select
+              <Select
                 value={COMMON_UNITS.some((u) => u.value === formData.unit.toLowerCase()) ? formData.unit.toLowerCase() : ''}
                 onChange={(e) => {
                   if (e.target.value) {
                     setFormData({ ...formData, unit: e.target.value });
                   }
                 }}
-                className="bg-neutral-950 border border-neutral-800 rounded-lg px-2.5 py-2 text-xs text-neutral-200 font-mono focus:outline-none focus:border-emerald-500 cursor-pointer"
-              >
-                <option value="" disabled>
-                  {isNepali ? '-- एकाइ छान्नुहोस् --' : '-- Common Units --'}
-                </option>
-                {COMMON_UNITS.map((u) => (
-                  <option key={u.value} value={u.value} className="bg-neutral-900">
-                    {u.label}
-                  </option>
-                ))}
-              </select>
+                placeholder={isNepali ? '-- एकाइ --' : '-- Common Units --'}
+                containerClassName="w-48"
+                options={COMMON_UNITS.map((u) => ({ value: u.value, label: u.label }))}
+              />
             </div>
             {/* Quick unit chips */}
             <div className="flex flex-wrap gap-1.5 mt-2">
@@ -1447,38 +1423,35 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </div>
 
           {/* Preferred Vendor / Supplier Selection */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-300 mb-1 flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{isNepali ? 'आपूर्तिकर्ता / सप्लायर (वैकल्पिक)' : 'Supplier / Vendor (Optional)'}</span>
-            </label>
-            <select
-              value={formData.vendorId}
-              onChange={(e) => {
-                const v = vendors.find((vend) => String(vend.id) === e.target.value);
-                setFormData({
-                  ...formData,
-                  vendorId: e.target.value,
-                  vendorName: v ? v.name : '',
-                });
-              }}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
-            >
-              <option value="">{isNepali ? '-- आपूर्तिकर्ता तोकिएको छैन (None) --' : '-- No Specific Supplier --'}</option>
-              {vendors.map((v) => (
-                <option key={v.id} value={String(v.id)}>
-                  {v.name} {v.pan_vat ? `(PAN: ${v.pan_vat})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            label={
+              <>
+                <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{isNepali ? 'आपूर्तिकर्ता / सप्लायर (वैकल्पिक)' : 'Supplier / Vendor (Optional)'}</span>
+              </>
+            }
+            value={formData.vendorId}
+            onChange={(e) => {
+              const v = vendors.find((vend) => String(vend.id) === e.target.value);
+              setFormData({
+                ...formData,
+                vendorId: e.target.value,
+                vendorName: v ? v.name : '',
+              });
+            }}
+            options={[
+              { value: '', label: isNepali ? '-- आपूर्तिकर्ता तोकिएको छैन (None) --' : '-- No Specific Supplier --' },
+              ...vendors.map((v) => ({
+                value: String(v.id),
+                label: `${v.name} ${v.pan_vat ? `(PAN: ${v.pan_vat})` : ''}`,
+              })),
+            ]}
+          />
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">
-                {t('prod_cost_price', 'Cost Price')} ({currencySymbol}) *
-              </label>
-              <input
+              <Input
+                label={`${t('prod_cost_price', 'Cost Price')} (${currencySymbol}) *`}
                 type="number"
                 step="0.01"
                 min="0"
@@ -1486,15 +1459,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 placeholder="45.00"
                 value={formData.costPrice}
                 onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                className="font-mono"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">
-                {t('prod_selling_price', 'Default Selling')} ({currencySymbol}) *
-              </label>
-              <input
+              <Input
+                label={`${t('prod_selling_price', 'Default Selling')} (${currencySymbol}) *`}
                 type="number"
                 step="0.01"
                 min="0"
@@ -1502,44 +1473,36 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 placeholder="60.00"
                 value={formData.sellingPrice}
                 onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                className="font-mono"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">
-                {t('prod_initial_stock', 'Opening Stock')}
-              </label>
-              <input
+              <Input
+                label={t('prod_initial_stock', 'Opening Stock')}
+                helperText={isNepali ? 'प्रारम्भिक मौज्दात प्रविष्टि गर्दछ।' : "Creates initial 'RESTOCK' movement."}
                 type="number"
                 min="0"
                 placeholder="100"
                 value={formData.initialStock}
                 onChange={(e) => setFormData({ ...formData, initialStock: e.target.value })}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                className="font-mono"
               />
-              <p className="text-[11px] text-neutral-500 mt-1">
-                {isNepali ? 'प्रारम्भिक मौज्दात प्रविष्टि गर्दछ।' : "Creates initial 'RESTOCK' movement."}
-              </p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">
-                {t('prod_min_alert', 'Minimum Alert Threshold')}
-              </label>
-              <input
+              <Input
+                label={t('prod_min_alert', 'Minimum Alert Threshold')}
+                helperText={t('prod_min_alert_hint', 'Triggers low-stock warning when below threshold.')}
                 type="number"
                 min="0"
                 placeholder={isNepali ? `डिफल्ट: ${lowStockThreshold} एकाइ` : `Default: ${lowStockThreshold} units`}
                 value={formData.minStockAlert}
                 onChange={(e) => setFormData({ ...formData, minStockAlert: e.target.value })}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                className="font-mono"
               />
-              <p className="text-[11px] text-neutral-500 mt-1">
-                {t('prod_min_alert_hint', 'Triggers low-stock warning when below threshold.')}
-              </p>
             </div>
           </div>
 
@@ -1571,15 +1534,12 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       >
         <form onSubmit={handleSaveEdit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-neutral-300 mb-1">
-              {t('prod_name', 'Product Name')} *
-            </label>
-            <input
+            <Input
+              label={`${t('prod_name', 'Product Name')} *`}
               type="text"
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
             />
           </div>
 
@@ -1604,25 +1564,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 <span>{t('prod_sku_auto_btn', 'Auto-Generate')}</span>
               </button>
             </div>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder={t('prod_sku_placeholder', 'e.g. BEV-CC-500 (or leave blank to auto-generate)')}
-                value={formData.sku}
-                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
-              />
-              {formData.sku && (
-                <button
-                  type="button"
-                  onClick={() => setFormData((prev) => ({ ...prev, sku: '' }))}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs cursor-pointer"
-                  title="Clear SKU"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
+            <Input
+              type="text"
+              placeholder={t('prod_sku_placeholder', 'e.g. BEV-CC-500 (or leave blank to auto-generate)')}
+              value={formData.sku}
+              onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+              className="font-mono"
+              clearable
+              onClear={() => setFormData((prev) => ({ ...prev, sku: '' }))}
+            />
           </div>
 
           {/* Unit of Measure */}
@@ -1636,32 +1586,26 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               </span>
             </div>
             <div className="flex gap-2">
-              <input
+              <Input
                 type="text"
                 required
                 placeholder={t('prod_unit_placeholder', 'e.g. pcs, kg, ltr, box')}
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                className="flex-1 bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                className="font-mono"
+                containerClassName="flex-1"
               />
-              <select
+              <Select
                 value={COMMON_UNITS.some((u) => u.value === formData.unit.toLowerCase()) ? formData.unit.toLowerCase() : ''}
                 onChange={(e) => {
                   if (e.target.value) {
                     setFormData({ ...formData, unit: e.target.value });
                   }
                 }}
-                className="bg-neutral-950 border border-neutral-800 rounded-lg px-2.5 py-2 text-xs text-neutral-200 font-mono focus:outline-none focus:border-emerald-500 cursor-pointer"
-              >
-                <option value="" disabled>
-                  {isNepali ? '-- एकाइ छान्नुहोस् --' : '-- Common Units --'}
-                </option>
-                {COMMON_UNITS.map((u) => (
-                  <option key={u.value} value={u.value} className="bg-neutral-900">
-                    {u.label}
-                  </option>
-                ))}
-              </select>
+                placeholder={isNepali ? '-- एकाइ --' : '-- Common Units --'}
+                containerClassName="w-48"
+                options={COMMON_UNITS.map((u) => ({ value: u.value, label: u.label }))}
+              />
             </div>
             {/* Quick unit chips */}
             <div className="flex flex-wrap gap-1.5 mt-2">
@@ -1683,79 +1627,70 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </div>
 
           {/* Supplier / Vendor Selection */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-300 mb-1 flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{isNepali ? 'आपूर्तिकर्ता / सप्लायर (वैकल्पिक)' : 'Supplier / Vendor (Optional)'}</span>
-            </label>
-            <select
-              value={formData.vendorId}
-              onChange={(e) => {
-                const v = vendors.find((vend) => String(vend.id) === e.target.value);
-                setFormData({
-                  ...formData,
-                  vendorId: e.target.value,
-                  vendorName: v ? v.name : '',
-                });
-              }}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
-            >
-              <option value="">{isNepali ? '-- आपूर्तिकर्ता तोकिएको छैन (None) --' : '-- No Specific Supplier --'}</option>
-              {vendors.map((v) => (
-                <option key={v.id} value={String(v.id)}>
-                  {v.name} {v.pan_vat ? `(PAN: ${v.pan_vat})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            label={
+              <>
+                <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{isNepali ? 'आपूर्तिकर्ता / सप्लायर (वैकल्पिक)' : 'Supplier / Vendor (Optional)'}</span>
+              </>
+            }
+            value={formData.vendorId}
+            onChange={(e) => {
+              const v = vendors.find((vend) => String(vend.id) === e.target.value);
+              setFormData({
+                ...formData,
+                vendorId: e.target.value,
+                vendorName: v ? v.name : '',
+              });
+            }}
+            options={[
+              { value: '', label: isNepali ? '-- आपूर्तिकर्ता तोकिएको छैन (None) --' : '-- No Specific Supplier --' },
+              ...vendors.map((v) => ({
+                value: String(v.id),
+                label: `${v.name} ${v.pan_vat ? `(PAN: ${v.pan_vat})` : ''}`,
+              })),
+            ]}
+          />
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">
-                {t('prod_cost_price', 'Cost Price')} ({currencySymbol}) *
-              </label>
-              <input
+              <Input
+                label={`${t('prod_cost_price', 'Cost Price')} (${currencySymbol}) *`}
                 type="number"
                 step="0.01"
                 min="0"
                 required
                 value={formData.costPrice}
                 onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                className="font-mono"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">
-                {t('prod_selling_price', 'Default Selling')} ({currencySymbol}) *
-              </label>
-              <input
+              <Input
+                label={`${t('prod_selling_price', 'Default Selling')} (${currencySymbol}) *`}
                 type="number"
                 step="0.01"
                 min="0"
                 required
                 value={formData.sellingPrice}
                 onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                className="font-mono"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-neutral-300 mb-1">
-              {t('prod_min_alert', 'Minimum Alert Threshold')} ({isNepali ? 'वैकल्पिक' : 'Optional'})
-            </label>
-            <input
+            <Input
+              label={`${t('prod_min_alert', 'Minimum Alert Threshold')} (${isNepali ? 'वैकल्पिक' : 'Optional'})`}
+              helperText={t('prod_min_alert_hint', 'Triggers low-stock warning when below threshold.')}
               type="number"
               min="0"
               placeholder={isNepali ? `डिफल्ट: ${lowStockThreshold} एकाइ` : `Default: ${lowStockThreshold} units`}
               value={formData.minStockAlert}
               onChange={(e) => setFormData({ ...formData, minStockAlert: e.target.value })}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+              className="font-mono"
             />
-            <p className="text-[11px] text-neutral-500 mt-1">
-              {t('prod_min_alert_hint', 'Triggers low-stock warning when below threshold.')}
-            </p>
           </div>
 
           <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800/80 text-[11px] text-neutral-400 flex items-start gap-2">
@@ -1819,48 +1754,42 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-neutral-300 mb-1">
-              Quantity to Add *
-            </label>
-            <input
+            <Input
+              label="Quantity to Add *"
               type="number"
               min="1"
               required
               value={restockQty}
               onChange={(e) => setRestockQty(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono focus:outline-none focus:border-emerald-500"
+              className="font-mono"
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-neutral-300 mb-1 flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Supplier / Vendor (Optional)</span>
-            </label>
-            <select
-              value={restockVendorId}
-              onChange={(e) => setRestockVendorId(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
-            >
-              <option value="">-- No Specific Vendor --</option>
-              {vendors.map((v) => (
-                <option key={v.id} value={String(v.id)}>
-                  {v.name} {v.pan_vat ? `(PAN: ${v.pan_vat})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            label={
+              <>
+                <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Supplier / Vendor (Optional)</span>
+              </>
+            }
+            value={restockVendorId}
+            onChange={(e) => setRestockVendorId(e.target.value)}
+            options={[
+              { value: '', label: '-- No Specific Vendor --' },
+              ...vendors.map((v) => ({
+                value: String(v.id),
+                label: `${v.name} ${v.pan_vat ? `(PAN: ${v.pan_vat})` : ''}`,
+              })),
+            ]}
+          />
 
           <div>
-            <label className="block text-xs font-medium text-neutral-300 mb-1">
-              Movement Note / Reference (Optional)
-            </label>
-            <input
+            <Input
+              label="Movement Note / Reference (Optional)"
               type="text"
               placeholder="e.g. Delivery Batch #842 from distributor"
               value={restockNote}
               onChange={(e) => setRestockNote(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 focus:outline-none focus:border-emerald-500"
             />
           </div>
 
@@ -1905,15 +1834,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-neutral-300 mb-1">
-              New Accurate Stock Count *
-            </label>
-            <input
+            <Input
+              label="New Accurate Stock Count *"
               type="number"
               required
               value={adjustTargetStock}
               onChange={(e) => setAdjustTargetStock(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono focus:outline-none focus:border-emerald-500"
+              className="font-mono"
             />
             {selectedAdjust && (
               <div className="text-[11px] text-neutral-500 mt-1 font-mono">
@@ -1936,16 +1863,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-neutral-300 mb-1">
-              Adjustment Reason *
-            </label>
-            <input
+            <Input
+              label="Adjustment Reason *"
               type="text"
               required
               placeholder="e.g. Physical inventory recount / damaged items"
               value={adjustNote}
               onChange={(e) => setAdjustNote(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 focus:outline-none focus:border-emerald-500"
             />
           </div>
 

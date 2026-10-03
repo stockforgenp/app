@@ -52,6 +52,8 @@ import {
 import { Modal } from '../common/Modal.tsx';
 import { ConfirmDialog } from '../common/ConfirmDialog.tsx';
 import { ActionMenu } from '../common/ActionMenu.tsx';
+import { Select } from '../common/Select.tsx';
+import { Input } from '../common/Input.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
 import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
 
@@ -395,42 +397,42 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
 
       {/* Filter Bar */}
       <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative flex-1 w-full">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
-          <input
+        <div className="flex-1 w-full">
+          <Input
             type="text"
+            icon={Search}
+            sizeVariant="sm"
             placeholder="Search staff by name, role, phone, or email..."
             value={staffSearch}
             onChange={(e) => setStaffSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50"
           />
         </div>
 
         <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
           {/* Status Filter */}
-          <select
+          <Select
             value={staffStatusFilter}
             onChange={(e) => setStaffStatusFilter(e.target.value as any)}
-            className="px-2.5 py-1.5 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-300 focus:outline-none focus:border-emerald-500/50 cursor-pointer"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active Only</option>
-            <option value="inactive">Inactive Only</option>
-          </select>
+            containerClassName="w-32"
+            sizeVariant="sm"
+            options={[
+              { value: 'all', label: 'All Status' },
+              { value: 'active', label: 'Active Only' },
+              { value: 'inactive', label: 'Inactive Only' },
+            ]}
+          />
 
           {/* Role Filter */}
-          <select
+          <Select
             value={selectedRoleFilter}
             onChange={(e) => setSelectedRoleFilter(e.target.value)}
-            className="px-2.5 py-1.5 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-300 focus:outline-none focus:border-emerald-500/50 cursor-pointer"
-          >
-            <option value="all">All Designations</option>
-            {uniqueRoles.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
+            containerClassName="w-40"
+            sizeVariant="sm"
+            options={[
+              { value: 'all', label: 'All Designations' },
+              ...uniqueRoles.map((r) => ({ value: r, label: r })),
+            ]}
+          />
 
           {(staffStatusFilter !== 'all' || selectedRoleFilter !== 'all' || staffSearch) && (
             <button
@@ -607,171 +609,143 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
           )}
 
           {/* Full Name */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-300 mb-1">
-              Full Name <span className="text-rose-400">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Rahul Sharma"
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50"
-            />
-          </div>
+          <Input
+            label={
+              <>
+                Full Name <span className="text-rose-400">*</span>
+              </>
+            }
+            type="text"
+            required
+            placeholder="e.g. Rahul Sharma"
+            value={formName}
+            onChange={(e) => setFormName(e.target.value)}
+          />
 
           <div className="grid grid-cols-2 gap-3">
             {/* Designation / Role */}
-            <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">
-                Designation / Role <span className="text-rose-400">*</span>
-              </label>
-              <select
-                value={isCustomRole ? 'Other' : formRole}
-                onChange={(e) => {
-                  if (e.target.value === 'Other') {
-                    setIsCustomRole(true);
-                  } else {
-                    setIsCustomRole(false);
-                    setFormRole(e.target.value as StaffRole);
-                  }
-                }}
-                className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 focus:outline-none focus:border-emerald-500/50 cursor-pointer"
-              >
-                {DEFAULT_STAFF_ROLES.map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <Select
+              label="Designation / Role"
+              required
+              value={isCustomRole ? 'Other' : formRole}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'Other') {
+                  setIsCustomRole(true);
+                } else {
+                  setIsCustomRole(false);
+                  setFormRole(val as StaffRole);
+                }
+              }}
+              options={DEFAULT_STAFF_ROLES.map((role) => ({ value: role, label: role }))}
+            />
 
             {/* Custom Designation if 'Other' */}
             {isCustomRole ? (
-              <div>
-                <label className="block text-xs font-medium text-neutral-300 mb-1">
-                  Custom Role Title <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Shift Supervisor"
-                  value={formCustomRole}
-                  onChange={(e) => setFormCustomRole(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50"
-                />
-              </div>
+              <Input
+                label={
+                  <>
+                    Custom Role Title <span className="text-rose-400">*</span>
+                  </>
+                }
+                type="text"
+                required
+                placeholder="e.g. Shift Supervisor"
+                value={formCustomRole}
+                onChange={(e) => setFormCustomRole(e.target.value)}
+              />
             ) : (
-              <div>
-                <label className="block text-xs font-medium text-neutral-300 mb-1">
-                  Employment Status
-                </label>
-                <select
-                  value={formStatus}
-                  onChange={(e) => setFormStatus(e.target.value as StaffStatus)}
-                  className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 focus:outline-none focus:border-emerald-500/50 cursor-pointer"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
+              <Select
+                label="Employment Status"
+                value={formStatus}
+                onChange={(e) => setFormStatus(e.target.value as StaffStatus)}
+                options={[
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                ]}
+              />
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             {/* Salary Type */}
-            <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">
-                Salary Type
-              </label>
-              <select
-                value={formSalaryType}
-                onChange={(e) => setFormSalaryType(e.target.value as SalaryType)}
-                className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 focus:outline-none focus:border-emerald-500/50 cursor-pointer"
-              >
-                <option value="monthly">Monthly Fixed</option>
-                <option value="hourly">Hourly Rate</option>
-                <option value="commission">Commission Based</option>
-              </select>
-            </div>
+            <Select
+              label="Salary Type"
+              value={formSalaryType}
+              onChange={(e) => setFormSalaryType(e.target.value as SalaryType)}
+              options={[
+                { value: 'monthly', label: 'Monthly Fixed' },
+                { value: 'hourly', label: 'Hourly Rate' },
+                { value: 'commission', label: 'Commission Based' },
+              ]}
+            />
 
             {/* Base Salary Rate */}
-            <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">
-                Base Wage Amount ({currencySymbol}) <span className="text-rose-400">*</span>
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                placeholder="25000"
-                value={formBaseSalary}
-                onChange={(e) => setFormBaseSalary(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50"
-              />
-            </div>
+            <Input
+              label={
+                <>
+                  Base Wage Amount ({currencySymbol}) <span className="text-rose-400">*</span>
+                </>
+              }
+              type="number"
+              step="0.01"
+              min="0"
+              required
+              mono
+              placeholder="25000"
+              value={formBaseSalary}
+              onChange={(e) => setFormBaseSalary(e.target.value)}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             {/* Phone */}
-            <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">
-                Phone Number <span className="text-neutral-500 text-[10px]">(optional)</span>
-              </label>
-              <input
-                type="tel"
-                placeholder="+91 98765 43210"
-                value={formPhone}
-                onChange={(e) => setFormPhone(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50 font-mono"
-              />
-            </div>
+            <Input
+              label={
+                <>
+                  Phone Number <span className="text-neutral-500 text-[10px]">(optional)</span>
+                </>
+              }
+              type="tel"
+              mono
+              placeholder="+91 98765 43210"
+              value={formPhone}
+              onChange={(e) => setFormPhone(e.target.value)}
+            />
 
             {/* Email */}
-            <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">
-                Email Address <span className="text-neutral-500 text-[10px]">(optional)</span>
-              </label>
-              <input
-                type="email"
-                placeholder="staff@store.com"
-                value={formEmail}
-                onChange={(e) => setFormEmail(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50"
-              />
-            </div>
+            <Input
+              label={
+                <>
+                  Email Address <span className="text-neutral-500 text-[10px]">(optional)</span>
+                </>
+              }
+              type="email"
+              placeholder="staff@store.com"
+              value={formEmail}
+              onChange={(e) => setFormEmail(e.target.value)}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             {/* Joining Date */}
-            <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">
-                Joining Date
-              </label>
-              <input
-                type="date"
-                value={formJoinDate}
-                onChange={(e) => setFormJoinDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 focus:outline-none focus:border-emerald-500/50"
-              />
-            </div>
+            <Input
+              label="Joining Date"
+              type="date"
+              value={formJoinDate}
+              onChange={(e) => setFormJoinDate(e.target.value)}
+            />
 
             {isCustomRole && (
-              <div>
-                <label className="block text-xs font-medium text-neutral-300 mb-1">
-                  Status
-                </label>
-                <select
-                  value={formStatus}
-                  onChange={(e) => setFormStatus(e.target.value as StaffStatus)}
-                  className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 focus:outline-none focus:border-emerald-500/50 cursor-pointer"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
+              <Select
+                label="Status"
+                value={formStatus}
+                onChange={(e) => setFormStatus(e.target.value as StaffStatus)}
+                options={[
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                ]}
+              />
             )}
           </div>
 
