@@ -24,6 +24,7 @@ import {
 import { Customer } from '../../types/index.ts';
 import { searchCustomers } from '../../lib/services/customerService.ts';
 import { useLanguage } from '../../context/LanguageContext.tsx';
+import { Input } from './Input.tsx';
 
 export interface CustomerInputData {
   customerId: number | null;
@@ -193,30 +194,30 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
 
       {/* Search / Autocomplete Field */}
       <div ref={dropdownRef} className="relative">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder={
-              isNepali
-                ? 'ग्राहकको नाम, मोबाइल नम्बर वा PAN खोज्नुहोस्...'
-                : 'Search customer by name, phone, or PAN/VAT...'
-            }
-            value={query}
-            onFocus={() => setIsOpen(true)}
-            onChange={(e) => handleQueryChange(e.target.value)}
-            className="w-full pl-8 pr-8 py-2 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/40 transition-colors"
-          />
-          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
-          {query && (
-            <button
-              type="button"
-              onClick={handleClear}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
+        <Input
+          type="text"
+          icon={Search}
+          rightIcon={
+            query ? (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="text-neutral-500 hover:text-neutral-300 cursor-pointer flex items-center"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            ) : null
+          }
+          placeholder={
+            isNepali
+              ? 'ग्राहकको नाम, मोबाइल नम्बर वा PAN खोज्नुहोस्...'
+              : 'Search customer by name, phone, or PAN/VAT...'
+          }
+          value={query}
+          onFocus={() => setIsOpen(true)}
+          onChange={(e) => handleQueryChange(e.target.value)}
+          sizeVariant="sm"
+        />
 
         {/* Dropdown Menu */}
         {isOpen && (
@@ -356,78 +357,61 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
       {(showExtraFields || isNewCustomerCandidate) && (
         <div className="pt-2 space-y-2.5 border-t border-neutral-800/80 animate-in fade-in duration-200">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div>
-              <label className="block text-[11px] font-medium text-neutral-400 mb-1 flex items-center gap-1">
-                <User className="w-3 h-3 text-neutral-500" />
-                <span>{isNepali ? 'ग्राहकको नाम' : 'Customer Name'}</span>
-              </label>
-              <input
-                type="text"
-                placeholder={isNepali ? 'उदा. राम श्रेष्ठ' : 'e.g. Ram Shrestha'}
-                value={value.name}
-                onChange={(e) => onChange({ ...value, name: e.target.value, isNew: !isExistingCustomer })}
-                className="w-full px-3 py-1.5 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
+            <Input
+              label={isNepali ? 'ग्राहकको नाम' : 'Customer Name'}
+              icon={User}
+              type="text"
+              sizeVariant="sm"
+              placeholder={isNepali ? 'उदा. राम श्रेष्ठ' : 'e.g. Ram Shrestha'}
+              value={value.name}
+              onChange={(e) => onChange({ ...value, name: e.target.value, isNew: !isExistingCustomer })}
+            />
 
-            <div>
-              <label className="block text-[11px] font-medium text-neutral-400 mb-1 flex items-center gap-1">
-                <Phone className="w-3 h-3 text-neutral-500" />
-                <span>{isNepali ? 'फोन / मोबाइल' : 'Phone / Mobile'}</span>
-              </label>
-              <input
-                type="tel"
-                placeholder={isNepali ? 'उदा. 9841234567' : 'e.g. 9841234567'}
-                value={value.phone}
-                onChange={(e) => onChange({ ...value, phone: e.target.value, isNew: !isExistingCustomer })}
-                className="w-full px-3 py-1.5 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 font-mono"
-              />
-            </div>
+            <Input
+              label={isNepali ? 'फोन / मोबाइल' : 'Phone / Mobile'}
+              icon={Phone}
+              type="tel"
+              sizeVariant="sm"
+              mono
+              placeholder={isNepali ? 'उदा. 9841234567' : 'e.g. 9841234567'}
+              value={value.phone}
+              onChange={(e) => onChange({ ...value, phone: e.target.value, isNew: !isExistingCustomer })}
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div>
-              <label className="block text-[11px] font-medium text-neutral-400 mb-1 flex items-center gap-1">
-                <FileText className="w-3 h-3 text-neutral-500" />
-                <span>{isNepali ? 'PAN / VAT नम्बर' : 'PAN / VAT Number'}</span>
-              </label>
-              <input
-                type="text"
-                placeholder={isNepali ? 'उदा. 601234567' : 'e.g. 601234567'}
-                value={value.pan_vat}
-                onChange={(e) => onChange({ ...value, pan_vat: e.target.value, isNew: !isExistingCustomer })}
-                className="w-full px-3 py-1.5 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 font-mono uppercase"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium text-neutral-400 mb-1 flex items-center gap-1">
-                <Mail className="w-3 h-3 text-neutral-500" />
-                <span>{isNepali ? 'इमेल ठेगाना' : 'Email Address'}</span>
-              </label>
-              <input
-                type="email"
-                placeholder="customer@example.com"
-                value={value.email}
-                onChange={(e) => onChange({ ...value, email: e.target.value, isNew: !isExistingCustomer })}
-                className="w-full px-3 py-1.5 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-medium text-neutral-400 mb-1 flex items-center gap-1">
-              <MapPin className="w-3 h-3 text-neutral-500" />
-              <span>{isNepali ? 'ठेगाना' : 'Address'}</span>
-            </label>
-            <input
+            <Input
+              label={isNepali ? 'PAN / VAT नम्बर' : 'PAN / VAT Number'}
+              icon={FileText}
               type="text"
-              placeholder={isNepali ? 'उदा. नयाँ बानेश्वर, काठमाडौँ' : 'e.g. New Baneshwor, Kathmandu'}
-              value={value.address}
-              onChange={(e) => onChange({ ...value, address: e.target.value, isNew: !isExistingCustomer })}
-              className="w-full px-3 py-1.5 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+              sizeVariant="sm"
+              mono
+              className="uppercase"
+              placeholder={isNepali ? 'उदा. 601234567' : 'e.g. 601234567'}
+              value={value.pan_vat}
+              onChange={(e) => onChange({ ...value, pan_vat: e.target.value, isNew: !isExistingCustomer })}
+            />
+
+            <Input
+              label={isNepali ? 'इमेल ठेगाना' : 'Email Address'}
+              icon={Mail}
+              type="email"
+              sizeVariant="sm"
+              placeholder="customer@example.com"
+              value={value.email}
+              onChange={(e) => onChange({ ...value, email: e.target.value, isNew: !isExistingCustomer })}
             />
           </div>
+
+          <Input
+            label={isNepali ? 'ठेगाना' : 'Address'}
+            icon={MapPin}
+            type="text"
+            sizeVariant="sm"
+            placeholder={isNepali ? 'उदा. नयाँ बानेश्वर, काठमाडौँ' : 'e.g. New Baneshwor, Kathmandu'}
+            value={value.address}
+            onChange={(e) => onChange({ ...value, address: e.target.value, isNew: !isExistingCustomer })}
+          />
         </div>
       )}
     </div>

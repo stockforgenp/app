@@ -48,6 +48,7 @@ import {
 import { Modal } from '../common/Modal.tsx';
 import { ActionMenu } from '../common/ActionMenu.tsx';
 import { Select } from '../common/Select.tsx';
+import { Input, Textarea } from '../common/Input.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
 import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
 
@@ -437,14 +438,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ currencySymbol }) =>
       {/* Filter and Control Bar */}
       <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         {/* Search Input */}
-        <div className="relative flex-1 min-w-[220px]">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
-          <input
+        <div className="flex-1 min-w-[220px]">
+          <Input
             type="text"
+            icon={Search}
+            sizeVariant="sm"
             placeholder="Search note, receipt ref, or category..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50"
           />
         </div>
 
@@ -493,20 +494,22 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ currencySymbol }) =>
       {/* Custom Date Pickers (if custom selected) */}
       {datePreset === 'custom' && (
         <div className="p-3 bg-neutral-900 border border-neutral-800 rounded-xl flex items-center gap-3 text-xs">
-          <span className="text-neutral-400 font-medium">Custom Range:</span>
+          <span className="text-neutral-400 font-medium shrink-0">Custom Range:</span>
           <div className="flex items-center gap-2">
-            <input
+            <Input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="px-2.5 py-1 bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 text-xs focus:outline-none focus:border-emerald-500/50"
+              sizeVariant="sm"
+              containerClassName="w-auto"
             />
-            <span className="text-neutral-500">to</span>
-            <input
+            <span className="text-neutral-500 shrink-0">to</span>
+            <Input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="px-2.5 py-1 bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 text-xs focus:outline-none focus:border-emerald-500/50"
+              sizeVariant="sm"
+              containerClassName="w-auto"
             />
           </div>
         </div>
@@ -657,12 +660,12 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ currencySymbol }) =>
             />
 
             {isCustomCategory && (
-              <input
+              <Input
                 type="text"
                 placeholder="Enter custom category name..."
                 value={customCategoryInput}
                 onChange={(e) => setCustomCategoryInput(e.target.value)}
-                className="mt-2 w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50"
+                containerClassName="mt-2"
                 autoFocus
               />
             )}
@@ -670,36 +673,33 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ currencySymbol }) =>
 
           {/* Amount & Date in 2 columns */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1.5">
-                Amount ({currencySymbol}) <span className="text-rose-400">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  placeholder="0.00"
-                  value={formAmount}
-                  onChange={(e) => setFormAmount(e.target.value)}
-                  className="w-full px-3 py-2 text-xs font-mono bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50"
-                  required
-                />
-              </div>
-            </div>
+            <Input
+              label={
+                <>
+                  Amount ({currencySymbol}) <span className="text-rose-400">*</span>
+                </>
+              }
+              type="number"
+              step="0.01"
+              min="0.01"
+              mono
+              placeholder="0.00"
+              value={formAmount}
+              onChange={(e) => setFormAmount(e.target.value)}
+              required
+            />
 
-            <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1.5">
-                Date <span className="text-rose-400">*</span>
-              </label>
-              <input
-                type="date"
-                value={formDate}
-                onChange={(e) => setFormDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 focus:outline-none focus:border-emerald-500/50"
-                required
-              />
-            </div>
+            <Input
+              label={
+                <>
+                  Date <span className="text-rose-400">*</span>
+                </>
+              }
+              type="date"
+              value={formDate}
+              onChange={(e) => setFormDate(e.target.value)}
+              required
+            />
           </div>
 
           {/* Payment Method & Receipt Reference */}
@@ -711,33 +711,24 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ currencySymbol }) =>
               options={DEFAULT_PAYMENT_METHODS.map((pm) => ({ value: pm, label: pm }))}
             />
 
-            <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1.5">
-                Receipt / Bill Reference #
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. INV-9021 or Bill #"
-                value={formReceiptRef}
-                onChange={(e) => setFormReceiptRef(e.target.value)}
-                className="w-full px-3 py-2 text-xs font-mono bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50"
-              />
-            </div>
+            <Input
+              label="Receipt / Bill Reference #"
+              type="text"
+              mono
+              placeholder="e.g. INV-9021 or Bill #"
+              value={formReceiptRef}
+              onChange={(e) => setFormReceiptRef(e.target.value)}
+            />
           </div>
 
           {/* Description Note */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-300 mb-1.5">
-              Description / Notes
-            </label>
-            <textarea
-              rows={3}
-              placeholder="e.g. Paid electricity bill for warehouse unit A..."
-              value={formNote}
-              onChange={(e) => setFormNote(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50 resize-none"
-            />
-          </div>
+          <Textarea
+            label="Description / Notes"
+            rows={3}
+            placeholder="e.g. Paid electricity bill for warehouse unit A..."
+            value={formNote}
+            onChange={(e) => setFormNote(e.target.value)}
+          />
 
           {/* Form Actions */}
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-neutral-800">

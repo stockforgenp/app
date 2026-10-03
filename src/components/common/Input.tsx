@@ -4,7 +4,10 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
   value?: string | number | readonly string[] | null | undefined;
   label?: React.ReactNode;
   icon?: React.ComponentType<{ className?: string }> | React.ReactNode;
+  iconPosition?: 'left' | 'right';
   rightIcon?: React.ComponentType<{ className?: string }> | React.ReactNode;
+  clearable?: boolean;
+  onClear?: () => void;
   error?: string | React.ReactNode;
   helperText?: string | React.ReactNode;
   mono?: boolean;
@@ -43,7 +46,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       value,
       label,
       icon,
+      iconPosition = 'left',
       rightIcon,
+      clearable = false,
+      onClear,
       error,
       helperText,
       mono = false,
@@ -53,11 +59,63 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       className = '',
       disabled,
       id,
+      type,
       ...props
     },
     ref
   ) => {
-    // Normalize null to empty string for clean React controlled inputs
+    // If hidden, render directly without wrapper
+    if (type === 'hidden' || (className && className.includes('hidden'))) {
+      return (
+        <input
+          ref={ref}
+          id={id}
+          type={type}
+          disabled={disabled}
+          className={className}
+          {...(value !== undefined ? { value: value === null ? '' : value } : {})}
+          {...props}
+        />
+      );
+    }
+
+    // If it's a checkbox or radio, render minimal wrapper
+    if (type === 'checkbox' || type === 'radio') {
+      const inputEl = (
+        <input
+          ref={ref}
+          id={id}
+          type={type}
+          disabled={disabled}
+          className={`cursor-pointer rounded border-neutral-700 bg-neutral-950 text-emerald-500 focus:ring-emerald-500 transition-colors ${
+            disabled ? 'opacity-50 cursor-not-allowed' : ''
+          } ${className}`}
+          {...(value !== undefined ? { value: value === null ? '' : value } : {})}
+          {...props}
+        />
+      );
+
+      if (!label && !error && !helperText) {
+        return inputEl;
+      }
+
+      return (
+        <div className={`flex items-center gap-2 ${containerClassName}`}>
+          {inputEl}
+          {label && (
+            <label
+              htmlFor={id}
+              className={`text-xs text-neutral-300 cursor-pointer select-none ${labelClassName}`}
+            >
+              {label}
+            </label>
+          )}
+          {error && <span className="text-[11px] text-rose-400">{error}</span>}
+        </div>
+      );
+    }
+
+    // Normalize null to empty string for React controlled inputs
     const safeValue = value === null ? '' : value;
 
     const sizeClasses = {
@@ -66,15 +124,19 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       lg: 'px-3.5 py-2.5 text-sm',
     };
 
-    const hasLeftIcon = Boolean(icon);
-    const hasRightIcon = Boolean(rightIcon);
+    const effectiveLeftIcon = iconPosition === 'left' ? icon : undefined;
+    const effectiveRightIcon = iconPosition === 'right' ? icon : rightIcon;
+    const isClearable = clearable && Boolean(safeValue) && Boolean(onClear);
+
+    const hasLeftIcon = Boolean(effectiveLeftIcon);
+    const hasRightContent = Boolean(effectiveRightIcon) || isClearable;
 
     const paddingWithIcon = hasLeftIcon
       ? sizeVariant === 'sm'
         ? 'pl-8'
         : 'pl-9'
       : '';
-    const paddingWithRightIcon = hasRightIcon
+    const paddingWithRightIcon = hasRightContent
       ? sizeVariant === 'sm'
         ? 'pr-8'
         : 'pr-9'
@@ -93,14 +155,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         <div className="relative flex items-center">
           {hasLeftIcon && (
             <div className="absolute left-2.5 flex items-center pointer-events-none text-neutral-400">
-              {renderIcon(icon, 'w-3.5 h-3.5')}
+              {renderIcon(effectiveLeftIcon, 'w-3.5 h-3.5')}
             </div>
           )}
 
           <input
             ref={ref}
             id={id}
-            value={safeValue}
+            type={type}
             disabled={disabled}
             className={`w-full bg-neutral-950 border rounded-lg text-neutral-100 placeholder-neutral-500 transition-colors focus:outline-none focus:ring-1 ${
               error
@@ -109,14 +171,24 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             } ${mono ? 'font-mono' : ''} ${sizeClasses[sizeVariant]} ${paddingWithIcon} ${paddingWithRightIcon} ${
               disabled ? 'opacity-50 cursor-not-allowed bg-neutral-900' : ''
             } ${className}`}
+            {...(value !== undefined ? { value: safeValue } : {})}
             {...props}
           />
 
-          {hasRightIcon && (
+          {isClearable ? (
+            <button
+              type="button"
+              onClick={onClear}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs cursor-pointer p-0.5"
+              title="Clear input"
+            >
+              ✕
+            </button>
+          ) : effectiveRightIcon ? (
             <div className="absolute right-2.5 flex items-center text-neutral-400">
-              {renderIcon(rightIcon, 'w-3.5 h-3.5')}
+              {renderIcon(effectiveRightIcon, 'w-3.5 h-3.5')}
             </div>
-          )}
+          ) : null}
         </div>
 
         {error ? (
@@ -165,13 +237,13 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           id={id}
           rows={rows}
-          value={safeValue}
           disabled={disabled}
           className={`w-full bg-neutral-950 border rounded-lg text-xs text-neutral-100 placeholder-neutral-500 transition-colors focus:outline-none focus:ring-1 resize-none px-3 py-2 ${
             error
               ? 'border-rose-500/80 focus:border-rose-500 focus:ring-rose-500/20'
               : 'border-neutral-800 focus:border-emerald-500 focus:ring-emerald-500/20'
           } ${disabled ? 'opacity-50 cursor-not-allowed bg-neutral-900' : ''} ${className}`}
+          {...(value !== undefined ? { value: safeValue } : {})}
           {...props}
         />
         {error ? (
