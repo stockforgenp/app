@@ -23,7 +23,7 @@ export interface SelectChangeEvent<T = string | number> {
 
 export interface SelectProps {
   value?: string | number | null | undefined;
-  onChange?: (event: SelectChangeEvent<any>) => void;
+  onChange?: (event: SelectChangeEvent<any>, value?: any) => void;
   options?: (SelectOption | string | number)[];
   children?: ReactNode;
   placeholder?: string;
@@ -182,7 +182,7 @@ export const Select: React.FC<SelectProps> = ({
         currentTarget: { value: opt.value, name },
         value: opt.value,
       };
-      onChange(syntheticEvent);
+      onChange(syntheticEvent, opt.value);
     }
 
     setIsOpen(false);
@@ -199,7 +199,7 @@ export const Select: React.FC<SelectProps> = ({
         currentTarget: { value: '', name },
         value: '',
       };
-      onChange(syntheticEvent);
+      onChange(syntheticEvent, '');
     }
   };
 

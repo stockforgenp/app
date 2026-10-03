@@ -20,7 +20,6 @@ import {
   Calendar,
   Layers,
 } from 'lucide-react';
-import { Input } from '../common/Input.tsx';
 import {
   DateFilterPreset,
   getDateRangeFromPreset,
@@ -148,22 +147,20 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currencySymbol }) 
       {/* Custom Date Inputs (when 'custom' preset is selected) */}
       {preset === 'custom' && (
         <div className="flex items-center gap-3 p-3 bg-neutral-900 rounded-xl border border-neutral-800 text-xs">
-          <Calendar className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span className="text-neutral-300 font-medium shrink-0">Select Range:</span>
-          <Input
+          <Calendar className="w-4 h-4 text-emerald-400" />
+          <span className="text-neutral-300 font-medium">Select Range:</span>
+          <input
             type="date"
             value={customStart}
             onChange={(e) => setCustomStart(e.target.value)}
-            sizeVariant="sm"
-            containerClassName="w-auto"
+            className="bg-neutral-950 border border-neutral-800 rounded px-2.5 py-1 text-neutral-200 focus:outline-none focus:border-emerald-500"
           />
-          <span className="text-neutral-500 shrink-0">to</span>
-          <Input
+          <span className="text-neutral-500">to</span>
+          <input
             type="date"
             value={customEnd}
             onChange={(e) => setCustomEnd(e.target.value)}
-            sizeVariant="sm"
-            containerClassName="w-auto"
+            className="bg-neutral-950 border border-neutral-800 rounded px-2.5 py-1 text-neutral-200 focus:outline-none focus:border-emerald-500"
           />
         </div>
       )}

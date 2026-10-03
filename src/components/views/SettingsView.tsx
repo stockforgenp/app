@@ -44,7 +44,6 @@ import {
 import { runBusinessLogicTests } from '../../lib/services/testService.ts';
 import { ConfirmDialog } from '../common/ConfirmDialog.tsx';
 import { Select } from '../common/Select.tsx';
-import { Input } from '../common/Input.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
 import { useTheme } from '../../context/ThemeContext.tsx';
 import { useLanguage } from '../../context/LanguageContext.tsx';
@@ -515,33 +514,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
                   </button>
                 </div>
               </div>
-              <Input
+              <input
                 type="text"
                 required
-                mono
                 value={currencyInput}
                 onChange={(e) => setCurrencyInput(e.target.value)}
                 placeholder={isNepali ? 'रु.' : 'Rs.'}
-                helperText={
-                  isNepali
-                    ? 'नेपाली भाषामा डिफल्ट "रु."। सबै तालिका, बिक्री काउन्टर, रसिद र रिपोर्टहरूमा देखिन्छ।'
-                    : 'Default: "Rs." in English, "रु." in Nepali. Displays across all tables, POS, reports, and receipts.'
-                }
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono focus:outline-none focus:border-emerald-500"
               />
+              <p className="text-[11px] text-neutral-500 mt-1">
+                {isNepali
+                  ? 'नेपाली भाषामा डिफल्ट "रु."। सबै तालिका, बिक्री काउन्टर, रसिद र रिपोर्टहरूमा देखिन्छ।'
+                  : 'Default: "Rs." in English, "रु." in Nepali. Displays across all tables, POS, reports, and receipts.'}
+              </p>
             </div>
 
             {/* Low-Stock Threshold */}
-            <Input
-              label="Low-Stock Threshold (Units)"
-              type="number"
-              min="0"
-              required
-              mono
-              value={lowStockInput}
-              onChange={(e) => setLowStockInput(e.target.value)}
-              placeholder="10"
-              helperText="Default: 10 units. Products at or below this count show warnings."
-            />
+            <div>
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                Low-Stock Threshold (Units)
+              </label>
+              <input
+                type="number"
+                min="0"
+                required
+                value={lowStockInput}
+                onChange={(e) => setLowStockInput(e.target.value)}
+                placeholder="10"
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono focus:outline-none focus:border-emerald-500"
+              />
+              <p className="text-[11px] text-neutral-500 mt-1">
+                Default: 10 units. Products at or below this count show warnings.
+              </p>
+            </div>
           </div>
 
           {/* Allow Negative Stock Toggle */}
@@ -557,7 +562,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
               </div>
 
               <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5">
-                <Input
+                <input
                   type="checkbox"
                   checked={negativeStock}
                   onChange={(e) => setNegativeStock(e.target.checked)}
@@ -576,44 +581,65 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Store / Business Name"
-                type="text"
-                value={storeNameInput}
-                onChange={(e) => setStoreNameInput(e.target.value)}
-                placeholder="e.g. Al-Madina Superstore"
-                helperText="Appears at the top of printed thermal receipts and invoices."
-              />
+              <div>
+                <label className="block text-xs font-medium text-neutral-300 mb-1">
+                  Store / Business Name
+                </label>
+                <input
+                  type="text"
+                  value={storeNameInput}
+                  onChange={(e) => setStoreNameInput(e.target.value)}
+                  placeholder="e.g. Al-Madina Superstore"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 focus:outline-none focus:border-emerald-500"
+                />
+                <p className="text-[11px] text-neutral-500 mt-1">
+                  Appears at the top of printed thermal receipts and invoices.
+                </p>
+              </div>
 
-              <Input
-                label="Contact Phone / Mobile"
-                type="text"
-                mono
-                value={storePhoneInput}
-                onChange={(e) => setStorePhoneInput(e.target.value)}
-                placeholder="e.g. +92 300 1234567"
-                helperText="Printed on receipt header for customer inquiries."
-              />
+              <div>
+                <label className="block text-xs font-medium text-neutral-300 mb-1">
+                  Contact Phone / Mobile
+                </label>
+                <input
+                  type="text"
+                  value={storePhoneInput}
+                  onChange={(e) => setStorePhoneInput(e.target.value)}
+                  placeholder="e.g. +92 300 1234567"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono focus:outline-none focus:border-emerald-500"
+                />
+                <p className="text-[11px] text-neutral-500 mt-1">
+                  Printed on receipt header for customer inquiries.
+                </p>
+              </div>
 
               <div className="md:col-span-2">
-                <Input
-                  label="Store Address"
+                <label className="block text-xs font-medium text-neutral-300 mb-1">
+                  Store Address
+                </label>
+                <input
                   type="text"
                   value={storeAddressInput}
                   onChange={(e) => setStoreAddressInput(e.target.value)}
                   placeholder="e.g. Shop #14, Main Market, Blue Area, Islamabad"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <Input
-                  label="Bill Footer Message / Return Policy"
+                <label className="block text-xs font-medium text-neutral-300 mb-1">
+                  Bill Footer Message / Return Policy
+                </label>
+                <input
                   type="text"
                   value={receiptFooterInput}
                   onChange={(e) => setReceiptFooterInput(e.target.value)}
                   placeholder="e.g. Thank you for shopping with us! Please come again."
-                  helperText="Printed at the bottom of the bill receipt."
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 focus:outline-none focus:border-emerald-500"
                 />
+                <p className="text-[11px] text-neutral-500 mt-1">
+                  Printed at the bottom of the bill receipt.
+                </p>
               </div>
             </div>
           </div>
@@ -679,7 +705,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
             <label className="w-full py-2 px-3 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer">
               <Upload className="w-3.5 h-3.5" />
               <span>Select File to Restore...</span>
-              <Input
+              <input
                 type="file"
                 accept=".sqlite,.db"
                 onChange={handleFileSelected}

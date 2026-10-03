@@ -64,7 +64,6 @@ import { Modal } from '../common/Modal.tsx';
 import { ConfirmDialog } from '../common/ConfirmDialog.tsx';
 import { ActionMenu } from '../common/ActionMenu.tsx';
 import { Select } from '../common/Select.tsx';
-import { Input } from '../common/Input.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
 import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
 import { useLanguage } from '../../context/LanguageContext.tsx';
@@ -816,8 +815,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         {/* Row 1: Search & Core Filters */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
           {/* Search Box */}
-          <div className="md:col-span-5">
-            <Input
+          <div className="relative md:col-span-5">
+            <Search className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
               type="text"
               placeholder={
                 viewTab === 'catalog'
@@ -826,11 +826,16 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              icon={Search}
-              clearable
-              onClear={() => setSearch('')}
-              className="py-2 text-xs"
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9 pr-4 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
             />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
           {/* Vendor Filter Dropdown */}
@@ -914,27 +919,25 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           {/* Date Picker Inputs & Clear Button */}
           <div className="flex items-center gap-2 w-full md:w-auto justify-end">
             <div className="flex items-center gap-1.5 bg-neutral-950 px-2.5 py-1 rounded-lg border border-neutral-800 text-neutral-300">
-              <Input
+              <input
                 type="date"
                 value={startDate}
                 onChange={(e) => {
                   setStartDate(e.target.value);
                   setDatePreset('custom');
                 }}
-                containerClassName="w-auto"
-                className="bg-transparent border-0 p-0 text-neutral-200 focus:outline-none text-xs"
+                className="bg-transparent text-neutral-200 focus:outline-none text-xs"
                 title="Start Date"
               />
               <span className="text-neutral-500 text-xs">{isNepali ? 'देखि' : 'to'}</span>
-              <Input
+              <input
                 type="date"
                 value={endDate}
                 onChange={(e) => {
                   setEndDate(e.target.value);
                   setDatePreset('custom');
                 }}
-                containerClassName="w-auto"
-                className="bg-transparent border-0 p-0 text-neutral-200 focus:outline-none text-xs"
+                className="bg-transparent text-neutral-200 focus:outline-none text-xs"
                 title="End Date"
               />
             </div>
@@ -962,7 +965,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 select-none">
                 <tr>
                   <th className="py-3 px-4 w-10 text-center">
-                    <Input
+                    <input
                       type="checkbox"
                       checked={
                         filteredProducts.length > 0 &&
@@ -1063,7 +1066,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         }`}
                       >
                         <td className="py-3 px-4 text-center">
-                          <Input
+                          <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleSelectProduct(p.id)}
@@ -1329,13 +1332,16 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       >
         <form onSubmit={handleSaveCreate} className="space-y-4">
           <div>
-            <Input
-              label={`${t('prod_name', 'Product Name')} *`}
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              {t('prod_name', 'Product Name')} *
+            </label>
+            <input
               type="text"
               required
               placeholder={isNepali ? 'उदा. कोकाकोला ५०० मि.लि.' : 'e.g. Coca Cola 500ml'}
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
             />
           </div>
 
@@ -1360,15 +1366,25 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 <span>{t('prod_sku_auto_btn', 'Auto-Generate')}</span>
               </button>
             </div>
-            <Input
-              type="text"
-              placeholder={t('prod_sku_placeholder', 'e.g. BEV-CC-500 (or leave blank to auto-generate)')}
-              value={formData.sku}
-              onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-              className="font-mono"
-              clearable
-              onClear={() => setFormData((prev) => ({ ...prev, sku: '' }))}
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder={t('prod_sku_placeholder', 'e.g. BEV-CC-500 (or leave blank to auto-generate)')}
+                value={formData.sku}
+                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+              />
+              {formData.sku && (
+                <button
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, sku: '' }))}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs cursor-pointer"
+                  title="Clear SKU (will auto-generate upon saving)"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Unit of Measure */}
@@ -1382,14 +1398,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               </span>
             </div>
             <div className="flex gap-2">
-              <Input
+              <input
                 type="text"
                 required
                 placeholder={t('prod_unit_placeholder', 'e.g. pcs, kg, ltr, box')}
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                className="font-mono"
-                containerClassName="flex-1"
+                className="flex-1 bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
               />
               <Select
                 value={COMMON_UNITS.some((u) => u.value === formData.unit.toLowerCase()) ? formData.unit.toLowerCase() : ''}
@@ -1450,8 +1465,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Input
-                label={`${t('prod_cost_price', 'Cost Price')} (${currencySymbol}) *`}
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                {t('prod_cost_price', 'Cost Price')} ({currencySymbol}) *
+              </label>
+              <input
                 type="number"
                 step="0.01"
                 min="0"
@@ -1459,13 +1476,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 placeholder="45.00"
                 value={formData.costPrice}
                 onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
-                className="font-mono"
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             <div>
-              <Input
-                label={`${t('prod_selling_price', 'Default Selling')} (${currencySymbol}) *`}
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                {t('prod_selling_price', 'Default Selling')} ({currencySymbol}) *
+              </label>
+              <input
                 type="number"
                 step="0.01"
                 min="0"
@@ -1473,36 +1492,44 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 placeholder="60.00"
                 value={formData.sellingPrice}
                 onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
-                className="font-mono"
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Input
-                label={t('prod_initial_stock', 'Opening Stock')}
-                helperText={isNepali ? 'प्रारम्भिक मौज्दात प्रविष्टि गर्दछ।' : "Creates initial 'RESTOCK' movement."}
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                {t('prod_initial_stock', 'Opening Stock')}
+              </label>
+              <input
                 type="number"
                 min="0"
                 placeholder="100"
                 value={formData.initialStock}
                 onChange={(e) => setFormData({ ...formData, initialStock: e.target.value })}
-                className="font-mono"
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
               />
+              <p className="text-[11px] text-neutral-500 mt-1">
+                {isNepali ? 'प्रारम्भिक मौज्दात प्रविष्टि गर्दछ।' : "Creates initial 'RESTOCK' movement."}
+              </p>
             </div>
 
             <div>
-              <Input
-                label={t('prod_min_alert', 'Minimum Alert Threshold')}
-                helperText={t('prod_min_alert_hint', 'Triggers low-stock warning when below threshold.')}
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                {t('prod_min_alert', 'Minimum Alert Threshold')}
+              </label>
+              <input
                 type="number"
                 min="0"
                 placeholder={isNepali ? `डिफल्ट: ${lowStockThreshold} एकाइ` : `Default: ${lowStockThreshold} units`}
                 value={formData.minStockAlert}
                 onChange={(e) => setFormData({ ...formData, minStockAlert: e.target.value })}
-                className="font-mono"
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
               />
+              <p className="text-[11px] text-neutral-500 mt-1">
+                {t('prod_min_alert_hint', 'Triggers low-stock warning when below threshold.')}
+              </p>
             </div>
           </div>
 
@@ -1534,12 +1561,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       >
         <form onSubmit={handleSaveEdit} className="space-y-4">
           <div>
-            <Input
-              label={`${t('prod_name', 'Product Name')} *`}
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              {t('prod_name', 'Product Name')} *
+            </label>
+            <input
               type="text"
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
             />
           </div>
 
@@ -1564,15 +1594,25 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 <span>{t('prod_sku_auto_btn', 'Auto-Generate')}</span>
               </button>
             </div>
-            <Input
-              type="text"
-              placeholder={t('prod_sku_placeholder', 'e.g. BEV-CC-500 (or leave blank to auto-generate)')}
-              value={formData.sku}
-              onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-              className="font-mono"
-              clearable
-              onClear={() => setFormData((prev) => ({ ...prev, sku: '' }))}
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder={t('prod_sku_placeholder', 'e.g. BEV-CC-500 (or leave blank to auto-generate)')}
+                value={formData.sku}
+                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+              />
+              {formData.sku && (
+                <button
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, sku: '' }))}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs cursor-pointer"
+                  title="Clear SKU"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Unit of Measure */}
@@ -1586,14 +1626,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               </span>
             </div>
             <div className="flex gap-2">
-              <Input
+              <input
                 type="text"
                 required
                 placeholder={t('prod_unit_placeholder', 'e.g. pcs, kg, ltr, box')}
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                className="font-mono"
-                containerClassName="flex-1"
+                className="flex-1 bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
               />
               <Select
                 value={COMMON_UNITS.some((u) => u.value === formData.unit.toLowerCase()) ? formData.unit.toLowerCase() : ''}
@@ -1654,43 +1693,51 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Input
-                label={`${t('prod_cost_price', 'Cost Price')} (${currencySymbol}) *`}
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                {t('prod_cost_price', 'Cost Price')} ({currencySymbol}) *
+              </label>
+              <input
                 type="number"
                 step="0.01"
                 min="0"
                 required
                 value={formData.costPrice}
                 onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
-                className="font-mono"
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             <div>
-              <Input
-                label={`${t('prod_selling_price', 'Default Selling')} (${currencySymbol}) *`}
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                {t('prod_selling_price', 'Default Selling')} ({currencySymbol}) *
+              </label>
+              <input
                 type="number"
                 step="0.01"
                 min="0"
                 required
                 value={formData.sellingPrice}
                 onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
-                className="font-mono"
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
               />
             </div>
           </div>
 
           <div>
-            <Input
-              label={`${t('prod_min_alert', 'Minimum Alert Threshold')} (${isNepali ? 'वैकल्पिक' : 'Optional'})`}
-              helperText={t('prod_min_alert_hint', 'Triggers low-stock warning when below threshold.')}
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              {t('prod_min_alert', 'Minimum Alert Threshold')} ({isNepali ? 'वैकल्पिक' : 'Optional'})
+            </label>
+            <input
               type="number"
               min="0"
               placeholder={isNepali ? `डिफल्ट: ${lowStockThreshold} एकाइ` : `Default: ${lowStockThreshold} units`}
               value={formData.minStockAlert}
               onChange={(e) => setFormData({ ...formData, minStockAlert: e.target.value })}
-              className="font-mono"
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
             />
+            <p className="text-[11px] text-neutral-500 mt-1">
+              {t('prod_min_alert_hint', 'Triggers low-stock warning when below threshold.')}
+            </p>
           </div>
 
           <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800/80 text-[11px] text-neutral-400 flex items-start gap-2">
@@ -1754,14 +1801,16 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </div>
 
           <div>
-            <Input
-              label="Quantity to Add *"
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              Quantity to Add *
+            </label>
+            <input
               type="number"
               min="1"
               required
               value={restockQty}
               onChange={(e) => setRestockQty(e.target.value)}
-              className="font-mono"
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono focus:outline-none focus:border-emerald-500"
             />
           </div>
 
@@ -1784,12 +1833,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           />
 
           <div>
-            <Input
-              label="Movement Note / Reference (Optional)"
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              Movement Note / Reference (Optional)
+            </label>
+            <input
               type="text"
               placeholder="e.g. Delivery Batch #842 from distributor"
               value={restockNote}
               onChange={(e) => setRestockNote(e.target.value)}
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 focus:outline-none focus:border-emerald-500"
             />
           </div>
 
@@ -1834,13 +1886,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </div>
 
           <div>
-            <Input
-              label="New Accurate Stock Count *"
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              New Accurate Stock Count *
+            </label>
+            <input
               type="number"
               required
               value={adjustTargetStock}
               onChange={(e) => setAdjustTargetStock(e.target.value)}
-              className="font-mono"
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono focus:outline-none focus:border-emerald-500"
             />
             {selectedAdjust && (
               <div className="text-[11px] text-neutral-500 mt-1 font-mono">
@@ -1863,13 +1917,16 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </div>
 
           <div>
-            <Input
-              label="Adjustment Reason *"
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              Adjustment Reason *
+            </label>
+            <input
               type="text"
               required
               placeholder="e.g. Physical inventory recount / damaged items"
               value={adjustNote}
               onChange={(e) => setAdjustNote(e.target.value)}
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 focus:outline-none focus:border-emerald-500"
             />
           </div>
 

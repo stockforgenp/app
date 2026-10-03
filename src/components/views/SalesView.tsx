@@ -45,7 +45,6 @@ import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
 import { MODIFIER_LABEL } from '../../lib/hooks/useGlobalShortcuts.ts';
 import { Modal } from '../common/Modal.tsx';
 import { PrintBillModal } from '../common/PrintBillModal.tsx';
-import { Input } from '../common/Input.tsx';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 
 interface SalesViewProps {
@@ -762,16 +761,14 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
               {/* Quick Search and Multi-Select Helpers */}
               <div className="flex items-center gap-2">
-                <div className="flex-1">
-                  <Input
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
                     type="text"
                     placeholder={isNepali ? 'सामानको नाम वा SKU बाट खोज्नुहोस्...' : 'Search catalog or SKU to add...'}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    icon={Search}
-                    clearable
-                    onClear={() => setSearch('')}
-                    className="py-1.5 text-xs"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 </div>
 
@@ -889,7 +886,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             >
                               <Minus className="w-3 h-3" />
                             </button>
-                            <Input
+                            <input
                               type="number"
                               min="1"
                               value={selectedQty}
@@ -897,8 +894,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                                 const val = parseInt(e.target.value, 10);
                                 updateBatchQty(p.id, isNaN(val) ? 1 : val);
                               }}
-                              containerClassName="w-8"
-                              className="border-0 p-0 text-center text-xs font-mono font-bold text-neutral-100 bg-transparent focus:outline-none"
+                              className="w-8 text-center text-xs font-mono font-bold text-neutral-100 bg-transparent focus:outline-none"
                             />
                             <button
                               type="button"
@@ -977,16 +973,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
             {/* Quick Multi-SKU / Barcode Scanner Input */}
             <div className="p-3 bg-neutral-950/80 border-b border-neutral-800/80">
               <form onSubmit={handleQuickSkuSubmit} className="flex items-center gap-2">
-                <div className="flex-1">
-                  <Input
+                <div className="relative flex-1">
+                  <ScanLine className="w-4 h-4 text-emerald-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
                     ref={quickSkuInputRef}
                     type="text"
                     placeholder={`Fast add multiple items: Enter/scan SKUs or names (e.g. BEV-CC-500*2) [${MODIFIER_LABEL}+B]...`}
                     value={quickSkuInput}
                     onChange={(e) => setQuickSkuInput(e.target.value)}
-                    icon={ScanLine}
-                    iconPosition="left"
-                    className="py-1.5 text-xs font-mono"
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 font-mono"
                   />
                 </div>
                 <button
@@ -1075,13 +1070,12 @@ export const SalesView: React.FC<SalesViewProps> = ({
                                 >
                                   <Minus className="w-3 h-3" />
                                 </button>
-                                <Input
+                                <input
                                   type="number"
                                   min="1"
                                   value={item.quantity}
                                   onChange={(e) => handleUpdateQuantity(index, e.target.value)}
-                                  containerClassName="w-10"
-                                  className="border-0 p-0 text-center text-xs font-mono text-neutral-100 bg-transparent focus:outline-none"
+                                  className="w-10 bg-transparent text-xs text-center font-mono text-neutral-100 focus:outline-none"
                                 />
                                 <button
                                   type="button"
@@ -1099,27 +1093,27 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
                           {/* Actual Selling Price (Editable!) */}
                           <td className="py-3 px-3 text-right">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={fromMinorUnits(item.actual_selling_price)}
-                              onChange={(e) => handleUpdateActualPrice(index, e.target.value)}
-                              containerClassName="w-24 ml-auto"
-                              className="px-2 py-1 text-xs text-right font-mono text-neutral-100"
-                            />
+                            <div className="relative">
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={fromMinorUnits(item.actual_selling_price)}
+                                onChange={(e) => handleUpdateActualPrice(index, e.target.value)}
+                                className="w-24 bg-neutral-950 border border-neutral-800 rounded px-2 py-1 text-xs text-right font-mono text-neutral-100 focus:outline-none focus:border-emerald-500"
+                              />
+                            </div>
                           </td>
 
                           {/* Line Discount (Absolute monetary amount) */}
                           <td className="py-3 px-3 text-right">
-                            <Input
+                            <input
                               type="number"
                               step="0.01"
                               min="0"
                               value={fromMinorUnits(item.discount)}
                               onChange={(e) => handleUpdateDiscount(index, e.target.value)}
-                              containerClassName="w-20 ml-auto"
-                              className="px-2 py-1 text-xs text-right font-mono text-amber-400 focus:border-amber-500"
+                              className="w-20 bg-neutral-950 border border-neutral-800 rounded px-2 py-1 text-xs text-right font-mono text-amber-400 focus:outline-none focus:border-amber-500"
                             />
                           </td>
 
@@ -1172,25 +1166,25 @@ export const SalesView: React.FC<SalesViewProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <Input
+                <div className="relative">
+                  <User className="w-3.5 h-3.5 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
                     type="text"
                     placeholder="Customer name (optional)..."
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
-                    icon={User}
-                    className="py-1.5 text-xs"
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 </div>
 
-                <div>
-                  <Input
+                <div className="relative">
+                  <Phone className="w-3.5 h-3.5 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
                     type="tel"
                     placeholder="Phone number (optional)..."
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
-                    icon={Phone}
-                    className="py-1.5 text-xs font-mono"
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 font-mono transition-colors"
                   />
                 </div>
               </div>
@@ -1301,16 +1295,14 @@ export const SalesView: React.FC<SalesViewProps> = ({
             <div className="space-y-3">
               {/* Modal Search & Quick Actions */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div className="flex-1">
-                  <Input
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
                     type="text"
                     placeholder="Search products by title or SKU..."
                     value={modalSearch}
                     onChange={(e) => setModalSearch(e.target.value)}
-                    icon={Search}
-                    clearable
-                    onClear={() => setModalSearch('')}
-                    className="py-1.5 text-xs"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
@@ -1402,7 +1394,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               >
                                 <Minus className="w-3.5 h-3.5" />
                               </button>
-                              <Input
+                              <input
                                 type="number"
                                 min="1"
                                 value={currentQty}
@@ -1410,8 +1402,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                                   const val = parseInt(e.target.value, 10);
                                   updateBatchQty(p.id, isNaN(val) ? 1 : val);
                                 }}
-                                containerClassName="w-10"
-                                className="border-0 p-0 text-center text-xs font-mono font-bold text-neutral-100 bg-transparent focus:outline-none"
+                                className="w-10 text-center text-xs font-mono font-bold text-neutral-100 bg-transparent focus:outline-none"
                               />
                               <button
                                 type="button"
@@ -1554,20 +1545,20 @@ export const SalesView: React.FC<SalesViewProps> = ({
           </div>
 
           <div>
-            <Input
-              label={
-                bulkDiscountType === 'fixed'
-                  ? `Discount Amount per Item (${currencySymbol})`
-                  : 'Discount Percentage (%)'
-              }
+            <label className="block text-xs font-semibold text-neutral-300 mb-1.5">
+              {bulkDiscountType === 'fixed'
+                ? `Discount Amount per Item (${currencySymbol})`
+                : 'Discount Percentage (%)'}
+            </label>
+            <input
               type="number"
               step={bulkDiscountType === 'fixed' ? '0.01' : '1'}
               min="0"
-              max={bulkDiscountType === 'percent' ? 100 : undefined}
+              max={bulkDiscountType === 'percent' ? '100' : undefined}
               placeholder={bulkDiscountType === 'fixed' ? 'e.g. 10.00' : 'e.g. 5'}
               value={bulkDiscountValue}
               onChange={(e) => setBulkDiscountValue(e.target.value)}
-              className="font-mono focus:border-amber-500"
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-amber-500 font-mono"
             />
           </div>
 

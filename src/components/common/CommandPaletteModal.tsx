@@ -27,7 +27,6 @@ import {
   Truck,
 } from 'lucide-react';
 import { NavTab } from '../layout/Sidebar.tsx';
-import { Input } from './Input.tsx';
 import { Product } from '../../types/index.ts';
 import { getAllProducts } from '../../lib/services/productService.ts';
 import { formatCurrency, fromMinorUnits } from '../../lib/utils/format.ts';
@@ -395,16 +394,11 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Search Input Bar */}
-        <div className="px-4 py-3 border-b border-neutral-800 bg-neutral-950/70">
-          <Input
+        <div className="flex items-center px-4 py-3.5 border-b border-neutral-800 bg-neutral-950/70 gap-3">
+          <Search className="w-5 h-5 text-neutral-400 shrink-0" />
+          <input
             ref={inputRef}
             type="text"
-            icon={Search}
-            rightIcon={
-              <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono text-neutral-400 bg-neutral-800 border border-neutral-700 rounded">
-                Esc
-              </kbd>
-            }
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -413,9 +407,11 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                 ? 'कमान्ड, स्क्रिन वा सामानको नाम टाइप गर्नुहोस्...'
                 : 'Type a screen, command, or search product...'
             }
-            sizeVariant="md"
-            className="border-transparent bg-transparent focus:border-transparent focus:ring-0 text-sm"
+            className="w-full bg-transparent text-neutral-100 placeholder-neutral-500 text-sm focus:outline-hidden"
           />
+          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono text-neutral-400 bg-neutral-800 border border-neutral-700 rounded">
+            Esc
+          </kbd>
         </div>
 
         {/* Results List */}

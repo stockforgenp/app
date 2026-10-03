@@ -67,7 +67,6 @@ import { ConfirmDialog } from '../common/ConfirmDialog.tsx';
 import { PrintSalarySlipModal } from '../common/PrintSalarySlipModal.tsx';
 import { ActionMenu } from '../common/ActionMenu.tsx';
 import { Select } from '../common/Select.tsx';
-import { Input } from '../common/Input.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
 import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
 
@@ -965,14 +964,14 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
         <div className="space-y-4">
           {/* Filter & Search Bar */}
           <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="flex-1 w-full">
-              <Input
+            <div className="relative flex-1 w-full">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+              <input
                 type="text"
-                icon={Search}
-                sizeVariant="sm"
                 placeholder="Search payments by staff name, period, reference, or note..."
                 value={paymentSearch}
                 onChange={(e) => setPaymentSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50"
               />
             </div>
 
@@ -1210,42 +1209,53 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
           />
 
           <div className="grid grid-cols-3 gap-3">
-            <Input
-              label={
-                <>
-                  Base Wage <span className="text-rose-400">*</span>
-                </>
-              }
-              type="number"
-              step="0.01"
-              min="0"
-              mono
-              required
-              value={payBaseAmount}
-              onChange={(e) => setPayBaseAmount(e.target.value)}
-            />
+            {/* Base Amount */}
+            <div>
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                Base Wage <span className="text-rose-400">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={payBaseAmount}
+                  onChange={(e) => setPayBaseAmount(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 font-mono focus:outline-none focus:border-emerald-500/50"
+                />
+              </div>
+            </div>
 
-            <Input
-              label={<span className="text-emerald-400">Bonus / Allowance</span>}
-              type="number"
-              step="0.01"
-              min="0"
-              mono
-              className="text-emerald-400"
-              value={payBonus}
-              onChange={(e) => setPayBonus(e.target.value)}
-            />
+            {/* Bonus */}
+            <div>
+              <label className="block text-xs font-medium text-emerald-400 mb-1">
+                Bonus / Allowance
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={payBonus}
+                onChange={(e) => setPayBonus(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-emerald-400 font-mono focus:outline-none focus:border-emerald-500/50"
+              />
+            </div>
 
-            <Input
-              label={<span className="text-rose-400">Deductions / Adv.</span>}
-              type="number"
-              step="0.01"
-              min="0"
-              mono
-              className="text-rose-400"
-              value={payDeductions}
-              onChange={(e) => setPayDeductions(e.target.value)}
-            />
+            {/* Deductions */}
+            <div>
+              <label className="block text-xs font-medium text-rose-400 mb-1">
+                Deductions / Adv.
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={payDeductions}
+                onChange={(e) => setPayDeductions(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-rose-400 font-mono focus:outline-none focus:border-emerald-500/50"
+              />
+            </div>
           </div>
 
           {/* Net Pay Callout Banner */}
@@ -1257,30 +1267,34 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Input
-              label={
-                <>
-                  Payment Period <span className="text-rose-400">*</span>
-                </>
-              }
-              type="text"
-              required
-              placeholder="e.g. September 2026"
-              value={payPeriod}
-              onChange={(e) => setPayPeriod(e.target.value)}
-            />
+            {/* Payment Period */}
+            <div>
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                Payment Period <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. September 2026"
+                value={payPeriod}
+                onChange={(e) => setPayPeriod(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 focus:outline-none focus:border-emerald-500/50"
+              />
+            </div>
 
-            <Input
-              label={
-                <>
-                  Disbursement Date <span className="text-rose-400">*</span>
-                </>
-              }
-              type="date"
-              required
-              value={payDate}
-              onChange={(e) => setPayDate(e.target.value)}
-            />
+            {/* Payment Date */}
+            <div>
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                Disbursement Date <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="date"
+                required
+                value={payDate}
+                onChange={(e) => setPayDate(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 focus:outline-none focus:border-emerald-500/50"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -1295,32 +1309,34 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
               }))}
             />
 
-            <Input
-              label={
-                <>
-                  Cheque / Txn Ref <span className="text-neutral-500 text-[10px]">(optional)</span>
-                </>
-              }
-              type="text"
-              mono
-              placeholder="e.g. TXN-99824"
-              value={payReference}
-              onChange={(e) => setPayReference(e.target.value)}
-            />
+            {/* Reference Number */}
+            <div>
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                Cheque / Txn Ref <span className="text-neutral-500 text-[10px]">(optional)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. TXN-99824"
+                value={payReference}
+                onChange={(e) => setPayReference(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 focus:outline-none focus:border-emerald-500/50 font-mono"
+              />
+            </div>
           </div>
 
           {/* Notes */}
-          <Input
-            label={
-              <>
-                Voucher Notes <span className="text-neutral-500 text-[10px]">(optional)</span>
-              </>
-            }
-            type="text"
-            placeholder="e.g. Includes festival holiday bonus"
-            value={payNote}
-            onChange={(e) => setPayNote(e.target.value)}
-          />
+          <div>
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              Voucher Notes <span className="text-neutral-500 text-[10px]">(optional)</span>
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Includes festival holiday bonus"
+              value={payNote}
+              onChange={(e) => setPayNote(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 focus:outline-none focus:border-emerald-500/50"
+            />
+          </div>
 
           {/* Sync With Expenses Toggle */}
           <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-lg flex items-center justify-between">
@@ -1329,10 +1345,10 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                 Sync with Expense Ledger
               </div>
               <div className="text-[11px] text-neutral-500 mt-0.5">
-                Automatically records an overhead expense under &quot;Salaries &amp; Wages&quot;
+                Automatically records an overhead expense under "Salaries & Wages"
               </div>
             </div>
-            <Input
+            <input
               type="checkbox"
               id="payrollSyncExpenses"
               checked={paySyncWithExpenses}

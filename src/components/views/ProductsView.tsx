@@ -33,7 +33,6 @@ import { Modal } from '../common/Modal.tsx';
 import { ConfirmDialog } from '../common/ConfirmDialog.tsx';
 import { ActionMenu } from '../common/ActionMenu.tsx';
 import { Select } from '../common/Select.tsx';
-import { Input } from '../common/Input.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
 import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
 import { useLanguage } from '../../context/LanguageContext.tsx';
@@ -351,14 +350,14 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
 
       {/* Search Bar & Filter Controls */}
       <div className="flex items-center gap-3 bg-neutral-900 p-3 rounded-xl border border-neutral-800">
-        <div className="flex-1">
-          <Input
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
             type="text"
-            icon={Search}
-            sizeVariant="sm"
             placeholder="Search products by title, SKU, or ID..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9 pr-4 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
           />
         </div>
         {search && (
@@ -378,7 +377,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
             <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 select-none">
               <tr>
                 <th className="py-3 px-4 w-10 text-center">
-                  <Input
+                  <input
                     type="checkbox"
                     checked={
                       filteredProducts.length > 0 &&
@@ -456,7 +455,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                       }`}
                     >
                       <td className="py-3 px-4 text-center">
-                        <Input
+                        <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelectProduct(p.id)}
@@ -590,14 +589,19 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
         maxWidth="md"
       >
         <form onSubmit={handleSaveCreate} className="space-y-4">
-          <Input
-            label={`${t('prod_name')} *`}
-            type="text"
-            required
-            placeholder={isNepali ? 'उदा. कोकाकोला ५०० मि.लि.' : 'e.g. Coca Cola 500ml'}
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          />
+          <div>
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              {t('prod_name')} *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder={isNepali ? 'उदा. कोकाकोला ५०० मि.लि.' : 'e.g. Coca Cola 500ml'}
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+            />
+          </div>
 
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -620,30 +624,30 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                 <span>{t('prod_sku_auto_btn', 'Auto-Generate')}</span>
               </button>
             </div>
-            <Input
-              type="text"
-              mono
-              placeholder={t('prod_sku_placeholder', 'e.g. BEV-CC-500 (or leave blank to auto-generate)')}
-              value={formData.sku}
-              onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-              rightIcon={
-                formData.sku ? (
-                  <button
-                    type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, sku: '' }))}
-                    className="text-neutral-500 hover:text-neutral-300 text-xs cursor-pointer"
-                    title="Clear SKU (will auto-generate upon saving)"
-                  >
-                    ✕
-                  </button>
-                ) : null
-              }
-              helperText={
-                isNepali
-                  ? 'यदि खाली छाड्नुभयो भने, सामानको नाम अनुसार प्रणालीले स्वतः नयाँ SKU बनाउनेछ।'
-                  : 'Leave blank to let the system automatically assign a clean, unique SKU.'
-              }
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder={t('prod_sku_placeholder', 'e.g. BEV-CC-500 (or leave blank to auto-generate)')}
+                value={formData.sku}
+                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+              />
+              {formData.sku && (
+                <button
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, sku: '' }))}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs cursor-pointer"
+                  title="Clear SKU (will auto-generate upon saving)"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] text-neutral-500 mt-1">
+              {isNepali
+                ? 'यदि खाली छाड्नुभयो भने, सामानको नाम अनुसार प्रणालीले स्वतः नयाँ SKU बनाउनेछ।'
+                : 'Leave blank to let the system automatically assign a clean, unique SKU.'}
+            </p>
           </div>
 
           {/* Unit of Measure */}
@@ -657,14 +661,13 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
               </span>
             </div>
             <div className="flex gap-2">
-              <Input
+              <input
                 type="text"
                 required
-                mono
                 placeholder={t('prod_unit_placeholder', 'e.g. pcs, kg, ltr, box')}
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                containerClassName="flex-1"
+                className="flex-1 bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
               />
               <Select
                 value={COMMON_UNITS.some((u) => u.value === formData.unit.toLowerCase()) ? formData.unit.toLowerCase() : ''}
@@ -698,53 +701,73 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <Input
-              label={`${t('prod_cost_price')} (${currencySymbol}) *`}
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              mono
-              placeholder="45.00"
-              value={formData.costPrice}
-              onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
-            />
+            <div>
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                {t('prod_cost_price')} ({currencySymbol}) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                required
+                placeholder="45.00"
+                value={formData.costPrice}
+                onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
 
-            <Input
-              label={`${t('prod_selling_price')} (${currencySymbol}) *`}
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              mono
-              placeholder="60.00"
-              value={formData.sellingPrice}
-              onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
-            />
+            <div>
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                {t('prod_selling_price')} ({currencySymbol}) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                required
+                placeholder="60.00"
+                value={formData.sellingPrice}
+                onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <Input
-              label={t('prod_initial_stock')}
-              type="number"
-              min="0"
-              mono
-              placeholder="100"
-              value={formData.initialStock}
-              onChange={(e) => setFormData({ ...formData, initialStock: e.target.value })}
-              helperText={isNepali ? 'प्रारम्भिक मौज्दात प्रविष्टि गर्दछ।' : "Creates initial 'RESTOCK' movement."}
-            />
+            <div>
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                {t('prod_initial_stock')}
+              </label>
+              <input
+                type="number"
+                min="0"
+                placeholder="100"
+                value={formData.initialStock}
+                onChange={(e) => setFormData({ ...formData, initialStock: e.target.value })}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+              />
+              <p className="text-[11px] text-neutral-500 mt-1">
+                {isNepali ? 'प्रारम्भिक मौज्दात प्रविष्टि गर्दछ।' : "Creates initial 'RESTOCK' movement."}
+              </p>
+            </div>
 
-            <Input
-              label={t('prod_min_alert')}
-              type="number"
-              min="0"
-              mono
-              placeholder={isNepali ? `डिफल्ट: ${lowStockThreshold} एकाइ` : `Default: ${lowStockThreshold} units`}
-              value={formData.minStockAlert}
-              onChange={(e) => setFormData({ ...formData, minStockAlert: e.target.value })}
-              helperText={t('prod_min_alert_hint')}
-            />
+            <div>
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                {t('prod_min_alert')}
+              </label>
+              <input
+                type="number"
+                min="0"
+                placeholder={isNepali ? `डिफल्ट: ${lowStockThreshold} एकाइ` : `Default: ${lowStockThreshold} units`}
+                value={formData.minStockAlert}
+                onChange={(e) => setFormData({ ...formData, minStockAlert: e.target.value })}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+              />
+              <p className="text-[11px] text-neutral-500 mt-1">
+                {t('prod_min_alert_hint')}
+              </p>
+            </div>
           </div>
 
           <div className="pt-4 flex justify-end gap-3 border-t border-neutral-800">
@@ -774,13 +797,18 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
         maxWidth="md"
       >
         <form onSubmit={handleSaveEdit} className="space-y-4">
-          <Input
-            label={`${t('prod_name')} *`}
-            type="text"
-            required
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          />
+          <div>
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              {t('prod_name')} *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+            />
+          </div>
 
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -803,30 +831,30 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                 <span>{t('prod_sku_auto_btn', 'Auto-Generate')}</span>
               </button>
             </div>
-            <Input
-              type="text"
-              mono
-              placeholder={t('prod_sku_placeholder', 'e.g. BEV-CC-500 (or leave blank to auto-generate)')}
-              value={formData.sku}
-              onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-              rightIcon={
-                formData.sku ? (
-                  <button
-                    type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, sku: '' }))}
-                    className="text-neutral-500 hover:text-neutral-300 text-xs cursor-pointer"
-                    title="Clear SKU (will auto-generate upon saving)"
-                  >
-                    ✕
-                  </button>
-                ) : null
-              }
-              helperText={
-                isNepali
-                  ? 'यदि खाली छाड्नुभयो भने, सामानको नाम अनुसार नयाँ SKU स्वतः सुरक्षित हुनेछ।'
-                  : 'Leave blank to automatically assign a new unique SKU.'
-              }
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder={t('prod_sku_placeholder', 'e.g. BEV-CC-500 (or leave blank to auto-generate)')}
+                value={formData.sku}
+                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+              />
+              {formData.sku && (
+                <button
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, sku: '' }))}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs cursor-pointer"
+                  title="Clear SKU (will auto-generate upon saving)"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] text-neutral-500 mt-1">
+              {isNepali
+                ? 'यदि खाली छाड्नुभयो भने, सामानको नाम अनुसार नयाँ SKU स्वतः सुरक्षित हुनेछ।'
+                : 'Leave blank to automatically assign a new unique SKU.'}
+            </p>
           </div>
 
           {/* Unit of Measure */}
@@ -840,14 +868,13 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
               </span>
             </div>
             <div className="flex gap-2">
-              <Input
+              <input
                 type="text"
                 required
-                mono
                 placeholder={t('prod_unit_placeholder', 'e.g. pcs, kg, ltr, box')}
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                containerClassName="flex-1"
+                className="flex-1 bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
               />
               <Select
                 value={COMMON_UNITS.some((u) => u.value === formData.unit.toLowerCase()) ? formData.unit.toLowerCase() : ''}
@@ -881,39 +908,53 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <Input
-              label={`${t('prod_cost_price')} (${currencySymbol}) *`}
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              mono
-              value={formData.costPrice}
-              onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
-            />
+            <div>
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                {t('prod_cost_price')} ({currencySymbol}) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                required
+                value={formData.costPrice}
+                onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
 
-            <Input
-              label={`${t('prod_selling_price')} (${currencySymbol}) *`}
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              mono
-              value={formData.sellingPrice}
-              onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
-            />
+            <div>
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                {t('prod_selling_price')} ({currencySymbol}) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                required
+                value={formData.sellingPrice}
+                onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
           </div>
 
-          <Input
-            label={`${t('prod_min_alert')} (${isNepali ? 'वैकल्पिक' : 'Optional'})`}
-            type="number"
-            min="0"
-            mono
-            placeholder={isNepali ? `डिफल्ट: ${lowStockThreshold} एकाइ` : `Default: ${lowStockThreshold} units`}
-            value={formData.minStockAlert}
-            onChange={(e) => setFormData({ ...formData, minStockAlert: e.target.value })}
-            helperText={t('prod_min_alert_hint')}
-          />
+          <div>
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              {t('prod_min_alert')} ({isNepali ? 'वैकल्पिक' : 'Optional'})
+            </label>
+            <input
+              type="number"
+              min="0"
+              placeholder={isNepali ? `डिफल्ट: ${lowStockThreshold} एकाइ` : `Default: ${lowStockThreshold} units`}
+              value={formData.minStockAlert}
+              onChange={(e) => setFormData({ ...formData, minStockAlert: e.target.value })}
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+            />
+            <p className="text-[11px] text-neutral-500 mt-1">
+              {t('prod_min_alert_hint')}
+            </p>
+          </div>
 
           <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800/80 text-[11px] text-neutral-400 flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />

@@ -25,7 +25,6 @@ import {
   Eye,
 } from 'lucide-react';
 import { Vendor, Product, CreateVendorInput } from '../../types/index.ts';
-import { Input, Textarea } from '../common/Input.tsx';
 import {
   getAllVendors,
   createVendor,
@@ -287,10 +286,10 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
 
       {/* Action Header & Search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        <div className="flex-1 max-w-md">
-          <Input
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+          <input
             type="text"
-            icon={Search}
             placeholder={
               isNepali
                 ? 'आपूर्तिकर्ताको नाम, PAN/VAT, फोन वा ठेगाना खोज्नुहोस्...'
@@ -298,6 +297,7 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
             }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/60 transition-colors"
           />
         </div>
 
@@ -497,69 +497,92 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
       >
         <form onSubmit={handleSubmitForm} className="space-y-4">
           <div>
-            <Input
-              label={
-                <>
-                  {isNepali ? 'आपूर्तिकर्ताको नाम' : 'Vendor / Business Name'}{' '}
-                  <span className="text-rose-400">*</span>
-                </>
-              }
+            <label className="block text-xs font-semibold text-neutral-300 mb-1">
+              {isNepali ? 'आपूर्तिकर्ताको नाम' : 'Vendor / Business Name'}{' '}
+              <span className="text-rose-400">*</span>
+            </label>
+            <input
               type="text"
               required
               placeholder={isNepali ? 'जस्तै: सूर्य डिस्ट्रिब्युटर्स' : 'e.g. Acme Supplies Pvt. Ltd.'}
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label={`PAN / VAT ${isNepali ? 'नम्बर' : 'Number'}`}
-              type="text"
-              mono
-              placeholder="e.g. 601234567"
-              value={formData.pan_vat}
-              onChange={(e) => setFormData({ ...formData, pan_vat: e.target.value })}
-            />
+            <div>
+              <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                PAN / VAT {isNepali ? 'नम्बर' : 'Number'}
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 601234567"
+                value={formData.pan_vat || ''}
+                onChange={(e) => setFormData({ ...formData, pan_vat: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-100 font-mono placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
 
-            <Input
-              label={isNepali ? 'फोन नम्बर' : 'Phone / Mobile'}
-              type="text"
-              placeholder="e.g. 9841234567"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            />
+            <div>
+              <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                {isNepali ? 'फोन नम्बर' : 'Phone / Mobile'}
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 9841234567"
+                value={formData.phone || ''}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label={isNepali ? 'इमेल ठेगाना' : 'Email Address'}
-              type="email"
-              placeholder="vendor@example.com"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            />
+            <div>
+              <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                {isNepali ? 'इमेल ठेगाना' : 'Email Address'}
+              </label>
+              <input
+                type="email"
+                placeholder="vendor@example.com"
+                value={formData.email || ''}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
 
-            <Input
-              label={isNepali ? 'ठेगाना / स्थान' : 'Address / Location'}
-              type="text"
-              placeholder={isNepali ? 'जस्तै: नयाँ सडक, काठमाडौँ' : 'e.g. New Road, Kathmandu'}
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-            />
+            <div>
+              <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                {isNepali ? 'ठेगाना / स्थान' : 'Address / Location'}
+              </label>
+              <input
+                type="text"
+                placeholder={isNepali ? 'जस्तै: नयाँ सडक, काठमाडौँ' : 'e.g. New Road, Kathmandu'}
+                value={formData.address || ''}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
           </div>
 
-          <Textarea
-            label={isNepali ? 'थप कैफियत / टिप्पणी' : 'Notes / Payment Terms'}
-            rows={2}
-            placeholder={
-              isNepali
-                ? 'जस्तै: क्रेडिट अवधि १५ दिन, डेलिभरी आइतबार'
-                : 'e.g. Credit terms 15 days, weekly delivery on Sundays'
-            }
-            value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-          />
+          <div>
+            <label className="block text-xs font-semibold text-neutral-300 mb-1">
+              {isNepali ? 'थप कैफियत / टिप्पणी' : 'Notes / Payment Terms'}
+            </label>
+            <textarea
+              rows={2}
+              placeholder={
+                isNepali
+                  ? 'जस्तै: क्रेडिट अवधि १५ दिन, डेलिभरी आइतबार'
+                  : 'e.g. Credit terms 15 days, weekly delivery on Sundays'
+              }
+              value={formData.notes || ''}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors resize-none"
+            />
+          </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-neutral-800">
             <button

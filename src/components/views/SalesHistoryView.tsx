@@ -19,7 +19,6 @@ import {
   Printer,
   Copy,
 } from 'lucide-react';
-import { Input } from '../common/Input.tsx';
 import { Sale, SaleItem } from '../../types/index.ts';
 import { getSales, getSaleWithItems } from '../../lib/services/salesService.ts';
 import {
@@ -101,34 +100,32 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col md:flex-row items-center gap-3 bg-neutral-900 p-3 rounded-xl border border-neutral-800">
-        <div className="flex-1 w-full">
-          <Input
+        <div className="relative flex-1 w-full">
+          <Search className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
             type="text"
-            icon={Search}
-            sizeVariant="sm"
             placeholder={t('hist_search_placeholder', 'Search by Sale #ID, customer name, phone, or product...')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-9 pr-4 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
           />
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto">
-          <div className="flex items-center gap-2 bg-neutral-950 px-3 py-1.5 rounded-lg border border-neutral-800 text-xs text-neutral-400">
-            <Calendar className="w-3.5 h-3.5 text-neutral-500 shrink-0" />
-            <Input
+          <div className="flex items-center gap-1.5 bg-neutral-950 px-3 py-1.5 rounded-lg border border-neutral-800 text-xs text-neutral-400">
+            <Calendar className="w-3.5 h-3.5 text-neutral-500" />
+            <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              sizeVariant="sm"
-              containerClassName="w-auto"
+              className="bg-transparent text-neutral-200 focus:outline-none text-xs"
             />
-            <span className="shrink-0">{isNepali ? 'देखि' : 'to'}</span>
-            <Input
+            <span>{isNepali ? 'देखि' : 'to'}</span>
+            <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              sizeVariant="sm"
-              containerClassName="w-auto"
+              className="bg-transparent text-neutral-200 focus:outline-none text-xs"
             />
           </div>
 
