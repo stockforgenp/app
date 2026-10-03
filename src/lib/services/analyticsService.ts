@@ -10,7 +10,7 @@ import { DailySalesData, FinancialSummary, Product, ProductAnalytics } from '../
 import { query, queryOne } from '../db/sqliteEngine.ts';
 import { getSettings } from './settingsService.ts';
 
-export type DateFilterPreset = 'today' | 'yesterday' | '7days' | '30days' | 'month' | 'custom' | 'all';
+export type DateFilterPreset = 'today' | 'yesterday' | '7days' | '30days' | 'week' | 'month' | 'year' | 'custom' | 'all';
 
 export interface DateRange {
   startDate: string; // ISO string or YYYY-MM-DD
@@ -45,8 +45,8 @@ export function getDateRangeFromPreset(preset: DateFilterPreset): DateRange {
     };
   }
 
-  if (preset === '7days') {
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
+  if (preset === 'week' || preset === '7days') {
+    const sevenDaysAgo = new Date(now.getTime() - 6 * 86400000);
     return {
       startDate: startOfDay(sevenDaysAgo),
       endDate: endOfDay(now),
@@ -65,6 +65,14 @@ export function getDateRangeFromPreset(preset: DateFilterPreset): DateRange {
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     return {
       startDate: startOfDay(firstOfMonth),
+      endDate: endOfDay(now),
+    };
+  }
+
+  if (preset === 'year') {
+    const firstOfYear = new Date(now.getFullYear(), 0, 1);
+    return {
+      startDate: startOfDay(firstOfYear),
       endDate: endOfDay(now),
     };
   }

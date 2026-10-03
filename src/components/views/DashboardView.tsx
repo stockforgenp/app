@@ -61,7 +61,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         yesterday: 'हिजो',
         '7days': '७ दिन',
         '30days': '३० दिन',
+        week: 'यस हप्ता',
         month: 'यो महिना',
+        year: 'यस वर्ष',
         all: 'सबै समय',
         custom: 'कस्टम',
       }
@@ -70,7 +72,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         yesterday: 'Yesterday',
         '7days': 'Last 7 Days',
         '30days': 'Last 30 Days',
+        week: 'This Week',
         month: 'This Month',
+        year: 'This Year',
         all: 'All Time',
         custom: 'Custom',
       };

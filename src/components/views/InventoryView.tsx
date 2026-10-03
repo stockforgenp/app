@@ -65,6 +65,8 @@ import { ConfirmDialog } from '../common/ConfirmDialog.tsx';
 import { ActionMenu } from '../common/ActionMenu.tsx';
 import { Select } from '../common/Select.tsx';
 import { Input } from '../common/Input.tsx';
+import { DateFilterBar } from '../common/DateFilterBar.tsx';
+import { DatePreset } from '../../lib/utils/dateFilters.ts';
 import { useToast } from '../../context/ToastContext.tsx';
 import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
 import { useLanguage } from '../../context/LanguageContext.tsx';
@@ -124,7 +126,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   // Filter States
   const [search, setSearch] = useState('');
   const [selectedVendorId, setSelectedVendorId] = useState<string>('all');
-  const [datePreset, setDatePreset] = useState<'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom'>('all');
+  const [datePreset, setDatePreset] = useState<DatePreset>('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [stockStatusFilter, setStockStatusFilter] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock'>('all');
@@ -238,36 +240,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     }
   }, [activeMovementsProduct]);
 
-  // Date Preset Handler
-  const handleDatePresetChange = (preset: 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom') => {
-    setDatePreset(preset);
-    const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
-
-    if (preset === 'today') {
-      setStartDate(todayStr);
-      setEndDate(todayStr);
-    } else if (preset === 'yesterday') {
-      const y = new Date(now);
-      y.setDate(y.getDate() - 1);
-      const yStr = y.toISOString().slice(0, 10);
-      setStartDate(yStr);
-      setEndDate(yStr);
-    } else if (preset === 'week') {
-      const w = new Date(now);
-      w.setDate(w.getDate() - 7);
-      setStartDate(w.toISOString().slice(0, 10));
-      setEndDate(todayStr);
-    } else if (preset === 'month') {
-      const m = new Date(now);
-      m.setDate(m.getDate() - 30);
-      setStartDate(m.toISOString().slice(0, 10));
-      setEndDate(todayStr);
-    } else if (preset === 'all') {
-      setStartDate('');
-      setEndDate('');
-    }
-  };
 
   const handleClearFilters = () => {
     setSearch('');
@@ -881,75 +853,22 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </div>
         </div>
 
-        {/* Row 2: Date Range Presets & Date Pickers */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-3 pt-2 border-t border-neutral-800/80 text-xs">
-          {/* Quick Date Presets */}
-          <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto">
-            <span className="text-neutral-500 text-[11px] font-medium mr-1 flex items-center gap-1 shrink-0">
-              <Calendar className="w-3.5 h-3.5 text-neutral-400" />
-              <span>{isNepali ? 'मिति:' : 'Date:'}</span>
-            </span>
-            {[
-              { id: 'all', label: isNepali ? 'सबै समय' : 'All Time' },
-              { id: 'today', label: isNepali ? 'आज' : 'Today' },
-              { id: 'yesterday', label: isNepali ? 'हिजो' : 'Yesterday' },
-              { id: 'week', label: isNepali ? '७ दिन' : 'Last 7 Days' },
-              { id: 'month', label: isNepali ? '३० दिन' : 'This Month' },
-              { id: 'custom', label: isNepali ? 'कस्टम' : 'Custom' },
-            ].map((p) => (
-              <button
-                key={p.id}
-                onClick={() => handleDatePresetChange(p.id as any)}
-                className={`px-2.5 py-1 rounded-md transition-colors whitespace-nowrap cursor-pointer text-xs font-medium ${
-                  datePreset === p.id
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-neutral-950 text-neutral-400 hover:text-neutral-200 border border-neutral-800'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Date Picker Inputs & Clear Button */}
-          <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-            <div className="flex items-center gap-1.5 bg-neutral-950 px-2.5 py-1 rounded-lg border border-neutral-800 text-neutral-300">
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  setDatePreset('custom');
-                }}
-                containerClassName="w-auto"
-                className="bg-transparent border-0 p-0 text-neutral-200 focus:outline-none text-xs"
-                title="Start Date"
-              />
-              <span className="text-neutral-500 text-xs">{isNepali ? 'देखि' : 'to'}</span>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  setDatePreset('custom');
-                }}
-                containerClassName="w-auto"
-                className="bg-transparent border-0 p-0 text-neutral-200 focus:outline-none text-xs"
-                title="End Date"
-              />
-            </div>
-
-            {hasActiveFilters && (
-              <button
-                onClick={handleClearFilters}
-                className="flex items-center gap-1 px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-lg transition-colors cursor-pointer text-xs"
-                title="Reset all active search and filter constraints"
-              >
-                <RotateCcw className="w-3 h-3 text-neutral-400" />
-                <span>{isNepali ? 'रिसेट' : 'Clear'}</span>
-              </button>
-            )}
-          </div>
+        {/* Row 2: Standard DateFilterBar */}
+        <div className="pt-2 border-t border-neutral-800/80">
+          <DateFilterBar
+            preset={datePreset}
+            onPresetChange={(p, start, end) => {
+              setDatePreset(p);
+              setStartDate(start);
+              setEndDate(end);
+            }}
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+            hasActiveFilters={hasActiveFilters}
+            onClear={handleClearFilters}
+          />
         </div>
       </div>
 

@@ -21,6 +21,8 @@ import {
   Layers,
 } from "lucide-react";
 import { Input } from "../common/Input.tsx";
+import { DateFilterBar } from "../common/DateFilterBar.tsx";
+import { DatePreset } from "../../lib/utils/dateFilters.ts";
 import {
   DateFilterPreset,
   getDateRangeFromPreset,
@@ -47,9 +49,9 @@ interface AnalyticsViewProps {
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   currencySymbol,
 }) => {
-  const [preset, setPreset] = useState<DateFilterPreset>("7days");
-  const [customStart, setCustomStart] = useState("");
-  const [customEnd, setCustomEnd] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("week");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const [summary, setSummary] = useState<FinancialSummary>({
     sales_count: 0,
@@ -70,14 +72,20 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   );
 
   const activeRange = useMemo(() => {
-    if (preset === "custom" && customStart && customEnd) {
+    if (datePreset === "custom" && startDate && endDate) {
       return {
-        startDate: `${customStart}T00:00:00.000Z`,
-        endDate: `${customEnd}T23:59:59.999Z`,
+        startDate: `${startDate}T00:00:00.000Z`,
+        endDate: `${endDate}T23:59:59.999Z`,
       };
     }
-    return getDateRangeFromPreset(preset);
-  }, [preset, customStart, customEnd]);
+    if (datePreset === "all") {
+      return {
+        startDate: "1970-01-01T00:00:00.000Z",
+        endDate: "2099-12-31T23:59:59.999Z",
+      };
+    }
+    return getDateRangeFromPreset(datePreset as DateFilterPreset);
+  }, [datePreset, startDate, endDate]);
 
   const loadData = () => {
     try {
@@ -129,66 +137,25 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </p>
         </div>
 
-        {/* Date Filter Segmented Controls */}
-        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-neutral-950 rounded-lg border border-neutral-800">
-          {(
-            [
-              { id: "today", label: "Today" },
-              { id: "yesterday", label: "Yesterday" },
-              { id: "7days", label: "Last 7 Days" },
-              { id: "30days", label: "Last 30 Days" },
-              { id: "month", label: "This Month" },
-              { id: "all", label: "All Time" },
-              { id: "custom", label: "Custom" },
-            ] as const
-          ).map((item) => (
-            <motion.button
-              key={item.id}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setPreset(item.id)}
-              className={`relative px-3 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
-                preset === item.id
-                  ? "text-neutral-100 font-semibold"
-                  : "text-neutral-400 hover:text-neutral-200"
-              }`}
-            >
-              {preset === item.id && (
-                <motion.div
-                  layoutId="analyticsPresetHighlight"
-                  className="absolute inset-0 bg-neutral-800 rounded-md shadow-xs"
-                  transition={{ type: "spring", damping: 25, stiffness: 350 }}
-                />
-              )}
-              <span className="relative z-10">{item.label}</span>
-            </motion.button>
-          ))}
-        </div>
+        <DateFilterBar
+          preset={datePreset}
+          onPresetChange={(p, start, end) => {
+            setDatePreset(p);
+            setStartDate(start);
+            setEndDate(end);
+          }}
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+          hasActiveFilters={datePreset !== 'all'}
+          onClear={() => {
+            setDatePreset('all');
+            setStartDate('');
+            setEndDate('');
+          }}
+        />
       </div>
-
-      {/* Custom Date Inputs (when 'custom' preset is selected) */}
-      {preset === "custom" && (
-        <div className="flex items-center gap-3 p-3 bg-neutral-900 rounded-xl border border-neutral-800 text-xs">
-          <Calendar className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span className="text-neutral-300 font-medium shrink-0">
-            Select Range:
-          </span>
-          <Input
-            type="date"
-            value={customStart}
-            onChange={(e) => setCustomStart(e.target.value)}
-            sizeVariant="sm"
-            containerClassName="w-auto"
-          />
-          <span className="text-neutral-500 shrink-0">to</span>
-          <Input
-            type="date"
-            value={customEnd}
-            onChange={(e) => setCustomEnd(e.target.value)}
-            sizeVariant="sm"
-            containerClassName="w-auto"
-          />
-        </div>
-      )}
 
       {/* Core Summary Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
