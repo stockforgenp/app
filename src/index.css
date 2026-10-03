@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', 'Noto Sans Devanagari', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --color-neutral-950: var(--app-neutral-950);
+  --color-neutral-900: var(--app-neutral-900);
+  --color-neutral-800: var(--app-neutral-800);
+  --color-neutral-700: var(--app-neutral-700);
+  --color-neutral-600: var(--app-neutral-600);
+  --color-neutral-500: var(--app-neutral-500);
+  --color-neutral-400: var(--app-neutral-400);
+  --color-neutral-300: var(--app-neutral-300);
+  --color-neutral-200: var(--app-neutral-200);
+  --color-neutral-100: var(--app-neutral-100);
+  --color-neutral-50: var(--app-neutral-50);
+}
+
+:root {
+  /* Default: LIGHT THEME */
+  --app-neutral-950: #f8fafc;
+  --app-neutral-900: #ffffff;
+  --app-neutral-800: #e2e8f0;
+  --app-neutral-700: #cbd5e1;
+  --app-neutral-600: #94a3b8;
+  --app-neutral-500: #64748b;
+  --app-neutral-400: #475569;
+  --app-neutral-300: #334155;
+  --app-neutral-200: #1e293b;
+  --app-neutral-100: #0f172a;
+  --app-neutral-50: #020617;
+  color-scheme: light;
+}
+
+[data-theme="dark"],
+.dark {
+  /* DARK THEME */
+  --app-neutral-950: #0a0a0a;
+  --app-neutral-900: #171717;
+  --app-neutral-800: #262626;
+  --app-neutral-700: #404040;
+  --app-neutral-600: #525252;
+  --app-neutral-500: #737373;
+  --app-neutral-400: #a3a3a3;
+  --app-neutral-300: #d4d4d4;
+  --app-neutral-200: #e5e5e5;
+  --app-neutral-100: #f5f5f5;
+  --app-neutral-50: #fafafa;
+  color-scheme: dark;
+}
+
+/* Completely hide scrollbars across the entire application */
+*,
+*::before,
+*::after,
+html,
+body {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  scrollbar-color: transparent transparent !important;
+}
+
+::-webkit-scrollbar,
+*::-webkit-scrollbar,
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
+  background: transparent !important;
+  opacity: 0 !important;
+}
+
+::-webkit-scrollbar-track,
+*::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-corner,
+*::-webkit-scrollbar-corner,
+::-webkit-resizer,
+*::-webkit-resizer {
+  display: none !important;
+  background: transparent !important;
+  opacity: 0 !important;
+}
+
+/* Utility class to hide scrollbars */
+.no-scrollbar {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+button,
+a {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+  /* Keep number fields visually clean; values remain editable by keyboard. */
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    margin: 0;
+    -webkit-appearance: none;
+  }
+
+/* Print bill & receipt media styles */
+@media print {
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #printable-bill,
+  #printable-bill * {
+    visibility: visible;
+  }
+
+  #printable-bill {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 12px;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+    z-index: 999999;
+  }
+
+  @page {
+    margin: 6mm;
+    size: auto;
+  }
+}
