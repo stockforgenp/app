@@ -46,6 +46,7 @@ import { MODIFIER_LABEL } from '../../lib/hooks/useGlobalShortcuts.ts';
 import { Modal } from '../common/Modal.tsx';
 import { PrintBillModal } from '../common/PrintBillModal.tsx';
 import { Input } from '../common/Input.tsx';
+import { CustomerInputSection, CustomerInputData } from '../common/CustomerInputSection.tsx';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 
 interface SalesViewProps {
@@ -72,8 +73,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState<'all' | 'inStock' | 'lowStock'>('all');
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerData, setCustomerData] = useState<CustomerInputData>({
+    customerId: null,
+    name: '',
+    phone: '',
+    email: '',
+    pan_vat: '',
+    address: '',
+    isNew: false,
+  });
   const [completedSaleInfo, setCompletedSaleInfo] = useState<{
     id: number;
     billNumber?: string | null;
@@ -85,6 +93,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
     total: number;
     customerName?: string | null;
     customerPhone?: string | null;
+    customerPanVat?: string | null;
   } | null>(null);
 
   // Bill Printing modal
@@ -505,8 +514,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
   const handleClearCart = () => {
     setCart([]);
-    setCustomerName('');
-    setCustomerPhone('');
+    setCustomerData({
+      customerId: null,
+      name: '',
+      phone: '',
+      email: '',
+      pan_vat: '',
+      address: '',
+      isNew: false,
+    });
   };
 
   // Calculations
@@ -568,8 +584,21 @@ export const SalesView: React.FC<SalesViewProps> = ({
       }));
 
       const sale = processSale(itemsInput, {
-        customerName: customerName.trim() || undefined,
-        customerPhone: customerPhone.trim() || undefined,
+        customerId: customerData.customerId || undefined,
+        customerName: customerData.name.trim() || undefined,
+        customerPhone: customerData.phone.trim() || undefined,
+        customerEmail: customerData.email.trim() || undefined,
+        customerPanVat: customerData.pan_vat.trim() || undefined,
+        customerAddress: customerData.address.trim() || undefined,
+        customerInput: customerData.isNew
+          ? {
+              name: customerData.name.trim(),
+              phone: customerData.phone.trim() || undefined,
+              email: customerData.email.trim() || undefined,
+              pan_vat: customerData.pan_vat.trim() || undefined,
+              address: customerData.address.trim() || undefined,
+            }
+          : undefined,
       });
 
       showToast(`Sale #${sale.id} completed successfully!`, 'success');
@@ -617,6 +646,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
         total: sale.grand_total ?? sale.total,
         customerName: sale.customer_name,
         customerPhone: sale.customer_phone,
+        customerPanVat: sale.customer_pan_vat,
       });
 
       // Auto-open bill print preview for quick thermal slip/invoice print
@@ -624,8 +654,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
       setIsPrintModalOpen(true);
 
       setCart([]);
-      setCustomerName('');
-      setCustomerPhone('');
+      setCustomerData({
+        customerId: null,
+        name: '',
+        phone: '',
+        email: '',
+        pan_vat: '',
+        address: '',
+        isNew: false,
+      });
       loadCatalog();
       onSaleCompleted(sale.id);
     } catch (err: unknown) {
@@ -1159,54 +1196,12 @@ export const SalesView: React.FC<SalesViewProps> = ({
               </div>
             )}
 
-            {/* Customer Information (Optional) */}
-            <div className="p-4 bg-neutral-950/70 border-t border-neutral-800 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-neutral-300">
-                  <User className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Customer Details</span>
-                  <span className="text-[10px] font-normal text-neutral-500 bg-neutral-800/80 px-1.5 py-0.5 rounded border border-neutral-700/60">
-                    Optional
-                  </span>
-                </div>
-                {(customerName || customerPhone) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCustomerName('');
-                      setCustomerPhone('');
-                    }}
-                    className="text-[11px] text-neutral-500 hover:text-neutral-300 flex items-center gap-1 transition-colors cursor-pointer"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Clear Customer</span>
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <Input
-                    type="text"
-                    placeholder="Customer name (optional)..."
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    icon={User}
-                    className="py-1.5 text-xs"
-                  />
-                </div>
-
-                <div>
-                  <Input
-                    type="tel"
-                    placeholder="Phone number (optional)..."
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    icon={Phone}
-                    className="py-1.5 text-xs font-mono"
-                  />
-                </div>
-              </div>
+            {/* Customer Information (Search, Autocomplete & Auto-Creation) */}
+            <div className="p-4 bg-neutral-950/70 border-t border-neutral-800">
+              <CustomerInputSection
+                value={customerData}
+                onChange={setCustomerData}
+              />
             </div>
 
             {/* Calculations Breakdown */}
@@ -1640,6 +1635,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     {completedSaleInfo.customerPhone && (
                       <span className="font-mono text-neutral-400 text-[11px] ml-1">
                         ({completedSaleInfo.customerPhone})
+                      </span>
+                    )}
+                    {completedSaleInfo.customerPanVat && (
+                      <span className="font-mono text-emerald-300 text-[11px] ml-1">
+                        [PAN: {completedSaleInfo.customerPanVat}]
                       </span>
                     )}
                   </span>

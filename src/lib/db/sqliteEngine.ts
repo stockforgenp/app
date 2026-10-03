@@ -96,12 +96,29 @@ function migrateDatabaseIfNeeded(db: Database) {
     const tableInfo = db.exec("PRAGMA table_info(sales);");
     if (tableInfo.length > 0 && tableInfo[0].values) {
       const colNames = tableInfo[0].values.map((col: unknown[]) => col[1] as string);
+      if (!colNames.includes('customer_id')) {
+        db.run('ALTER TABLE sales ADD COLUMN customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL;');
+        db.run('CREATE INDEX IF NOT EXISTS idx_sales_customer_id ON sales(customer_id);');
+        changed = true;
+      }
       if (!colNames.includes('customer_name')) {
         db.run('ALTER TABLE sales ADD COLUMN customer_name TEXT;');
         changed = true;
       }
       if (!colNames.includes('customer_phone')) {
         db.run('ALTER TABLE sales ADD COLUMN customer_phone TEXT;');
+        changed = true;
+      }
+      if (!colNames.includes('customer_email')) {
+        db.run('ALTER TABLE sales ADD COLUMN customer_email TEXT;');
+        changed = true;
+      }
+      if (!colNames.includes('customer_pan_vat')) {
+        db.run('ALTER TABLE sales ADD COLUMN customer_pan_vat TEXT;');
+        changed = true;
+      }
+      if (!colNames.includes('customer_address')) {
+        db.run('ALTER TABLE sales ADD COLUMN customer_address TEXT;');
         changed = true;
       }
       if (!colNames.includes('bill_number')) {

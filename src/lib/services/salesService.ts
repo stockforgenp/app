@@ -7,6 +7,7 @@ import { Sale, SaleItem, LowStockAlertItem, Product } from '../../types/index.ts
 import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
 import { getProductById } from './productService.ts';
 import { getSettings } from './settingsService.ts';
+import { findOrCreateCustomer } from './customerService.ts';
 
 export interface ProcessSaleItemInput {
   productId: number;
@@ -16,8 +17,19 @@ export interface ProcessSaleItemInput {
 }
 
 export interface ProcessSaleCustomerInfo {
+  customerId?: number | null;
   customerName?: string | null;
   customerPhone?: string | null;
+  customerEmail?: string | null;
+  customerPanVat?: string | null;
+  customerAddress?: string | null;
+  customerInput?: {
+    name: string;
+    phone?: string;
+    email?: string;
+    pan_vat?: string;
+    address?: string;
+  };
 }
 
 export function processSale(
@@ -104,14 +116,56 @@ export function processSale(
     const nextId = (lastSale?.id ?? 0) + 1;
     const billNumber = `BILL-${nextId.toString().padStart(5, '0')}`;
 
-    // 1. Insert Sales Record (including optional customer name and phone)
+    // Resolve or auto-create customer
+    let resolvedCustomerId = customerInfo?.customerId ?? null;
+    let resolvedCustomerName = customerInfo?.customerName?.trim() || null;
+    let resolvedCustomerPhone = customerInfo?.customerPhone?.trim() || null;
+    let resolvedCustomerEmail = customerInfo?.customerEmail?.trim() || null;
+    let resolvedCustomerPanVat = customerInfo?.customerPanVat?.trim() || null;
+    let resolvedCustomerAddress = customerInfo?.customerAddress?.trim() || null;
+
+    if (customerInfo?.customerInput) {
+      if (customerInfo.customerInput.name) resolvedCustomerName = customerInfo.customerInput.name.trim();
+      if (customerInfo.customerInput.phone) resolvedCustomerPhone = customerInfo.customerInput.phone.trim();
+      if (customerInfo.customerInput.email) resolvedCustomerEmail = customerInfo.customerInput.email.trim();
+      if (customerInfo.customerInput.pan_vat) resolvedCustomerPanVat = customerInfo.customerInput.pan_vat.trim();
+      if (customerInfo.customerInput.address) resolvedCustomerAddress = customerInfo.customerInput.address.trim();
+    }
+
+    if (!resolvedCustomerId && (resolvedCustomerName || resolvedCustomerPhone || resolvedCustomerPanVat)) {
+      const c = findOrCreateCustomer({
+        name: resolvedCustomerName || (resolvedCustomerPhone ? `Customer (${resolvedCustomerPhone})` : 'Walk-in Customer'),
+        phone: resolvedCustomerPhone || undefined,
+        email: resolvedCustomerEmail || undefined,
+        pan_vat: resolvedCustomerPanVat || undefined,
+        address: resolvedCustomerAddress || undefined,
+      });
+      if (c) {
+        resolvedCustomerId = c.id;
+        resolvedCustomerName = c.name;
+        resolvedCustomerPhone = c.phone || resolvedCustomerPhone;
+        resolvedCustomerEmail = c.email || resolvedCustomerEmail;
+        resolvedCustomerPanVat = c.pan_vat || resolvedCustomerPanVat;
+        resolvedCustomerAddress = c.address || resolvedCustomerAddress;
+      }
+    }
+
+    // 1. Insert Sales Record (including customer reference and details)
     run(
-      `INSERT INTO sales (bill_number, customer_name, customer_phone, subtotal, discount, taxable_amount, vat_rate, vat_amount, grand_total, total, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO sales (
+        bill_number, customer_id, customer_name, customer_phone,
+        customer_email, customer_pan_vat, customer_address,
+        subtotal, discount, taxable_amount, vat_rate, vat_amount,
+        grand_total, total, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         billNumber,
-        customerInfo?.customerName?.trim() || null,
-        customerInfo?.customerPhone?.trim() || null,
+        resolvedCustomerId,
+        resolvedCustomerName,
+        resolvedCustomerPhone,
+        resolvedCustomerEmail,
+        resolvedCustomerPanVat,
+        resolvedCustomerAddress,
         saleSubtotal,
         saleDiscount,
         taxableAmount,
@@ -201,8 +255,12 @@ export function getSales(options?: {
     SELECT 
       s.id,
       s.bill_number,
+      s.customer_id,
       s.customer_name,
       s.customer_phone,
+      s.customer_email,
+      s.customer_pan_vat,
+      s.customer_address,
       s.subtotal,
       s.discount,
       s.taxable_amount,
@@ -236,6 +294,7 @@ export function getSales(options?: {
       CAST(s.id AS TEXT) LIKE ? OR
       s.customer_name LIKE ? OR
       s.customer_phone LIKE ? OR
+      s.customer_pan_vat LIKE ? OR
       s.bill_number LIKE ? OR
       s.id IN (
         SELECT sale_id FROM sale_items JOIN products ON sale_items.product_id = products.id
@@ -243,7 +302,7 @@ export function getSales(options?: {
       )
     )`);
     const term = `%${options.search.trim()}%`;
-    params.push(term, term, term, term, term);
+    params.push(term, term, term, term, term, term);
   }
 
   if (whereClauses.length > 0) {
@@ -265,8 +324,12 @@ export function getSaleWithItems(saleId: number): { sale: Sale; items: SaleItem[
     `SELECT 
        s.id,
        s.bill_number,
+       s.customer_id,
        s.customer_name,
        s.customer_phone,
+       s.customer_email,
+       s.customer_pan_vat,
+       s.customer_address,
        s.subtotal,
        s.discount,
        s.taxable_amount,

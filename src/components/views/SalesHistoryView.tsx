@@ -189,11 +189,10 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
                           <div className="font-semibold text-neutral-200 truncate max-w-[150px]">
                             {s.customer_name}
                           </div>
-                          {s.customer_phone && (
-                            <div className="text-[10px] font-mono text-neutral-400 mt-0.5 truncate max-w-[150px]">
-                              {s.customer_phone}
-                            </div>
-                          )}
+                          <div className="text-[10px] font-mono text-neutral-400 mt-0.5 truncate max-w-[150px] flex items-center gap-1.5">
+                            {s.customer_phone && <span>{s.customer_phone}</span>}
+                            {s.customer_pan_vat && <span className="text-emerald-400">PAN:{s.customer_pan_vat}</span>}
+                          </div>
                         </div>
                       ) : s.customer_phone ? (
                         <div className="font-mono text-[11px] text-neutral-300">
@@ -321,9 +320,25 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
                   <div className="text-xs font-semibold text-neutral-200">
                     {selectedSaleDetail.sale.customer_name || 'Walk-in Customer (Not Specified)'}
                   </div>
-                  <div className="text-[11px] text-neutral-400 font-mono flex items-center gap-1.5 mt-0.5">
-                    <Phone className="w-3 h-3 text-neutral-500" />
-                    <span>{selectedSaleDetail.sale.customer_phone || 'No phone recorded'}</span>
+                  <div className="text-[11px] text-neutral-400 font-mono flex items-center flex-wrap gap-2 mt-0.5">
+                    {selectedSaleDetail.sale.customer_phone ? (
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-neutral-500" />
+                        <span>{selectedSaleDetail.sale.customer_phone}</span>
+                      </span>
+                    ) : (
+                      <span>No phone recorded</span>
+                    )}
+                    {selectedSaleDetail.sale.customer_pan_vat && (
+                      <span className="text-emerald-400">
+                        [PAN: {selectedSaleDetail.sale.customer_pan_vat}]
+                      </span>
+                    )}
+                    {selectedSaleDetail.sale.customer_address && (
+                      <span className="text-neutral-400 font-sans">
+                        · {selectedSaleDetail.sale.customer_address}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

@@ -131,6 +131,8 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
       text += `Date: ${formatDateTime(sale.created_at)}\n`;
       if (sale.customer_name) text += `Customer: ${sale.customer_name}\n`;
       if (sale.customer_phone) text += `Phone: ${sale.customer_phone}\n`;
+      if (sale.customer_pan_vat) text += `PAN/VAT: ${sale.customer_pan_vat}\n`;
+      if (sale.customer_address) text += `Address: ${sale.customer_address}\n`;
       text += `${lineSeparator}\n`;
       text += `ITEMS               QTY    PRICE    TOTAL\n`;
       text += `${lineSeparator}\n`;
@@ -305,6 +307,18 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
                 <div className="flex justify-between">
                   <span className="text-gray-500 font-medium">{isNepali ? 'सम्पर्क:' : 'Contact:'}</span>
                   <span className="text-gray-800">{sale.customer_phone}</span>
+                </div>
+              )}
+              {sale.customer_pan_vat && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-medium">{isNepali ? 'PAN / VAT नं:' : 'PAN / VAT No:'}</span>
+                  <span className="font-mono font-semibold text-gray-900">{sale.customer_pan_vat}</span>
+                </div>
+              )}
+              {sale.customer_address && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-medium">{isNepali ? 'ठेगाना:' : 'Address:'}</span>
+                  <span className="text-gray-800 text-right max-w-[200px] truncate">{sale.customer_address}</span>
                 </div>
               )}
             </div>
