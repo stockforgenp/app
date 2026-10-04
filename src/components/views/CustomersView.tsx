@@ -369,17 +369,53 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                   ? "कारोबार इतिहास हेर्नुहोस्"
                   : "View Purchases",
                 icon: Eye,
+                color: "sky",
                 onClick: () => handleViewSales(c),
               },
               {
                 label: isNepali ? "सम्पादन गर्नुहोस्" : "Edit Customer",
                 icon: Edit2,
+                color: "emerald",
                 onClick: () => handleOpenEdit(c),
               },
+              c.phone
+                ? {
+                    label: isNepali
+                      ? "फोन नं. कपी गर्नुहोस्"
+                      : "Copy Phone Number",
+                    icon: Copy,
+                    color: "default",
+                    onClick: () => {
+                      navigator.clipboard.writeText(c.phone!);
+                      showToast(
+                        isNepali ? "फोन नं. कपी गरियो" : "Phone copied",
+                        "info",
+                      );
+                    },
+                  }
+                : null,
+              c.pan_vat
+                ? {
+                    label: isNepali
+                      ? "PAN/VAT कपी गर्नुहोस्"
+                      : "Copy PAN/VAT Number",
+                    icon: Copy,
+                    color: "default",
+                    onClick: () => {
+                      navigator.clipboard.writeText(c.pan_vat!);
+                      showToast(
+                        isNepali ? "PAN/VAT कपी गरियो" : "PAN/VAT copied",
+                        "info",
+                      );
+                    },
+                  }
+                : null,
               {
                 label: isNepali ? "हटाउनुहोस्" : "Delete Customer",
                 icon: Trash2,
-                variant: "danger",
+                color: "rose",
+                isDestructive: true,
+                divider: true,
                 onClick: () => setDeletingCustomer(c),
               },
             ]}

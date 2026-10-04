@@ -731,15 +731,13 @@ export const SalesView: React.FC<SalesViewProps> = ({
           customerEmail: customerData.email.trim() || undefined,
           customerPanVat: customerData.pan_vat.trim() || undefined,
           customerAddress: customerData.address.trim() || undefined,
-          customerInput: customerData.isNew
-            ? {
-                name: customerData.name.trim(),
-                phone: customerData.phone.trim() || undefined,
-                email: customerData.email.trim() || undefined,
-                pan_vat: customerData.pan_vat.trim() || undefined,
-                address: customerData.address.trim() || undefined,
-              }
-            : undefined,
+          customerInput: {
+            name: customerData.name.trim(),
+            phone: customerData.phone.trim() || undefined,
+            email: customerData.email.trim() || undefined,
+            pan_vat: customerData.pan_vat.trim() || undefined,
+            address: customerData.address.trim() || undefined,
+          },
         }
       );
 

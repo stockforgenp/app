@@ -50,8 +50,8 @@ export const DateFilterBar: React.FC<DateFilterBarProps> = ({
     >
       {/* Preset Pill Buttons */}
       <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-        <span className="text-neutral-500 text-[11px] font-medium mr-1 flex items-center gap-1 shrink-0">
-          <Calendar className="w-3.5 h-3.5 text-neutral-400" />
+        <span className="text-neutral-500 dark:text-neutral-400 text-[11px] font-medium mr-1 flex items-center gap-1 shrink-0">
+          <Calendar className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400 shrink-0" />
           <span>{isNepali ? 'मिति:' : 'Date:'}</span>
         </span>
         <div className="flex items-center bg-neutral-950 p-0.5 rounded-lg border border-neutral-800 shrink-0">
@@ -120,7 +120,7 @@ export const DateFilterBar: React.FC<DateFilterBarProps> = ({
             className="flex items-center gap-1 px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-lg transition-colors cursor-pointer text-xs shrink-0"
             title="Reset date and other active filters"
           >
-            <RotateCcw className="w-3 h-3 text-neutral-400" />
+            <RotateCcw className="w-3 h-3 text-neutral-400 dark:text-neutral-400 shrink-0" />
             <span>{isNepali ? 'रिसेट' : 'Clear'}</span>
           </button>
         )}

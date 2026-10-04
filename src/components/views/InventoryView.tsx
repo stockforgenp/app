@@ -1265,7 +1265,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                                     ? "विवरण सम्पादन (Edit)"
                                     : "Edit Product",
                                   icon: Edit2,
-                                  color: "default",
+                                  color: "sky",
                                   action: () => handleOpenEdit(p),
                                 },
                                 {

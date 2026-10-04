@@ -21,6 +21,7 @@ import {
   FileText,
   DollarSign,
   Package,
+  Copy,
 } from "lucide-react";
 import {
   Product,
@@ -42,6 +43,7 @@ import { PrintPurchaseBillModal } from "../common/PrintPurchaseBillModal.tsx";
 import { Modal } from "../common/Modal.tsx";
 import { Input } from "../common/Input.tsx";
 import { DataTable, Column } from "../common/DataTable.tsx";
+import { ActionMenu } from "../common/ActionMenu.tsx";
 import { DatePreset } from "../../lib/utils/dateFilters.ts";
 import {
   formatCurrency,
@@ -376,15 +378,13 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         vendorAddress: vendorData.address.trim() || undefined,
         invoiceNumber: supplierInvoiceNo.trim() || undefined,
         notes: purchaseNotes.trim() || undefined,
-        vendorInput: vendorData.isNew
-          ? {
-              name: vendorData.name.trim(),
-              phone: vendorData.phone.trim() || undefined,
-              email: vendorData.email.trim() || undefined,
-              pan_vat: vendorData.pan_vat.trim() || undefined,
-              address: vendorData.address.trim() || undefined,
-            }
-          : undefined,
+        vendorInput: {
+          name: vendorData.name.trim(),
+          phone: vendorData.phone.trim() || undefined,
+          email: vendorData.email.trim() || undefined,
+          pan_vat: vendorData.pan_vat.trim() || undefined,
+          address: vendorData.address.trim() || undefined,
+        },
       });
 
       showToast(
@@ -596,26 +596,46 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         align: "right",
         width: "90px",
         accessor: (p) => (
-          <div className="flex items-center justify-end gap-1.5">
-            <button
-              type="button"
-              onClick={() => handleInspectPurchase(p.id)}
-              className="p-1.5 text-neutral-400 hover:text-sky-400 hover:bg-neutral-800 rounded-md transition-colors cursor-pointer"
-              title={isNepali ? "विवरण हेर्नुहोस्" : "Inspect Purchase"}
-            >
-              <Eye className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPrintPurchaseId(p.id);
-                setIsPrintModalOpen(true);
-              }}
-              className="p-1.5 text-neutral-400 hover:text-emerald-400 hover:bg-neutral-800 rounded-md transition-colors cursor-pointer"
-              title={isNepali ? "बिल छाप्नुहोस्" : "Print Bill"}
-            >
-              <Printer className="w-3.5 h-3.5" />
-            </button>
+          <div className="flex items-center justify-end gap-2">
+            <ActionMenu
+              align="right"
+              items={[
+                {
+                  label: isNepali ? "विवरण हेर्नुहोस्" : "Inspect Purchase",
+                  icon: Eye,
+                  color: "sky",
+                  action: () => handleInspectPurchase(p.id),
+                },
+                {
+                  label: isNepali ? "बिल छाप्नुहोस्" : "Print Bill",
+                  icon: Printer,
+                  color: "emerald",
+                  action: () => {
+                    setPrintPurchaseId(p.id);
+                    setIsPrintModalOpen(true);
+                  },
+                },
+                p.invoice_number
+                  ? {
+                      label: isNepali
+                        ? "बीजक नं. कपी गर्नुहोस्"
+                        : "Copy Invoice #",
+                      icon: Copy,
+                      color: "default",
+                      divider: true,
+                      action: () => {
+                        navigator.clipboard.writeText(p.invoice_number!);
+                        showToast(
+                          isNepali
+                            ? "बीजक नं. कपी गरियो"
+                            : `Invoice #${p.invoice_number} copied`,
+                          "info",
+                        );
+                      },
+                    }
+                  : null,
+              ]}
+            />
           </div>
         ),
       },

@@ -216,7 +216,7 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
               {
                 label: 'Copy Sale ID',
                 icon: Copy,
-                color: 'default',
+                color: 'indigo',
                 divider: true,
                 action: () => {
                   navigator.clipboard.writeText(`#${s.id}`);

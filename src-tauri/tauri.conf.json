@@ -30,6 +30,11 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "category": "Business",
+    "shortDescription": "Offline Desktop Inventory & Sales Management System",
+    "longDescription": "StockForge is a reliable offline-first desktop POS, inventory tracking, and sales analytics suite built with SQLite transaction safety, VAT compliance, multi-shop support, and local data persistence.",
+    "copyright": "Copyright © 2026 StockForge. All rights reserved.",
+    "publisher": "StockForge",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

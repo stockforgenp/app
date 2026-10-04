@@ -324,14 +324,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ currencySymbol }) =>
                 {
                   label: 'Edit Expense',
                   icon: Edit2,
-                  color: 'default',
+                  color: 'emerald',
                   action: () => handleOpenEditModal(exp),
                 },
                 exp.receipt_reference
                   ? {
                       label: 'Copy Receipt Ref',
                       icon: Copy,
-                      color: 'default',
+                      color: 'sky',
                       action: () => {
                         navigator.clipboard.writeText(exp.receipt_reference!);
                         showToast('Receipt reference copied', 'info');

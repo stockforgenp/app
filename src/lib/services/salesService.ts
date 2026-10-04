@@ -3,11 +3,11 @@
  * Strictly enforces transaction atomicity, snapshot pricing, item discounts,
  * and stock validation.
  */
-import { Sale, SaleItem, LowStockAlertItem, Product } from '../../types/index.ts';
+import { Sale, SaleItem, LowStockAlertItem, Product, CreateCustomerInput } from '../../types/index.ts';
 import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
 import { getProductById } from './productService.ts';
 import { getSettings } from './settingsService.ts';
-import { findOrCreateCustomer } from './customerService.ts';
+import { findOrCreateCustomer, getCustomerById, updateCustomer } from './customerService.ts';
 
 export interface ProcessSaleItemInput {
   productId: number;
@@ -132,7 +132,55 @@ export function processSale(
       if (customerInfo.customerInput.address) resolvedCustomerAddress = customerInfo.customerInput.address.trim();
     }
 
-    if (!resolvedCustomerId && (resolvedCustomerName || resolvedCustomerPhone || resolvedCustomerPanVat)) {
+    if (resolvedCustomerId) {
+      // If an existing customer was selected or found, update any new or changed details provided during checkout
+      const existingCustomer = getCustomerById(resolvedCustomerId);
+      if (existingCustomer) {
+        const updates: Partial<CreateCustomerInput> = {};
+
+        if (resolvedCustomerPanVat && resolvedCustomerPanVat !== (existingCustomer.pan_vat || '')) {
+          updates.pan_vat = resolvedCustomerPanVat;
+        }
+        if (resolvedCustomerEmail && resolvedCustomerEmail !== (existingCustomer.email || '')) {
+          updates.email = resolvedCustomerEmail;
+        }
+        if (resolvedCustomerAddress && resolvedCustomerAddress !== (existingCustomer.address || '')) {
+          updates.address = resolvedCustomerAddress;
+        }
+        if (resolvedCustomerPhone && resolvedCustomerPhone !== (existingCustomer.phone || '')) {
+          updates.phone = resolvedCustomerPhone;
+        }
+        if (
+          resolvedCustomerName &&
+          resolvedCustomerName !== existingCustomer.name &&
+          (existingCustomer.name.startsWith('Customer (') ||
+            existingCustomer.name === 'Walk-in Customer' ||
+            resolvedCustomerName.length > 0)
+        ) {
+          updates.name = resolvedCustomerName;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          updateCustomer(resolvedCustomerId, updates);
+          const updated = getCustomerById(resolvedCustomerId);
+          if (updated) {
+            resolvedCustomerName = updated.name;
+            resolvedCustomerPhone = updated.phone ?? resolvedCustomerPhone;
+            resolvedCustomerEmail = updated.email ?? resolvedCustomerEmail;
+            resolvedCustomerPanVat = updated.pan_vat ?? resolvedCustomerPanVat;
+            resolvedCustomerAddress = updated.address ?? resolvedCustomerAddress;
+          }
+        } else {
+          // Merge existing profile fields into any empty fields so the bill retains full profile info
+          resolvedCustomerName = resolvedCustomerName || existingCustomer.name;
+          resolvedCustomerPhone = resolvedCustomerPhone || (existingCustomer.phone ?? null);
+          resolvedCustomerEmail = resolvedCustomerEmail || (existingCustomer.email ?? null);
+          resolvedCustomerPanVat = resolvedCustomerPanVat || (existingCustomer.pan_vat ?? null);
+          resolvedCustomerAddress = resolvedCustomerAddress || (existingCustomer.address ?? null);
+        }
+      }
+    } else if (resolvedCustomerName || resolvedCustomerPhone || resolvedCustomerPanVat) {
+      // If customerId was not explicitly set, search by phone, PAN/VAT, or Name (updating any new details) or create new customer
       const c = findOrCreateCustomer({
         name: resolvedCustomerName || (resolvedCustomerPhone ? `Customer (${resolvedCustomerPhone})` : 'Walk-in Customer'),
         phone: resolvedCustomerPhone || undefined,

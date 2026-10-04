@@ -9,10 +9,11 @@ import {
   ProcessPurchaseItemInput,
   ProcessPurchaseVendorInfo,
   Product,
+  CreateVendorInput,
 } from '../../types/index.ts';
 import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
 import { getProductById } from './productService.ts';
-import { findOrCreateVendor } from './vendorService.ts';
+import { findOrCreateVendor, getVendorById, updateVendor } from './vendorService.ts';
 import { getSettings } from './settingsService.ts';
 
 export function processPurchase(
@@ -35,10 +36,45 @@ export function processPurchase(
     let resolvedVendorPanVat: string | null = vendorInfo?.vendorPanVat?.trim() || null;
     let resolvedVendorAddress: string | null = vendorInfo?.vendorAddress?.trim() || null;
 
-    if (
-      !resolvedVendorId &&
-      (resolvedVendorName || resolvedVendorPhone || resolvedVendorPanVat)
-    ) {
+    if (resolvedVendorId) {
+      // If an existing vendor is selected, update any new or changed details provided during purchase
+      const existingVendor = getVendorById(resolvedVendorId);
+      if (existingVendor) {
+        const updates: Partial<CreateVendorInput> = {};
+        if (resolvedVendorPanVat && resolvedVendorPanVat !== (existingVendor.pan_vat || '')) {
+          updates.pan_vat = resolvedVendorPanVat;
+        }
+        if (resolvedVendorPhone && resolvedVendorPhone !== (existingVendor.phone || '')) {
+          updates.phone = resolvedVendorPhone;
+        }
+        if (resolvedVendorEmail && resolvedVendorEmail !== (existingVendor.email || '')) {
+          updates.email = resolvedVendorEmail;
+        }
+        if (resolvedVendorAddress && resolvedVendorAddress !== (existingVendor.address || '')) {
+          updates.address = resolvedVendorAddress;
+        }
+        if (resolvedVendorName && resolvedVendorName !== existingVendor.name && resolvedVendorName !== 'Supplier') {
+          updates.name = resolvedVendorName;
+        }
+        if (Object.keys(updates).length > 0) {
+          updateVendor(resolvedVendorId, updates);
+          const updated = getVendorById(resolvedVendorId);
+          if (updated) {
+            resolvedVendorName = updated.name;
+            resolvedVendorPhone = updated.phone ?? resolvedVendorPhone;
+            resolvedVendorEmail = updated.email ?? resolvedVendorEmail;
+            resolvedVendorPanVat = updated.pan_vat ?? resolvedVendorPanVat;
+            resolvedVendorAddress = updated.address ?? resolvedVendorAddress;
+          }
+        } else {
+          resolvedVendorName = resolvedVendorName || existingVendor.name;
+          resolvedVendorPhone = resolvedVendorPhone || (existingVendor.phone ?? null);
+          resolvedVendorEmail = resolvedVendorEmail || (existingVendor.email ?? null);
+          resolvedVendorPanVat = resolvedVendorPanVat || (existingVendor.pan_vat ?? null);
+          resolvedVendorAddress = resolvedVendorAddress || (existingVendor.address ?? null);
+        }
+      }
+    } else if (resolvedVendorName || resolvedVendorPhone || resolvedVendorPanVat) {
       const v = findOrCreateVendor({
         name: resolvedVendorName || 'Supplier',
         phone: resolvedVendorPhone || undefined,

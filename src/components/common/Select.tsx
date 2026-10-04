@@ -52,7 +52,7 @@ const renderIcon = (
   if (React.isValidElement(icon)) {
     return icon;
   }
-  if (typeof icon === 'function') {
+  if (typeof icon === 'function' || (typeof icon === 'object' && icon !== null)) {
     const IconComponent = icon as React.ComponentType<{ className?: string }>;
     return <IconComponent className={extraClass} />;
   }
@@ -210,11 +210,6 @@ export const Select: React.FC<SelectProps> = ({
   };
 
   const hasLeftIcon = Boolean(icon);
-  const paddingWithIcon = hasLeftIcon
-    ? sizeVariant === 'sm'
-      ? 'pl-8'
-      : 'pl-9'
-    : '';
 
   return (
     <div ref={containerRef} className={`relative w-full ${containerClassName}`}>
@@ -240,40 +235,46 @@ export const Select: React.FC<SelectProps> = ({
             : isOpen
             ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500/20'
             : 'border-neutral-800 hover:border-neutral-700 focus:border-emerald-500 focus:ring-emerald-500/20'
-        } ${sizeClasses[sizeVariant]} ${paddingWithIcon} ${
+        } ${sizeClasses[sizeVariant]} ${
           disabled ? 'opacity-50 cursor-not-allowed bg-neutral-900' : ''
         } ${className}`}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {hasLeftIcon && (
-            <div className="absolute left-2.5 flex items-center pointer-events-none text-neutral-400">
-              {renderIcon(icon, 'w-3.5 h-3.5')}
-            </div>
+            <span className="shrink-0 flex items-center text-neutral-500 dark:text-neutral-400">
+              {renderIcon(icon, 'w-4 h-4 text-current shrink-0')}
+            </span>
           )}
 
           {selectedOption ? (
-            <div className="truncate flex items-center gap-1.5 text-neutral-200 font-medium">
-              {selectedOption.icon && renderIcon(selectedOption.icon, 'w-3.5 h-3.5 text-neutral-400')}
+            <div className="truncate flex items-center gap-1.5 text-neutral-100 font-medium">
+              {selectedOption.icon && (
+                <span className="shrink-0 flex items-center text-neutral-500 dark:text-neutral-400">
+                  {renderIcon(selectedOption.icon, 'w-3.5 h-3.5 text-current shrink-0')}
+                </span>
+              )}
               <span className="truncate">{selectedOption.label}</span>
             </div>
           ) : (
-            <span className="text-neutral-500 truncate">{placeholder}</span>
+            <span className="text-neutral-500 dark:text-neutral-400 truncate">{placeholder}</span>
           )}
         </div>
 
-        <div className="flex items-center gap-1 shrink-0 ml-2 text-neutral-400">
+        <div className="flex items-center gap-1.5 shrink-0 ml-2 text-neutral-500 dark:text-neutral-400">
           {clearable && selectedOption && !disabled && (
             <span
               onClick={handleClear}
-              className="p-0.5 hover:text-neutral-200 rounded transition-colors"
+              className="p-0.5 hover:text-neutral-800 dark:hover:text-neutral-200 rounded transition-colors"
               title="Clear"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-3.5 h-3.5 text-current" />
             </span>
           )}
           <ChevronDown
-            className={`w-3.5 h-3.5 transition-transform duration-200 ${
-              isOpen ? 'rotate-180 text-emerald-400' : ''
+            className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
+              isOpen
+                ? 'rotate-180 text-emerald-500 dark:text-emerald-400'
+                : 'text-neutral-500 dark:text-neutral-400'
             }`}
           />
         </div>
@@ -286,7 +287,7 @@ export const Select: React.FC<SelectProps> = ({
           {searchable && parsedOptions.length > 3 && (
             <div className="p-2 border-b border-neutral-800 bg-neutral-950/60 sticky top-0 z-10">
               <div className="relative flex items-center">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 text-neutral-500 pointer-events-none" />
+                <Search className="w-3.5 h-3.5 absolute inset-y-0 left-2.5 my-auto text-neutral-500 dark:text-neutral-400 pointer-events-none" />
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -299,9 +300,9 @@ export const Select: React.FC<SelectProps> = ({
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2 text-neutral-500 hover:text-neutral-300"
+                    className="absolute inset-y-0 right-2 my-auto text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 flex items-center"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-3 h-3 text-current" />
                   </button>
                 )}
               </div>
@@ -326,17 +327,21 @@ export const Select: React.FC<SelectProps> = ({
                       opt.disabled
                         ? 'opacity-40 cursor-not-allowed bg-neutral-900/50 text-neutral-500'
                         : isSelected
-                        ? 'bg-emerald-500/10 text-emerald-400 font-semibold'
+                        ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 font-semibold'
                         : 'text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100'
                     }`}
                   >
                     <div className="flex items-center gap-2 truncate min-w-0">
-                      {opt.icon && renderIcon(opt.icon, 'w-3.5 h-3.5 shrink-0 text-neutral-400')}
+                      {opt.icon && (
+                        <span className="shrink-0 flex items-center text-neutral-500 dark:text-neutral-400">
+                          {renderIcon(opt.icon, 'w-3.5 h-3.5 text-current shrink-0')}
+                        </span>
+                      )}
                       <span className="truncate">{opt.label}</span>
                     </div>
 
                     {isSelected && (
-                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 ml-2" />
+                      <Check className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 shrink-0 ml-2" />
                     )}
                   </button>
                 );

@@ -399,23 +399,60 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
             items={[
               {
                 label: isNepali ? "सामानहरू हेर्नुहोस्" : "View Products",
-                icon: <Eye className="w-4 h-4 text-amber-400" />,
+                icon: Eye,
+                color: "amber",
                 onClick: () => handleViewProducts(vendor),
               },
               {
                 label: isNepali ? "खरिद बिलहरू हेर्नुहोस्" : "Purchase Bills",
-                icon: <Receipt className="w-4 h-4 text-emerald-400" />,
+                icon: Receipt,
+                color: "emerald",
                 onClick: () => handleViewPurchases(vendor),
               },
               {
                 label: isNepali ? "सम्पादन गर्नुहोस्" : "Edit Vendor",
-                icon: <Edit2 className="w-4 h-4 text-emerald-400" />,
+                icon: Edit2,
+                color: "sky",
                 onClick: () => handleOpenEdit(vendor),
               },
+              vendor.phone
+                ? {
+                    label: isNepali
+                      ? "फोन नं. कपी गर्नुहोस्"
+                      : "Copy Phone Number",
+                    icon: Copy,
+                    color: "default",
+                    onClick: () => {
+                      navigator.clipboard.writeText(vendor.phone!);
+                      showToast(
+                        isNepali ? "फोन नं. कपी गरियो" : "Phone copied",
+                        "info",
+                      );
+                    },
+                  }
+                : null,
+              vendor.pan_vat
+                ? {
+                    label: isNepali
+                      ? "PAN/VAT कपी गर्नुहोस्"
+                      : "Copy PAN/VAT Number",
+                    icon: Copy,
+                    color: "default",
+                    onClick: () => {
+                      navigator.clipboard.writeText(vendor.pan_vat!);
+                      showToast(
+                        isNepali ? "PAN/VAT कपी गरियो" : "PAN/VAT copied",
+                        "info",
+                      );
+                    },
+                  }
+                : null,
               {
                 label: isNepali ? "हटाउनुहोस्" : "Delete Vendor",
-                icon: <Trash2 className="w-4 h-4 text-rose-400" />,
-                variant: "danger",
+                icon: Trash2,
+                color: "rose",
+                isDestructive: true,
+                divider: true,
                 onClick: () => setDeletingVendor(vendor),
               },
             ]}

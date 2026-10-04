@@ -126,6 +126,22 @@ button:disabled {
     -webkit-appearance: none;
   }
 
+  /* Date inputs picker indicator styling across light/dark themes */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.75;
+    transition: opacity 0.15s ease;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
+
+  [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+  .dark input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.85);
+  }
+
 /* Print bill & receipt media styles */
 @media print {
   html, body {

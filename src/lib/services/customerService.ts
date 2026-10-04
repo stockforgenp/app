@@ -165,6 +165,8 @@ export function findOrCreateCustomer(data: {
   const trimmedName = data.name ? data.name.trim() : '';
   const trimmedPhone = data.phone ? data.phone.trim() : '';
   const trimmedPan = data.pan_vat ? data.pan_vat.trim() : '';
+  const trimmedEmail = data.email ? data.email.trim() : '';
+  const trimmedAddress = data.address ? data.address.trim() : '';
 
   if (!trimmedName && !trimmedPhone && !trimmedPan) {
     return null;
@@ -178,10 +180,22 @@ export function findOrCreateCustomer(data: {
     );
     if (matchByPhone) {
       const updates: Partial<CreateCustomerInput> = {};
-      if (trimmedName && matchByPhone.name !== trimmedName && !matchByPhone.name) updates.name = trimmedName;
-      if (!matchByPhone.pan_vat && trimmedPan) updates.pan_vat = trimmedPan;
-      if (!matchByPhone.email && data.email?.trim()) updates.email = data.email.trim();
-      if (!matchByPhone.address && data.address?.trim()) updates.address = data.address.trim();
+      if (
+        trimmedName &&
+        trimmedName !== matchByPhone.name &&
+        (matchByPhone.name.startsWith('Customer (') || matchByPhone.name === 'Walk-in Customer' || trimmedName.length > 0)
+      ) {
+        updates.name = trimmedName;
+      }
+      if (trimmedPan && trimmedPan !== (matchByPhone.pan_vat || '')) {
+        updates.pan_vat = trimmedPan;
+      }
+      if (trimmedEmail && trimmedEmail !== (matchByPhone.email || '')) {
+        updates.email = trimmedEmail;
+      }
+      if (trimmedAddress && trimmedAddress !== (matchByPhone.address || '')) {
+        updates.address = trimmedAddress;
+      }
       if (Object.keys(updates).length > 0) {
         updateCustomer(matchByPhone.id, updates);
         return getCustomerById(matchByPhone.id) || matchByPhone;
@@ -198,9 +212,22 @@ export function findOrCreateCustomer(data: {
     );
     if (matchByPan) {
       const updates: Partial<CreateCustomerInput> = {};
-      if (!matchByPan.phone && trimmedPhone) updates.phone = trimmedPhone;
-      if (!matchByPan.email && data.email?.trim()) updates.email = data.email.trim();
-      if (!matchByPan.address && data.address?.trim()) updates.address = data.address.trim();
+      if (trimmedPhone && trimmedPhone !== (matchByPan.phone || '')) {
+        updates.phone = trimmedPhone;
+      }
+      if (
+        trimmedName &&
+        trimmedName !== matchByPan.name &&
+        (matchByPan.name.startsWith('Customer (') || matchByPan.name === 'Walk-in Customer' || trimmedName.length > 0)
+      ) {
+        updates.name = trimmedName;
+      }
+      if (trimmedEmail && trimmedEmail !== (matchByPan.email || '')) {
+        updates.email = trimmedEmail;
+      }
+      if (trimmedAddress && trimmedAddress !== (matchByPan.address || '')) {
+        updates.address = trimmedAddress;
+      }
       if (Object.keys(updates).length > 0) {
         updateCustomer(matchByPan.id, updates);
         return getCustomerById(matchByPan.id) || matchByPan;
@@ -210,17 +237,25 @@ export function findOrCreateCustomer(data: {
   }
 
   // 3. Try matching by Name (case-insensitive) if provided
-  if (trimmedName) {
+  if (trimmedName && trimmedName !== 'Walk-in Customer') {
     const matchByName = queryOne<Customer>(
       `SELECT * FROM customers WHERE LOWER(name) = LOWER(?) LIMIT 1`,
       [trimmedName]
     );
     if (matchByName) {
       const updates: Partial<CreateCustomerInput> = {};
-      if (!matchByName.phone && trimmedPhone) updates.phone = trimmedPhone;
-      if (!matchByName.pan_vat && trimmedPan) updates.pan_vat = trimmedPan;
-      if (!matchByName.email && data.email?.trim()) updates.email = data.email.trim();
-      if (!matchByName.address && data.address?.trim()) updates.address = data.address.trim();
+      if (trimmedPhone && trimmedPhone !== (matchByName.phone || '')) {
+        updates.phone = trimmedPhone;
+      }
+      if (trimmedPan && trimmedPan !== (matchByName.pan_vat || '')) {
+        updates.pan_vat = trimmedPan;
+      }
+      if (trimmedEmail && trimmedEmail !== (matchByName.email || '')) {
+        updates.email = trimmedEmail;
+      }
+      if (trimmedAddress && trimmedAddress !== (matchByName.address || '')) {
+        updates.address = trimmedAddress;
+      }
       if (Object.keys(updates).length > 0) {
         updateCustomer(matchByName.id, updates);
         return getCustomerById(matchByName.id) || matchByName;
@@ -234,9 +269,9 @@ export function findOrCreateCustomer(data: {
   return createCustomer({
     name: effectiveName,
     phone: trimmedPhone || null,
-    email: data.email?.trim() || null,
+    email: trimmedEmail || null,
     pan_vat: trimmedPan || null,
-    address: data.address?.trim() || null,
+    address: trimmedAddress || null,
     notes: data.notes?.trim() || null,
   });
 }

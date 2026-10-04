@@ -316,8 +316,8 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
                   ? 'लुकाउनुहोस्'
                   : 'Hide details'
                 : isNepali
-                ? 'विवरण हेर्नुहोस्'
-                : 'View details'}
+                ? 'विवरण थप्नुहोस् / हेर्नुहोस्'
+                : 'Add / View details'}
             </span>
             {showExtraFields ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
@@ -356,6 +356,16 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
       {/* Extra Details Accordion (Name, Phone, PAN, Email, Address) */}
       {(showExtraFields || isNewCustomerCandidate) && (
         <div className="pt-2 space-y-2.5 border-t border-neutral-800/80 animate-in fade-in duration-200">
+          {isExistingCustomer && (
+            <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 bg-emerald-950/20 px-2.5 py-1.5 rounded-lg border border-emerald-500/20">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>
+                {isNepali
+                  ? 'नयाँ वा थपिएका विवरणहरू (PAN, इमेल, ठेगाना) यो बिक्री सम्पन्न हुँदा ग्राहक प्रोफाइलमा स्वतः सुरक्षित हुनेछन्।'
+                  : 'New or added details (PAN/VAT, email, address) will automatically update the customer profile on sale.'}
+              </span>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <Input
               label={isNepali ? 'ग्राहकको नाम' : 'Customer Name'}

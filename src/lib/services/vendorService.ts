@@ -17,7 +17,7 @@ export function getAllVendors(search?: string): Vendor[] {
           SELECT SUM(sm.quantity * COALESCE(p.cost_price, 0))
           FROM stock_movements sm
           LEFT JOIN products p ON sm.product_id = p.id
-          WHERE sm.vendor_id = v.id AND sm.type = 'RESTOCK' AND (sm.reference IS NULL OR sm.reference NOT LIKE 'PUR-%')
+          WHERE sm.vendor_id = v.id AND sm.type = 'RESTOCK' AND sm.reference_id IS NULL AND (sm.note IS NULL OR sm.note NOT LIKE 'Purchase%')
         ), 0)
       ) as total_purchased
     FROM vendors v
@@ -46,7 +46,7 @@ export function getVendorById(id: number): Vendor | null {
            SELECT SUM(sm.quantity * COALESCE(p.cost_price, 0))
            FROM stock_movements sm
            LEFT JOIN products p ON sm.product_id = p.id
-           WHERE sm.vendor_id = v.id AND sm.type = 'RESTOCK' AND (sm.reference IS NULL OR sm.reference NOT LIKE 'PUR-%')
+           WHERE sm.vendor_id = v.id AND sm.type = 'RESTOCK' AND sm.reference_id IS NULL AND (sm.note IS NULL OR sm.note NOT LIKE 'Purchase%')
          ), 0)
        ) as total_purchased
      FROM vendors v 

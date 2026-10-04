@@ -33,7 +33,7 @@ const renderIcon = (
   if (React.isValidElement(icon)) {
     return icon;
   }
-  if (typeof icon === 'function') {
+  if (typeof icon === 'function' || (typeof icon === 'object' && icon !== null)) {
     const IconComponent = icon as React.ComponentType<{ className?: string }>;
     return <IconComponent className={extraClass} />;
   }
@@ -124,6 +124,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       lg: 'px-3.5 py-2.5 text-sm',
     };
 
+    const iconSizeClasses = {
+      sm: 'w-3.5 h-3.5',
+      md: 'w-4 h-4',
+      lg: 'w-4.5 h-4.5',
+    };
+
     const effectiveLeftIcon = iconPosition === 'left' ? icon : undefined;
     const effectiveRightIcon = iconPosition === 'right' ? icon : rightIcon;
     const isClearable = clearable && Boolean(safeValue) && Boolean(onClear);
@@ -153,12 +159,6 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           </label>
         )}
         <div className="relative flex items-center">
-          {hasLeftIcon && (
-            <div className="absolute left-2.5 flex items-center pointer-events-none text-neutral-400">
-              {renderIcon(effectiveLeftIcon, 'w-3.5 h-3.5')}
-            </div>
-          )}
-
           <input
             ref={ref}
             id={id}
@@ -167,7 +167,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             className={`w-full bg-neutral-950 border rounded-lg text-neutral-100 placeholder-neutral-500 transition-colors focus:outline-none focus:ring-1 ${
               error
                 ? 'border-rose-500/80 focus:border-rose-500 focus:ring-rose-500/20'
-                : 'border-neutral-800 focus:border-emerald-500 focus:ring-emerald-500/20'
+                : 'border-neutral-800 hover:border-neutral-700 focus:border-emerald-500 focus:ring-emerald-500/20'
             } ${mono ? 'font-mono' : ''} ${sizeClasses[sizeVariant]} ${paddingWithIcon} ${paddingWithRightIcon} ${
               disabled ? 'opacity-50 cursor-not-allowed bg-neutral-900' : ''
             } ${className}`}
@@ -175,18 +175,24 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
 
+          {hasLeftIcon && (
+            <div className="absolute inset-y-0 left-2.5 z-10 flex items-center pointer-events-none text-neutral-500 dark:text-neutral-400">
+              {renderIcon(effectiveLeftIcon, `${iconSizeClasses[sizeVariant]} shrink-0 text-current`)}
+            </div>
+          )}
+
           {isClearable ? (
             <button
               type="button"
               onClick={onClear}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs cursor-pointer p-0.5"
+              className="absolute inset-y-0 right-2.5 z-10 flex items-center text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 text-xs cursor-pointer p-0.5"
               title="Clear input"
             >
               ✕
             </button>
           ) : effectiveRightIcon ? (
-            <div className="absolute right-2.5 flex items-center text-neutral-400">
-              {renderIcon(effectiveRightIcon, 'w-3.5 h-3.5')}
+            <div className="absolute inset-y-0 right-2.5 z-10 flex items-center text-neutral-500 dark:text-neutral-400">
+              {renderIcon(effectiveRightIcon, `${iconSizeClasses[sizeVariant]} shrink-0 text-current`)}
             </div>
           ) : null}
         </div>

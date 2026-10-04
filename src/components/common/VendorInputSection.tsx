@@ -266,7 +266,7 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
             onClick={() => setShowExtraFields(!showExtraFields)}
             className="text-[11px] text-emerald-400 hover:text-emerald-200 flex items-center gap-1 cursor-pointer shrink-0 ml-2"
           >
-            <span>{showExtraFields ? (isNepali ? 'लुकाउनुहोस्' : 'Hide details') : (isNepali ? 'विवरण हेर्नुहोस्' : 'View details')}</span>
+            <span>{showExtraFields ? (isNepali ? 'लुकाउनुहोस्' : 'Hide details') : (isNepali ? 'विवरण थप्नुहोस् / हेर्नुहोस्' : 'Add / View details')}</span>
             {showExtraFields ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
         </div>
@@ -296,6 +296,16 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
       {/* Extra Details Accordion (PAN, Phone, Email, Address) */}
       {(showExtraFields || isNewVendorCandidate) && (
         <div className="pt-2 space-y-2.5 border-t border-neutral-800/80 animate-in fade-in duration-200">
+          {isExistingVendor && (
+            <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 bg-emerald-950/20 px-2.5 py-1.5 rounded-lg border border-emerald-500/20">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>
+                {isNepali
+                  ? 'नयाँ वा थपिएका विवरणहरू (PAN, फोन, इमेल, ठेगाना) खरिद सुरक्षित गर्दा आपूर्तिकर्ता प्रोफाइलमा स्वतः अद्यावधिक हुनेछन्।'
+                  : 'Added or updated details (PAN/VAT, phone, email, address) will automatically update the vendor profile on purchase.'}
+              </span>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <Input
               label={`PAN / VAT ${isNepali ? 'नम्बर' : 'Number'}`}

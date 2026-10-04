@@ -903,7 +903,7 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                                       ? {
                                           label: 'Copy Reference',
                                           icon: Copy,
-                                          color: 'default',
+                                          color: 'sky',
                                           action: () => {
                                             navigator.clipboard.writeText(item.payment!.reference!);
                                             showToast(
@@ -1114,7 +1114,7 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                                   ? {
                                       label: 'Copy Reference',
                                       icon: Copy,
-                                      color: 'default',
+                                      color: 'sky',
                                       action: () => {
                                         navigator.clipboard.writeText(p.reference!);
                                         showToast(`Reference ${p.reference} copied`, 'info');

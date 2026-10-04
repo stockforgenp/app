@@ -549,7 +549,7 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
                             {
                               label: 'Edit Employee',
                               icon: Edit2,
-                              color: 'default',
+                              color: 'sky',
                               action: () => handleOpenEditStaff(staff),
                             },
                             {

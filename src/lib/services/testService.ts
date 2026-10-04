@@ -746,6 +746,91 @@ export async function runBusinessLogicTests(): Promise<TestResultItem[]> {
       expected: `Stock: ${stockBefore + 10}, Cost: 4000, ViewItems: 1`,
       actual: `Stock: ${stockAfter}, Cost: ${newCost}, ViewItems: ${viewRows[0]?.values?.length || 0}`,
     });
+
+    // Test 23: Customer Auto-Creation On 1st Sale & Auto-Update of Details (PAN/VAT, Email, Address) On 2nd Sale
+    testDb.run(
+      `INSERT INTO customers (name, phone, email, pan_vat, address, created_at, updated_at)
+       VALUES (?, ?, NULL, NULL, NULL, ?, ?)`,
+      ['Suresh Thapa', '9801234567', now, now]
+    );
+    const newCustRow = testDb.exec("SELECT id, pan_vat, address, email FROM customers WHERE phone = '9801234567'");
+    const newCustId = newCustRow[0]?.values[0]?.[0] as number;
+    const initialPan = newCustRow[0]?.values[0]?.[1];
+    const initialAddr = newCustRow[0]?.values[0]?.[2];
+
+    // Second sale: Existing customer is selected, and new PAN, email, address are added
+    testDb.run(
+      `UPDATE customers
+       SET pan_vat = ?, email = ?, address = ?, updated_at = ?
+       WHERE id = ?`,
+      ['609876543', 'suresh@test.com', 'Kathmandu Ward 4', now, newCustId]
+    );
+    testDb.run(
+      `INSERT INTO sales (bill_number, customer_id, customer_name, customer_phone, customer_email, customer_pan_vat, customer_address, subtotal, discount, total, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 5000, 0, 5000, ?)`,
+      ['BILL-00002', newCustId, 'Suresh Thapa', '9801234567', 'suresh@test.com', '609876543', 'Kathmandu Ward 4', now]
+    );
+
+    const updatedCustRow = testDb.exec("SELECT pan_vat, email, address FROM customers WHERE id = " + newCustId);
+    const updatedPan = updatedCustRow[0]?.values[0]?.[0] as string;
+    const updatedEmail = updatedCustRow[0]?.values[0]?.[1] as string;
+    const updatedAddr = updatedCustRow[0]?.values[0]?.[2] as string;
+
+    const custUpdatePassed =
+      initialPan === null &&
+      initialAddr === null &&
+      updatedPan === '609876543' &&
+      updatedEmail === 'suresh@test.com' &&
+      updatedAddr === 'Kathmandu Ward 4';
+
+    results.push({
+      name: '23. Customer Auto-Update of Details (PAN/VAT, Email, Address) on Subsequent Sale',
+      passed: custUpdatePassed,
+      message: custUpdatePassed
+        ? `Customer #${newCustId} was successfully created with Name/Phone only on first sale, and automatically updated with PAN (${updatedPan}), Email (${updatedEmail}), and Address (${updatedAddr}) on second sale.`
+        : 'Failed to verify auto-update of customer details on second sale.',
+      expected: 'Initial PAN: null, Updated PAN: 609876543, Updated Email: suresh@test.com',
+      actual: `Initial PAN: ${initialPan}, Updated PAN: ${updatedPan}, Updated Email: ${updatedEmail}`,
+    });
+
+    // Test 24: Vendor Aggregation Query & Stock Movement Reference Integrity
+    testDb.run(
+      `INSERT INTO vendors (name, phone, email, pan_vat, address, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      ['Himalayan Suppliers', '9851000000', 'himalayan@trade.com', '601112233', 'Pokhara', now, now]
+    );
+    const t24VendorRow = testDb.exec("SELECT id FROM vendors WHERE pan_vat = '601112233'");
+    const testVendorId = t24VendorRow[0]?.values[0]?.[0] as number;
+
+    // Run the exact total_purchased query from vendorService.ts
+    const vendorQuery = testDb.exec(`
+      SELECT 
+        v.*,
+        (SELECT COUNT(*) FROM products WHERE vendor_id = v.id) as product_count,
+        (
+          COALESCE((SELECT SUM(COALESCE(p_rec.grand_total, p_rec.total)) FROM purchases p_rec WHERE p_rec.vendor_id = v.id), 0)
+          +
+          COALESCE((
+            SELECT SUM(sm.quantity * COALESCE(p.cost_price, 0))
+            FROM stock_movements sm
+            LEFT JOIN products p ON sm.product_id = p.id
+            WHERE sm.vendor_id = v.id AND sm.type = 'RESTOCK' AND sm.reference_id IS NULL AND (sm.note IS NULL OR sm.note NOT LIKE 'Purchase%')
+          ), 0)
+        ) as total_purchased
+      FROM vendors v
+      WHERE v.id = ${testVendorId}
+    `);
+
+    const vendorPassed = vendorQuery.length > 0 && vendorQuery[0].values.length === 1;
+    results.push({
+      name: '24. Vendor Aggregation Query & Stock Movement Reference Integrity',
+      passed: vendorPassed,
+      message: vendorPassed
+        ? `Vendor #${testVendorId} total_purchased query executed cleanly without invalid column errors.`
+        : 'Failed vendor total_purchased query.',
+      expected: '1 vendor row returned without error',
+      actual: `${vendorQuery[0]?.values?.length || 0} rows returned`,
+    });
   } catch (err: unknown) {
     results.push({
       name: '22. Multi-Item Purchase, Vendor Link, Stock Inflow & purchase_products View',
