@@ -91,14 +91,30 @@ export function toIsoRange(
 ): { startIso?: string; endIso?: string } {
   const result: { startIso?: string; endIso?: string } = {};
   if (startDate) {
-    result.startIso = startDate.includes("T")
-      ? startDate
-      : `${startDate}T00:00:00.000Z`;
+    if (startDate.includes("T")) {
+      result.startIso = startDate;
+    } else {
+      const parts = startDate.split('-').map(Number);
+      if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+        const localStart = new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+        result.startIso = localStart.toISOString();
+      } else {
+        result.startIso = `${startDate}T00:00:00.000Z`;
+      }
+    }
   }
   if (endDate) {
-    result.endIso = endDate.includes("T")
-      ? endDate
-      : `${endDate}T23:59:59.999Z`;
+    if (endDate.includes("T")) {
+      result.endIso = endDate;
+    } else {
+      const parts = endDate.split('-').map(Number);
+      if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+        const localEnd = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999);
+        result.endIso = localEnd.toISOString();
+      } else {
+        result.endIso = `${endDate}T23:59:59.999Z`;
+      }
+    }
   }
   return result;
 }

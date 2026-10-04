@@ -11,6 +11,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   store_name: 'StockForge Store',
   store_address: '',
   store_phone: '',
+  store_pan_vat: '',
+  enable_vat: true,
   receipt_footer: 'Thank you for shopping with us! Please come again.',
 };
 
@@ -33,6 +35,10 @@ export function getSettings(): AppSettings {
         settings.store_address = row.value;
       } else if (row.key === 'store_phone') {
         settings.store_phone = row.value;
+      } else if (row.key === 'store_pan_vat') {
+        settings.store_pan_vat = row.value;
+      } else if (row.key === 'enable_vat') {
+        settings.enable_vat = row.value !== 'false';
       } else if (row.key === 'receipt_footer') {
         settings.receipt_footer = row.value;
       }
@@ -85,6 +91,20 @@ export function updateSettings(newSettings: Partial<AppSettings>): AppSettings {
     run(
       'INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
       ['store_phone', newSettings.store_phone.trim()]
+    );
+  }
+
+  if (newSettings.store_pan_vat !== undefined) {
+    run(
+      'INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+      ['store_pan_vat', newSettings.store_pan_vat.trim()]
+    );
+  }
+
+  if (newSettings.enable_vat !== undefined) {
+    run(
+      'INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+      ['enable_vat', newSettings.enable_vat ? 'true' : 'false']
     );
   }
 

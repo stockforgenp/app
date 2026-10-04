@@ -121,6 +121,7 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
       let text = `*${storeName.toUpperCase()} - GOODS RECEIVED NOTE*\n`;
       if (storeAddress) text += `${storeAddress}\n`;
       if (storePhone) text += `Tel: ${storePhone}\n`;
+      if (settings.store_pan_vat) text += `PAN/VAT: ${settings.store_pan_vat}\n`;
       text += `${lineSeparator}\n`;
       text += `Purchase Bill #: ${billNo}\n`;
       if (purchase.invoice_number) text += `Supplier Invoice #: ${purchase.invoice_number}\n`;
@@ -269,6 +270,11 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
                   {storePhone && (
                     <p className="text-[11px] text-gray-600 mt-0.5">
                       Tel: {storePhone}
+                    </p>
+                  )}
+                  {settings.store_pan_vat && (
+                    <p className="text-[11px] font-mono font-medium text-gray-700 mt-0.5">
+                      PAN/VAT: {settings.store_pan_vat}
                     </p>
                   )}
                   <div className="mt-2 inline-block px-2.5 py-0.5 bg-gray-100 text-gray-800 rounded text-[10px] font-semibold tracking-wider uppercase">

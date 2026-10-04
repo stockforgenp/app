@@ -50,6 +50,7 @@ import { ActionMenu } from '../common/ActionMenu.tsx';
 import { Select } from '../common/Select.tsx';
 import { Input, Textarea } from '../common/Input.tsx';
 import { DateFilterBar } from '../common/DateFilterBar.tsx';
+import { DataTable, Column } from '../common/DataTable.tsx';
 import { DatePreset, calculateDateRange } from '../../lib/utils/dateFilters.ts';
 import { useToast } from '../../context/ToastContext.tsx';
 import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
@@ -246,6 +247,123 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ currencySymbol }) =>
     return Math.round(summary.total_expenses / summary.expense_count);
   }, [summary]);
 
+  const expenseColumns = useMemo<Column<Expense>[]>(
+    () => [
+      {
+        id: 'date',
+        header: 'Date',
+        accessor: (exp) => (
+          <span className="font-mono text-neutral-300 whitespace-nowrap">
+            {formatDate(exp.date)}
+          </span>
+        ),
+        sortable: true,
+        sortKey: (exp) => exp.date,
+      },
+      {
+        id: 'category',
+        header: 'Category',
+        accessor: (exp) => (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-800 text-neutral-200 border border-neutral-700/60">
+            {exp.category}
+          </span>
+        ),
+        sortable: true,
+        sortKey: (exp) => exp.category,
+      },
+      {
+        id: 'receipt_reference',
+        header: 'Receipt / Ref',
+        accessor: (exp) =>
+          exp.receipt_reference ? (
+            <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-neutral-950 border border-neutral-800 text-neutral-300">
+              {exp.receipt_reference}
+            </span>
+          ) : (
+            <span className="text-neutral-600">—</span>
+          ),
+        sortable: true,
+        sortKey: (exp) => exp.receipt_reference || '',
+      },
+      {
+        id: 'payment_method',
+        header: 'Payment',
+        accessor: (exp) => (
+          <span className="text-neutral-400 whitespace-nowrap">
+            {exp.payment_method || 'Cash'}
+          </span>
+        ),
+        sortable: true,
+        sortKey: (exp) => exp.payment_method || 'Cash',
+      },
+      {
+        id: 'note',
+        header: 'Description / Notes',
+        accessor: (exp) => (
+          <div className="max-w-xs truncate text-neutral-300">
+            {exp.note ? (
+              <span>{exp.note}</span>
+            ) : (
+              <span className="text-neutral-600 italic">No notes</span>
+            )}
+          </div>
+        ),
+      },
+      {
+        id: 'amount',
+        header: 'Amount',
+        align: 'right',
+        accessor: (exp) => (
+          <span className="font-mono font-semibold text-rose-400 tabular-nums whitespace-nowrap">
+            {formatCurrency(exp.amount, currencySymbol)}
+          </span>
+        ),
+        sortable: true,
+        sortKey: (exp) => exp.amount,
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        align: 'right',
+        accessor: (exp) => (
+          <div className="flex items-center justify-end gap-1.5">
+            <ActionMenu
+              align="right"
+              items={[
+                {
+                  label: 'Edit Expense',
+                  icon: Edit2,
+                  color: 'default',
+                  action: () => handleOpenEditModal(exp),
+                },
+                exp.receipt_reference
+                  ? {
+                      label: 'Copy Receipt Ref',
+                      icon: Copy,
+                      color: 'default',
+                      action: () => {
+                        navigator.clipboard.writeText(exp.receipt_reference!);
+                        showToast('Receipt reference copied', 'info');
+                      },
+                    }
+                  : null,
+                {
+                  label: 'Delete Expense',
+                  icon: Trash2,
+                  color: 'rose',
+                  isDestructive: true,
+                  divider: true,
+                  action: () => setExpenseToDelete(exp),
+                },
+              ]}
+            />
+          </div>
+        ),
+      },
+    ],
+    [currencySymbol, showToast],
+  );
+
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-150">
       {/* Header */}
@@ -414,22 +532,40 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ currencySymbol }) =>
         </div>
       )}
 
-      {/* Filter and Control Bar */}
-      <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl flex flex-col gap-3">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          {/* Search Input */}
-          <div className="flex-1 min-w-[220px]">
-            <Input
-              type="text"
-              icon={Search}
-              sizeVariant="sm"
-              placeholder="Search note, receipt ref, or category..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-
-          {/* Category Filter */}
+      {/* Unified Shared DataTable with Search, Date Filter, Category Filter, and Pagination */}
+      <DataTable<Expense>
+        data={expenses}
+        columns={expenseColumns}
+        searchQuery={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search note, receipt ref, or category..."
+        dateFilterConfig={{
+          preset: datePreset,
+          onPresetChange: (p, start, end) => {
+            setDatePreset(p);
+            setStartDate(start);
+            setEndDate(end);
+          },
+          startDate,
+          endDate,
+          onStartDateChange: setStartDate,
+          onEndDateChange: setEndDate,
+          hasActiveFilters: Boolean(
+            startDate ||
+              endDate ||
+              search ||
+              selectedCategory !== 'all' ||
+              datePreset !== 'all',
+          ),
+          onClear: () => {
+            setDatePreset('all');
+            setStartDate('');
+            setEndDate('');
+            setSearch('');
+            setSelectedCategory('all');
+          },
+        }}
+        filtersSlot={
           <Select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
@@ -440,144 +576,32 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ currencySymbol }) =>
               ...categories.map((cat) => ({ value: cat, label: cat })),
             ]}
           />
-        </div>
-
-        {/* Date Filter Bar */}
-        <DateFilterBar
-          preset={datePreset}
-          onPresetChange={(p, start, end) => {
-            setDatePreset(p);
-            setStartDate(start);
-            setEndDate(end);
-          }}
-          startDate={startDate}
-          endDate={endDate}
-          onStartDateChange={setStartDate}
-          onEndDateChange={setEndDate}
-          hasActiveFilters={Boolean(
-            startDate ||
-            endDate ||
-            search ||
-            selectedCategory !== 'all' ||
-            datePreset !== 'all'
-          )}
-          onClear={() => {
-            setDatePreset('all');
-            setStartDate('');
-            setEndDate('');
-            setSearch('');
-            setSelectedCategory('all');
-          }}
-        />
-      </div>
-
-      {/* Expenses Table */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-neutral-300">
-            <thead className="bg-neutral-950 text-neutral-400 uppercase text-[10px] tracking-wider border-b border-neutral-800">
-              <tr>
-                <th className="px-5 py-3 font-semibold">Date</th>
-                <th className="px-5 py-3 font-semibold">Category</th>
-                <th className="px-5 py-3 font-semibold">Receipt / Ref</th>
-                <th className="px-5 py-3 font-semibold">Payment</th>
-                <th className="px-5 py-3 font-semibold">Description / Notes</th>
-                <th className="px-5 py-3 font-semibold text-right">Amount</th>
-                <th className="px-5 py-3 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800/60">
-              {expenses.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-neutral-500">
-                    <ReceiptText className="w-8 h-8 mx-auto mb-2 text-neutral-600 opacity-60" />
-                    <p className="text-sm font-medium text-neutral-400">No expenses recorded yet</p>
-                    <p className="text-xs text-neutral-500 mt-1 max-w-sm mx-auto">
-                      Log overheads such as shop rent, power bills, inventory delivery charges, or employee wages.
-                    </p>
-                    <button
-                      onClick={handleOpenCreateModal}
-                      className="mt-4 px-3.5 py-1.5 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5"
-                    >
-                      <PlusCircle className="w-3.5 h-3.5" />
-                      Record Expense
-                    </button>
-                  </td>
-                </tr>
-              ) : (
-                expenses.map((expense) => (
-                  <tr key={expense.id} className="hover:bg-neutral-800/40 transition-colors group">
-                    <td className="px-5 py-3.5 font-mono text-neutral-300 whitespace-nowrap">
-                      {formatDate(expense.date)}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-800 text-neutral-200 border border-neutral-700/60">
-                        {expense.category}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 font-mono text-[11px] text-neutral-400">
-                      {expense.receipt_reference ? (
-                        <span className="px-1.5 py-0.5 rounded bg-neutral-950 border border-neutral-800 text-neutral-300">
-                          {expense.receipt_reference}
-                        </span>
-                      ) : (
-                        <span className="text-neutral-600">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-neutral-400 whitespace-nowrap">
-                      {expense.payment_method || 'Cash'}
-                    </td>
-                    <td className="px-5 py-3.5 text-neutral-300 max-w-xs truncate">
-                      {expense.note ? (
-                        <span>{expense.note}</span>
-                      ) : (
-                        <span className="text-neutral-600 italic">No notes</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-right font-mono font-semibold text-rose-400 tabular-nums whitespace-nowrap">
-                      {formatCurrency(expense.amount, currencySymbol)}
-                    </td>
-                    <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <ActionMenu
-                          align="right"
-                          items={[
-                            {
-                              label: 'Edit Expense',
-                              icon: Edit2,
-                              color: 'default',
-                              action: () => handleOpenEditModal(expense),
-                            },
-                            expense.receipt_reference
-                              ? {
-                                  label: 'Copy Receipt Ref',
-                                  icon: Copy,
-                                  color: 'default',
-                                  action: () => {
-                                    navigator.clipboard.writeText(expense.receipt_reference!);
-                                    showToast('Receipt reference copied', 'info');
-                                  },
-                                }
-                              : null,
-                            {
-                              label: 'Delete Expense',
-                              icon: Trash2,
-                              color: 'rose',
-                              isDestructive: true,
-                              divider: true,
-                              action: () => setExpenseToDelete(expense),
-                            },
-                          ]}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+        }
+        extraActionsSlot={
+          <button
+            onClick={handleOpenCreateModal}
+            className="px-3.5 py-1.5 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 shrink-0"
+          >
+            <PlusCircle className="w-3.5 h-3.5" />
+            <span>Record Expense</span>
+          </button>
+        }
+        emptyIcon={ReceiptText}
+        emptyTitle="No expenses recorded yet"
+        emptyMessage="Log overheads such as shop rent, power bills, inventory delivery charges, or employee wages."
+        emptyAction={
+          <button
+            onClick={handleOpenCreateModal}
+            className="px-3.5 py-1.5 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5"
+          >
+            <PlusCircle className="w-3.5 h-3.5" />
+            <span>Record Expense</span>
+          </button>
+        }
+        enablePagination={true}
+        pageSize={10}
+        pageSizeOptions={[10, 25, 50, 100]}
+      />
 
       {/* Record / Edit Expense Modal */}
       <Modal

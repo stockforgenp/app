@@ -176,6 +176,18 @@ export function deleteProduct(id: number): void {
     );
   }
 
+  // Check if product has purchase records
+  const purchasesCount = queryOne<{ count: number }>(
+    `SELECT COUNT(*) as count FROM purchase_items WHERE product_id = ?`,
+    [id]
+  );
+
+  if (purchasesCount && purchasesCount.count > 0) {
+    throw new Error(
+      `Cannot delete product: it is referenced in ${purchasesCount.count} historical purchase records. Historical integrity must be preserved.`
+    );
+  }
+
   transaction(() => {
     // Delete stock movements first
     run(`DELETE FROM stock_movements WHERE product_id = ?`, [id]);

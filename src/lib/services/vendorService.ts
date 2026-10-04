@@ -2,7 +2,7 @@
  * Vendor Management Service
  * Supports vendor catalog, search autocomplete, auto-fill, and auto-creation during purchases.
  */
-import { Vendor, CreateVendorInput, Product, StockMovement } from '../../types/index.ts';
+import { Vendor, CreateVendorInput, Product, StockMovement, Purchase } from '../../types/index.ts';
 import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
 
 export function getAllVendors(search?: string): Vendor[] {
@@ -10,10 +10,16 @@ export function getAllVendors(search?: string): Vendor[] {
     SELECT 
       v.*,
       (SELECT COUNT(*) FROM products WHERE vendor_id = v.id) as product_count,
-      (SELECT COALESCE(SUM(sm.quantity * COALESCE(p.cost_price, 0)), 0) 
-       FROM stock_movements sm 
-       LEFT JOIN products p ON sm.product_id = p.id 
-       WHERE sm.vendor_id = v.id AND sm.type = 'RESTOCK') as total_purchased
+      (
+        COALESCE((SELECT SUM(COALESCE(p_rec.grand_total, p_rec.total)) FROM purchases p_rec WHERE p_rec.vendor_id = v.id), 0)
+        +
+        COALESCE((
+          SELECT SUM(sm.quantity * COALESCE(p.cost_price, 0))
+          FROM stock_movements sm
+          LEFT JOIN products p ON sm.product_id = p.id
+          WHERE sm.vendor_id = v.id AND sm.type = 'RESTOCK' AND (sm.reference IS NULL OR sm.reference NOT LIKE 'PUR-%')
+        ), 0)
+      ) as total_purchased
     FROM vendors v
   `;
 
@@ -33,10 +39,16 @@ export function getVendorById(id: number): Vendor | null {
     `SELECT 
        v.*,
        (SELECT COUNT(*) FROM products WHERE vendor_id = v.id) as product_count,
-       (SELECT COALESCE(SUM(sm.quantity * COALESCE(p.cost_price, 0)), 0) 
-        FROM stock_movements sm 
-        LEFT JOIN products p ON sm.product_id = p.id 
-        WHERE sm.vendor_id = v.id AND sm.type = 'RESTOCK') as total_purchased
+       (
+         COALESCE((SELECT SUM(COALESCE(p_rec.grand_total, p_rec.total)) FROM purchases p_rec WHERE p_rec.vendor_id = v.id), 0)
+         +
+         COALESCE((
+           SELECT SUM(sm.quantity * COALESCE(p.cost_price, 0))
+           FROM stock_movements sm
+           LEFT JOIN products p ON sm.product_id = p.id
+           WHERE sm.vendor_id = v.id AND sm.type = 'RESTOCK' AND (sm.reference IS NULL OR sm.reference NOT LIKE 'PUR-%')
+         ), 0)
+       ) as total_purchased
      FROM vendors v 
      WHERE v.id = ?`,
     [id]
@@ -242,3 +254,16 @@ export function getVendorMovements(vendorId: number, limit: number = 50): StockM
     [vendorId, limit]
   );
 }
+
+export function getVendorPurchases(vendorId: number): Purchase[] {
+  return query<Purchase>(
+    `SELECT p.*,
+       (SELECT COUNT(*) FROM purchase_items WHERE purchase_id = p.id) as item_count,
+       (SELECT COALESCE(SUM(quantity), 0) FROM purchase_items WHERE purchase_id = p.id) as total_units
+     FROM purchases p
+     WHERE p.vendor_id = ?
+     ORDER BY p.created_at DESC, p.id DESC`,
+    [vendorId]
+  );
+}
+

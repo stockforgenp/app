@@ -148,11 +148,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           endDate={endDate}
           onStartDateChange={setStartDate}
           onEndDateChange={setEndDate}
-          hasActiveFilters={datePreset !== 'all'}
+          hasActiveFilters={datePreset !== "all"}
           onClear={() => {
-            setDatePreset('all');
-            setStartDate('');
-            setEndDate('');
+            setDatePreset("all");
+            setStartDate("");
+            setEndDate("");
           }}
         />
       </div>

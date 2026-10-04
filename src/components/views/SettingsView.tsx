@@ -66,6 +66,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
   const [storeNameInput, setStoreNameInput] = useState(settings.store_name || 'StockForge Retail');
   const [storeAddressInput, setStoreAddressInput] = useState(settings.store_address || '');
   const [storePhoneInput, setStorePhoneInput] = useState(settings.store_phone || '');
+  const [storePanVatInput, setStorePanVatInput] = useState(settings.store_pan_vat || '');
+  const [enableVat, setEnableVat] = useState(settings.enable_vat !== false);
   const [receiptFooterInput, setReceiptFooterInput] = useState(
     settings.receipt_footer || 'Thank you for shopping with us! Please come again.'
   );
@@ -103,6 +105,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
     setStoreNameInput(s.store_name || 'StockForge Retail');
     setStoreAddressInput(s.store_address || '');
     setStorePhoneInput(s.store_phone || '');
+    setStorePanVatInput(s.store_pan_vat || '');
+    setEnableVat(s.enable_vat !== false);
     setReceiptFooterInput(s.receipt_footer || 'Thank you for shopping with us! Please come again.');
   }, [language]);
 
@@ -116,6 +120,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
       store_name: storeNameInput.trim() || 'StockForge Retail',
       store_address: storeAddressInput.trim(),
       store_phone: storePhoneInput.trim(),
+      store_pan_vat: storePanVatInput.trim(),
+      enable_vat: enableVat,
       receipt_footer: receiptFooterInput.trim(),
     });
     setSettings(updated);
@@ -568,6 +574,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
             </div>
           </div>
 
+          {/* VAT / Tax Calculation (13%) Toggle */}
+          <div className="pt-2">
+            <div className="flex items-start justify-between p-4 rounded-xl bg-neutral-950 border border-neutral-800">
+              <div className="pr-4">
+                <div className="text-xs font-semibold text-neutral-200">Enable 13% VAT Calculation</div>
+                <div className="text-[11px] text-neutral-400 mt-0.5">
+                  Default: <span className="font-semibold text-emerald-400">ON (13%)</span>. When enabled,
+                  sales and purchase invoices calculate standard 13% Value Added Tax on taxable amounts. If turned
+                  off, transactions are billed without VAT (0%).
+                </div>
+              </div>
+
+              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5">
+                <Input
+                  type="checkbox"
+                  checked={enableVat}
+                  onChange={(e) => setEnableVat(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+              </label>
+            </div>
+          </div>
+
           {/* Store & Bill Print Customization */}
           <div className="pt-4 border-t border-neutral-800/80 space-y-4">
             <div className="flex items-center gap-2 text-xs font-semibold text-neutral-200">
@@ -583,6 +613,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
                 onChange={(e) => setStoreNameInput(e.target.value)}
                 placeholder="e.g. Al-Madina Superstore"
                 helperText="Appears at the top of printed thermal receipts and invoices."
+              />
+
+              <Input
+                label="Store PAN / VAT Number"
+                type="text"
+                mono
+                value={storePanVatInput}
+                onChange={(e) => setStorePanVatInput(e.target.value)}
+                placeholder="e.g. 601234567"
+                helperText="Printed on receipt header for tax invoice compliance."
               />
 
               <Input

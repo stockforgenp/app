@@ -13,7 +13,6 @@ import { ToastProvider } from './context/ToastContext.tsx';
 import { Sidebar, NavTab } from './components/layout/Sidebar.tsx';
 import { Header } from './components/layout/Header.tsx';
 import { DashboardView } from './components/views/DashboardView.tsx';
-import { ProductsView } from './components/views/ProductsView.tsx';
 import { SalesView } from './components/views/SalesView.tsx';
 import { PurchasesView } from './components/views/PurchasesView.tsx';
 import { InventoryView } from './components/views/InventoryView.tsx';
@@ -49,7 +48,6 @@ export default function App() {
     const path = location.pathname.replace(/^\//, '').split('/')[0];
     const validTabs: NavTab[] = [
       'dashboard',
-      'products',
       'sales',
       'purchases',
       'inventory',
@@ -284,7 +282,7 @@ export default function App() {
             onNewProductClick={() => {
               handleClearActiveModals();
               setInitialOpenCreateProduct(true);
-              handleNavigate('products');
+              handleNavigate('inventory');
             }}
             onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
             onOpenShortcutsHelp={() => setIsShortcutsHelpOpen(true)}
@@ -313,21 +311,7 @@ export default function App() {
                   />
                 }
               />
-              <Route
-                path="/products"
-                element={
-                  <ProductsView
-                    currencySymbol={effectiveCurrencySymbol}
-                    lowStockThreshold={settings.low_stock_threshold}
-                    onRestockClick={handleRestockFromAnywhere}
-                    onAdjustClick={handleAdjustFromAnywhere}
-                    onViewMovements={handleMovementsFromAnywhere}
-                    onStartSaleWithProducts={handleStartSaleWithProducts}
-                    initialOpenCreate={initialOpenCreateProduct}
-                    onClearInitialOpenCreate={() => setInitialOpenCreateProduct(false)}
-                  />
-                }
-              />
+              <Route path="/products" element={<Navigate to="/inventory" replace />} />
               <Route
                 path="/sales"
                 element={
@@ -351,7 +335,7 @@ export default function App() {
                     onOpenCreateProduct={() => {
                       handleClearActiveModals();
                       setInitialOpenCreateProduct(true);
-                      handleNavigate('products');
+                      handleNavigate('inventory');
                     }}
                   />
                 }
@@ -367,8 +351,9 @@ export default function App() {
                     activeAdjustProduct={activeAdjustProduct}
                     activeMovementsProduct={activeMovementsProduct}
                     onClearActiveModals={handleClearActiveModals}
-                    onEditProduct={() => handleNavigate('products')}
                     onStartSaleWithProducts={handleStartSaleWithProducts}
+                    initialOpenCreate={initialOpenCreateProduct}
+                    onClearInitialOpenCreate={() => setInitialOpenCreateProduct(false)}
                   />
                 }
               />
@@ -377,7 +362,7 @@ export default function App() {
                 element={
                   <VendorsView
                     currencySymbol={effectiveCurrencySymbol}
-                    onNavigateToProducts={() => handleNavigate('products')}
+                    onNavigateToProducts={() => handleNavigate('inventory')}
                   />
                 }
               />
@@ -444,7 +429,7 @@ export default function App() {
         onOpenCreateProduct={() => {
           handleClearActiveModals();
           setInitialOpenCreateProduct(true);
-          handleNavigate('products');
+          handleNavigate('inventory');
         }}
         onOpenShortcutsHelp={() => setIsShortcutsHelpOpen(true)}
         onStartSaleWithProduct={(product) => {

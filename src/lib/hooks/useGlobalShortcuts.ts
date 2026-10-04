@@ -38,14 +38,6 @@ export const SHORTCUT_REGISTRY: ShortcutDefinition[] = [
     displayKeys: `${MODIFIER_LABEL}+B`,
   },
   {
-    id: 'nav-products',
-    category: 'Navigation',
-    label: 'Products Catalog',
-    description: 'Manage products, inventory items, and price points',
-    keys: ['ctrl+p', 'cmd+p', 'alt+p'],
-    displayKeys: `${MODIFIER_LABEL}+P`,
-  },
-  {
     id: 'nav-dashboard',
     category: 'Navigation',
     label: 'Dashboard',
@@ -56,9 +48,9 @@ export const SHORTCUT_REGISTRY: ShortcutDefinition[] = [
   {
     id: 'nav-inventory',
     category: 'Navigation',
-    label: 'Inventory & Stock',
-    description: 'Stock valuation, low stock warnings, and reordering',
-    keys: ['ctrl+i', 'cmd+i', 'alt+i'],
+    label: 'Inventory & Products',
+    description: 'Stock valuation, product catalog, and movement adjustments',
+    keys: ['ctrl+i', 'cmd+i', 'alt+i', 'ctrl+p', 'cmd+p', 'alt+p'],
     displayKeys: `${MODIFIER_LABEL}+I`,
   },
   {
@@ -275,7 +267,7 @@ export function useGlobalShortcuts({
         if (onOpenCreateProduct) {
           onOpenCreateProduct();
         } else {
-          onNavigate('products');
+          onNavigate('inventory');
         }
         return;
       }
@@ -288,11 +280,10 @@ export function useGlobalShortcuts({
         return;
       }
 
-      // Ctrl+P / Cmd+P or Alt+P: Products Catalog
-      // Prevents browser print dialog and navigates directly to Products
+      // Ctrl+P / Cmd+P or Alt+P: Inventory & Products Catalog
       if ((isModifier && !e.shiftKey && key === 'p') || (isAlt && key === 'p')) {
         e.preventDefault();
-        onNavigate('products');
+        onNavigate('inventory');
         return;
       }
 

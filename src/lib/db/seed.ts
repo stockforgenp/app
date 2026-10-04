@@ -234,15 +234,21 @@ export function seedInitialData(db: Database) {
  */
 export function clearAllTestData(db: Database) {
   try {
+    db.run('DELETE FROM purchase_items;');
+    db.run('DELETE FROM purchases;');
     db.run('DELETE FROM sale_items;');
-    db.run('DELETE FROM stock_movements;');
-    db.run('DELETE FROM salary_payments;');
     db.run('DELETE FROM sales;');
+    db.run('DELETE FROM stock_movements;');
     db.run('DELETE FROM products;');
+    db.run('DELETE FROM vendors;');
+    db.run('DELETE FROM customers;');
+    db.run('DELETE FROM salary_payments;');
     db.run('DELETE FROM expenses;');
     db.run('DELETE FROM staff;');
     // Reset sqlite autoincrement sequences
-    db.run("DELETE FROM sqlite_sequence WHERE name IN ('products', 'sales', 'sale_items', 'stock_movements', 'expenses', 'staff', 'salary_payments');");
+    db.run(
+      "DELETE FROM sqlite_sequence WHERE name IN ('products', 'sales', 'sale_items', 'purchases', 'purchase_items', 'stock_movements', 'vendors', 'customers', 'expenses', 'staff', 'salary_payments');"
+    );
   } catch (err) {
     console.error('Error clearing test data:', err);
   }

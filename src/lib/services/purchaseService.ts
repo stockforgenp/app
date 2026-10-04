@@ -13,6 +13,7 @@ import {
 import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
 import { getProductById } from './productService.ts';
 import { findOrCreateVendor } from './vendorService.ts';
+import { getSettings } from './settingsService.ts';
 
 export function processPurchase(
   items: ProcessPurchaseItemInput[],
@@ -22,6 +23,7 @@ export function processPurchase(
     throw new Error('Purchase must contain at least one item');
   }
 
+  const settings = getSettings();
   const now = new Date().toISOString();
 
   return transaction(() => {
@@ -102,8 +104,8 @@ export function processPurchase(
     }
 
     const taxableAmount = Math.max(0, purchaseSubtotal - purchaseDiscount);
-    const vatRate = 13.0;
-    const vatAmount = Math.round(taxableAmount * 0.13);
+    const vatRate = settings.enable_vat !== false ? 13.0 : 0.0;
+    const vatAmount = settings.enable_vat !== false ? Math.round(taxableAmount * 0.13) : 0;
     const grandTotal = taxableAmount + vatAmount;
 
     // 3. Generate sequential Bill Number: PUR-00001

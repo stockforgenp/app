@@ -30,10 +30,12 @@ import {
   User,
   Phone,
   Printer,
+  X,
 } from 'lucide-react';
 import { Product, CartItem } from '../../types/index.ts';
 import { getAllProducts } from '../../lib/services/productService.ts';
 import { processSale } from '../../lib/services/salesService.ts';
+import { calculateProportionalDiscounts } from '../../lib/utils/discountUtils.ts';
 import {
   formatCurrency,
   fromMinorUnits,
@@ -103,8 +105,13 @@ export const SalesView: React.FC<SalesViewProps> = ({
   // Quick Multi-SKU input right on POS
   const [quickSkuInput, setQuickSkuInput] = useState('');
 
-  // Bulk Discount Modal
+  // Whole / Overall Sale Discount State (proportionally divided across line items)
+  const [wholeDiscountValue, setWholeDiscountValue] = useState('');
+  const [wholeDiscountType, setWholeDiscountType] = useState<'fixed' | 'percent'>('fixed');
+
+  // Bulk / Whole Discount Modal
   const [isBulkDiscountModalOpen, setIsBulkDiscountModalOpen] = useState(false);
+  const [bulkDiscountTab, setBulkDiscountTab] = useState<'proportional' | 'uniform'>('proportional');
   const [bulkDiscountType, setBulkDiscountType] = useState<'fixed' | 'percent'>('fixed');
   const [bulkDiscountValue, setBulkDiscountValue] = useState('');
 
@@ -365,34 +372,87 @@ export const SalesView: React.FC<SalesViewProps> = ({
     }
   };
 
-  // Bulk discount across all current cart items
+  // Bulk or Proportional Whole discount across all current cart items
   const handleApplyBulkDiscount = () => {
     const val = parseFloat(bulkDiscountValue);
-    if (isNaN(val) || val < 0) {
+    if (isNaN(val) || val <= 0) {
       showToast('Please enter a valid positive discount value', 'warning');
       return;
     }
 
-    const updated = cart.map((item) => {
-      let discountMinor = 0;
-      if (bulkDiscountType === 'fixed') {
-        discountMinor = toMinorUnits(val);
-      } else {
-        const gross = item.quantity * item.actual_selling_price;
-        discountMinor = Math.round((gross * Math.min(100, val)) / 100);
-      }
-      const lineGross = item.quantity * item.actual_selling_price;
-      return {
-        ...item,
-        discount: Math.min(lineGross, discountMinor),
-      };
+    if (bulkDiscountTab === 'proportional') {
+      setWholeDiscountValue(bulkDiscountValue);
+      setWholeDiscountType(bulkDiscountType);
+      setIsBulkDiscountModalOpen(false);
+      setBulkDiscountValue('');
+      showToast(
+        `Applied whole discount of ${
+          bulkDiscountType === 'fixed'
+            ? formatCurrency(toMinorUnits(val), currencySymbol)
+            : `${val}%`
+        } divided proportionally across ${cart.length} items`,
+        'success'
+      );
+    } else {
+      const updated = cart.map((item) => {
+        let discountMinor = 0;
+        if (bulkDiscountType === 'fixed') {
+          discountMinor = toMinorUnits(val);
+        } else {
+          const gross = item.quantity * item.actual_selling_price;
+          discountMinor = Math.round((gross * Math.min(100, val)) / 100);
+        }
+        const lineGross = item.quantity * item.actual_selling_price;
+        return {
+          ...item,
+          discount: Math.min(lineGross, discountMinor),
+        };
+      });
+
+      setCart(updated);
+      setIsBulkDiscountModalOpen(false);
+      setBulkDiscountValue('');
+      showToast(`Applied uniform discount across ${cart.length} items`, 'success');
+    }
+  };
+
+  // Live preview for proportional whole discount in modal
+  const modalProportionalPreview = useMemo(() => {
+    if (bulkDiscountTab !== 'proportional' || !isBulkDiscountModalOpen || cart.length === 0) {
+      return null;
+    }
+    const val = parseFloat(bulkDiscountValue) || 0;
+    if (val <= 0) return null;
+
+    let subtotal = 0;
+    const itemsForDiscount = cart.map((item) => {
+      const gross = item.quantity * item.actual_selling_price;
+      subtotal += gross;
+      return { gross, individualDiscount: item.discount };
     });
 
-    setCart(updated);
-    setIsBulkDiscountModalOpen(false);
-    setBulkDiscountValue('');
-    showToast(`Applied bulk discount across ${cart.length} items`, 'success');
-  };
+    let targetWholeMinor = 0;
+    if (bulkDiscountType === 'percent') {
+      targetWholeMinor = Math.round((subtotal * Math.min(100, val)) / 100);
+    } else {
+      targetWholeMinor = Math.min(subtotal, toMinorUnits(val));
+    }
+
+    const distributed = calculateProportionalDiscounts(itemsForDiscount, targetWholeMinor);
+    return {
+      subtotal,
+      targetWholeMinor,
+      items: cart.map((item, idx) => ({
+        id: item.product.id,
+        name: item.product.name,
+        quantity: item.quantity,
+        unit: item.product.unit || 'pcs',
+        gross: itemsForDiscount[idx].gross,
+        allocatedWhole: distributed[idx]?.allocatedWholeDiscount || 0,
+        effectiveNet: distributed[idx]?.effectiveNet || itemsForDiscount[idx].gross,
+      })),
+    };
+  }, [bulkDiscountTab, isBulkDiscountModalOpen, cart, bulkDiscountValue, bulkDiscountType]);
 
   const selectAllFilteredInModal = () => {
     setBatchQuantities((prev) => {
@@ -514,6 +574,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
   const handleClearCart = () => {
     setCart([]);
+    setWholeDiscountValue('');
+    setWholeDiscountType('fixed');
     setCustomerData({
       customerId: null,
       name: '',
@@ -525,25 +587,72 @@ export const SalesView: React.FC<SalesViewProps> = ({
     });
   };
 
-  // Calculations
+  // Calculations with Proportional Whole Discount Division
   const calculations = useMemo(() => {
     let subtotal = 0;
-    let totalDiscount = 0;
     let totalUnits = 0;
     let hasStockViolation = false;
     let violationMessage = '';
 
-    for (const item of cart) {
+    const itemsForDiscount = cart.map((item) => {
       const gross = item.quantity * item.actual_selling_price;
       subtotal += gross;
-      totalDiscount += item.discount;
       totalUnits += item.quantity;
 
       if (!allowNegativeStock && item.quantity > item.product.current_stock) {
         hasStockViolation = true;
         violationMessage = `Item "${item.product.name}" exceeds current stock (${item.quantity} > ${item.product.current_stock})`;
       }
+
+      return {
+        gross,
+        individualDiscount: item.discount,
+      };
+    });
+
+    // Calculate target whole discount in minor units
+    const rawWholeVal = parseFloat(wholeDiscountValue) || 0;
+    let targetWholeDiscountMinor = 0;
+    if (rawWholeVal > 0 && subtotal > 0) {
+      if (wholeDiscountType === 'percent') {
+        targetWholeDiscountMinor = Math.round((subtotal * Math.min(100, rawWholeVal)) / 100);
+      } else {
+        targetWholeDiscountMinor = Math.min(subtotal, toMinorUnits(rawWholeVal));
+      }
     }
+
+    // Distribute whole discount proportionally across all items based on item gross
+    const distributedResults = calculateProportionalDiscounts(
+      itemsForDiscount,
+      targetWholeDiscountMinor
+    );
+
+    let totalIndividualDiscount = 0;
+    let totalAllocatedWholeDiscount = 0;
+    let totalDiscount = 0;
+
+    const itemsWithDiscounts = cart.map((item, index) => {
+      const gross = itemsForDiscount[index].gross;
+      const indiv = Math.min(gross, item.discount);
+      const result = distributedResults[index] || {
+        allocatedWholeDiscount: 0,
+        totalDiscount: indiv,
+        effectiveNet: Math.max(0, gross - indiv),
+      };
+
+      totalIndividualDiscount += indiv;
+      totalAllocatedWholeDiscount += result.allocatedWholeDiscount;
+      totalDiscount += result.totalDiscount;
+
+      return {
+        ...item,
+        gross,
+        individualDiscount: indiv,
+        allocatedWholeDiscount: result.allocatedWholeDiscount,
+        effectiveTotalDiscount: result.totalDiscount,
+        netTotal: result.effectiveNet,
+      };
+    });
 
     const taxableAmount = Math.max(0, subtotal - totalDiscount);
     const vatRate = 13.0;
@@ -552,6 +661,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
     return {
       subtotal,
+      totalIndividualDiscount,
+      wholeDiscountAmount: totalAllocatedWholeDiscount,
       totalDiscount,
       taxableAmount,
       vatRate,
@@ -559,10 +670,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
       grandTotal,
       total: grandTotal,
       totalUnits,
+      itemsWithDiscounts,
       hasStockViolation,
       violationMessage,
     };
-  }, [cart, allowNegativeStock]);
+  }, [cart, allowNegativeStock, wholeDiscountValue, wholeDiscountType]);
 
   const handleCompleteSale = () => {
     if (cart.length === 0) {
@@ -576,30 +688,33 @@ export const SalesView: React.FC<SalesViewProps> = ({
     }
 
     try {
-      const itemsInput = cart.map((item) => ({
+      const itemsInput = calculations.itemsWithDiscounts.map((item) => ({
         productId: item.product.id,
         quantity: item.quantity,
         actualSellingPrice: item.actual_selling_price,
-        discount: item.discount,
+        discount: item.effectiveTotalDiscount,
       }));
 
-      const sale = processSale(itemsInput, {
-        customerId: customerData.customerId || undefined,
-        customerName: customerData.name.trim() || undefined,
-        customerPhone: customerData.phone.trim() || undefined,
-        customerEmail: customerData.email.trim() || undefined,
-        customerPanVat: customerData.pan_vat.trim() || undefined,
-        customerAddress: customerData.address.trim() || undefined,
-        customerInput: customerData.isNew
-          ? {
-              name: customerData.name.trim(),
-              phone: customerData.phone.trim() || undefined,
-              email: customerData.email.trim() || undefined,
-              pan_vat: customerData.pan_vat.trim() || undefined,
-              address: customerData.address.trim() || undefined,
-            }
-          : undefined,
-      });
+      const sale = processSale(
+        itemsInput,
+        {
+          customerId: customerData.customerId || undefined,
+          customerName: customerData.name.trim() || undefined,
+          customerPhone: customerData.phone.trim() || undefined,
+          customerEmail: customerData.email.trim() || undefined,
+          customerPanVat: customerData.pan_vat.trim() || undefined,
+          customerAddress: customerData.address.trim() || undefined,
+          customerInput: customerData.isNew
+            ? {
+                name: customerData.name.trim(),
+                phone: customerData.phone.trim() || undefined,
+                email: customerData.email.trim() || undefined,
+                pan_vat: customerData.pan_vat.trim() || undefined,
+                address: customerData.address.trim() || undefined,
+              }
+            : undefined,
+        }
+      );
 
       showToast(`Sale #${sale.id} completed successfully!`, 'success');
 
@@ -1076,11 +1191,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-800/60">
-                    {cart.map((item, index) => {
+                    {calculations.itemsWithDiscounts.map((item, index) => {
                       const isOverStock =
                         !allowNegativeStock && item.quantity > item.product.current_stock;
-                      const lineGross = item.quantity * item.actual_selling_price;
-                      const lineNet = Math.max(0, lineGross - item.discount);
 
                       return (
                         <tr
@@ -1160,22 +1273,39 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             />
                           </td>
 
-                          {/* Line Discount (Absolute monetary amount) */}
+                          {/* Line Discount (Item-level discount + Proportional whole discount badge) */}
                           <td className="py-3 px-3 text-right">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={fromMinorUnits(item.discount)}
-                              onChange={(e) => handleUpdateDiscount(index, e.target.value)}
-                              containerClassName="w-20 ml-auto"
-                              className="px-2 py-1 text-xs text-right font-mono text-amber-400 focus:border-amber-500"
-                            />
+                            <div className="flex flex-col items-end">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={fromMinorUnits(item.discount)}
+                                onChange={(e) => handleUpdateDiscount(index, e.target.value)}
+                                containerClassName="w-20 ml-auto"
+                                className="px-2 py-1 text-xs text-right font-mono text-amber-400 focus:border-amber-500"
+                              />
+                              {item.allocatedWholeDiscount > 0 && (
+                                <span
+                                  className="text-[10px] text-amber-400/90 font-mono mt-0.5 whitespace-nowrap cursor-help"
+                                  title={`Item discount: ${formatCurrency(item.individualDiscount, currencySymbol)} + Whole discount share: ${formatCurrency(item.allocatedWholeDiscount, currencySymbol)} = Total: ${formatCurrency(item.effectiveTotalDiscount, currencySymbol)}`}
+                                >
+                                  +{formatCurrency(item.allocatedWholeDiscount, currencySymbol)} whole
+                                </span>
+                              )}
+                            </div>
                           </td>
 
                           {/* Net Line Total */}
-                          <td className="py-3 px-4 text-right font-mono font-bold text-neutral-100 tabular-nums">
-                            {formatCurrency(lineNet, currencySymbol)}
+                          <td className="py-3 px-4 text-right font-mono tabular-nums">
+                            <div className="font-bold text-neutral-100">
+                              {formatCurrency(item.netTotal, currencySymbol)}
+                            </div>
+                            {item.effectiveTotalDiscount > 0 && (
+                              <div className="text-[10px] font-normal text-amber-400 font-mono">
+                                -{formatCurrency(item.effectiveTotalDiscount, currencySymbol)}
+                              </div>
+                            )}
                           </td>
 
                           {/* Remove */}
@@ -1206,6 +1336,84 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
             {/* Calculations Breakdown */}
             <div className="p-5 bg-neutral-950 border-t border-neutral-800 space-y-3">
+              {/* Whole Bill Discount (Proportional) Input Card */}
+              {cart.length > 0 && (
+                <div className="p-3 rounded-lg bg-neutral-900 border border-neutral-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Percent className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="text-xs font-semibold text-neutral-200">
+                        {isNepali ? 'सम्पूर्ण बिलमा छुट (Whole Bill Discount)' : 'Whole Bill Discount'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-neutral-400">
+                      {isNepali ? 'मूल्य अनुसार दामासाही बाँडिने' : 'Divided proportionally by item amount'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex bg-neutral-950 p-0.5 rounded-lg border border-neutral-800 text-[11px] shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setWholeDiscountType('fixed')}
+                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
+                          wholeDiscountType === 'fixed'
+                            ? 'bg-neutral-800 text-neutral-100 font-semibold'
+                            : 'text-neutral-400 hover:text-neutral-200'
+                        }`}
+                      >
+                        {currencySymbol} Fixed
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWholeDiscountType('percent')}
+                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
+                          wholeDiscountType === 'percent'
+                            ? 'bg-neutral-800 text-neutral-100 font-semibold'
+                            : 'text-neutral-400 hover:text-neutral-200'
+                        }`}
+                      >
+                        % Percent
+                      </button>
+                    </div>
+
+                    <div className="relative flex-1">
+                      <Input
+                        type="number"
+                        step={wholeDiscountType === 'fixed' ? '0.01' : '1'}
+                        min="0"
+                        max={wholeDiscountType === 'percent' ? 100 : undefined}
+                        placeholder={
+                          wholeDiscountType === 'fixed'
+                            ? `Whole discount (${currencySymbol})...`
+                            : 'Whole discount %...'
+                        }
+                        value={wholeDiscountValue}
+                        onChange={(e) => setWholeDiscountValue(e.target.value)}
+                        className="text-xs font-mono pr-7 focus:border-amber-500"
+                      />
+                      {wholeDiscountValue && (
+                        <button
+                          type="button"
+                          onClick={() => setWholeDiscountValue('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-200 p-0.5 rounded cursor-pointer"
+                          title="Clear whole discount"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {calculations.wholeDiscountAmount > 0 && (
+                    <div className="text-[11px] text-amber-400 flex items-center justify-between font-mono pt-1 border-t border-neutral-800/60">
+                      <span className="text-neutral-400">Proportionally distributed:</span>
+                      <span>-{formatCurrency(calculations.wholeDiscountAmount, currencySymbol)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex items-center justify-between text-xs text-neutral-400">
                 <span>{isNepali ? 'उप-जम्मा' : 'Subtotal (Gross)'}</span>
                 <span className="font-mono text-neutral-200">
@@ -1213,12 +1421,32 @@ export const SalesView: React.FC<SalesViewProps> = ({
                 </span>
               </div>
 
-              <div className="flex items-center justify-between text-xs text-neutral-400">
-                <span>{isNepali ? 'छुट' : 'Total Item Discounts'}</span>
-                <span className="font-mono text-amber-400">
-                  - {formatCurrency(calculations.totalDiscount, currencySymbol)}
-                </span>
-              </div>
+              {calculations.totalIndividualDiscount > 0 && (
+                <div className="flex items-center justify-between text-xs text-neutral-400">
+                  <span>{isNepali ? 'वस्तुगत छुट' : 'Individual Item Discounts'}</span>
+                  <span className="font-mono text-amber-400">
+                    - {formatCurrency(calculations.totalIndividualDiscount, currencySymbol)}
+                  </span>
+                </div>
+              )}
+
+              {calculations.wholeDiscountAmount > 0 && (
+                <div className="flex items-center justify-between text-xs text-neutral-400">
+                  <span>{isNepali ? 'सम्पूर्ण बिल छुट' : 'Whole Bill Discount (Proportional)'}</span>
+                  <span className="font-mono text-amber-400">
+                    - {formatCurrency(calculations.wholeDiscountAmount, currencySymbol)}
+                  </span>
+                </div>
+              )}
+
+              {calculations.totalDiscount > 0 && (
+                <div className="flex items-center justify-between text-xs text-neutral-300 font-semibold pt-1 border-t border-neutral-800/60">
+                  <span>{isNepali ? 'जम्मा छुट' : 'Total Discounts'}</span>
+                  <span className="font-mono text-amber-400">
+                    - {formatCurrency(calculations.totalDiscount, currencySymbol)}
+                  </span>
+                </div>
+              )}
 
               <div className="flex items-center justify-between text-xs text-neutral-400">
                 <span>{isNepali ? 'करयोग्य रकम' : 'Taxable Amount'}</span>
@@ -1546,20 +1774,56 @@ export const SalesView: React.FC<SalesViewProps> = ({
         </div>
       </Modal>
 
-      {/* Modal: Bulk Discount across all items */}
+      {/* Modal: Bulk / Whole Discount across all items */}
       <Modal
         isOpen={isBulkDiscountModalOpen}
         onClose={() => setIsBulkDiscountModalOpen(false)}
-        title="Apply Bulk Discount to All Items"
-        subtitle={`Set a uniform discount across all ${cart.length} line items currently in this sale.`}
-        maxWidth="md"
+        title={
+          bulkDiscountTab === 'proportional'
+            ? 'Whole Bill Discount (Proportional)'
+            : 'Apply Uniform Discount to All Items'
+        }
+        subtitle={
+          bulkDiscountTab === 'proportional'
+            ? `Divide a single whole discount proportionally across all ${cart.length} items based on their individual amounts.`
+            : `Set a uniform discount across all ${cart.length} line items currently in this sale.`
+        }
+        maxWidth="lg"
       >
         <div className="space-y-4">
+          {/* Discount Mode Selector */}
+          <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-950 rounded-lg border border-neutral-800 text-xs">
+            <button
+              type="button"
+              onClick={() => setBulkDiscountTab('proportional')}
+              className={`py-2 rounded font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
+                bulkDiscountTab === 'proportional'
+                  ? 'bg-neutral-800 text-amber-400 font-semibold'
+                  : 'text-neutral-400 hover:text-neutral-200'
+              }`}
+            >
+              <Percent className="w-3.5 h-3.5" />
+              <span>Whole Bill (Proportional)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setBulkDiscountTab('uniform')}
+              className={`py-2 rounded font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
+                bulkDiscountTab === 'uniform'
+                  ? 'bg-neutral-800 text-neutral-100 font-semibold'
+                  : 'text-neutral-400 hover:text-neutral-200'
+              }`}
+            >
+              <span>Uniform per Item</span>
+            </button>
+          </div>
+
+          {/* Amount Type Selector: Fixed vs Percent */}
           <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-950 rounded-lg border border-neutral-800 text-xs">
             <button
               type="button"
               onClick={() => setBulkDiscountType('fixed')}
-              className={`py-2 rounded font-medium transition-colors cursor-pointer ${
+              className={`py-1.5 rounded font-medium transition-colors cursor-pointer ${
                 bulkDiscountType === 'fixed'
                   ? 'bg-neutral-800 text-neutral-100 font-semibold'
                   : 'text-neutral-400 hover:text-neutral-200'
@@ -1570,7 +1834,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
             <button
               type="button"
               onClick={() => setBulkDiscountType('percent')}
-              className={`py-2 rounded font-medium transition-colors cursor-pointer ${
+              className={`py-1.5 rounded font-medium transition-colors cursor-pointer ${
                 bulkDiscountType === 'percent'
                   ? 'bg-neutral-800 text-neutral-100 font-semibold'
                   : 'text-neutral-400 hover:text-neutral-200'
@@ -1583,20 +1847,69 @@ export const SalesView: React.FC<SalesViewProps> = ({
           <div>
             <Input
               label={
-                bulkDiscountType === 'fixed'
+                bulkDiscountTab === 'proportional'
+                  ? bulkDiscountType === 'fixed'
+                    ? `Total Whole Discount Amount (${currencySymbol})`
+                    : 'Total Whole Discount Percentage (%)'
+                  : bulkDiscountType === 'fixed'
                   ? `Discount Amount per Item (${currencySymbol})`
-                  : 'Discount Percentage (%)'
+                  : 'Discount Percentage per Item (%)'
               }
               type="number"
               step={bulkDiscountType === 'fixed' ? '0.01' : '1'}
               min="0"
               max={bulkDiscountType === 'percent' ? 100 : undefined}
-              placeholder={bulkDiscountType === 'fixed' ? 'e.g. 10.00' : 'e.g. 5'}
+              placeholder={bulkDiscountType === 'fixed' ? 'e.g. 100.00' : 'e.g. 10'}
               value={bulkDiscountValue}
               onChange={(e) => setBulkDiscountValue(e.target.value)}
               className="font-mono focus:border-amber-500"
             />
           </div>
+
+          {/* Proportional Preview Table (Only in proportional tab with positive value) */}
+          {bulkDiscountTab === 'proportional' && modalProportionalPreview && (
+            <div className="space-y-2 pt-2 border-t border-neutral-800">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-neutral-300">Proportional Distribution Preview:</span>
+                <span className="font-mono text-amber-400 font-bold">
+                  Total Whole Discount: -{formatCurrency(modalProportionalPreview.targetWholeMinor, currencySymbol)}
+                </span>
+              </div>
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-neutral-800 bg-neutral-950/60">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 sticky top-0">
+                    <tr>
+                      <th className="py-2 px-3">Item</th>
+                      <th className="py-2 px-2 text-right font-mono">Gross Amount</th>
+                      <th className="py-2 px-2 text-right font-mono text-amber-400">Discount Share</th>
+                      <th className="py-2 px-3 text-right font-mono">Effective Net</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-800/60 font-mono">
+                    {modalProportionalPreview.items.map((row) => (
+                      <tr key={row.id} className="hover:bg-neutral-800/20">
+                        <td className="py-2 px-3 font-sans text-neutral-200">
+                          {row.name}{' '}
+                          <span className="text-[10px] text-neutral-400">
+                            ({row.quantity} {row.unit})
+                          </span>
+                        </td>
+                        <td className="py-2 px-2 text-right text-neutral-300">
+                          {formatCurrency(row.gross, currencySymbol)}
+                        </td>
+                        <td className="py-2 px-2 text-right text-amber-400 font-semibold">
+                          -{formatCurrency(row.allocatedWhole, currencySymbol)}
+                        </td>
+                        <td className="py-2 px-3 text-right text-neutral-100 font-bold">
+                          {formatCurrency(row.effectiveNet, currencySymbol)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-2 border-t border-neutral-800">
             <button
@@ -1611,7 +1924,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
               onClick={handleApplyBulkDiscount}
               className="px-4 py-1.5 rounded-lg text-xs font-semibold text-neutral-950 bg-amber-400 hover:bg-amber-300 transition-colors cursor-pointer font-medium"
             >
-              Apply to All Items
+              {bulkDiscountTab === 'proportional'
+                ? 'Apply Proportional Whole Discount'
+                : 'Apply to All Items'}
             </button>
           </div>
         </div>

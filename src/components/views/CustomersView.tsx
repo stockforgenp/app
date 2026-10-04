@@ -40,6 +40,7 @@ import { Modal } from "../common/Modal.tsx";
 import { ConfirmDialog } from "../common/ConfirmDialog.tsx";
 import { ActionMenu } from "../common/ActionMenu.tsx";
 import { PrintBillModal } from "../common/PrintBillModal.tsx";
+import { DataTable, Column } from "../common/DataTable.tsx";
 import { useToast } from "../../context/ToastContext.tsx";
 import { subscribeToDbChanges } from "../../lib/db/sqliteEngine.ts";
 import { useLanguage } from "../../context/LanguageContext.tsx";
@@ -235,8 +236,167 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
     };
   }, [customers]);
 
+  const customerColumns = useMemo<Column<Customer>[]>(
+    () => [
+      {
+        id: "name",
+        header: isNepali ? "ग्राहक" : "Customer",
+        accessor: (c) => (
+          <div>
+            <div className="font-semibold text-neutral-200 flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>{c.name}</span>
+              {(c.sales_count || 0) > 1 && (
+                <span className="text-[10px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-1.5 py-0.2 rounded font-medium">
+                  {isNepali ? "नियमित" : "Repeat"}
+                </span>
+              )}
+            </div>
+            {c.notes && (
+              <p className="text-[10px] text-neutral-500 truncate max-w-xs mt-0.5">
+                {c.notes}
+              </p>
+            )}
+          </div>
+        ),
+        sortable: true,
+        sortKey: (c) => c.name,
+      },
+      {
+        id: "phone",
+        header: isNepali ? "सम्पर्क नम्बर" : "Phone / Mobile",
+        accessor: (c) =>
+          c.phone ? (
+            <div className="flex items-center gap-1 text-neutral-300 font-mono">
+              <Phone className="w-3 h-3 text-neutral-500" />
+              <span>{c.phone}</span>
+            </div>
+          ) : (
+            <span className="text-neutral-600">—</span>
+          ),
+        sortable: true,
+        sortKey: (c) => c.phone || "",
+      },
+      {
+        id: "pan_vat",
+        header: isNepali ? "PAN / VAT नम्बर" : "PAN / VAT",
+        accessor: (c) =>
+          c.pan_vat ? (
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-neutral-200 bg-neutral-950 px-1.5 py-0.5 rounded border border-neutral-800 text-[11px]">
+                {c.pan_vat}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleCopyPan(c.pan_vat!)}
+                className="p-1 text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 rounded transition-colors cursor-pointer"
+                title="Copy PAN/VAT"
+              >
+                {copiedPan === c.pan_vat ? (
+                  <Check className="w-3 h-3 text-emerald-400" />
+                ) : (
+                  <Copy className="w-3 h-3" />
+                )}
+              </button>
+            </div>
+          ) : (
+            <span className="text-neutral-600">—</span>
+          ),
+        sortable: true,
+        sortKey: (c) => c.pan_vat || "",
+      },
+      {
+        id: "address_email",
+        header: isNepali ? "ठेगाना र इमेल" : "Email & Address",
+        accessor: (c) => (
+          <div className="space-y-0.5">
+            {c.email && (
+              <div className="flex items-center gap-1 text-neutral-300 truncate max-w-[200px]">
+                <Mail className="w-3 h-3 text-neutral-500 shrink-0" />
+                <span className="truncate">{c.email}</span>
+              </div>
+            )}
+            {c.address && (
+              <div className="flex items-center gap-1 text-neutral-400 text-[11px] truncate max-w-[200px]">
+                <MapPin className="w-3 h-3 text-neutral-500 shrink-0" />
+                <span className="truncate">{c.address}</span>
+              </div>
+            )}
+            {!c.email && !c.address && (
+              <span className="text-neutral-600">—</span>
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "sales_count",
+        header: isNepali ? "कुल अर्डर" : "Orders",
+        align: "center",
+        accessor: (c) => (
+          <button
+            type="button"
+            onClick={() => handleViewSales(c)}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-colors cursor-pointer"
+            title={
+              isNepali
+                ? "बिक्री रसिदहरू हेर्नुहोस्"
+                : "View purchase history receipts"
+            }
+          >
+            <ShoppingBag className="w-3 h-3" />
+            <span>{formatNumberByLang(c.sales_count || 0)}</span>
+          </button>
+        ),
+        sortable: true,
+        sortKey: (c) => c.sales_count || 0,
+      },
+      {
+        id: "total_spent",
+        header: isNepali ? "कुल कारोबार" : "Total Spent",
+        align: "right",
+        accessor: (c) => (
+          <span className="font-mono font-medium text-emerald-400">
+            {formatCurrency(c.total_spent || 0, currencySymbol)}
+          </span>
+        ),
+        sortable: true,
+        sortKey: (c) => c.total_spent || 0,
+      },
+      {
+        id: "actions",
+        header: isNepali ? "कार्य" : "Actions",
+        align: "center",
+        accessor: (c) => (
+          <ActionMenu
+            items={[
+              {
+                label: isNepali
+                  ? "कारोबार इतिहास हेर्नुहोस्"
+                  : "View Purchases",
+                icon: Eye,
+                onClick: () => handleViewSales(c),
+              },
+              {
+                label: isNepali ? "सम्पादन गर्नुहोस्" : "Edit Customer",
+                icon: Edit2,
+                onClick: () => handleOpenEdit(c),
+              },
+              {
+                label: isNepali ? "हटाउनुहोस्" : "Delete Customer",
+                icon: Trash2,
+                variant: "danger",
+                onClick: () => setDeletingCustomer(c),
+              },
+            ]}
+          />
+        ),
+      },
+    ],
+    [isNepali, currencySymbol, copiedPan, formatNumberByLang],
+  );
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-150 p-8">
       {/* Metric KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Customers */}
@@ -337,232 +497,58 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
         </motion.div>
       </div>
 
-      {/* Main Table Card */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden flex flex-col">
-        {/* Table Toolbar */}
-        <div className="p-4 border-b border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex-1 max-w-md">
-            <Input
-              type="text"
-              icon={Search}
-              sizeVariant="sm"
-              placeholder={
-                isNepali
-                  ? "ग्राहकको नाम, फोन, इमेल वा PAN खोज्नुहोस्..."
-                  : "Search by customer name, phone, email, or PAN/VAT..."
-              }
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
+      {/* Unified Shared DataTable with Search, Sorting, and Pagination */}
+      <DataTable<Customer>
+        data={filteredCustomers}
+        columns={customerColumns}
+        searchQuery={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={
+          isNepali
+            ? "ग्राहकको नाम, फोन, इमेल वा PAN खोज्नुहोस्..."
+            : "Search by customer name, phone, email, or PAN/VAT..."
+        }
+        extraActionsSlot={
+          <button
+            onClick={handleOpenCreate}
+            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>{isNepali ? "नयाँ ग्राहक थप्नुहोस्" : "Add Customer"}</span>
+          </button>
+        }
+        emptyIcon={Users}
+        emptyTitle={
+          search
+            ? isNepali
+              ? "खोजिएको विवरण अनुसार कुनै ग्राहक भेटिएन।"
+              : "No customers match your search."
+            : isNepali
+              ? "कुनै ग्राहक दर्ता गरिएको छैन।"
+              : "No customers recorded yet."
+        }
+        emptyMessage={
+          search
+            ? undefined
+            : isNepali
+              ? "नयाँ बिक्री गर्दा ग्राहक विवरण लेख्नुहोस् वा माथि रहेको बटन थिच्नुहोस्।"
+              : "Customers are automatically registered when ringing up sales or via Add Customer."
+        }
+        emptyAction={
+          !search ? (
             <button
               onClick={handleOpenCreate}
-              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>{isNepali ? "नयाँ ग्राहक थप्नुहोस्" : "Add Customer"}</span>
             </button>
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800">
-              <tr>
-                <th className="py-3 px-4">
-                  {isNepali ? "ग्राहक" : "Customer"}
-                </th>
-                <th className="py-3 px-4">
-                  {isNepali ? "सम्पर्क नम्बर" : "Phone / Mobile"}
-                </th>
-                <th className="py-3 px-4">
-                  {isNepali ? "PAN / VAT नम्बर" : "PAN / VAT"}
-                </th>
-                <th className="py-3 px-4">
-                  {isNepali ? "ठेगाना र इमेल" : "Email & Address"}
-                </th>
-                <th className="py-3 px-4 text-center">
-                  {isNepali ? "कुल अर्डर" : "Orders"}
-                </th>
-                <th className="py-3 px-4 text-right font-mono">
-                  {isNepali ? "कुल कारोबार" : "Total Spent"}
-                </th>
-                <th className="py-3 px-4 text-center w-16">
-                  {isNepali ? "कार्य" : "Actions"}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800/60">
-              {filteredCustomers.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="text-center py-12 text-neutral-500"
-                  >
-                    <Users className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
-                    {search ? (
-                      <p>
-                        {isNepali
-                          ? "खोजिएको विवरण अनुसार कुनै ग्राहक भेटिएन।"
-                          : "No customers match your search."}
-                      </p>
-                    ) : (
-                      <div>
-                        <p className="font-semibold text-neutral-400">
-                          {isNepali
-                            ? "कुनै ग्राहक दर्ता गरिएको छैन।"
-                            : "No customers recorded yet."}
-                        </p>
-                        <p className="text-[11px] text-neutral-500 mt-1">
-                          {isNepali
-                            ? "नयाँ बिक्री गर्दा ग्राहक विवरण लेख्नुहोस् वा माथि रहेको बटन थिच्नुहोस्।"
-                            : "Customers are automatically registered when ringing up sales or via Add Customer."}
-                        </p>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ) : (
-                filteredCustomers.map((c) => (
-                  <tr
-                    key={c.id}
-                    className="hover:bg-neutral-800/40 transition-colors"
-                  >
-                    {/* Customer Name */}
-                    <td className="py-3 px-4">
-                      <div className="font-semibold text-neutral-200 flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                        <span>{c.name}</span>
-                        {(c.sales_count || 0) > 1 && (
-                          <span className="text-[10px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-1.5 py-0.2 rounded font-medium">
-                            {isNepali ? "नियमित" : "Repeat"}
-                          </span>
-                        )}
-                      </div>
-                      {c.notes && (
-                        <p className="text-[10px] text-neutral-500 truncate max-w-xs mt-0.5">
-                          {c.notes}
-                        </p>
-                      )}
-                    </td>
-
-                    {/* Phone */}
-                    <td className="py-3 px-4">
-                      {c.phone ? (
-                        <div className="flex items-center gap-1 text-neutral-300 font-mono">
-                          <Phone className="w-3 h-3 text-neutral-500" />
-                          <span>{c.phone}</span>
-                        </div>
-                      ) : (
-                        <span className="text-neutral-600">—</span>
-                      )}
-                    </td>
-
-                    {/* PAN / VAT */}
-                    <td className="py-3 px-4">
-                      {c.pan_vat ? (
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono text-neutral-200 bg-neutral-950 px-1.5 py-0.5 rounded border border-neutral-800 text-[11px]">
-                            {c.pan_vat}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyPan(c.pan_vat!)}
-                            className="p-1 text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 rounded transition-colors cursor-pointer"
-                            title="Copy PAN/VAT"
-                          >
-                            {copiedPan === c.pan_vat ? (
-                              <Check className="w-3 h-3 text-emerald-400" />
-                            ) : (
-                              <Copy className="w-3 h-3" />
-                            )}
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-neutral-600">—</span>
-                      )}
-                    </td>
-
-                    {/* Email & Address */}
-                    <td className="py-3 px-4">
-                      <div className="space-y-0.5">
-                        {c.email && (
-                          <div className="flex items-center gap-1 text-neutral-300 truncate max-w-[200px]">
-                            <Mail className="w-3 h-3 text-neutral-500 shrink-0" />
-                            <span className="truncate">{c.email}</span>
-                          </div>
-                        )}
-                        {c.address && (
-                          <div className="flex items-center gap-1 text-neutral-400 text-[11px] truncate max-w-[200px]">
-                            <MapPin className="w-3 h-3 text-neutral-500 shrink-0" />
-                            <span className="truncate">{c.address}</span>
-                          </div>
-                        )}
-                        {!c.email && !c.address && (
-                          <span className="text-neutral-600">—</span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Orders count */}
-                    <td className="py-3 px-4 text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleViewSales(c)}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-colors cursor-pointer"
-                        title={
-                          isNepali
-                            ? "बिक्री रसिदहरू हेर्नुहोस्"
-                            : "View purchase history receipts"
-                        }
-                      >
-                        <ShoppingBag className="w-3 h-3" />
-                        <span>{formatNumberByLang(c.sales_count || 0)}</span>
-                      </button>
-                    </td>
-
-                    {/* Total Spent */}
-                    <td className="py-3 px-4 text-right font-mono font-medium text-emerald-400">
-                      {formatCurrency(c.total_spent || 0, currencySymbol)}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-3 px-4 text-center">
-                      <ActionMenu
-                        items={[
-                          {
-                            label: isNepali
-                              ? "कारोबार इतिहास हेर्नुहोस्"
-                              : "View Purchases",
-                            icon: Eye,
-                            onClick: () => handleViewSales(c),
-                          },
-                          {
-                            label: isNepali
-                              ? "सम्पादन गर्नुहोस्"
-                              : "Edit Customer",
-                            icon: Edit2,
-                            onClick: () => handleOpenEdit(c),
-                          },
-                          {
-                            label: isNepali ? "हटाउनुहोस्" : "Delete Customer",
-                            icon: Trash2,
-                            variant: "danger",
-                            onClick: () => setDeletingCustomer(c),
-                          },
-                        ]}
-                      />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+          ) : undefined
+        }
+        enablePagination={true}
+        pageSize={10}
+        pageSizeOptions={[10, 25, 50, 100]}
+      />
 
       {/* Add / Edit Customer Modal */}
       <Modal
@@ -590,14 +576,10 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
             type="text"
             required
             placeholder={
-              isNepali
-                ? "उदा. राम बहादुर श्रेष्ठ"
-                : "e.g. Ram Bahadur Shrestha"
+              isNepali ? "उदा. राम बहादुर श्रेष्ठ" : "e.g. Ram Bahadur Shrestha"
             }
             value={formData.name}
-            onChange={(e) =>
-              setFormData({ ...formData, name: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -621,7 +603,9 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
               label={
                 <>
                   <FileText className="w-3.5 h-3.5 text-neutral-400" />
-                  <span>{isNepali ? "PAN / VAT नम्बर" : "PAN / VAT Number"}</span>
+                  <span>
+                    {isNepali ? "PAN / VAT नम्बर" : "PAN / VAT Number"}
+                  </span>
                 </>
               }
               type="text"

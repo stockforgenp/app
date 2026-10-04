@@ -38,10 +38,6 @@ export const Header: React.FC<HeaderProps> = ({
       title: t('nav_dashboard'),
       subtitle: isNepali ? 'कार्यकारी सारांश र मुख्य वित्तीय सूचकहरू' : 'Executive overview & key metrics',
     },
-    products: {
-      title: t('nav_products'),
-      subtitle: isNepali ? 'सामानको विवरण, मूल्य र मौज्दात व्यवस्थापन' : 'Manage product catalog and default pricing',
-    },
     sales: {
       title: t('nav_sales'),
       subtitle: isNepali ? 'अनुकूलित मूल्य र छुट सहित नयाँ बिक्री बिलिङ' : 'Process multi-item transaction with custom pricing',
@@ -51,8 +47,8 @@ export const Header: React.FC<HeaderProps> = ({
       subtitle: isNepali ? 'आपूर्तिकर्ताबाट बहु-वस्तु खरिद दाखिला, बिलिङ र मौज्दात वृद्धि' : 'Multi-item goods received, supplier billing, and stock inflow',
     },
     inventory: {
-      title: t('nav_inventory'),
-      subtitle: isNepali ? 'मौज्दात परिमाण, मूल्याङ्कन र कारोबार अडिट' : 'Stock quantities, valuation, and movements',
+      title: isNepali ? 'सामान तथा मौज्दात' : 'Products & Inventory',
+      subtitle: isNepali ? 'सामानको क्याटलग, मौज्दात ट्र्याकिङ र कारोबार अडिट' : 'Product catalog master data, stock tracking, and movements ledger',
     },
     vendors: {
       title: t('nav_vendors', 'Vendors'),
@@ -237,7 +233,7 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         {/* Add Product Button with Ctrl+Shift+P hint */}
-        {currentTab === 'products' && (
+        {currentTab === 'inventory' && (
           <motion.button
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}

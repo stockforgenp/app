@@ -196,9 +196,10 @@ export function getProductAnalytics(startDate: string, endDate: string): {
        COALESCE(SUM(si.total), 0) as total_revenue,
        COALESCE(SUM(si.quantity * si.cost_price), 0) as total_cost,
        COALESCE(SUM(si.total - (si.quantity * si.cost_price)), 0) as total_profit
-     FROM products p
-     LEFT JOIN sale_items si ON p.id = si.product_id
-     LEFT JOIN sales s ON si.sale_id = s.id AND s.created_at >= ? AND s.created_at <= ?
+     FROM sale_items si
+     JOIN products p ON si.product_id = p.id
+     JOIN sales s ON si.sale_id = s.id
+     WHERE s.created_at >= ? AND s.created_at <= ?
      GROUP BY p.id
      HAVING units_sold > 0`,
     [startDate, endDate]
@@ -216,24 +217,40 @@ export function getProductAnalytics(startDate: string, endDate: string): {
 }
 
 export function getDailySalesTrend(startDate: string, endDate: string): DailySalesData[] {
-  // Aggregate sales by date string (YYYY-MM-DD)
+  // Aggregate sales by date string (YYYY-MM-DD) avoiding cartesian duplication
   const rows = query<{
     day: string;
     revenue: number;
     transactions: number;
     cogs: number;
   }>(
-    `SELECT 
-       substr(s.created_at, 1, 10) as day,
-       COALESCE(SUM(s.total), 0) as revenue,
-       COUNT(DISTINCT s.id) as transactions,
-       COALESCE(SUM(si.quantity * si.cost_price), 0) as cogs
-     FROM sales s
-     LEFT JOIN sale_items si ON s.id = si.sale_id
-     WHERE s.created_at >= ? AND s.created_at <= ?
-     GROUP BY substr(s.created_at, 1, 10)
-     ORDER BY day ASC`,
-    [startDate, endDate]
+    `WITH daily_sales AS (
+       SELECT 
+         substr(created_at, 1, 10) as day,
+         COUNT(id) as transactions,
+         COALESCE(SUM(total), 0) as revenue
+       FROM sales
+       WHERE created_at >= ? AND created_at <= ?
+       GROUP BY substr(created_at, 1, 10)
+     ),
+     daily_cogs AS (
+       SELECT 
+         substr(s.created_at, 1, 10) as day,
+         COALESCE(SUM(si.quantity * si.cost_price), 0) as cogs
+       FROM sale_items si
+       JOIN sales s ON si.sale_id = s.id
+       WHERE s.created_at >= ? AND s.created_at <= ?
+       GROUP BY substr(s.created_at, 1, 10)
+     )
+     SELECT 
+       ds.day,
+       ds.revenue,
+       ds.transactions,
+       COALESCE(dc.cogs, 0) as cogs
+     FROM daily_sales ds
+     LEFT JOIN daily_cogs dc ON ds.day = dc.day
+     ORDER BY ds.day ASC`,
+    [startDate, endDate, startDate, endDate]
   );
 
   return rows.map(r => ({

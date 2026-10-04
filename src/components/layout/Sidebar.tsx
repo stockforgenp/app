@@ -33,7 +33,6 @@ import { useAuth } from '../../context/AuthContext.tsx';
 
 export type NavTab =
   | 'dashboard'
-  | 'products'
   | 'sales'
   | 'purchases'
   | 'inventory'
@@ -75,12 +74,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     badge?: number;
   }> = [
     { id: 'dashboard', label: t('nav_dashboard'), icon: LayoutDashboard, shortcut: `${MODIFIER_LABEL}+D` },
-    { id: 'products', label: t('nav_products'), icon: Package, shortcut: `${MODIFIER_LABEL}+P` },
     { id: 'sales', label: t('nav_sales'), icon: ShoppingCart, shortcut: `${MODIFIER_LABEL}+N` },
     { id: 'purchases', label: t('nav_purchases', 'Purchases'), icon: Truck, shortcut: `${MODIFIER_LABEL}+B` },
     {
       id: 'inventory',
-      label: t('nav_inventory'),
+      label: isNepali ? 'सामान तथा मौज्दात' : t('nav_inventory', 'Inventory'),
       icon: Boxes,
       shortcut: `${MODIFIER_LABEL}+I`,
       badge: lowStockCount > 0 ? lowStockCount : undefined,

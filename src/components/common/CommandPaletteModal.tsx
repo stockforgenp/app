@@ -116,18 +116,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         },
       },
       {
-        id: 'nav-products',
-        title: 'Products Catalog',
-        subtitle: 'Manage catalog items, pricing, and master data',
-        icon: Package,
-        shortcut: `${MODIFIER_LABEL}+P`,
-        category: 'Screens',
-        action: () => {
-          onNavigate('products');
-          onClose();
-        },
-      },
-      {
         id: 'action-add-product',
         title: 'Add New Product',
         subtitle: 'Create a new catalog item with SKU, cost & selling price',
@@ -141,8 +129,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       },
       {
         id: 'nav-inventory',
-        title: 'Inventory & Stock Valuation',
-        subtitle: 'Monitor stock quantities, reorder points, and adjustments',
+        title: 'Inventory & Products',
+        subtitle: 'Manage catalog items, stock quantities, and valuation',
         icon: Boxes,
         shortcut: `${MODIFIER_LABEL}+I`,
         category: 'Screens',

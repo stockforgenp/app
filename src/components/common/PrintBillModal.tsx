@@ -126,6 +126,7 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
       let text = `*${storeName.toUpperCase()}*\n`;
       if (storeAddress) text += `${storeAddress}\n`;
       if (storePhone) text += `Tel: ${storePhone}\n`;
+      if (settings.store_pan_vat) text += `PAN/VAT: ${settings.store_pan_vat}\n`;
       text += `${lineSeparator}\n`;
       text += `Bill #: ${sale.bill_number || `BILL-${sale.id.toString().padStart(5, '0')}`}\n`;
       text += `Date: ${formatDateTime(sale.created_at)}\n`;
@@ -205,7 +206,7 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
               <h3 className="text-sm font-bold text-neutral-100 flex items-center gap-2">
                 <span>{t('bill_print_title', 'Print Bill')}</span>
                 <span className="font-mono text-xs px-2 py-0.5 rounded bg-neutral-800 text-neutral-300">
-                  #INV-{sale.id.toString().padStart(6, '0')}
+                  {sale.bill_number || `#INV-${sale.id.toString().padStart(6, '0')}`}
                 </span>
               </h3>
               <p className="text-[11px] text-neutral-400">
@@ -278,6 +279,11 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
               {storePhone && (
                 <p className="text-[11px] text-gray-600 mt-0.5">
                   Tel: {storePhone}
+                </p>
+              )}
+              {settings.store_pan_vat && (
+                <p className="text-[11px] font-mono font-medium text-gray-700 mt-0.5">
+                  PAN/VAT: {settings.store_pan_vat}
                 </p>
               )}
               <div className="mt-2 inline-block px-2 py-0.5 bg-gray-100 text-gray-800 rounded text-[10px] font-semibold tracking-wider uppercase">

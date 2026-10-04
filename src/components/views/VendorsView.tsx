@@ -3,8 +3,8 @@
  * Dedicated section for supplier and vendor management.
  * Tracks contact details, PAN/VAT registration, supplied products, and purchase history.
  */
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { motion } from "framer-motion";
 import {
   Building2,
   Plus,
@@ -23,23 +23,36 @@ import {
   ExternalLink,
   Receipt,
   Eye,
-} from 'lucide-react';
-import { Vendor, Product, CreateVendorInput } from '../../types/index.ts';
-import { Input, Textarea } from '../common/Input.tsx';
+  Printer,
+} from "lucide-react";
+import {
+  Vendor,
+  Product,
+  CreateVendorInput,
+  Purchase,
+} from "../../types/index.ts";
+import { Input, Textarea } from "../common/Input.tsx";
 import {
   getAllVendors,
   createVendor,
   updateVendor,
   deleteVendor,
   getVendorProducts,
-} from '../../lib/services/vendorService.ts';
-import { formatCurrency, fromMinorUnits, formatDate } from '../../lib/utils/format.ts';
-import { Modal } from '../common/Modal.tsx';
-import { ConfirmDialog } from '../common/ConfirmDialog.tsx';
-import { ActionMenu } from '../common/ActionMenu.tsx';
-import { useToast } from '../../context/ToastContext.tsx';
-import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
-import { useLanguage } from '../../context/LanguageContext.tsx';
+  getVendorPurchases,
+} from "../../lib/services/vendorService.ts";
+import {
+  formatCurrency,
+  fromMinorUnits,
+  formatDate,
+} from "../../lib/utils/format.ts";
+import { Modal } from "../common/Modal.tsx";
+import { ConfirmDialog } from "../common/ConfirmDialog.tsx";
+import { ActionMenu } from "../common/ActionMenu.tsx";
+import { PrintPurchaseBillModal } from "../common/PrintPurchaseBillModal.tsx";
+import { DataTable, Column } from "../common/DataTable.tsx";
+import { useToast } from "../../context/ToastContext.tsx";
+import { subscribeToDbChanges } from "../../lib/db/sqliteEngine.ts";
+import { useLanguage } from "../../context/LanguageContext.tsx";
 
 interface VendorsViewProps {
   currencySymbol: string;
@@ -54,7 +67,7 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
   const { t, isNepali, formatNumberByLang } = useLanguage();
 
   const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [copiedPan, setCopiedPan] = useState<string | null>(null);
 
   // Modals
@@ -66,21 +79,31 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
   const [inspectVendor, setInspectVendor] = useState<Vendor | null>(null);
   const [inspectProducts, setInspectProducts] = useState<Product[]>([]);
 
+  // Vendor purchase bills inspect modal
+  const [inspectPurchasesVendor, setInspectPurchasesVendor] =
+    useState<Vendor | null>(null);
+  const [inspectPurchases, setInspectPurchases] = useState<Purchase[]>([]);
+
+  // Print purchase bill modal
+  const [printPurchaseId, setPrintPurchaseId] = useState<number | null>(null);
+  const [isPrintPurchaseModalOpen, setIsPrintPurchaseModalOpen] =
+    useState(false);
+
   // Form Fields
   const [formData, setFormData] = useState<CreateVendorInput>({
-    name: '',
-    pan_vat: '',
-    phone: '',
-    email: '',
-    address: '',
-    notes: '',
+    name: "",
+    pan_vat: "",
+    phone: "",
+    email: "",
+    address: "",
+    notes: "",
   });
 
   const loadVendors = useCallback(() => {
     try {
       setVendors(getAllVendors());
     } catch (e) {
-      console.error('Error fetching vendors:', e);
+      console.error("Error fetching vendors:", e);
     }
   }, []);
 
@@ -93,12 +116,12 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
   const handleOpenCreate = () => {
     setEditingVendor(null);
     setFormData({
-      name: '',
-      pan_vat: '',
-      phone: '',
-      email: '',
-      address: '',
-      notes: '',
+      name: "",
+      pan_vat: "",
+      phone: "",
+      email: "",
+      address: "",
+      notes: "",
     });
     setIsFormModalOpen(true);
   };
@@ -107,11 +130,11 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
     setEditingVendor(v);
     setFormData({
       name: v.name,
-      pan_vat: v.pan_vat || '',
-      phone: v.phone || '',
-      email: v.email || '',
-      address: v.address || '',
-      notes: v.notes || '',
+      pan_vat: v.pan_vat || "",
+      phone: v.phone || "",
+      email: v.email || "",
+      address: v.address || "",
+      notes: v.notes || "",
     });
     setIsFormModalOpen(true);
   };
@@ -122,21 +145,44 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
       setInspectProducts(prods);
       setInspectVendor(v);
     } catch (e) {
-      console.error('Error fetching vendor products:', e);
+      console.error("Error fetching vendor products:", e);
     }
+  };
+
+  const handleViewPurchases = (v: Vendor) => {
+    try {
+      const purchases = getVendorPurchases(v.id);
+      setInspectPurchases(purchases);
+      setInspectPurchasesVendor(v);
+    } catch (e) {
+      console.error("Error fetching vendor purchases:", e);
+    }
+  };
+
+  const handlePrintPurchaseBill = (purchaseId: number) => {
+    setPrintPurchaseId(purchaseId);
+    setIsPrintPurchaseModalOpen(true);
   };
 
   const handleCopyPan = (pan: string) => {
     navigator.clipboard.writeText(pan);
     setCopiedPan(pan);
-    showToast(isNepali ? 'PAN/VAT नम्बर प्रतिलिपि गरियो' : 'PAN/VAT copied to clipboard', 'info');
+    showToast(
+      isNepali
+        ? "PAN/VAT नम्बर प्रतिलिपि गरियो"
+        : "PAN/VAT copied to clipboard",
+      "info",
+    );
     setTimeout(() => setCopiedPan(null), 2000);
   };
 
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      showToast(isNepali ? 'आपूर्तिकर्ताको नाम आवश्यक छ' : 'Vendor name is required', 'warning');
+      showToast(
+        isNepali ? "आपूर्तिकर्ताको नाम आवश्यक छ" : "Vendor name is required",
+        "warning",
+      );
       return;
     }
 
@@ -147,7 +193,7 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
           isNepali
             ? `आपूर्तिकर्ता "${formData.name.trim()}" अद्यावधिक गरियो`
             : `Vendor "${formData.name.trim()}" updated successfully`,
-          'success'
+          "success",
         );
       } else {
         createVendor(formData);
@@ -155,13 +201,13 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
           isNepali
             ? `नयाँ आपूर्तिकर्ता "${formData.name.trim()}" सफलतापूर्वक थपियो`
             : `Vendor "${formData.name.trim()}" created successfully`,
-          'success'
+          "success",
         );
       }
       setIsFormModalOpen(false);
       loadVendors();
     } catch (err: unknown) {
-      showToast((err as Error).message, 'error');
+      showToast((err as Error).message, "error");
     }
   };
 
@@ -173,11 +219,11 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
         isNepali
           ? `आपूर्तिकर्ता "${deletingVendor.name}" हटाइयो`
           : `Vendor "${deletingVendor.name}" deleted successfully`,
-        'success'
+        "success",
       );
       loadVendors();
     } catch (err: unknown) {
-      showToast((err as Error).message, 'error');
+      showToast((err as Error).message, "error");
     } finally {
       setDeletingVendor(null);
     }
@@ -193,16 +239,24 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
         (v.pan_vat && v.pan_vat.toLowerCase().includes(q)) ||
         (v.phone && v.phone.toLowerCase().includes(q)) ||
         (v.email && v.email.toLowerCase().includes(q)) ||
-        (v.address && v.address.toLowerCase().includes(q))
+        (v.address && v.address.toLowerCase().includes(q)),
     );
   }, [vendors, search]);
 
   // Aggregate Metrics
   const metrics = useMemo(() => {
     const totalCount = vendors.length;
-    const withPanCount = vendors.filter((v) => !!v.pan_vat && v.pan_vat.trim() !== '').length;
-    const totalProducts = vendors.reduce((acc, v) => acc + (v.product_count || 0), 0);
-    const totalPurchasedMinor = vendors.reduce((acc, v) => acc + (v.total_purchased || 0), 0);
+    const withPanCount = vendors.filter(
+      (v) => !!v.pan_vat && v.pan_vat.trim() !== "",
+    ).length;
+    const totalProducts = vendors.reduce(
+      (acc, v) => acc + (v.product_count || 0),
+      0,
+    );
+    const totalPurchasedMinor = vendors.reduce(
+      (acc, v) => acc + (v.total_purchased || 0),
+      0,
+    );
 
     return {
       totalCount,
@@ -212,8 +266,173 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
     };
   }, [vendors]);
 
+  const vendorColumns = useMemo<Column<Vendor>[]>(
+    () => [
+      {
+        id: "name",
+        header: isNepali ? "आपूर्तिकर्ताको नाम" : "Vendor / Supplier",
+        accessor: (vendor) => (
+          <div className="font-medium text-neutral-100 flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+              <Building2 className="w-3.5 h-3.5" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-neutral-100">
+                {vendor.name}
+              </p>
+              {vendor.notes && (
+                <p className="text-xs text-neutral-500 truncate max-w-xs">
+                  {vendor.notes}
+                </p>
+              )}
+            </div>
+          </div>
+        ),
+        sortable: true,
+        sortKey: (v) => v.name,
+      },
+      {
+        id: "pan_vat",
+        header: "PAN / VAT",
+        accessor: (vendor) =>
+          vendor.pan_vat ? (
+            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-neutral-800 border border-neutral-700/80 text-xs font-mono text-neutral-200">
+              <span>{vendor.pan_vat}</span>
+              <button
+                type="button"
+                onClick={() => handleCopyPan(vendor.pan_vat!)}
+                title="Copy PAN/VAT"
+                className="text-neutral-400 hover:text-emerald-400 transition-colors cursor-pointer p-0.5"
+              >
+                {copiedPan === vendor.pan_vat ? (
+                  <Check className="w-3 h-3 text-emerald-400" />
+                ) : (
+                  <Copy className="w-3 h-3" />
+                )}
+              </button>
+            </div>
+          ) : (
+            <span className="text-xs text-neutral-500 italic">
+              {isNepali ? "उल्लेख छैन" : "Not recorded"}
+            </span>
+          ),
+        sortable: true,
+        sortKey: (v) => v.pan_vat || "",
+      },
+      {
+        id: "contact",
+        header: isNepali ? "सम्पर्क" : "Contact",
+        accessor: (vendor) => (
+          <div className="space-y-0.5 text-xs">
+            {vendor.phone && (
+              <div className="flex items-center gap-1.5 text-neutral-300">
+                <Phone className="w-3 h-3 text-neutral-500" />
+                <span>{vendor.phone}</span>
+              </div>
+            )}
+            {vendor.email && (
+              <div className="flex items-center gap-1.5 text-neutral-400">
+                <Mail className="w-3 h-3 text-neutral-500" />
+                <span className="truncate max-w-[160px]">{vendor.email}</span>
+              </div>
+            )}
+            {!vendor.phone && !vendor.email && (
+              <span className="text-neutral-500 italic">—</span>
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "address",
+        header: isNepali ? "ठेगाना" : "Address",
+        accessor: (vendor) =>
+          vendor.address ? (
+            <div className="flex items-center gap-1.5 max-w-xs truncate text-xs text-neutral-300">
+              <MapPin className="w-3 h-3 text-neutral-500 shrink-0" />
+              <span className="truncate">{vendor.address}</span>
+            </div>
+          ) : (
+            <span className="text-neutral-500 italic text-xs">—</span>
+          ),
+      },
+      {
+        id: "product_count",
+        header: isNepali ? "सामान" : "Products",
+        align: "center",
+        accessor: (vendor) => (
+          <button
+            onClick={() => handleViewProducts(vendor)}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-neutral-800 hover:bg-neutral-750 text-neutral-300 hover:text-neutral-100 border border-neutral-700/60 transition-colors cursor-pointer"
+            title={
+              isNepali
+                ? "सम्बन्धित सामानहरू हेर्नुहोस्"
+                : "View supplied products"
+            }
+          >
+            <Package className="w-3 h-3 text-amber-400" />
+            <span>{formatNumberByLang(vendor.product_count || 0)}</span>
+          </button>
+        ),
+        sortable: true,
+        sortKey: (v) => v.product_count || 0,
+      },
+      {
+        id: "total_purchased",
+        header: isNepali ? "खरिद रकम" : "Purchased",
+        align: "right",
+        accessor: (vendor) => (
+          <button
+            onClick={() => handleViewPurchases(vendor)}
+            className="inline-flex items-center gap-1.5 hover:text-emerald-400 transition-colors cursor-pointer group text-xs font-medium text-neutral-200"
+            title={isNepali ? "खरिद बिलहरू हेर्नुहोस्" : "View purchase bills"}
+          >
+            <span>
+              {formatCurrency(vendor.total_purchased || 0, currencySymbol)}
+            </span>
+            <Receipt className="w-3.5 h-3.5 text-neutral-500 group-hover:text-emerald-400 transition-colors" />
+          </button>
+        ),
+        sortable: true,
+        sortKey: (v) => v.total_purchased || 0,
+      },
+      {
+        id: "actions",
+        header: isNepali ? "कार्य" : "Actions",
+        align: "right",
+        accessor: (vendor) => (
+          <ActionMenu
+            items={[
+              {
+                label: isNepali ? "सामानहरू हेर्नुहोस्" : "View Products",
+                icon: <Eye className="w-4 h-4 text-amber-400" />,
+                onClick: () => handleViewProducts(vendor),
+              },
+              {
+                label: isNepali ? "खरिद बिलहरू हेर्नुहोस्" : "Purchase Bills",
+                icon: <Receipt className="w-4 h-4 text-emerald-400" />,
+                onClick: () => handleViewPurchases(vendor),
+              },
+              {
+                label: isNepali ? "सम्पादन गर्नुहोस्" : "Edit Vendor",
+                icon: <Edit2 className="w-4 h-4 text-emerald-400" />,
+                onClick: () => handleOpenEdit(vendor),
+              },
+              {
+                label: isNepali ? "हटाउनुहोस्" : "Delete Vendor",
+                icon: <Trash2 className="w-4 h-4 text-rose-400" />,
+                variant: "danger",
+                onClick: () => setDeletingVendor(vendor),
+              },
+            ]}
+          />
+        ),
+      },
+    ],
+    [isNepali, currencySymbol, copiedPan, formatNumberByLang],
+  );
+
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-150 p-8">
       {/* Metrics Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div
@@ -222,7 +441,7 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
         >
           <div>
             <p className="text-xs font-medium text-neutral-400">
-              {isNepali ? 'कुल आपूर्तिकर्ताहरू' : 'Total Vendors'}
+              {isNepali ? "कुल आपूर्तिकर्ताहरू" : "Total Vendors"}
             </p>
             <h3 className="text-2xl font-bold text-neutral-100 mt-1">
               {formatNumberByLang(metrics.totalCount)}
@@ -239,7 +458,7 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
         >
           <div>
             <p className="text-xs font-medium text-neutral-400">
-              {isNepali ? 'PAN / VAT दर्ता भएका' : 'PAN/VAT Registered'}
+              {isNepali ? "PAN / VAT दर्ता भएका" : "PAN/VAT Registered"}
             </p>
             <h3 className="text-2xl font-bold text-sky-400 mt-1">
               {formatNumberByLang(metrics.withPanCount)}
@@ -256,7 +475,7 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
         >
           <div>
             <p className="text-xs font-medium text-neutral-400">
-              {isNepali ? 'सम्बन्धित सामानहरू' : 'Supplied Items'}
+              {isNepali ? "सम्बन्धित सामानहरू" : "Supplied Items"}
             </p>
             <h3 className="text-2xl font-bold text-amber-400 mt-1">
               {formatNumberByLang(metrics.totalProducts)}
@@ -273,7 +492,7 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
         >
           <div>
             <p className="text-xs font-medium text-neutral-400">
-              {isNepali ? 'कुल खरिद रकम' : 'Total Purchased'}
+              {isNepali ? "कुल खरिद रकम" : "Total Purchased"}
             </p>
             <h3 className="text-2xl font-bold text-purple-400 mt-1">
               {formatCurrency(metrics.totalPurchasedMinor, currencySymbol)}
@@ -285,201 +504,64 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
         </motion.div>
       </div>
 
-      {/* Action Header & Search */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        <div className="flex-1 max-w-md">
-          <Input
-            type="text"
-            icon={Search}
-            placeholder={
-              isNepali
-                ? 'आपूर्तिकर्ताको नाम, PAN/VAT, फोन वा ठेगाना खोज्नुहोस्...'
-                : 'Search vendors by name, PAN/VAT, phone, address...'
-            }
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        <button
-          onClick={handleOpenCreate}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition-colors shadow-sm cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{isNepali ? 'नयाँ आपूर्तिकर्ता थप्नुहोस्' : 'Add Vendor'}</span>
-        </button>
-      </div>
-
-      {/* Vendors Data Table */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-neutral-950/70 text-xs font-semibold uppercase text-neutral-400 border-b border-neutral-800 tracking-wider">
-              <tr>
-                <th className="px-5 py-3.5">{isNepali ? 'आपूर्तिकर्ताको नाम' : 'Vendor / Supplier'}</th>
-                <th className="px-5 py-3.5">PAN / VAT</th>
-                <th className="px-5 py-3.5">{isNepali ? 'सम्पर्क' : 'Contact'}</th>
-                <th className="px-5 py-3.5">{isNepali ? 'ठेगाना' : 'Address'}</th>
-                <th className="px-5 py-3.5 text-center">{isNepali ? 'सामान' : 'Products'}</th>
-                <th className="px-5 py-3.5 text-right">{isNepali ? 'खरिद रकम' : 'Purchased'}</th>
-                <th className="px-5 py-3.5 text-right">{isNepali ? 'कार्य' : 'Actions'}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800/60">
-              {filteredVendors.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-neutral-500">
-                    <Building2 className="w-8 h-8 mx-auto mb-2 opacity-40 text-neutral-400" />
-                    <p className="font-medium">
-                      {search
-                        ? isNepali
-                          ? 'कुनै आपूर्तिकर्ता भेटिएन'
-                          : 'No matching vendors found'
-                        : isNepali
-                        ? 'कुनै आपूर्तिकर्ता दर्ता गरिएको छैन'
-                        : 'No vendors registered yet'}
-                    </p>
-                    <p className="text-xs text-neutral-500 mt-1">
-                      {search
-                        ? isNepali
-                          ? 'कृपया अन्य खोज शब्द प्रयोग गर्नुहोस्'
-                          : 'Try adjusting your search criteria'
-                        : isNepali
-                        ? 'सामान थप्दा वा यहाँबाट नयाँ आपूर्तिकर्ता जोड्न सक्नुहुन्छ'
-                        : 'Add vendors when purchasing products or create one directly here'}
-                    </p>
-                    {!search && (
-                      <button
-                        onClick={handleOpenCreate}
-                        className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>{isNepali ? 'पहिलो आपूर्तिकर्ता थप्नुहोस्' : 'Add First Vendor'}</span>
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ) : (
-                filteredVendors.map((vendor) => (
-                  <tr
-                    key={vendor.id}
-                    className="hover:bg-neutral-850/50 transition-colors group"
-                  >
-                    <td className="px-5 py-3.5">
-                      <div className="font-medium text-neutral-100 flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                          <Building2 className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold">{vendor.name}</p>
-                          {vendor.notes && (
-                            <p className="text-xs text-neutral-500 truncate max-w-xs">
-                              {vendor.notes}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      {vendor.pan_vat ? (
-                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-neutral-800 border border-neutral-700/80 text-xs font-mono text-neutral-200">
-                          <span>{vendor.pan_vat}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyPan(vendor.pan_vat!)}
-                            title="Copy PAN/VAT"
-                            className="text-neutral-400 hover:text-emerald-400 transition-colors cursor-pointer p-0.5"
-                          >
-                            {copiedPan === vendor.pan_vat ? (
-                              <Check className="w-3 h-3 text-emerald-400" />
-                            ) : (
-                              <Copy className="w-3 h-3" />
-                            )}
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-neutral-500 italic">
-                          {isNepali ? 'उल्लेख छैन' : 'Not recorded'}
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="px-5 py-3.5 whitespace-nowrap text-xs text-neutral-300">
-                      <div className="space-y-0.5">
-                        {vendor.phone && (
-                          <div className="flex items-center gap-1.5 text-neutral-300">
-                            <Phone className="w-3 h-3 text-neutral-500" />
-                            <span>{vendor.phone}</span>
-                          </div>
-                        )}
-                        {vendor.email && (
-                          <div className="flex items-center gap-1.5 text-neutral-400">
-                            <Mail className="w-3 h-3 text-neutral-500" />
-                            <span className="truncate max-w-[160px]">{vendor.email}</span>
-                          </div>
-                        )}
-                        {!vendor.phone && !vendor.email && (
-                          <span className="text-neutral-500 italic">—</span>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-3.5 text-xs text-neutral-300">
-                      {vendor.address ? (
-                        <div className="flex items-center gap-1.5 max-w-xs truncate">
-                          <MapPin className="w-3 h-3 text-neutral-500 shrink-0" />
-                          <span className="truncate">{vendor.address}</span>
-                        </div>
-                      ) : (
-                        <span className="text-neutral-500 italic">—</span>
-                      )}
-                    </td>
-
-                    <td className="px-5 py-3.5 whitespace-nowrap text-center">
-                      <button
-                        onClick={() => handleViewProducts(vendor)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-neutral-800 hover:bg-neutral-750 text-neutral-300 hover:text-neutral-100 border border-neutral-700/60 transition-colors cursor-pointer"
-                        title={isNepali ? 'सम्बन्धित सामानहरू हेर्नुहोस्' : 'View supplied products'}
-                      >
-                        <Package className="w-3 h-3 text-amber-400" />
-                        <span>{formatNumberByLang(vendor.product_count || 0)}</span>
-                      </button>
-                    </td>
-
-                    <td className="px-5 py-3.5 whitespace-nowrap text-right text-xs font-medium text-neutral-200">
-                      {formatCurrency(vendor.total_purchased || 0, currencySymbol)}
-                    </td>
-
-                    <td className="px-5 py-3.5 whitespace-nowrap text-right">
-                      <ActionMenu
-                        items={[
-                          {
-                            label: isNepali ? 'सामानहरू हेर्नुहोस्' : 'View Products',
-                            icon: <Eye className="w-4 h-4 text-amber-400" />,
-                            onClick: () => handleViewProducts(vendor),
-                          },
-                          {
-                            label: isNepali ? 'सम्पादन गर्नुहोस्' : 'Edit Vendor',
-                            icon: <Edit2 className="w-4 h-4 text-emerald-400" />,
-                            onClick: () => handleOpenEdit(vendor),
-                          },
-                          {
-                            label: isNepali ? 'हटाउनुहोस्' : 'Delete Vendor',
-                            icon: <Trash2 className="w-4 h-4 text-rose-400" />,
-                            variant: 'danger',
-                            onClick: () => setDeletingVendor(vendor),
-                          },
-                        ]}
-                      />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Unified Shared DataTable with Search, Sorting, and Pagination */}
+      <DataTable<Vendor>
+        data={filteredVendors}
+        columns={vendorColumns}
+        searchQuery={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={
+          isNepali
+            ? "आपूर्तिकर्ताको नाम, PAN/VAT, फोन वा ठेगाना खोज्नुहोस्..."
+            : "Search vendors by name, PAN/VAT, phone, address..."
+        }
+        extraActionsSlot={
+          <button
+            onClick={handleOpenCreate}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition-colors shadow-sm cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>
+              {isNepali ? "नयाँ आपूर्तिकर्ता थप्नुहोस्" : "Add Vendor"}
+            </span>
+          </button>
+        }
+        emptyIcon={Building2}
+        emptyTitle={
+          search
+            ? isNepali
+              ? "कुनै आपूर्तिकर्ता भेटिएन"
+              : "No matching vendors found"
+            : isNepali
+              ? "कुनै आपूर्तिकर्ता दर्ता गरिएको छैन"
+              : "No vendors registered yet"
+        }
+        emptyMessage={
+          search
+            ? isNepali
+              ? "कृपया अन्य खोज शब्द प्रयोग गर्नुहोस्"
+              : "Try adjusting your search criteria"
+            : isNepali
+              ? "सामान थप्दा वा यहाँबाट नयाँ आपूर्तिकर्ता जोड्न सक्नुहुन्छ"
+              : "Add vendors when purchasing products or create one directly here"
+        }
+        emptyAction={
+          !search ? (
+            <button
+              onClick={handleOpenCreate}
+              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>
+                {isNepali ? "पहिलो आपूर्तिकर्ता थप्नुहोस्" : "Add First Vendor"}
+              </span>
+            </button>
+          ) : undefined
+        }
+        enablePagination={true}
+        pageSize={10}
+        pageSizeOptions={[10, 25, 50, 100]}
+      />
 
       {/* Add / Edit Vendor Modal */}
       <Modal
@@ -488,11 +570,11 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
         title={
           editingVendor
             ? isNepali
-              ? 'आपूर्तिकर्ता सम्पादन गर्नुहोस्'
-              : 'Edit Vendor Details'
+              ? "आपूर्तिकर्ता सम्पादन गर्नुहोस्"
+              : "Edit Vendor Details"
             : isNepali
-            ? 'नयाँ आपूर्तिकर्ता थप्नुहोस्'
-            : 'Add New Vendor'
+              ? "नयाँ आपूर्तिकर्ता थप्नुहोस्"
+              : "Add New Vendor"
         }
       >
         <form onSubmit={handleSubmitForm} className="space-y-4">
@@ -500,65 +582,85 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
             <Input
               label={
                 <>
-                  {isNepali ? 'आपूर्तिकर्ताको नाम' : 'Vendor / Business Name'}{' '}
+                  {isNepali ? "आपूर्तिकर्ताको नाम" : "Vendor / Business Name"}{" "}
                   <span className="text-rose-400">*</span>
                 </>
               }
               type="text"
               required
-              placeholder={isNepali ? 'जस्तै: सूर्य डिस्ट्रिब्युटर्स' : 'e.g. Acme Supplies Pvt. Ltd.'}
+              placeholder={
+                isNepali
+                  ? "जस्तै: सूर्य डिस्ट्रिब्युटर्स"
+                  : "e.g. Acme Supplies Pvt. Ltd."
+              }
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
-              label={`PAN / VAT ${isNepali ? 'नम्बर' : 'Number'}`}
+              label={`PAN / VAT ${isNepali ? "नम्बर" : "Number"}`}
               type="text"
               mono
               placeholder="e.g. 601234567"
               value={formData.pan_vat}
-              onChange={(e) => setFormData({ ...formData, pan_vat: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, pan_vat: e.target.value })
+              }
             />
 
             <Input
-              label={isNepali ? 'फोन नम्बर' : 'Phone / Mobile'}
+              label={isNepali ? "फोन नम्बर" : "Phone / Mobile"}
               type="text"
               placeholder="e.g. 9841234567"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, phone: e.target.value })
+              }
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
-              label={isNepali ? 'इमेल ठेगाना' : 'Email Address'}
+              label={isNepali ? "इमेल ठेगाना" : "Email Address"}
               type="email"
               placeholder="vendor@example.com"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
             />
 
             <Input
-              label={isNepali ? 'ठेगाना / स्थान' : 'Address / Location'}
+              label={isNepali ? "ठेगाना / स्थान" : "Address / Location"}
               type="text"
-              placeholder={isNepali ? 'जस्तै: नयाँ सडक, काठमाडौँ' : 'e.g. New Road, Kathmandu'}
+              placeholder={
+                isNepali
+                  ? "जस्तै: नयाँ सडक, काठमाडौँ"
+                  : "e.g. New Road, Kathmandu"
+              }
               value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, address: e.target.value })
+              }
             />
           </div>
 
           <Textarea
-            label={isNepali ? 'थप कैफियत / टिप्पणी' : 'Notes / Payment Terms'}
+            label={isNepali ? "थप कैफियत / टिप्पणी" : "Notes / Payment Terms"}
             rows={2}
             placeholder={
               isNepali
-                ? 'जस्तै: क्रेडिट अवधि १५ दिन, डेलिभरी आइतबार'
-                : 'e.g. Credit terms 15 days, weekly delivery on Sundays'
+                ? "जस्तै: क्रेडिट अवधि १५ दिन, डेलिभरी आइतबार"
+                : "e.g. Credit terms 15 days, weekly delivery on Sundays"
             }
             value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, notes: e.target.value })
+            }
           />
 
           <div className="flex justify-end gap-3 pt-4 border-t border-neutral-800">
@@ -567,7 +669,7 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
               onClick={() => setIsFormModalOpen(false)}
               className="px-4 py-2 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors cursor-pointer"
             >
-              {isNepali ? 'रद्द गर्नुहोस्' : 'Cancel'}
+              {isNepali ? "रद्द गर्नुहोस्" : "Cancel"}
             </button>
             <button
               type="submit"
@@ -575,11 +677,11 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
             >
               {editingVendor
                 ? isNepali
-                  ? 'अद्यावधिक गर्नुहोस्'
-                  : 'Save Changes'
+                  ? "अद्यावधिक गर्नुहोस्"
+                  : "Save Changes"
                 : isNepali
-                ? 'आपूर्तिकर्ता थप्नुहोस्'
-                : 'Create Vendor'}
+                  ? "आपूर्तिकर्ता थप्नुहोस्"
+                  : "Create Vendor"}
             </button>
           </div>
         </form>
@@ -591,26 +693,32 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
         onClose={() => setInspectVendor(null)}
         title={
           inspectVendor
-            ? `${isNepali ? 'आपूर्तिकर्ताका सामानहरू' : 'Supplied Products'} — ${inspectVendor.name}`
-            : 'Supplied Products'
+            ? `${isNepali ? "आपूर्तिकर्ताका सामानहरू" : "Supplied Products"} — ${inspectVendor.name}`
+            : "Supplied Products"
         }
       >
         <div className="space-y-4">
           <div className="bg-neutral-850 p-3 rounded-lg border border-neutral-800 flex items-center justify-between text-xs">
             <div>
-              <p className="text-neutral-400">{isNepali ? 'PAN / VAT' : 'Tax ID'}</p>
+              <p className="text-neutral-400">
+                {isNepali ? "PAN / VAT" : "Tax ID"}
+              </p>
               <p className="font-mono text-neutral-200 mt-0.5">
-                {inspectVendor?.pan_vat || '—'}
+                {inspectVendor?.pan_vat || "—"}
               </p>
             </div>
             {inspectVendor?.phone && (
               <div>
-                <p className="text-neutral-400">{isNepali ? 'सम्पर्क' : 'Phone'}</p>
+                <p className="text-neutral-400">
+                  {isNepali ? "सम्पर्क" : "Phone"}
+                </p>
                 <p className="text-neutral-200 mt-0.5">{inspectVendor.phone}</p>
               </div>
             )}
             <div>
-              <p className="text-neutral-400">{isNepali ? 'जम्मा सामान' : 'Items Count'}</p>
+              <p className="text-neutral-400">
+                {isNepali ? "जम्मा सामान" : "Items Count"}
+              </p>
               <p className="text-neutral-200 font-semibold mt-0.5">
                 {formatNumberByLang(inspectProducts.length)}
               </p>
@@ -621,25 +729,37 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
             {inspectProducts.length === 0 ? (
               <div className="p-6 text-center text-neutral-500 text-xs">
                 {isNepali
-                  ? 'यस आपूर्तिकर्तासँग जोडिएका कुनै सामान फेला परेन।'
-                  : 'No products currently mapped to this vendor.'}
+                  ? "यस आपूर्तिकर्तासँग जोडिएका कुनै सामान फेला परेन।"
+                  : "No products currently mapped to this vendor."}
               </div>
             ) : (
               <table className="w-full text-left text-xs">
                 <thead className="bg-neutral-950 text-neutral-400 border-b border-neutral-800 sticky top-0">
                   <tr>
-                    <th className="px-3 py-2">{isNepali ? 'सामानको नाम' : 'Product'}</th>
+                    <th className="px-3 py-2">
+                      {isNepali ? "सामानको नाम" : "Product"}
+                    </th>
                     <th className="px-3 py-2">SKU</th>
-                    <th className="px-3 py-2 text-right">{isNepali ? 'लागत मूल्य' : 'Cost Price'}</th>
-                    <th className="px-3 py-2 text-right">{isNepali ? 'बिक्री मूल्य' : 'Selling Price'}</th>
-                    <th className="px-3 py-2 text-right">{isNepali ? 'मौज्दात' : 'Stock'}</th>
+                    <th className="px-3 py-2 text-right">
+                      {isNepali ? "लागत मूल्य" : "Cost Price"}
+                    </th>
+                    <th className="px-3 py-2 text-right">
+                      {isNepali ? "बिक्री मूल्य" : "Selling Price"}
+                    </th>
+                    <th className="px-3 py-2 text-right">
+                      {isNepali ? "मौज्दात" : "Stock"}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-850">
                   {inspectProducts.map((p) => (
                     <tr key={p.id} className="hover:bg-neutral-850/50">
-                      <td className="px-3 py-2 font-medium text-neutral-100">{p.name}</td>
-                      <td className="px-3 py-2 font-mono text-neutral-400">{p.sku || '—'}</td>
+                      <td className="px-3 py-2 font-medium text-neutral-100">
+                        {p.name}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-neutral-400">
+                        {p.sku || "—"}
+                      </td>
                       <td className="px-3 py-2 text-right text-neutral-300">
                         {formatCurrency(p.cost_price, currencySymbol)}
                       </td>
@@ -647,7 +767,7 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
                         {formatCurrency(p.selling_price, currencySymbol)}
                       </td>
                       <td className="px-3 py-2 text-right font-medium text-neutral-200">
-                        {formatNumberByLang(p.current_stock)} {p.unit || 'pcs'}
+                        {formatNumberByLang(p.current_stock)} {p.unit || "pcs"}
                       </td>
                     </tr>
                   ))}
@@ -661,22 +781,157 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
               onClick={() => setInspectVendor(null)}
               className="px-4 py-2 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors cursor-pointer"
             >
-              {isNepali ? 'बन्द गर्नुहोस्' : 'Close'}
+              {isNepali ? "बन्द गर्नुहोस्" : "Close"}
             </button>
           </div>
         </div>
       </Modal>
 
+      {/* Inspect Purchase Bills Modal */}
+      <Modal
+        isOpen={!!inspectPurchasesVendor}
+        onClose={() => setInspectPurchasesVendor(null)}
+        title={
+          inspectPurchasesVendor
+            ? `${isNepali ? "खरिद बिलहरू" : "Purchase Bills"} — ${inspectPurchasesVendor.name}`
+            : "Purchase Bills"
+        }
+      >
+        <div className="space-y-4">
+          <div className="bg-neutral-850 p-3 rounded-lg border border-neutral-800 flex items-center justify-between text-xs">
+            <div>
+              <p className="text-neutral-400">
+                {isNepali ? "PAN / VAT" : "Tax ID"}
+              </p>
+              <p className="font-mono text-neutral-200 mt-0.5">
+                {inspectPurchasesVendor?.pan_vat || "—"}
+              </p>
+            </div>
+            <div>
+              <p className="text-neutral-400">
+                {isNepali ? "खरिद बीजक संख्या" : "Total Bills"}
+              </p>
+              <p className="text-neutral-200 font-semibold mt-0.5">
+                {formatNumberByLang(inspectPurchases.length)}
+              </p>
+            </div>
+            <div>
+              <p className="text-neutral-400">
+                {isNepali ? "कुल खरिद रकम" : "Total Purchased"}
+              </p>
+              <p className="text-emerald-400 font-semibold mt-0.5">
+                {formatCurrency(
+                  inspectPurchasesVendor?.total_purchased || 0,
+                  currencySymbol,
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="max-h-72 overflow-y-auto rounded-lg border border-neutral-800">
+            {inspectPurchases.length === 0 ? (
+              <div className="p-6 text-center text-neutral-500 text-xs">
+                {isNepali
+                  ? "यस आपूर्तिकर्ताको कुनै खरिद बिल फेला परेन।"
+                  : "No purchase bills recorded for this vendor yet."}
+              </div>
+            ) : (
+              <table className="w-full text-left text-xs">
+                <thead className="bg-neutral-950 text-neutral-400 border-b border-neutral-800 sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2">
+                      {isNepali ? "बिल नं" : "Bill #"}
+                    </th>
+                    <th className="px-3 py-2">
+                      {isNepali ? "सप्लायर बीजक" : "Supplier Inv"}
+                    </th>
+                    <th className="px-3 py-2">{isNepali ? "मिति" : "Date"}</th>
+                    <th className="px-3 py-2 text-right">
+                      {isNepali ? "सामान" : "Items"}
+                    </th>
+                    <th className="px-3 py-2 text-right">
+                      {isNepali ? "कुल रकम" : "Grand Total"}
+                    </th>
+                    <th className="px-3 py-2 text-right">
+                      {isNepali ? "प्रिन्ट" : "Action"}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-850">
+                  {inspectPurchases.map((pur) => (
+                    <tr key={pur.id} className="hover:bg-neutral-850/50">
+                      <td className="px-3 py-2 font-mono text-emerald-400 font-medium">
+                        {pur.bill_number ||
+                          `PUR-${pur.id.toString().padStart(5, "0")}`}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-neutral-400">
+                        {pur.invoice_number || "—"}
+                      </td>
+                      <td className="px-3 py-2 text-neutral-300">
+                        {formatDate(pur.created_at)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-neutral-300">
+                        {formatNumberByLang(pur.item_count || 1)} (
+                        {formatNumberByLang(pur.total_units || 0)}{" "}
+                        {isNepali ? "थान" : "units"})
+                      </td>
+                      <td className="px-3 py-2 text-right text-emerald-400 font-semibold font-mono">
+                        {formatCurrency(
+                          pur.grand_total ?? pur.total,
+                          currencySymbol,
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handlePrintPurchaseBill(pur.id)}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 transition-colors cursor-pointer text-[11px]"
+                          title={
+                            isNepali
+                              ? "बिल पुन: प्रिन्ट गर्नुहोस्"
+                              : "Reprint GRN Bill"
+                          }
+                        >
+                          <Printer className="w-3 h-3 text-emerald-400" />
+                          <span>{isNepali ? "प्रिन्ट" : "Print"}</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={() => setInspectPurchasesVendor(null)}
+              className="px-4 py-2 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors cursor-pointer"
+            >
+              {isNepali ? "बन्द गर्नुहोस्" : "Close"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Print Purchase Bill Modal */}
+      <PrintPurchaseBillModal
+        isOpen={isPrintPurchaseModalOpen}
+        onClose={() => setIsPrintPurchaseModalOpen(false)}
+        purchaseId={printPurchaseId}
+        currencySymbol={currencySymbol}
+      />
+
       {/* Delete Vendor Confirm Dialog */}
       <ConfirmDialog
         isOpen={!!deletingVendor}
-        title={isNepali ? 'आपूर्तिकर्ता मेटाउने पुष्टि' : 'Delete Vendor'}
+        title={isNepali ? "आपूर्तिकर्ता मेटाउने पुष्टि" : "Delete Vendor"}
         message={
           isNepali
             ? `के तपाईं निश्चित हुनुहुन्छ कि आपूर्तिकर्ता "${deletingVendor?.name}" मेटाउन चाहनुहुन्छ? सम्बन्धित सामानहरू मेटिने छैनन् तर आपूर्तिकर्ताको नाम अनलिंक हुनेछ।`
             : `Are you sure you want to delete vendor "${deletingVendor?.name}"? Linked products will not be deleted, but vendor association will be cleared.`
         }
-        confirmText={isNepali ? 'मेटाउनुहोस्' : 'Delete'}
+        confirmText={isNepali ? "मेटाउनुहोस्" : "Delete"}
         confirmVariant="danger"
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeletingVendor(null)}

@@ -195,6 +195,8 @@ export interface AppSettings {
   store_phone?: string;
   store_type?: string;
   store_address?: string;
+  store_pan_vat?: string;
+  enable_vat?: boolean;
   receipt_footer?: string;
 }
 

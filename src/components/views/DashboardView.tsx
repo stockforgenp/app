@@ -261,7 +261,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <button
-            onClick={() => onNavigateToTab('products')}
+            onClick={() => onNavigateToTab('inventory')}
             className="text-xs text-emerald-400 hover:text-emerald-300 font-medium cursor-pointer"
           >
             Manage Catalog →
