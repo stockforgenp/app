@@ -15,12 +15,6 @@ import {
   Check,
   Receipt,
   FileText,
-  Store,
-  Phone,
-  Calendar,
-  User,
-  Hash,
-  Download,
 } from 'lucide-react';
 import { Sale, SaleItem, AppSettings } from '../../types/index.ts';
 import { getSaleWithItems } from '../../lib/services/salesService.ts';
@@ -28,7 +22,6 @@ import { getSettings } from '../../lib/services/settingsService.ts';
 import {
   formatCurrency,
   formatDateTime,
-  formatNumber,
 } from '../../lib/utils/format.ts';
 import { useToast } from '../../context/ToastContext.tsx';
 import { useLanguage } from '../../context/LanguageContext.tsx';
@@ -49,7 +42,7 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
   currencySymbol: propCurrency,
 }) => {
   const { showToast } = useToast();
-  const { t, isNepali, formatNumberByLang } = useLanguage();
+  const { t, isNepali } = useLanguage();
   const [details, setDetails] = useState<{ sale: Sale; items: SaleItem[] } | null>(null);
   const [settings, setSettings] = useState<AppSettings>(getSettings());
   const [receiptFormat, setReceiptFormat] = useState<'thermal' | 'invoice'>('thermal');

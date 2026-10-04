@@ -8,7 +8,6 @@ import { motion } from "framer-motion";
 import {
   Building2,
   Plus,
-  Search,
   Phone,
   Mail,
   FileText,
@@ -19,8 +18,6 @@ import {
   Check,
   Edit2,
   Trash2,
-  AlertCircle,
-  ExternalLink,
   Receipt,
   Eye,
   Printer,
@@ -42,7 +39,6 @@ import {
 } from "../../lib/services/vendorService.ts";
 import {
   formatCurrency,
-  fromMinorUnits,
   formatDate,
 } from "../../lib/utils/format.ts";
 import { Modal } from "../common/Modal.tsx";
@@ -61,10 +57,9 @@ interface VendorsViewProps {
 
 export const VendorsView: React.FC<VendorsViewProps> = ({
   currencySymbol,
-  onNavigateToProducts,
 }) => {
   const { showToast } = useToast();
-  const { t, isNepali, formatNumberByLang } = useLanguage();
+  const { isNepali, formatNumberByLang } = useLanguage();
 
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [search, setSearch] = useState("");

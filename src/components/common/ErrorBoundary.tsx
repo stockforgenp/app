@@ -1,5 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RotateCcw, Download, ShieldAlert, Home } from 'lucide-react';
+import { Component, ErrorInfo, ReactNode } from 'react';
+import { RotateCcw, Download, ShieldAlert, Home } from 'lucide-react';
 import { exportDatabase } from '../../lib/db/sqliteEngine.ts';
 
 interface Props {

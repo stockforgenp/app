@@ -9,10 +9,6 @@ import {
   X,
   Copy,
   Check,
-  Building,
-  UserCheck,
-  Calendar,
-  DollarSign,
   FileCheck2,
 } from 'lucide-react';
 import { SalaryPayment, AppSettings } from '../../types/index.ts';

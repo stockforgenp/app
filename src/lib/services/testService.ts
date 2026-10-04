@@ -199,7 +199,6 @@ export async function runBusinessLogicTests(): Promise<TestResultItem[]> {
     testDb.run('UPDATE products SET cost_price = 5000, selling_price = 7000 WHERE id = 1');
     const saleItemRes = testDb.exec('SELECT cost_price, selling_price, total FROM sale_items WHERE id = 1');
     const snapshotCost = saleItemRes[0].values[0][0] as number;
-    const snapshotSelling = saleItemRes[0].values[0][1] as number;
     const snapshotTotal = saleItemRes[0].values[0][2] as number;
 
     const historicalProfit = snapshotTotal - (5 * snapshotCost);

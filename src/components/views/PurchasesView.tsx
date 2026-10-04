@@ -4,7 +4,6 @@
  * stock inflow increments, vendor auto-fill/creation, 13% VAT, and sequential bill numbers.
  */
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Truck,
   Search,
@@ -41,9 +40,7 @@ import {
 } from "../common/VendorInputSection.tsx";
 import { PrintPurchaseBillModal } from "../common/PrintPurchaseBillModal.tsx";
 import { Modal } from "../common/Modal.tsx";
-import { ActionMenu } from "../common/ActionMenu.tsx";
 import { Input } from "../common/Input.tsx";
-import { DateFilterBar } from "../common/DateFilterBar.tsx";
 import { DataTable, Column } from "../common/DataTable.tsx";
 import { DatePreset } from "../../lib/utils/dateFilters.ts";
 import {
@@ -67,7 +64,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
   onOpenCreateProduct,
 }) => {
   const { showToast } = useToast();
-  const { t, isNepali, formatNumberByLang } = useLanguage();
+  const { isNepali, formatNumberByLang } = useLanguage();
 
   // Active Tab: 'new' (Inflow POS) | 'history' (Bills & Audit Log)
   const [activeTab, setActiveTab] = useState<"new" | "history">("new");
@@ -114,10 +111,6 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
   const [batchCostPrices, setBatchCostPrices] = useState<
     Record<number, number>
   >({});
-  const [modalTab, setModalTab] = useState<"checklist" | "bulkSku">(
-    "checklist",
-  );
-  const [bulkSkuInput, setBulkSkuInput] = useState("");
   const [modalSearch, setModalSearch] = useState("");
 
   // Completed purchase state & Print bill modal
@@ -245,12 +238,6 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
   const handleUpdateCostPrice = (index: number, priceStr: string) => {
     const updated = [...cart];
     updated[index].cost_price = toMinorUnits(priceStr);
-    setCart(updated);
-  };
-
-  const handleUpdateSellingPrice = (index: number, priceStr: string) => {
-    const updated = [...cart];
-    updated[index].selling_price = toMinorUnits(priceStr);
     setCart(updated);
   };
 

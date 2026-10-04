@@ -15,11 +15,7 @@ import {
   Check,
   Receipt,
   FileText,
-  Building2,
-  Phone,
-  Calendar,
   Truck,
-  Hash,
 } from 'lucide-react';
 import { Purchase, PurchaseItem, AppSettings } from '../../types/index.ts';
 import { getPurchaseWithItems } from '../../lib/services/purchaseService.ts';

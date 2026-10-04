@@ -2,12 +2,11 @@
  * StockForge - Offline Desktop Inventory & Sales Management
  * React + TypeScript + SQLite WASM + Tailwind CSS
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { getDatabase, subscribeToDbChanges } from './lib/db/sqliteEngine.ts';
+import { AnimatePresence, motion } from 'framer-motion';
+import { getDatabase, subscribeToDbChanges, queryOne } from './lib/db/sqliteEngine.ts';
 import { getSettings } from './lib/services/settingsService.ts';
-import { queryOne } from './lib/db/sqliteEngine.ts';
 import { Product, AppSettings } from './types/index.ts';
 import { ToastProvider } from './context/ToastContext.tsx';
 import { Sidebar, NavTab } from './components/layout/Sidebar.tsx';
@@ -203,20 +202,6 @@ export default function App() {
     setActiveRestockProduct(product);
     setActiveAdjustProduct(null);
     setActiveMovementsProduct(null);
-    navigate('/inventory');
-  };
-
-  const handleAdjustFromAnywhere = (product: Product) => {
-    setActiveAdjustProduct(product);
-    setActiveRestockProduct(null);
-    setActiveMovementsProduct(null);
-    navigate('/inventory');
-  };
-
-  const handleMovementsFromAnywhere = (product: Product) => {
-    setActiveMovementsProduct(product);
-    setActiveRestockProduct(null);
-    setActiveAdjustProduct(null);
     navigate('/inventory');
   };
 

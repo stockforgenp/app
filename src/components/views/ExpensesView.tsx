@@ -8,20 +8,12 @@ import { motion } from 'framer-motion';
 import {
   ReceiptText,
   PlusCircle,
-  Search,
-  Filter,
   Trash2,
   Edit2,
-  Calendar,
   DollarSign,
   TrendingDown,
   PieChart,
-  Tag,
-  CreditCard,
-  FileText,
   AlertCircle,
-  X,
-  Check,
   Copy,
 } from 'lucide-react';
 import { Expense, ExpenseSummary } from '../../types/index.ts';
@@ -49,7 +41,6 @@ import { Modal } from '../common/Modal.tsx';
 import { ActionMenu } from '../common/ActionMenu.tsx';
 import { Select } from '../common/Select.tsx';
 import { Input, Textarea } from '../common/Input.tsx';
-import { DateFilterBar } from '../common/DateFilterBar.tsx';
 import { DataTable, Column } from '../common/DataTable.tsx';
 import { DatePreset, calculateDateRange } from '../../lib/utils/dateFilters.ts';
 import { useToast } from '../../context/ToastContext.tsx';

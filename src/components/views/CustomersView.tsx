@@ -8,7 +8,6 @@ import { motion } from "framer-motion";
 import {
   Users,
   Plus,
-  Search,
   Phone,
   Mail,
   FileText,
@@ -19,12 +18,9 @@ import {
   Check,
   Edit2,
   Trash2,
-  AlertCircle,
-  ExternalLink,
   Receipt,
   Eye,
   UserCheck,
-  Calendar,
 } from "lucide-react";
 import { Customer, Sale, CreateCustomerInput } from "../../types/index.ts";
 import { Input } from "../common/Input.tsx";
@@ -52,10 +48,9 @@ interface CustomersViewProps {
 
 export const CustomersView: React.FC<CustomersViewProps> = ({
   currencySymbol,
-  onNavigateToSales,
 }) => {
   const { showToast } = useToast();
-  const { t, isNepali, formatNumberByLang } = useLanguage();
+  const { isNepali, formatNumberByLang } = useLanguage();
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");

@@ -13,8 +13,6 @@ import {
   Receipt,
   ReceiptText,
   ShoppingCart,
-  Boxes,
-  PlusCircle,
   Tag,
 } from 'lucide-react';
 import { DateFilterPreset, getDashboardOverview } from '../../lib/services/analyticsService.ts';

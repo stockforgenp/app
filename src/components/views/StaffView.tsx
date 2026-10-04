@@ -8,21 +8,16 @@ import { motion } from 'framer-motion';
 import {
   Users,
   UserPlus,
-  DollarSign,
   Calendar,
   CreditCard,
   Edit2,
   Trash2,
   Search,
-  CheckCircle,
-  Building,
   Phone,
   Mail,
   AlertCircle,
   UserCheck,
   UserX,
-  PlusCircle,
-  Check,
   Briefcase,
 } from 'lucide-react';
 import {

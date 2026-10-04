@@ -19,8 +19,6 @@ import {
   CheckCircle2,
   XCircle,
   FlaskConical,
-  ShieldCheck,
-  AlertTriangle,
   Play,
   Printer,
   Store,
@@ -28,11 +26,6 @@ import {
   Moon,
   Languages,
   LogOut,
-  Mail,
-  Phone,
-  MapPin,
-  Tag,
-  Building2,
 } from 'lucide-react';
 import { AppSettings, TestResultItem } from '../../types/index.ts';
 import { getSettings, updateSettings } from '../../lib/services/settingsService.ts';

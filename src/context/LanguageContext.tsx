@@ -3,7 +3,7 @@
  * Provides seamless English (en) <-> Nepali (np) language conversion
  * Persists selection to localStorage and SQLite app_settings
  */
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { SupportedLanguage, TRANSLATIONS, toNepaliDigits } from '../lib/i18n/translations.ts';
 import { run, queryOne } from '../lib/db/sqliteEngine.ts';
 

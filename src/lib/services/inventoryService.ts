@@ -2,7 +2,7 @@
  * Inventory & Stock Movements Service
  */
 import { StockMovement } from '../../types/index.ts';
-import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
+import { query, run, transaction } from '../db/sqliteEngine.ts';
 import { getProductById } from './productService.ts';
 import { getSettings } from './settingsService.ts';
 

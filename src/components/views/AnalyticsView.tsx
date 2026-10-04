@@ -16,11 +16,7 @@ import {
   Tag,
   Receipt,
   ReceiptText,
-  Boxes,
-  Calendar,
-  Layers,
 } from "lucide-react";
-import { Input } from "../common/Input.tsx";
 import { DateFilterBar } from "../common/DateFilterBar.tsx";
 import { DatePreset } from "../../lib/utils/dateFilters.ts";
 import {
@@ -32,7 +28,6 @@ import {
 } from "../../lib/services/analyticsService.ts";
 import {
   formatCurrency,
-  formatNumber,
   formatDate,
 } from "../../lib/utils/format.ts";
 import {

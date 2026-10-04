@@ -107,72 +107,76 @@ export function createStaff(input: CreateStaffInput): Staff {
   const joinDate = input.join_date?.trim() || getTodayISODate();
   const now = new Date().toISOString();
 
-  run(
-    `INSERT INTO staff (name, role, phone, email, base_salary, salary_type, status, join_date, notes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      name,
-      role,
-      input.phone?.trim() || null,
-      input.email?.trim() || null,
-      baseSalary,
-      salaryType,
-      status,
-      joinDate,
-      input.notes?.trim() || null,
-      now,
-      now,
-    ]
-  );
+  return transaction(() => {
+    run(
+      `INSERT INTO staff (name, role, phone, email, base_salary, salary_type, status, join_date, notes, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        name,
+        role,
+        input.phone?.trim() || null,
+        input.email?.trim() || null,
+        baseSalary,
+        salaryType,
+        status,
+        joinDate,
+        input.notes?.trim() || null,
+        now,
+        now,
+      ]
+    );
 
-  const row = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
-  const id = row?.id ?? 0;
+    const row = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
+    const id = row?.id ?? 0;
 
-  const created = getStaffById(id);
-  if (!created) {
-    throw new Error('Failed to retrieve newly created staff record');
-  }
+    const created = getStaffById(id);
+    if (!created) {
+      throw new Error('Failed to retrieve newly created staff record');
+    }
 
-  return created;
+    return created;
+  });
 }
 
 /**
  * Update an existing staff member
  */
 export function updateStaff(id: number, input: UpdateStaffInput): Staff {
-  const existing = getStaffById(id);
-  if (!existing) {
-    throw new Error(`Staff member #${id} not found`);
-  }
+  return transaction(() => {
+    const existing = getStaffById(id);
+    if (!existing) {
+      throw new Error(`Staff member #${id} not found`);
+    }
 
-  const name = input.name !== undefined ? input.name.trim() : existing.name;
-  if (!name) {
-    throw new Error('Staff name cannot be empty');
-  }
+    const name = input.name !== undefined ? input.name.trim() : existing.name;
+    if (!name) {
+      throw new Error('Staff name cannot be empty');
+    }
 
-  const role = input.role !== undefined ? input.role.trim() : existing.role;
-  const phone = input.phone !== undefined ? (input.phone ? input.phone.trim() : null) : existing.phone;
-  const email = input.email !== undefined ? (input.email ? input.email.trim() : null) : existing.email;
-  const baseSalary = input.base_salary !== undefined ? Math.max(0, Math.floor(input.base_salary)) : existing.base_salary;
-  const salaryType = input.salary_type !== undefined ? input.salary_type : existing.salary_type;
-  const status = input.status !== undefined ? input.status : existing.status;
-  const joinDate = input.join_date !== undefined ? (input.join_date ? input.join_date.trim() : existing.join_date) : existing.join_date;
-  const notes = input.notes !== undefined ? (input.notes ? input.notes.trim() : null) : existing.notes;
-  const now = new Date().toISOString();
+    const role = input.role !== undefined ? input.role.trim() : existing.role;
+    const phone = input.phone !== undefined ? (input.phone ? input.phone.trim() : null) : existing.phone;
+    const email = input.email !== undefined ? (input.email ? input.email.trim() : null) : existing.email;
+    const baseSalary = input.base_salary !== undefined ? Math.max(0, Math.floor(input.base_salary)) : existing.base_salary;
+    const salaryType = input.salary_type !== undefined ? input.salary_type : existing.salary_type;
+    const status = input.status !== undefined ? input.status : existing.status;
+    const joinDate = input.join_date !== undefined ? (input.join_date ? input.join_date.trim() : existing.join_date) : existing.join_date;
+    const notes = input.notes !== undefined ? (input.notes ? input.notes.trim() : null) : existing.notes;
+    const now = new Date().toISOString();
 
-  run(
-    `UPDATE staff
-     SET name = ?, role = ?, phone = ?, email = ?, base_salary = ?, salary_type = ?, status = ?, join_date = ?, notes = ?, updated_at = ?
-     WHERE id = ?`,
-    [name, role, phone, email, baseSalary, salaryType, status, joinDate, notes, now, id]
-  );
+    run(
+      `UPDATE staff
+       SET name = ?, role = ?, phone = ?, email = ?, base_salary = ?, salary_type = ?, status = ?, join_date = ?, notes = ?, updated_at = ?
+       WHERE id = ?`,
+      [name, role, phone, email, baseSalary, salaryType, status, joinDate, notes, now, id]
+    );
 
-  const updated = getStaffById(id);
-  if (!updated) {
-    throw new Error(`Failed to load updated staff member #${id}`);
-  }
+    const updated = getStaffById(id);
+    if (!updated) {
+      throw new Error(`Failed to load updated staff member #${id}`);
+    }
 
-  return updated;
+    return updated;
+  });
 }
 
 /**

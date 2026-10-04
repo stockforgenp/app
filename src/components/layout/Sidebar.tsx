@@ -1,9 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
-  Package,
   ShoppingCart,
   Boxes,
   Receipt,
@@ -63,7 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setToggleSidebar,
 }) => {
   const { toggleTheme, isDark } = useTheme();
-  const { t, language, toggleLanguage, isNepali, formatNumberByLang } = useLanguage();
+  const { t, toggleLanguage, isNepali } = useLanguage();
   const { currentShop, logout } = useAuth();
 
   const navItems: Array<{

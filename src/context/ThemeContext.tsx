@@ -3,7 +3,7 @@
  * Enforces light theme as default while offering seamless toggle between light and dark modes.
  * Persists user preference across browser sessions and SQLite settings.
  */
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { run } from '../lib/db/sqliteEngine.ts';
 
 export type AppTheme = 'light' | 'dark';

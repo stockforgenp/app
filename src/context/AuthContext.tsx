@@ -3,7 +3,7 @@
  * Provides reactive shop session state, login, registration,
  * and shop switching across the entire application.
  */
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Shop, RegisterShopInput, LoginInput } from '../types/index.ts';
 import {
   getCurrentShop,
@@ -52,7 +52,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Initialize once database is available
   useEffect(() => {
     getDatabase()
-      .then(() => {
+      .then(async () => {
+        if (getShopsCount() === 0) {
+          try {
+            await seedDemoShopIfEmpty();
+          } catch (e) {
+            console.error('Error auto-seeding demo shop:', e);
+          }
+        }
         refreshShops();
         setIsLoading(false);
       })

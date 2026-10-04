@@ -392,10 +392,16 @@ export function run(
     dbInstance.run(sql);
   }
 
-  // Only persist and notify subscribers if not in the middle of a transaction
+  // Only persist and notify subscribers if not in the middle of a transaction.
+  // Defer to microtask so callers can safely read last_insert_rowid() synchronously
+  // before db.export() executes.
   if (transactionDepth === 0) {
-    persistCurrentDatabase();
-    notifyDbChanged();
+    queueMicrotask(() => {
+      if (transactionDepth === 0) {
+        persistCurrentDatabase();
+        notifyDbChanged();
+      }
+    });
   }
 }
 

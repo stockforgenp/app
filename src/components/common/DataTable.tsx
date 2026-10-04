@@ -16,7 +16,6 @@ import {
   ArrowUp,
   ArrowDown,
   Inbox,
-  Filter,
 } from 'lucide-react';
 import { Input } from './Input.tsx';
 import { Select } from './Select.tsx';

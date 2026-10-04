@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
   ShoppingCart,
-  Package,
   LayoutDashboard,
   Boxes,
   Receipt,
@@ -65,7 +64,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   currencySymbol,
 }) => {
   const { toggleTheme, isDark } = useTheme();
-  const { toggleLanguage, isNepali, t } = useLanguage();
+  const { toggleLanguage, isNepali } = useLanguage();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);

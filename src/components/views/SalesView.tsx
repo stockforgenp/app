@@ -23,12 +23,7 @@ import {
   Square,
   Minus,
   ScanLine,
-  Tag,
-  ArrowRight,
-  PackagePlus,
   Percent,
-  User,
-  Phone,
   Printer,
   X,
 } from 'lucide-react';
@@ -40,7 +35,6 @@ import {
   formatCurrency,
   fromMinorUnits,
   toMinorUnits,
-  formatNumber,
 } from '../../lib/utils/format.ts';
 import { useToast } from '../../context/ToastContext.tsx';
 import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
@@ -229,11 +223,14 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
       if (existingIndex >= 0) {
         const currentQty = updatedCart[existingIndex].quantity;
-        const newQty = currentQty + qty;
+        let newQty = currentQty + qty;
 
         if (!allowNegativeStock && newQty > item.product.current_stock) {
-          skippedCount++;
-          continue;
+          if (currentQty >= item.product.current_stock) {
+            skippedCount++;
+            continue;
+          }
+          newQty = item.product.current_stock;
         }
 
         updatedCart[existingIndex] = {
@@ -242,14 +239,18 @@ export const SalesView: React.FC<SalesViewProps> = ({
         };
         addedCount++;
       } else {
-        if (!allowNegativeStock && qty > item.product.current_stock) {
-          skippedCount++;
-          continue;
+        let finalQty = qty;
+        if (!allowNegativeStock && finalQty > item.product.current_stock) {
+          if (item.product.current_stock <= 0) {
+            skippedCount++;
+            continue;
+          }
+          finalQty = item.product.current_stock;
         }
 
         updatedCart.push({
           product: item.product,
-          quantity: qty,
+          quantity: finalQty,
           actual_selling_price: item.product.selling_price,
           discount: 0,
         });
@@ -293,7 +294,13 @@ export const SalesView: React.FC<SalesViewProps> = ({
       if (next[productId] !== undefined) {
         delete next[productId];
       } else {
-        next[productId] = defaultQty;
+        const prod = products.find((p) => p.id === productId);
+        if (!allowNegativeStock && prod && prod.current_stock <= 0) {
+          showToast(`"${prod.name}" is out of stock.`, 'warning');
+          return prev;
+        }
+        const maxStock = prod ? prod.current_stock : Infinity;
+        next[productId] = !allowNegativeStock ? Math.min(defaultQty, Math.max(1, maxStock)) : defaultQty;
       }
       return next;
     });
@@ -305,7 +312,17 @@ export const SalesView: React.FC<SalesViewProps> = ({
       if (qty <= 0) {
         delete next[productId];
       } else {
-        next[productId] = qty;
+        const prod = products.find((p) => p.id === productId);
+        const maxStock = prod ? prod.current_stock : Infinity;
+        if (!allowNegativeStock && qty > maxStock) {
+          next[productId] = Math.max(1, maxStock);
+          showToast(
+            `Quantity cannot exceed available stock (${maxStock} ${prod?.unit || 'pcs'} for "${prod?.name || 'Item'}").`,
+            'warning'
+          );
+        } else {
+          next[productId] = qty;
+        }
       }
       return next;
     });
@@ -458,6 +475,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
     setBatchQuantities((prev) => {
       const next = { ...prev };
       modalFilteredProducts.forEach((p) => {
+        if (!allowNegativeStock && p.current_stock <= 0) return;
         if (!next[p.id]) {
           next[p.id] = 1;
         }
@@ -544,14 +562,23 @@ export const SalesView: React.FC<SalesViewProps> = ({
   };
 
   const handleUpdateQuantity = (index: number, qtyStr: string) => {
-    const qty = parseInt(qtyStr, 10);
+    const rawQty = parseInt(qtyStr, 10);
     const updated = [...cart];
     const item = updated[index];
+    if (!item) return;
 
-    if (isNaN(qty) || qty <= 0) {
+    const availableStock = item.product.current_stock;
+
+    if (isNaN(rawQty) || rawQty <= 0) {
       item.quantity = 1;
+    } else if (!allowNegativeStock && rawQty > availableStock) {
+      item.quantity = Math.max(1, availableStock);
+      showToast(
+        `Quantity cannot exceed available stock (${availableStock} ${item.product.unit || 'pcs'} for "${item.product.name}").`,
+        'warning'
+      );
     } else {
-      item.quantity = qty;
+      item.quantity = rawQty;
     }
     setCart(updated);
   };
@@ -995,6 +1022,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   const isOutOfStock = p.current_stock <= 0;
                   const isSelected = batchQuantities[p.id] !== undefined;
                   const selectedQty = batchQuantities[p.id] || 1;
+                  const inCartItem = cart.find((ci) => ci.product.id === p.id);
+                  const isMaxInCart = !allowNegativeStock && !!inCartItem && inCartItem.quantity >= p.current_stock;
 
                   return (
                     <div
@@ -1049,14 +1078,16 @@ export const SalesView: React.FC<SalesViewProps> = ({
                           <div className="flex items-center gap-1 bg-neutral-900 border border-neutral-700 rounded p-0.5">
                             <button
                               type="button"
+                              disabled={selectedQty <= 1}
                               onClick={() => updateBatchQty(p.id, selectedQty - 1)}
-                              className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800"
+                              className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <Minus className="w-3 h-3" />
                             </button>
                             <Input
                               type="number"
                               min="1"
+                              max={!allowNegativeStock ? Math.max(1, p.current_stock) : undefined}
                               value={selectedQty}
                               onChange={(e) => {
                                 const val = parseInt(e.target.value, 10);
@@ -1067,8 +1098,10 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             />
                             <button
                               type="button"
+                              disabled={!allowNegativeStock && selectedQty >= p.current_stock}
                               onClick={() => updateBatchQty(p.id, selectedQty + 1)}
-                              className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800"
+                              title={!allowNegativeStock && selectedQty >= p.current_stock ? `Max stock reached (${p.current_stock})` : 'Increase batch quantity'}
+                              className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <Plus className="w-3 h-3" />
                             </button>
@@ -1076,13 +1109,19 @@ export const SalesView: React.FC<SalesViewProps> = ({
                         ) : (
                           <button
                             type="button"
-                            disabled={isOutOfStock && !allowNegativeStock}
+                            disabled={(isOutOfStock || isMaxInCart) && !allowNegativeStock}
                             onClick={() => handleAddToCart(p)}
-                            title="Add 1 unit to sale cart"
+                            title={
+                              isMaxInCart
+                                ? `All available stock (${p.current_stock}) already in cart`
+                                : isOutOfStock
+                                ? 'Out of stock'
+                                : 'Add 1 unit to sale cart'
+                            }
                             className="px-2 py-1 rounded bg-neutral-900 hover:bg-emerald-600 hover:text-white border border-neutral-800 flex items-center gap-1 text-[11px] text-neutral-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <Plus className="w-3 h-3" />
-                            <span>Add</span>
+                            <span>{isMaxInCart ? 'Max in cart' : 'Add'}</span>
                           </button>
                         )}
                       </div>
@@ -1233,14 +1272,16 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               <div className="flex items-center justify-center gap-1 bg-neutral-950 border border-neutral-800 rounded p-0.5">
                                 <button
                                   type="button"
+                                  disabled={item.quantity <= 1}
                                   onClick={() => handleUpdateQuantity(index, (item.quantity - 1).toString())}
-                                  className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded transition-colors"
+                                  className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                                 >
                                   <Minus className="w-3 h-3" />
                                 </button>
                                 <Input
                                   type="number"
                                   min="1"
+                                  max={!allowNegativeStock ? Math.max(1, item.product.current_stock) : undefined}
                                   value={item.quantity}
                                   onChange={(e) => handleUpdateQuantity(index, e.target.value)}
                                   containerClassName="w-10"
@@ -1248,8 +1289,14 @@ export const SalesView: React.FC<SalesViewProps> = ({
                                 />
                                 <button
                                   type="button"
+                                  disabled={!allowNegativeStock && item.quantity >= item.product.current_stock}
                                   onClick={() => handleUpdateQuantity(index, (item.quantity + 1).toString())}
-                                  className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded transition-colors"
+                                  title={
+                                    !allowNegativeStock && item.quantity >= item.product.current_stock
+                                      ? `Max available stock reached (${item.product.current_stock})`
+                                      : 'Increase quantity'
+                                  }
+                                  className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                                 >
                                   <Plus className="w-3 h-3" />
                                 </button>
@@ -1652,14 +1699,16 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             <div className="flex items-center gap-1 bg-neutral-900 border border-neutral-700 rounded p-1">
                               <button
                                 type="button"
+                                disabled={currentQty <= 1}
                                 onClick={() => updateBatchQty(p.id, currentQty - 1)}
-                                className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800"
+                                className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
                               >
                                 <Minus className="w-3.5 h-3.5" />
                               </button>
                               <Input
                                 type="number"
                                 min="1"
+                                max={!allowNegativeStock ? Math.max(1, p.current_stock) : undefined}
                                 value={currentQty}
                                 onChange={(e) => {
                                   const val = parseInt(e.target.value, 10);
@@ -1670,8 +1719,10 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               />
                               <button
                                 type="button"
+                                disabled={!allowNegativeStock && currentQty >= p.current_stock}
                                 onClick={() => updateBatchQty(p.id, currentQty + 1)}
-                                className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800"
+                                title={!allowNegativeStock && currentQty >= p.current_stock ? `Max stock reached (${p.current_stock})` : 'Increase quantity'}
+                                className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
                               >
                                 <Plus className="w-3.5 h-3.5" />
                               </button>

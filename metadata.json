@@ -2,7 +2,5 @@
   "name": "StockForge - Offline Desktop Inventory & Sales",
   "description": "Reliable offline-first desktop inventory management and sales tracking system with SQLite, transaction safety, and gross profit analytics.",
   "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "majorCapabilities": []
 }

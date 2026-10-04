@@ -11,28 +11,19 @@
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   CreditCard,
   Search,
   Printer,
   Trash2,
-  Calendar,
-  Building,
-  TrendingDown,
-  DollarSign,
   AlertCircle,
   Copy,
   Receipt,
-  FileText,
-  UserCheck,
-  UserX,
-  PlusCircle,
   CheckCircle2,
   Clock,
   ChevronLeft,
   ChevronRight,
-  Filter,
   Users,
   Check,
   RotateCcw,
@@ -40,7 +31,6 @@ import {
 import {
   Staff,
   SalaryPayment,
-  StaffSummary,
   StaffMonthlyPayrollStatus,
   MonthlyPayrollSummary,
   RecordSalaryInput,
@@ -50,7 +40,6 @@ import {
   getSalaryPayments,
   recordSalaryPayment,
   deleteSalaryPayment,
-  getStaffSummary,
   getMonthlyPayrollSummary,
   MONTH_NAMES,
   SALARY_PAYMENT_METHODS,
@@ -121,15 +110,6 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
     },
   });
 
-  // Overall database summary
-  const [generalSummary, setGeneralSummary] = useState<StaffSummary>({
-    total_staff: 0,
-    active_staff: 0,
-    monthly_payroll_commitment: 0,
-    total_salaries_paid_this_month: 0,
-    payments_count_this_month: 0,
-  });
-
   // Modals state
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [payStaffId, setPayStaffId] = useState<number>(0);
@@ -165,9 +145,6 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
 
       const mSummary = getMonthlyPayrollSummary(selectedYear, selectedMonth);
       setMonthlyStatus(mSummary);
-
-      const gStats = getStaffSummary();
-      setGeneralSummary(gStats);
     } catch (err: any) {
       console.error('Error loading payroll data:', err);
     }

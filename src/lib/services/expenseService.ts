@@ -3,7 +3,7 @@
  * Provides CRUD operations, category tracking, and financial overhead aggregation.
  */
 import { Expense, ExpenseSummary, ExpenseCategoryBreakdown } from '../../types/index.ts';
-import { query, queryOne, run } from '../db/sqliteEngine.ts';
+import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
 
 export const DEFAULT_EXPENSE_CATEGORIES: string[] = [
   'Rent & Lease',
@@ -60,80 +60,86 @@ export function createExpense(input: CreateExpenseInput): Expense {
   const date = input.date?.trim() || todayStr;
   const now = new Date().toISOString();
 
-  run(
-    `INSERT INTO expenses (category, amount, date, payment_method, note, receipt_reference, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      category,
-      amount,
-      date,
-      input.payment_method?.trim() || null,
-      input.note?.trim() || null,
-      input.receipt_reference?.trim() || null,
-      now,
-      now,
-    ]
-  );
+  return transaction(() => {
+    run(
+      `INSERT INTO expenses (category, amount, date, payment_method, note, receipt_reference, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        category,
+        amount,
+        date,
+        input.payment_method?.trim() || null,
+        input.note?.trim() || null,
+        input.receipt_reference?.trim() || null,
+        now,
+        now,
+      ]
+    );
 
-  const row = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
-  const id = row?.id ?? 0;
+    const row = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
+    const id = row?.id ?? 0;
 
-  const created = getExpenseById(id);
-  if (!created) {
-    throw new Error('Failed to retrieve newly created expense record');
-  }
+    const created = getExpenseById(id);
+    if (!created) {
+      throw new Error('Failed to retrieve newly created expense record');
+    }
 
-  return created;
+    return created;
+  });
 }
 
 export function updateExpense(id: number, input: UpdateExpenseInput): Expense {
-  const existing = getExpenseById(id);
-  if (!existing) {
-    throw new Error(`Expense #${id} not found`);
-  }
-
-  const category = input.category !== undefined ? input.category.trim() : existing.category;
-  if (!category) {
-    throw new Error('Expense category cannot be empty');
-  }
-
-  let amount = existing.amount;
-  if (input.amount !== undefined) {
-    amount = Math.floor(input.amount);
-    if (isNaN(amount) || amount <= 0) {
-      throw new Error('Expense amount must be greater than zero');
+  return transaction(() => {
+    const existing = getExpenseById(id);
+    if (!existing) {
+      throw new Error(`Expense #${id} not found`);
     }
-  }
 
-  const date = input.date !== undefined ? input.date.trim() : existing.date;
-  const paymentMethod = input.payment_method !== undefined ? (input.payment_method?.trim() || null) : existing.payment_method;
-  const note = input.note !== undefined ? (input.note?.trim() || null) : existing.note;
-  const receiptRef = input.receipt_reference !== undefined ? (input.receipt_reference?.trim() || null) : existing.receipt_reference;
-  const now = new Date().toISOString();
+    const category = input.category !== undefined ? input.category.trim() : existing.category;
+    if (!category) {
+      throw new Error('Expense category cannot be empty');
+    }
 
-  run(
-    `UPDATE expenses
-     SET category = ?, amount = ?, date = ?, payment_method = ?, note = ?, receipt_reference = ?, updated_at = ?
-     WHERE id = ?`,
-    [category, amount, date, paymentMethod, note, receiptRef, now, id]
-  );
+    let amount = existing.amount;
+    if (input.amount !== undefined) {
+      amount = Math.floor(input.amount);
+      if (isNaN(amount) || amount <= 0) {
+        throw new Error('Expense amount must be greater than zero');
+      }
+    }
 
-  const updated = getExpenseById(id);
-  if (!updated) {
-    throw new Error(`Expense #${id} could not be retrieved after update`);
-  }
+    const date = input.date !== undefined ? input.date.trim() : existing.date;
+    const paymentMethod = input.payment_method !== undefined ? (input.payment_method?.trim() || null) : existing.payment_method;
+    const note = input.note !== undefined ? (input.note?.trim() || null) : existing.note;
+    const receiptRef = input.receipt_reference !== undefined ? (input.receipt_reference?.trim() || null) : existing.receipt_reference;
+    const now = new Date().toISOString();
 
-  return updated;
+    run(
+      `UPDATE expenses
+       SET category = ?, amount = ?, date = ?, payment_method = ?, note = ?, receipt_reference = ?, updated_at = ?
+       WHERE id = ?`,
+      [category, amount, date, paymentMethod, note, receiptRef, now, id]
+    );
+
+    const updated = getExpenseById(id);
+    if (!updated) {
+      throw new Error(`Expense #${id} could not be retrieved after update`);
+    }
+
+    return updated;
+  });
 }
 
 export function deleteExpense(id: number): boolean {
-  const existing = getExpenseById(id);
-  if (!existing) {
-    return false;
-  }
+  return transaction(() => {
+    const existing = getExpenseById(id);
+    if (!existing) {
+      return false;
+    }
 
-  run('DELETE FROM expenses WHERE id = ?', [id]);
-  return true;
+    run('DELETE FROM expenses WHERE id = ?', [id]);
+    return true;
+  });
 }
 
 export function getExpenseById(id: number): Expense | null {

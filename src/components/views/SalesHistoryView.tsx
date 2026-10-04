@@ -7,30 +7,22 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Search,
   Receipt,
-  Calendar,
   Eye,
-  Tag,
-  DollarSign,
-  TrendingUp,
   User,
   Phone,
   Printer,
   Copy,
 } from 'lucide-react';
-import { Input } from '../common/Input.tsx';
 import { Sale, SaleItem } from '../../types/index.ts';
 import { getSales, getSaleWithItems } from '../../lib/services/salesService.ts';
 import {
   formatCurrency,
   formatDateTime,
-  formatNumber,
 } from '../../lib/utils/format.ts';
 import { Modal } from '../common/Modal.tsx';
 import { PrintBillModal } from '../common/PrintBillModal.tsx';
 import { ActionMenu } from '../common/ActionMenu.tsx';
-import { DateFilterBar } from '../common/DateFilterBar.tsx';
 import { DataTable, Column } from '../common/DataTable.tsx';
 import { DatePreset } from '../../lib/utils/dateFilters.ts';
 import { useToast } from '../../context/ToastContext.tsx';
@@ -43,7 +35,7 @@ interface SalesHistoryViewProps {
 
 export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymbol }) => {
   const { showToast } = useToast();
-  const { t, isNepali, formatNumberByLang } = useLanguage();
+  const { t } = useLanguage();
   const [sales, setSales] = useState<Sale[]>([]);
   const [search, setSearch] = useState('');
   const [datePreset, setDatePreset] = useState<DatePreset>('all');
