@@ -14,7 +14,8 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { Modal } from "../common/Modal.tsx";
-import { Product, Vendor } from "../../types/index.ts";
+import { Select } from "../common/Select.tsx";
+import { Product } from "../../types/index.ts";
 import {
   toMinorUnits,
   formatCurrency,
@@ -35,7 +36,6 @@ export interface BulkProductRow {
   sellingPrice: string;
   initialStock: string;
   minStockAlert: string;
-  vendorId: string;
 }
 
 export interface RowErrors {
@@ -49,24 +49,31 @@ export interface RowErrors {
 export interface BulkProductModalProps {
   isOpen: boolean;
   onClose: () => void;
-  vendors: Vendor[];
   currencySymbol: string;
   lowStockThreshold: number;
   onSuccess: () => void;
 }
 
 const COMMON_UNITS = [
-  "pcs",
-  "kg",
-  "g",
-  "ltr",
-  "ml",
-  "pkt",
-  "box",
-  "bottle",
-  "can",
-  "dozen",
-  "m",
+  { value: "pcs", label: "pcs (piece)" },
+  { value: "kg", label: "kg (kilogram)" },
+  { value: "g", label: "g (gram)" },
+  { value: "ltr", label: "ltr (litre)" },
+  { value: "ml", label: "ml (millilitre)" },
+  { value: "pkt", label: "pkt (packet)" },
+  { value: "box", label: "box (box)" },
+  { value: "bottle", label: "bottle" },
+  { value: "can", label: "can" },
+  { value: "dozen", label: "dozen" },
+  { value: "bag", label: "bag" },
+  { value: "strip", label: "strip" },
+  { value: "tablet", label: "tablet" },
+  { value: "m", label: "m (meter)" },
+  { value: "roll", label: "roll" },
+  { value: "set", label: "set" },
+  { value: "carton", label: "carton" },
+  { value: "jar", label: "jar" },
+  { value: "pair", label: "pair" },
 ];
 
 const createEmptyRow = (defaultUnit = "pcs"): BulkProductRow => ({
@@ -78,13 +85,11 @@ const createEmptyRow = (defaultUnit = "pcs"): BulkProductRow => ({
   sellingPrice: "",
   initialStock: "0",
   minStockAlert: "",
-  vendorId: "",
 });
 
 export const BulkProductModal: React.FC<BulkProductModalProps> = ({
   isOpen,
   onClose,
-  vendors,
   currencySymbol,
   lowStockThreshold,
   onSuccess,
@@ -489,7 +494,6 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
           sellingPrice,
           initialStock: initialStock || "0",
           minStockAlert,
-          vendorId: "",
         });
       }
     }
@@ -615,7 +619,6 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
     setIsSubmitting(true);
     try {
       const batchPayload = rows.map((r) => {
-        const selectedV = vendors.find((v) => String(v.id) === r.vendorId);
         const parsedAlert =
           r.minStockAlert.trim() !== "" ? parseInt(r.minStockAlert, 10) : null;
         const minAlert =
@@ -631,8 +634,6 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
           selling_price: toMinorUnits(r.sellingPrice),
           current_stock: Math.max(0, parseInt(r.initialStock, 10) || 0),
           min_stock_alert: minAlert,
-          vendor_id: r.vendorId ? Number(r.vendorId) : null,
-          vendor_name: selectedV?.name || null,
         };
       });
 
@@ -765,7 +766,6 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
                   <th className="py-2.5 px-3 w-28 text-right">
                     {t("prod_min_alert", "Min Alert")}
                   </th>
-                  <th className="py-2.5 px-3 min-w-[150px]">Vendor</th>
                   <th className="py-2.5 px-3 text-center w-20">Actions</th>
                 </tr>
               </thead>
@@ -895,25 +895,45 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
                         </div>
                       </td>
 
-                      {/* Unit */}
+                      {/* Unit (Searchable Select) */}
                       <td className="py-2 px-2 align-top">
-                        <div className="relative">
-                          <input
-                            type="text"
-                            list={`units-list-${row.id}`}
-                            value={row.unit}
-                            onChange={(e) =>
-                              handleUpdateRow(row.id, "unit", e.target.value)
+                        <Select
+                          portal
+                          sizeVariant="sm"
+                          searchable
+                          searchPlaceholder={
+                            isNepali
+                              ? "एकाइ खोज्नुहोस् वा नयाँ लेख्नुहोस्..."
+                              : "Search or type unit..."
+                          }
+                          allowCustom
+                          value={row.unit || "pcs"}
+                          onChange={(e) => {
+                            if (e.target.value !== undefined && e.target.value !== null) {
+                              handleUpdateRow(row.id, "unit", String(e.target.value));
                             }
-                            placeholder="pcs"
-                            className="w-full bg-neutral-900 border border-neutral-800 rounded-md px-2 py-1.5 text-xs font-mono text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30"
-                          />
-                          <datalist id={`units-list-${row.id}`}>
-                            {COMMON_UNITS.map((u) => (
-                              <option key={u} value={u} />
-                            ))}
-                          </datalist>
-                        </div>
+                          }}
+                          options={[
+                            ...(row.unit &&
+                            !COMMON_UNITS.some(
+                              (u) => u.value.toLowerCase() === row.unit.toLowerCase(),
+                            )
+                              ? [
+                                  {
+                                    value: row.unit,
+                                    label: `${row.unit} (custom)`,
+                                    searchLabel: row.unit,
+                                  },
+                                ]
+                              : []),
+                            ...COMMON_UNITS.map((u) => ({
+                              value: u.value,
+                              label: u.label,
+                              searchLabel: `${u.value} ${u.label}`,
+                            })),
+                          ]}
+                          className="font-mono"
+                        />
                       </td>
 
                       {/* Cost Price */}
@@ -1057,26 +1077,6 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
                           }
                           className="w-full bg-neutral-900 border border-neutral-800 rounded-md px-2 py-1.5 text-xs font-mono text-right text-neutral-400 placeholder-neutral-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30"
                         />
-                      </td>
-
-                      {/* Vendor */}
-                      <td className="py-2 px-2 align-top">
-                        <select
-                          value={row.vendorId}
-                          onChange={(e) =>
-                            handleUpdateRow(row.id, "vendorId", e.target.value)
-                          }
-                          className="w-full bg-neutral-900 border border-neutral-800 rounded-md px-2 py-1.5 text-xs text-neutral-300 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 cursor-pointer"
-                        >
-                          <option value="">
-                            {isNepali ? "-- आपूर्तिकर्ता छैन --" : "-- None --"}
-                          </option>
-                          {vendors.map((v) => (
-                            <option key={v.id} value={v.id}>
-                              {v.name}
-                            </option>
-                          ))}
-                        </select>
                       </td>
 
                       {/* Actions */}

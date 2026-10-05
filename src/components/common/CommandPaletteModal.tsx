@@ -24,6 +24,9 @@ import {
   Building2,
   UserCheck,
   Truck,
+  History,
+  FileText,
+  Headphones,
 } from 'lucide-react';
 import { NavTab } from '../layout/Sidebar.tsx';
 import { Input } from './Input.tsx';
@@ -115,6 +118,18 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         },
       },
       {
+        id: 'nav-purchase-history',
+        title: 'Purchase History',
+        subtitle: 'Audit log of supplier invoices, 13% VAT and received goods',
+        icon: FileText,
+        shortcut: `${MODIFIER_LABEL}+Shift+B`,
+        category: 'Screens',
+        action: () => {
+          onNavigate('purchase-history');
+          onClose();
+        },
+      },
+      {
         id: 'action-add-product',
         title: 'Add New Product',
         subtitle: 'Create a new catalog item with SKU, cost & selling price',
@@ -128,13 +143,25 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       },
       {
         id: 'nav-inventory',
-        title: 'Inventory & Products',
+        title: 'Stock Ledger (Inventory)',
         subtitle: 'Manage catalog items, stock quantities, and valuation',
         icon: Boxes,
         shortcut: `${MODIFIER_LABEL}+I`,
         category: 'Screens',
         action: () => {
           onNavigate('inventory');
+          onClose();
+        },
+      },
+      {
+        id: 'nav-movements',
+        title: 'Stock Movement Log',
+        subtitle: 'Immutable audit trail of restocks, purchases, sales and adjustments',
+        icon: History,
+        shortcut: `${MODIFIER_LABEL}+M`,
+        category: 'Screens',
+        action: () => {
+          onNavigate('movements');
           onClose();
         },
       },
@@ -279,6 +306,18 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         category: 'Quick Actions',
         action: () => {
           toggleLanguage();
+          onClose();
+        },
+      },
+      {
+        id: 'nav-support',
+        title: isNepali ? 'प्राविधिक सहयोग तथा विकासकर्ता सम्पर्क' : 'Developer & Technical Support',
+        subtitle: isNepali ? 'सफ्टवेयर मर्मत, आपतकालीन हटलाइन, फोन तथा ह्वाट्सएप' : 'Hotline, phone, email, WhatsApp, and POS troubleshooting',
+        icon: Headphones,
+        shortcut: `Alt+H`,
+        category: 'Screens',
+        action: () => {
+          onNavigate('support');
           onClose();
         },
       },

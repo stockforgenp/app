@@ -24,7 +24,9 @@ import { Header } from "./components/layout/Header.tsx";
 import { DashboardView } from "./components/views/DashboardView.tsx";
 import { SalesView } from "./components/views/SalesView.tsx";
 import { PurchasesView } from "./components/views/PurchasesView.tsx";
+import { PurchaseHistoryView } from "./components/views/PurchaseHistoryView.tsx";
 import { InventoryView } from "./components/views/InventoryView.tsx";
+import { StockMovementsView } from "./components/views/StockMovementsView.tsx";
 import { VendorsView } from "./components/views/VendorsView.tsx";
 import { CustomersView } from "./components/views/CustomersView.tsx";
 import { SalesHistoryView } from "./components/views/SalesHistoryView.tsx";
@@ -33,6 +35,7 @@ import { StaffView } from "./components/views/StaffView.tsx";
 import { PayrollView } from "./components/views/PayrollView.tsx";
 import { AnalyticsView } from "./components/views/AnalyticsView.tsx";
 import { SettingsView } from "./components/views/SettingsView.tsx";
+import { TechnicalSupportView } from "./components/views/TechnicalSupportView.tsx";
 import { HardDrive, Loader2 } from "lucide-react";
 import { useGlobalShortcuts } from "./lib/hooks/useGlobalShortcuts.ts";
 import { ShortcutsHelpModal } from "./components/common/ShortcutsHelpModal.tsx";
@@ -59,7 +62,9 @@ export default function App() {
       "dashboard",
       "sales",
       "purchases",
+      "purchase-history",
       "inventory",
+      "movements",
       "vendors",
       "customers",
       "history",
@@ -68,6 +73,7 @@ export default function App() {
       "payroll",
       "analytics",
       "settings",
+      "support",
     ];
     return validTabs.includes(path as NavTab) ? (path as NavTab) : "dashboard";
   }, [location.pathname]);
@@ -354,6 +360,14 @@ export default function App() {
                     }
                   />
                   <Route
+                    path="/purchase-history"
+                    element={
+                      <PurchaseHistoryView
+                        currencySymbol={effectiveCurrencySymbol}
+                      />
+                    }
+                  />
+                  <Route
                     path="/inventory"
                     element={
                       <InventoryView
@@ -369,6 +383,14 @@ export default function App() {
                         onClearInitialOpenCreate={() =>
                           setInitialOpenCreateProduct(false)
                         }
+                      />
+                    }
+                  />
+                  <Route
+                    path="/movements"
+                    element={
+                      <StockMovementsView
+                        currencySymbol={effectiveCurrencySymbol}
                       />
                     }
                   />
@@ -432,6 +454,14 @@ export default function App() {
                         }}
                       />
                     }
+                  />
+                  <Route
+                    path="/support"
+                    element={<TechnicalSupportView />}
+                  />
+                  <Route
+                    path="/technical-support"
+                    element={<Navigate to="/support" replace />}
                   />
                   {/* Fallback route */}
                   <Route

@@ -4,6 +4,7 @@
  * stock inflow increments, vendor auto-fill/creation, 13% VAT, and sequential bill numbers.
  */
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { Link } from "react-router-dom";
 import {
   Truck,
   Search,
@@ -17,23 +18,16 @@ import {
   PackagePlus,
   Percent,
   Printer,
-  Eye,
-  FileText,
-  DollarSign,
   Package,
-  Copy,
+  FileText,
 } from "lucide-react";
 import {
   Product,
-  Purchase,
-  PurchaseItem,
   PurchaseCartItem,
 } from "../../types/index.ts";
 import { getAllProducts } from "../../lib/services/productService.ts";
 import {
   processPurchase,
-  getPurchases,
-  getPurchaseWithItems,
 } from "../../lib/services/purchaseService.ts";
 import {
   VendorInputSection,
@@ -42,14 +36,10 @@ import {
 import { PrintPurchaseBillModal } from "../common/PrintPurchaseBillModal.tsx";
 import { Modal } from "../common/Modal.tsx";
 import { Input } from "../common/Input.tsx";
-import { DataTable, Column } from "../common/DataTable.tsx";
-import { ActionMenu } from "../common/ActionMenu.tsx";
-import { DatePreset } from "../../lib/utils/dateFilters.ts";
 import {
   formatCurrency,
   toMinorUnits,
   fromMinorUnits,
-  formatDateTime,
 } from "../../lib/utils/format.ts";
 import { useToast } from "../../context/ToastContext.tsx";
 import { subscribeToDbChanges } from "../../lib/db/sqliteEngine.ts";
@@ -67,9 +57,6 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
 }) => {
   const { showToast } = useToast();
   const { isNepali, formatNumberByLang } = useLanguage();
-
-  // Active Tab: 'new' (Inflow POS) | 'history' (Bills & Audit Log)
-  const [activeTab, setActiveTab] = useState<"new" | "history">("new");
 
   // Products catalog for purchase selection
   const [products, setProducts] = useState<Product[]>([]);
@@ -132,17 +119,6 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
   const [printPurchaseId, setPrintPurchaseId] = useState<number | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
-  // Purchase History State
-  const [historyList, setHistoryList] = useState<Purchase[]>([]);
-  const [historySearch, setHistorySearch] = useState("");
-  const [historyDatePreset, setHistoryDatePreset] = useState<DatePreset>("all");
-  const [historyStartDate, setHistoryStartDate] = useState("");
-  const [historyEndDate, setHistoryEndDate] = useState("");
-  const [inspectPurchaseDetail, setInspectPurchaseDetail] = useState<{
-    purchase: Purchase;
-    items: PurchaseItem[];
-  } | null>(null);
-
   const loadCatalog = () => {
     try {
       setProducts(getAllProducts());
@@ -151,29 +127,13 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     }
   };
 
-  const loadHistory = () => {
-    try {
-      const opts: { startDate?: string; endDate?: string; search?: string } =
-        {};
-      if (historyStartDate)
-        opts.startDate = `${historyStartDate}T00:00:00.000Z`;
-      if (historyEndDate) opts.endDate = `${historyEndDate}T23:59:59.999Z`;
-      if (historySearch) opts.search = historySearch;
-      setHistoryList(getPurchases(opts));
-    } catch (e) {
-      console.error("Error loading purchase history:", e);
-    }
-  };
-
   useEffect(() => {
     loadCatalog();
-    loadHistory();
     const unsubscribe = subscribeToDbChanges(() => {
       loadCatalog();
-      loadHistory();
     });
     return unsubscribe;
-  }, [historyStartDate, historyEndDate, historySearch]);
+  }, []);
 
   // Catalog filtered products
   const availableProducts = useMemo(() => {
@@ -410,7 +370,6 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
 
       handleClearCart();
       loadCatalog();
-      loadHistory();
     } catch (err: unknown) {
       showToast((err as Error).message, "error", "Purchase Failed");
     }
@@ -421,8 +380,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       const isModifier = e.ctrlKey || e.metaKey;
       if (
-        activeTab === "new" &&
-        (e.key === "F2" || (isModifier && e.key === "Enter"))
+        e.key === "F2" || (isModifier && e.key === "Enter")
       ) {
         if (cart.length > 0) {
           e.preventDefault();
@@ -432,7 +390,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeTab, cart, calculations, vendorData, supplierInvoiceNo]);
+  }, [cart, calculations, vendorData, supplierInvoiceNo]);
 
   // Batch selections in modal
   const submitBatchFromQuantities = () => {
@@ -471,177 +429,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     showToast(`Added ${itemsToAdd.length} products to purchase`, "success");
   };
 
-  const handleInspectPurchase = (purchaseId: number) => {
-    const loaded = getPurchaseWithItems(purchaseId);
-    if (loaded) {
-      setInspectPurchaseDetail(loaded);
-    }
-  };
 
-  // Metrics summary for purchase history
-  const historyStats = useMemo(() => {
-    const totalCount = historyList.length;
-    const totalSpend = historyList.reduce(
-      (acc, p) => acc + (p.grand_total || p.total),
-      0,
-    );
-    const totalUnitsInflow = historyList.reduce(
-      (acc, p) => acc + (p.total_units || 0),
-      0,
-    );
-    const vatTotal = historyList.reduce(
-      (acc, p) => acc + (p.vat_amount || 0),
-      0,
-    );
-    return { totalCount, totalSpend, totalUnitsInflow, vatTotal };
-  }, [historyList]);
-
-  const historyColumns: Column<Purchase>[] = useMemo(
-    () => [
-      {
-        id: "bill_number",
-        header: isNepali ? "बिल नं" : "Bill No",
-        sortable: true,
-        accessor: (p) => (
-          <div className="font-mono text-neutral-200">
-            <div className="font-bold">{p.bill_number || `PUR-${p.id}`}</div>
-            {p.invoice_number && (
-              <div className="text-[10px] text-neutral-400 font-normal">
-                Inv: {p.invoice_number}
-              </div>
-            )}
-          </div>
-        ),
-      },
-      {
-        id: "created_at",
-        header: isNepali ? "मिति" : "Date & Time",
-        sortable: true,
-        accessor: (p) => (
-          <span className="font-mono text-neutral-400 whitespace-nowrap">
-            {formatDateTime(p.created_at)}
-          </span>
-        ),
-      },
-      {
-        id: "vendor_name",
-        header: isNepali ? "आपूर्तिकर्ता" : "Vendor / Supplier",
-        sortable: true,
-        accessor: (p) =>
-          p.vendor_name ? (
-            <div>
-              <div className="font-semibold text-neutral-200">
-                {p.vendor_name}
-              </div>
-              <div className="flex items-center gap-2 text-[10px] text-neutral-400 mt-0.5">
-                {p.vendor_pan_vat && (
-                  <span className="font-mono text-emerald-400">
-                    PAN: {p.vendor_pan_vat}
-                  </span>
-                )}
-                {p.vendor_phone && <span>{p.vendor_phone}</span>}
-              </div>
-            </div>
-          ) : (
-            <span className="text-neutral-500 italic">General Supplier</span>
-          ),
-      },
-      {
-        id: "item_count",
-        header: isNepali ? "सामान" : "Items",
-        align: "center",
-        sortable: true,
-        accessor: (p) => (
-          <span className="font-mono text-neutral-300">
-            {p.item_count || 1}
-          </span>
-        ),
-      },
-      {
-        id: "subtotal",
-        header: isNepali ? "उप-जम्मा" : "Subtotal",
-        align: "right",
-        sortable: true,
-        accessor: (p) => (
-          <span className="font-mono text-neutral-400 tabular-nums">
-            {formatCurrency(p.subtotal, currencySymbol)}
-          </span>
-        ),
-      },
-      {
-        id: "vat_amount",
-        header: isNepali ? "१३% भ्याट" : "13% VAT",
-        align: "right",
-        sortable: true,
-        accessor: (p) => (
-          <span className="font-mono text-sky-400 tabular-nums">
-            +{formatCurrency(p.vat_amount || 0, currencySymbol)}
-          </span>
-        ),
-      },
-      {
-        id: "grand_total",
-        header: isNepali ? "कुल रकम" : "Grand Total",
-        align: "right",
-        sortable: true,
-        accessor: (p) => (
-          <span className="font-mono font-bold text-neutral-100 tabular-nums">
-            {formatCurrency(p.grand_total || p.total, currencySymbol)}
-          </span>
-        ),
-      },
-      {
-        id: "actions",
-        header: isNepali ? "कार्य" : "Actions",
-        align: "right",
-        width: "90px",
-        accessor: (p) => (
-          <div className="flex items-center justify-end gap-2">
-            <ActionMenu
-              align="right"
-              items={[
-                {
-                  label: isNepali ? "विवरण हेर्नुहोस्" : "Inspect Purchase",
-                  icon: Eye,
-                  color: "sky",
-                  action: () => handleInspectPurchase(p.id),
-                },
-                {
-                  label: isNepali ? "बिल छाप्नुहोस्" : "Print Bill",
-                  icon: Printer,
-                  color: "emerald",
-                  action: () => {
-                    setPrintPurchaseId(p.id);
-                    setIsPrintModalOpen(true);
-                  },
-                },
-                p.invoice_number
-                  ? {
-                      label: isNepali
-                        ? "बीजक नं. कपी गर्नुहोस्"
-                        : "Copy Invoice #",
-                      icon: Copy,
-                      color: "default",
-                      divider: true,
-                      action: () => {
-                        navigator.clipboard.writeText(p.invoice_number!);
-                        showToast(
-                          isNepali
-                            ? "बीजक नं. कपी गरियो"
-                            : `Invoice #${p.invoice_number} copied`,
-                          "info",
-                        );
-                      },
-                    }
-                  : null,
-              ]}
-            />
-          </div>
-        ),
-      },
-    ],
-    [isNepali, currencySymbol],
-  );
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150 p-8">
@@ -664,37 +452,16 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Tab Switcher */}
-          <div className="flex items-center bg-neutral-900 p-1 rounded-xl border border-neutral-800 text-xs">
-            <button
-              type="button"
-              onClick={() => setActiveTab("new")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                activeTab === "new"
-                  ? "bg-neutral-800 text-neutral-100 font-semibold shadow-xs"
-                  : "text-neutral-400 hover:text-neutral-200"
-              }`}
-            >
-              <PackagePlus className="w-3.5 h-3.5" />
-              <span>
-                {isNepali ? "नयाँ खरिद (New Purchase)" : "New Purchase"}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("history")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                activeTab === "history"
-                  ? "bg-neutral-800 text-neutral-100 font-semibold shadow-xs"
-                  : "text-neutral-400 hover:text-neutral-200"
-              }`}
-            >
-              <Receipt className="w-3.5 h-3.5" />
-              <span>
-                {isNepali ? "खरिद बिल इतिहास (Invoices)" : "Purchase History"}
-              </span>
-            </button>
-          </div>
+          {/* Link to Purchase History */}
+          <Link
+            to="/purchase-history"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-neutral-100 rounded-xl text-xs font-medium transition-colors border border-neutral-800 cursor-pointer shadow-xs"
+          >
+            <Receipt className="w-3.5 h-3.5 text-emerald-400" />
+            <span>
+              {isNepali ? "खरिद बिल इतिहास (Invoices)" : "Purchase History"}
+            </span>
+          </Link>
 
           {onOpenCreateProduct && (
             <button
@@ -709,9 +476,8 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         </div>
       </div>
 
-      {activeTab === "new" ? (
-        /* ================= NEW PURCHASE (INFLOW POS) ================= */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* ================= NEW PURCHASE (INFLOW POS) ================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: Product Selection & Catalog (5 cols) */}
           <div className="lg:col-span-5 space-y-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3.5">
@@ -1242,274 +1008,6 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
             )}
           </div>
         </div>
-      ) : (
-        /* ================= PURCHASE HISTORY (BILLS & AUDIT LOG) ================= */
-        <div className="space-y-6">
-          {/* Summary KPIs */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-neutral-400 font-medium">
-                  {isNepali ? "कुल खरिद अर्डरहरू" : "Total Purchase Orders"}
-                </p>
-                <p className="text-2xl font-bold text-neutral-100 mt-1">
-                  {formatNumberByLang(historyStats.totalCount)}
-                </p>
-              </div>
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-                <Receipt className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-neutral-400 font-medium">
-                  {isNepali
-                    ? "दाखिला भएको सामान (एकाइ)"
-                    : "Total Received Units"}
-                </p>
-                <p className="text-2xl font-bold text-sky-400 mt-1">
-                  {formatNumberByLang(historyStats.totalUnitsInflow)}
-                </p>
-              </div>
-              <div className="w-10 h-10 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center">
-                <Package className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-neutral-400 font-medium">
-                  {isNepali ? "खरिद भ्याट (१३% VAT)" : "Purchase Input VAT"}
-                </p>
-                <p className="text-xl font-bold font-mono text-amber-400 mt-1">
-                  {formatCurrency(historyStats.vatTotal, currencySymbol)}
-                </p>
-              </div>
-              <div className="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
-                <FileText className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-neutral-400 font-medium">
-                  {isNepali ? "कुल खरिद खर्च" : "Total Purchase Spend"}
-                </p>
-                <p className="text-xl font-bold font-mono text-emerald-400 mt-1">
-                  {formatCurrency(historyStats.totalSpend, currencySymbol)}
-                </p>
-              </div>
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-                <DollarSign className="w-5 h-5" />
-              </div>
-            </div>
-          </div>
-
-          {/* Unified Shared DataTable with Search, Date Filter, Sorting, and Pagination */}
-          <DataTable<Purchase>
-            data={historyList}
-            columns={historyColumns}
-            searchQuery={historySearch}
-            onSearchChange={setHistorySearch}
-            searchPlaceholder={
-              isNepali
-                ? "खरिद बिल नं, आपूर्तिकर्ताको नाम, PAN वा सप्लायर इनभ्वाइस खोज्नुहोस्..."
-                : "Search by purchase bill #, vendor name, PAN/VAT, or supplier invoice..."
-            }
-            dateFilterConfig={{
-              preset: historyDatePreset,
-              onPresetChange: (p, start, end) => {
-                setHistoryDatePreset(p);
-                setHistoryStartDate(start);
-                setHistoryEndDate(end);
-              },
-              startDate: historyStartDate,
-              endDate: historyEndDate,
-              onStartDateChange: setHistoryStartDate,
-              onEndDateChange: setHistoryEndDate,
-              hasActiveFilters: Boolean(
-                historyStartDate ||
-                historyEndDate ||
-                historySearch ||
-                historyDatePreset !== "all",
-              ),
-              onClear: () => {
-                setHistoryDatePreset("all");
-                setHistoryStartDate("");
-                setHistoryEndDate("");
-                setHistorySearch("");
-              },
-            }}
-            emptyIcon={Truck}
-            emptyTitle={
-              isNepali ? "कुनै खरिद विवरण भेटिएन।" : "No purchases found."
-            }
-            enablePagination={true}
-            pageSize={10}
-            pageSizeOptions={[10, 25, 50, 100]}
-          />
-        </div>
-      )}
-
-      {/* Inspect Purchase Modal */}
-      <Modal
-        isOpen={inspectPurchaseDetail !== null}
-        onClose={() => setInspectPurchaseDetail(null)}
-        title={
-          inspectPurchaseDetail
-            ? `Purchase #${inspectPurchaseDetail.purchase.bill_number || inspectPurchaseDetail.purchase.id}`
-            : "Purchase Details"
-        }
-        subtitle="Snapshot purchase order and received inventory line items"
-        maxWidth="2xl"
-      >
-        {inspectPurchaseDetail && (
-          <div className="space-y-4">
-            <div className="p-3 bg-neutral-950 rounded-lg border border-neutral-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div>
-                <span className="text-neutral-400 mr-2">
-                  {isNepali ? "आपूर्तिकर्ता:" : "Vendor:"}
-                </span>
-                <span className="font-semibold text-neutral-200">
-                  {inspectPurchaseDetail.purchase.vendor_name ||
-                    "General Supplier"}
-                </span>
-                {inspectPurchaseDetail.purchase.vendor_pan_vat && (
-                  <span className="ml-2 font-mono text-emerald-400">
-                    (PAN: {inspectPurchaseDetail.purchase.vendor_pan_vat})
-                  </span>
-                )}
-              </div>
-              <div className="text-neutral-400 font-mono">
-                {formatDateTime(inspectPurchaseDetail.purchase.created_at)}
-              </div>
-            </div>
-
-            {/* Line items table */}
-            <div className="border border-neutral-800 rounded-lg overflow-hidden">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800">
-                  <tr>
-                    <th className="py-2.5 px-4">
-                      {isNepali ? "सामान" : "Item"}
-                    </th>
-                    <th className="py-2.5 px-2 text-center font-mono">
-                      {isNepali ? "परिमाण" : "Qty"}
-                    </th>
-                    <th className="py-2.5 px-3 text-right font-mono">
-                      {isNepali ? "दर" : "Rate"}
-                    </th>
-                    <th className="py-2.5 px-3 text-right font-mono">
-                      {isNepali ? "छुट" : "Discount"}
-                    </th>
-                    <th className="py-2.5 px-4 text-right font-mono">
-                      {isNepali ? "जम्मा" : "Total"}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-800/60">
-                  {inspectPurchaseDetail.items.map((it) => (
-                    <tr key={it.id}>
-                      <td className="py-2.5 px-4">
-                        <div className="font-semibold text-neutral-200">
-                          {it.product_name}
-                        </div>
-                        {it.product_sku && (
-                          <div className="text-[10px] text-neutral-500 font-mono">
-                            SKU: {it.product_sku}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-2 text-center font-mono">
-                        {it.quantity} {it.product_unit || ""}
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-mono">
-                        {formatCurrency(it.cost_price, currencySymbol)}
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-mono text-amber-400">
-                        {it.discount > 0
-                          ? `- ${formatCurrency(it.discount, currencySymbol)}`
-                          : "—"}
-                      </td>
-                      <td className="py-2.5 px-4 text-right font-mono font-bold text-neutral-100">
-                        {formatCurrency(it.total, currencySymbol)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Totals */}
-            <div className="p-3 bg-neutral-950 rounded-lg border border-neutral-800 space-y-1.5 text-xs">
-              <div className="flex justify-between text-neutral-400">
-                <span>Subtotal:</span>
-                <span className="font-mono text-neutral-200">
-                  {formatCurrency(
-                    inspectPurchaseDetail.purchase.subtotal,
-                    currencySymbol,
-                  )}
-                </span>
-              </div>
-              {inspectPurchaseDetail.purchase.discount > 0 && (
-                <div className="flex justify-between text-amber-400">
-                  <span>Discount:</span>
-                  <span className="font-mono">
-                    -
-                    {formatCurrency(
-                      inspectPurchaseDetail.purchase.discount,
-                      currencySymbol,
-                    )}
-                  </span>
-                </div>
-              )}
-              <div className="flex justify-between text-sky-400">
-                <span>13% VAT:</span>
-                <span className="font-mono">
-                  +
-                  {formatCurrency(
-                    inspectPurchaseDetail.purchase.vat_amount || 0,
-                    currencySymbol,
-                  )}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm font-bold text-neutral-100 pt-1 border-t border-neutral-800">
-                <span>Grand Total:</span>
-                <span className="font-mono text-emerald-400">
-                  {formatCurrency(
-                    inspectPurchaseDetail.purchase.grand_total ||
-                      inspectPurchaseDetail.purchase.total,
-                    currencySymbol,
-                  )}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setPrintPurchaseId(inspectPurchaseDetail.purchase.id);
-                  setIsPrintModalOpen(true);
-                }}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>{isNepali ? "बिल छाप्नुहोस्" : "Print Bill"}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setInspectPurchaseDetail(null)}
-                className="px-4 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded-lg text-xs font-medium cursor-pointer"
-              >
-                {isNepali ? "बन्द गर्नुहोस्" : "Close"}
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
 
       {/* Batch Products Modal */}
       <Modal

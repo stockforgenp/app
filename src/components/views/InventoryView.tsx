@@ -12,6 +12,7 @@
  * - Bulk actions: Multi-select products to Sell in POS
  */
 import React, { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Search,
@@ -110,8 +111,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const { showToast } = useToast();
   const { t, isNepali, formatNumberByLang } = useLanguage();
 
-  // Active view tab: 'catalog' (products & stock ledger) vs 'movements' (global movement audit log)
-  const [viewTab, setViewTab] = useState<"catalog" | "movements">("catalog");
+
 
   // Master Data
   const [products, setProducts] = useState<Product[]>([]);
@@ -160,8 +160,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     sellingPrice: "",
     initialStock: "",
     minStockAlert: "",
-    vendorId: "",
-    vendorName: "",
   });
 
   // Restock Form
@@ -235,11 +233,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       setSelectedRestock(activeRestockProduct);
       setRestockQty("10");
       setRestockNote("Inventory restock delivery");
-      setRestockVendorId(
-        activeRestockProduct.vendor_id
-          ? String(activeRestockProduct.vendor_id)
-          : "",
-      );
+      setRestockVendorId("");
     }
   }, [activeRestockProduct]);
 
@@ -287,11 +281,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       sellingPrice: "",
       initialStock: "0",
       minStockAlert: "",
-      vendorId: selectedVendorId !== "all" ? selectedVendorId : "",
-      vendorName:
-        selectedVendorId !== "all"
-          ? vendors.find((v) => String(v.id) === selectedVendorId)?.name || ""
-          : "",
     });
     setIsCreateOpen(true);
   };
@@ -309,8 +298,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         p.min_stock_alert !== null && p.min_stock_alert !== undefined
           ? p.min_stock_alert.toString()
           : "",
-      vendorId: p.vendor_id ? String(p.vendor_id) : "",
-      vendorName: p.vendor_name || "",
     });
   };
 
@@ -333,10 +320,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         ? Math.max(0, parsedMinAlert)
         : null;
 
-    const vendorIdNum = formData.vendorId ? Number(formData.vendorId) : null;
-    const selectedV = vendors.find((v) => String(v.id) === formData.vendorId);
-    const resolvedVendorName = selectedV?.name || formData.vendorName || null;
-
     try {
       const created = createProduct({
         name: formData.name.trim(),
@@ -346,8 +329,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         selling_price: selling,
         current_stock: stock,
         min_stock_alert: minStockAlert,
-        vendor_id: vendorIdNum,
-        vendor_name: resolvedVendorName,
       });
 
       showToast(
@@ -383,10 +364,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         ? Math.max(0, parsedMinAlert)
         : null;
 
-    const vendorIdNum = formData.vendorId ? Number(formData.vendorId) : null;
-    const selectedV = vendors.find((v) => String(v.id) === formData.vendorId);
-    const resolvedVendorName = selectedV?.name || formData.vendorName || null;
-
     try {
       updateProduct(editingProduct.id, {
         name: formData.name.trim(),
@@ -395,8 +372,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         cost_price: cost,
         selling_price: selling,
         min_stock_alert: minStockAlert,
-        vendor_id: vendorIdNum,
-        vendor_name: resolvedVendorName,
       });
 
       showToast(
@@ -537,15 +512,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         (p) =>
           p.name.toLowerCase().includes(q) ||
           (p.sku && p.sku.toLowerCase().includes(q)) ||
-          p.id.toString() === q ||
-          (p.vendor_name && p.vendor_name.toLowerCase().includes(q)),
+          p.id.toString() === q,
       );
-    }
-
-    // Vendor filter
-    if (selectedVendorId !== "all") {
-      const vId = Number(selectedVendorId);
-      result = result.filter((p) => p.vendor_id === vId);
     }
 
     // Date filter (based on created_at added date)
@@ -596,7 +564,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   }, [
     products,
     search,
-    selectedVendorId,
     startDate,
     endDate,
     stockStatusFilter,
@@ -652,7 +619,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     if (endDate) {
       result = result.filter((m) => m.created_at.slice(0, 10) <= endDate);
     }
-    if (search.trim() && viewTab === "movements") {
+    if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(
         (m) =>
@@ -670,7 +637,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     startDate,
     endDate,
     search,
-    viewTab,
   ]);
 
   return (
@@ -690,38 +656,17 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Tab Switcher */}
-          <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-0.5 flex items-center text-xs">
-            <button
-              onClick={() => setViewTab("catalog")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer ${
-                viewTab === "catalog"
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-neutral-400 hover:text-neutral-200"
-              }`}
-            >
-              <Package className="w-3.5 h-3.5" />
-              <span>
-                {isNepali ? "सामान सूची (Stock Ledger)" : "Stock Ledger"}
-              </span>
-            </button>
-            <button
-              onClick={() => {
-                setViewTab("movements");
-                loadMovements();
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer ${
-                viewTab === "movements"
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-neutral-400 hover:text-neutral-200"
-              }`}
-            >
-              <History className="w-3.5 h-3.5" />
-              <span>
-                {isNepali ? "चलान अडिट लग (Movements)" : "Movement Log"}
-              </span>
-            </button>
-          </div>
+          {/* Link to Global Movement Log */}
+          <Link
+            to="/movements"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-300 hover:text-neutral-100 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 shadow-xs transition-colors cursor-pointer"
+            title="View Stock Movement Audit Log"
+          >
+            <History className="w-3.5 h-3.5 text-emerald-400" />
+            <span>
+              {isNepali ? "चलान अडिट लग" : "Movement Log"}
+            </span>
+          </Link>
 
           {/* Quick Create Product Button */}
           <button
@@ -844,7 +789,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       </div>
 
       {/* Multi-Select Floating Action Bar */}
-      {selectedProductIds.length > 0 && viewTab === "catalog" && (
+      {selectedProductIds.length > 0 && (
         <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-xl flex items-center justify-between shadow-xs animate-in fade-in">
           <div className="flex items-center gap-2 text-xs text-neutral-200">
             <span className="font-bold text-emerald-400 font-mono text-sm">
@@ -882,13 +827,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         {/* Row 1: Search & Core Filters */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
           {/* Search Box */}
-          <div className="md:col-span-5">
+          <div className="md:col-span-7">
             <Input
               type="text"
               placeholder={
-                viewTab === "catalog"
-                  ? "Search by title, SKU, ID, or supplier name..."
-                  : "Search movements by product, supplier, or audit note..."
+                isNepali
+                  ? "सामानको नाम, SKU वा कोड खोज्नुहोस्..."
+                  : "Search by title, SKU, or ID..."
               }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -899,65 +844,32 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             />
           </div>
 
-          {/* Vendor Filter Dropdown */}
-          <div className="md:col-span-4">
+          {/* Stock Status Filter */}
+          <div className="md:col-span-5">
             <Select
-              icon={Building2}
-              value={selectedVendorId}
-              onChange={(e) => setSelectedVendorId(e.target.value)}
+              value={stockStatusFilter}
+              onChange={(e) => setStockStatusFilter(e.target.value as any)}
               options={[
                 {
                   value: "all",
-                  label: `🏢 ${isNepali ? "सबै आपूर्तिकर्ताहरू (All Vendors)" : "All Vendors / Suppliers"}`,
+                  label: isNepali ? "सबै मौज्दात अवस्था" : "All Stock Levels",
                 },
-                ...vendors.map((v) => ({
-                  value: String(v.id),
-                  label: `${v.name} ${v.pan_vat ? `(PAN: ${v.pan_vat})` : ""}`,
-                })),
+                {
+                  value: "in_stock",
+                  label: isNepali
+                    ? "मौज्दातमा उपलब्ध (> 0)"
+                    : "In Stock (> 0)",
+                },
+                {
+                  value: "low_stock",
+                  label: `⚠️ ${isNepali ? "कम मौज्दात मात्र (Low Stock)" : "Low Stock (≤ threshold)"}`,
+                },
+                {
+                  value: "out_of_stock",
+                  label: `❌ ${isNepali ? "रित्तिएको मौज्दात (Out of Stock)" : "Out of Stock (0)"}`,
+                },
               ]}
             />
-          </div>
-
-          {/* Stock Status Filter (for Catalog tab) or Movement Type (for Movement tab) */}
-          <div className="md:col-span-3">
-            {viewTab === "catalog" ? (
-              <Select
-                value={stockStatusFilter}
-                onChange={(e) => setStockStatusFilter(e.target.value as any)}
-                options={[
-                  {
-                    value: "all",
-                    label: isNepali ? "सबै मौज्दात अवस्था" : "All Stock Levels",
-                  },
-                  {
-                    value: "in_stock",
-                    label: isNepali
-                      ? "मौज्दातमा उपलब्ध (> 0)"
-                      : "In Stock (> 0)",
-                  },
-                  {
-                    value: "low_stock",
-                    label: `⚠️ ${isNepali ? "कम मौज्दात मात्र (Low Stock)" : "Low Stock (≤ threshold)"}`,
-                  },
-                  {
-                    value: "out_of_stock",
-                    label: `❌ ${isNepali ? "रित्तिएको मौज्दात (Out of Stock)" : "Out of Stock (0)"}`,
-                  },
-                ]}
-              />
-            ) : (
-              <Select
-                value={movementTypeFilter}
-                onChange={(e) => setMovementTypeFilter(e.target.value)}
-                options={[
-                  { value: "ALL", label: "All Movement Types" },
-                  { value: "RESTOCK", label: "RESTOCK (Manual / Delivery)" },
-                  { value: "PURCHASE", label: "PURCHASE (Supplier Order)" },
-                  { value: "SALE", label: "SALE (Customer Order)" },
-                  { value: "ADJUSTMENT", label: "ADJUSTMENT (Count Recount)" },
-                ]}
-              />
-            )}
           </div>
         </div>
 
@@ -980,10 +892,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         </div>
       </div>
 
-      {/* Main Tab Content */}
-      {viewTab === "catalog" ? (
-        /* ==================== TAB 1: PRODUCT & STOCK INVENTORY LEDGER ==================== */
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xs">
+      {/* Main Stock Ledger Content */}
+      {/* ==================== PRODUCT & STOCK INVENTORY LEDGER ==================== */}
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 select-none">
@@ -1014,9 +925,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   </th>
                   <th className="py-3 px-3 text-center font-mono">
                     {t("prod_unit_short", "Unit")}
-                  </th>
-                  <th className="py-3 px-4">
-                    {isNepali ? "आपूर्तिकर्ता" : "Supplier / Vendor"}
                   </th>
                   <th
                     onClick={() => toggleSort("cost")}
@@ -1067,7 +975,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 {filteredProducts.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={11}
+                      colSpan={10}
                       className="py-12 text-center text-neutral-400 text-xs"
                     >
                       <Boxes className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
@@ -1170,20 +1078,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                           </span>
                         </td>
 
-                        {/* Vendor Tag */}
-                        <td className="py-3 px-4">
-                          {p.vendor_name ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 max-w-[160px] truncate">
-                              <Building2 className="w-3 h-3 shrink-0" />
-                              <span className="truncate">{p.vendor_name}</span>
-                            </span>
-                          ) : (
-                            <span className="text-neutral-600 text-[11px] italic">
-                              Self-Supplied
-                            </span>
-                          )}
-                        </td>
-
                         <td className="py-3 px-4 text-right font-mono text-neutral-400 tabular-nums">
                           {formatCurrency(p.cost_price, currencySymbol)}
                         </td>
@@ -1273,9 +1167,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                                     setRestockNote(
                                       "Inventory restock delivery",
                                     );
-                                    setRestockVendorId(
-                                      p.vendor_id ? String(p.vendor_id) : "",
-                                    );
+                                    setRestockVendorId("");
                                   },
                                 },
                                 {
@@ -1333,128 +1225,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             </table>
           </div>
         </div>
-      ) : (
-        /* ==================== TAB 2: GLOBAL STOCK MOVEMENT AUDIT LOG ==================== */
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xs">
-          <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-neutral-200 flex items-center gap-2">
-                <History className="w-4 h-4 text-emerald-400" />
-                <span>
-                  {isNepali
-                    ? "सम्पूर्ण स्टक चलान विवरण (Audit Ledger)"
-                    : "Comprehensive Stock Movement Ledger"}
-                </span>
-              </h2>
-              <p className="text-xs text-neutral-400 mt-0.5">
-                {isNepali
-                  ? "खरिद, बिक्री, स्टक थप तथा मिलानका सबै कारोबारहरूको विस्तृत अडिट अभिलेख।"
-                  : "Immutable transaction-level audit trail of all RESTOCK, PURCHASE, SALE, and ADJUSTMENT operations."}
-              </p>
-            </div>
-            <div className="text-xs text-neutral-400 font-mono">
-              {filteredMovements.length} movements recorded
-            </div>
-          </div>
 
-          <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-neutral-950 text-neutral-400 font-medium sticky top-0 border-b border-neutral-800 z-10 select-none">
-                <tr>
-                  <th className="py-3 px-4 font-mono">Date / Time</th>
-                  <th className="py-3 px-4">Product Name</th>
-                  <th className="py-3 px-3 text-center">Movement Type</th>
-                  <th className="py-3 px-4">Vendor / Source</th>
-                  <th className="py-3 px-4 text-right font-mono">
-                    Quantity Delta
-                  </th>
-                  <th className="py-3 px-6">Audit Reference / Note</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-800/60">
-                {filteredMovements.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="py-12 text-center text-neutral-500 text-xs"
-                    >
-                      <History className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
-                      <p className="font-semibold text-neutral-300">
-                        No stock movements found matching filter criteria.
-                      </p>
-                      <p className="text-neutral-500 text-[11px] mt-1">
-                        Try resetting date or vendor filters.
-                      </p>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredMovements.map((m) => {
-                    const isPositive = m.quantity > 0;
-                    return (
-                      <tr
-                        key={m.id}
-                        className="hover:bg-neutral-800/30 transition-colors"
-                      >
-                        <td className="py-3 px-4 font-mono text-neutral-400 whitespace-nowrap">
-                          {formatDateTime(m.created_at)}
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="font-semibold text-neutral-200">
-                            {m.product_name || `Product #${m.product_id}`}
-                          </div>
-                          <div className="text-[10px] text-neutral-500 font-mono">
-                            ID: #{m.product_id}
-                          </div>
-                        </td>
-                        <td className="py-3 px-3 text-center">
-                          <span
-                            className={`font-mono text-[10px] font-semibold px-2 py-0.5 rounded ${
-                              m.type === "RESTOCK"
-                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                : m.type === "PURCHASE"
-                                  ? "bg-teal-500/10 text-teal-400 border border-teal-500/20"
-                                  : m.type === "SALE"
-                                    ? "bg-sky-500/10 text-sky-400 border border-sky-500/20"
-                                    : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                            }`}
-                          >
-                            {m.type}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          {m.vendor_name ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-800 text-neutral-300 border border-neutral-700/60">
-                              <Building2 className="w-3 h-3 text-emerald-400" />
-                              <span className="truncate max-w-[140px]">
-                                {m.vendor_name}
-                              </span>
-                            </span>
-                          ) : (
-                            <span className="text-neutral-600 text-[11px]">
-                              —
-                            </span>
-                          )}
-                        </td>
-                        <td
-                          className={`py-3 px-4 text-right font-mono font-bold whitespace-nowrap ${
-                            isPositive ? "text-emerald-400" : "text-rose-400"
-                          }`}
-                        >
-                          {isPositive ? `+${m.quantity}` : m.quantity}{" "}
-                          {m.product_unit || "units"}
-                        </td>
-                        <td className="py-3 px-6 text-neutral-300 break-words">
-                          {m.note || "—"}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* ==================== MODAL: CREATE PRODUCT ==================== */}
       <Modal
@@ -1558,46 +1329,44 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   : "e.g. pcs, kg, litre, box"}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-0">
-                <Input
-                  type="text"
-                  required
-                  placeholder={t(
-                    "prod_unit_placeholder",
-                    "e.g. pcs, kg, ltr, box",
-                  )}
-                  value={formData.unit}
-                  onChange={(e) =>
-                    setFormData({ ...formData, unit: e.target.value })
-                  }
-                  className="font-mono"
-                />
-              </div>
-              <div className="w-52 sm:w-60 shrink-0">
-                <Select
-                  value={
-                    COMMON_UNITS.some(
-                      (u) => u.value === formData.unit.toLowerCase(),
-                    )
-                      ? formData.unit.toLowerCase()
-                      : ""
-                  }
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setFormData({ ...formData, unit: e.target.value });
-                    }
-                  }}
-                  placeholder={
-                    isNepali ? "-- एकाइ छान्नुहोस् --" : "-- Select Unit --"
-                  }
-                  options={COMMON_UNITS.map((u) => ({
-                    value: u.value,
-                    label: u.label,
-                  }))}
-                />
-              </div>
-            </div>
+            <Select
+              searchable
+              allowCustom
+              searchPlaceholder={
+                isNepali
+                  ? "एकाइ खोज्नुहोस् वा नयाँ एकाइ लेख्नुहोस्..."
+                  : "Search unit or type custom unit..."
+              }
+              value={formData.unit || "pcs"}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setFormData({ ...formData, unit: String(e.target.value) });
+                }
+              }}
+              placeholder={
+                isNepali ? "-- एकाइ छान्नुहोस् --" : "-- Select Unit --"
+              }
+              options={[
+                ...(formData.unit &&
+                !COMMON_UNITS.some(
+                  (u) => u.value.toLowerCase() === formData.unit.toLowerCase(),
+                )
+                  ? [
+                      {
+                        value: formData.unit,
+                        label: `${formData.unit} (custom)`,
+                        searchLabel: formData.unit,
+                      },
+                    ]
+                  : []),
+                ...COMMON_UNITS.map((u) => ({
+                  value: u.value,
+                  label: u.label,
+                  searchLabel: `${u.value} ${u.label}`,
+                })),
+              ]}
+              className="font-mono"
+            />
             {/* Quick unit chips */}
             <div className="flex flex-wrap gap-1.5 mt-2">
               {["pcs", "kg", "ltr", "g", "ml", "pkt", "box", "bottle"].map(
@@ -1618,43 +1387,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               )}
             </div>
           </div>
-
-          {/* Preferred Vendor / Supplier Selection */}
-          <Select
-            label={
-              <>
-                <Building2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>
-                  {isNepali
-                    ? "आपूर्तिकर्ता / सप्लायर (वैकल्पिक)"
-                    : "Supplier / Vendor (Optional)"}
-                </span>
-              </>
-            }
-            value={formData.vendorId}
-            onChange={(e) => {
-              const v = vendors.find(
-                (vend) => String(vend.id) === e.target.value,
-              );
-              setFormData({
-                ...formData,
-                vendorId: e.target.value,
-                vendorName: v ? v.name : "",
-              });
-            }}
-            options={[
-              {
-                value: "",
-                label: isNepali
-                  ? "-- आपूर्तिकर्ता तोकिएको छैन (None) --"
-                  : "-- No Specific Supplier --",
-              },
-              ...vendors.map((v) => ({
-                value: String(v.id),
-                label: `${v.name} ${v.pan_vat ? `(PAN: ${v.pan_vat})` : ""}`,
-              })),
-            ]}
-          />
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -1828,46 +1560,44 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   : "e.g. pcs, kg, litre, box"}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-0">
-                <Input
-                  type="text"
-                  required
-                  placeholder={t(
-                    "prod_unit_placeholder",
-                    "e.g. pcs, kg, ltr, box",
-                  )}
-                  value={formData.unit}
-                  onChange={(e) =>
-                    setFormData({ ...formData, unit: e.target.value })
-                  }
-                  className="font-mono"
-                />
-              </div>
-              <div className="w-52 sm:w-60 shrink-0">
-                <Select
-                  value={
-                    COMMON_UNITS.some(
-                      (u) => u.value === formData.unit.toLowerCase(),
-                    )
-                      ? formData.unit.toLowerCase()
-                      : ""
-                  }
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setFormData({ ...formData, unit: e.target.value });
-                    }
-                  }}
-                  placeholder={
-                    isNepali ? "-- एकाइ छान्नुहोस् --" : "-- Select Unit --"
-                  }
-                  options={COMMON_UNITS.map((u) => ({
-                    value: u.value,
-                    label: u.label,
-                  }))}
-                />
-              </div>
-            </div>
+            <Select
+              searchable
+              allowCustom
+              searchPlaceholder={
+                isNepali
+                  ? "एकाइ खोज्नुहोस् वा नयाँ एकाइ लेख्नुहोस्..."
+                  : "Search unit or type custom unit..."
+              }
+              value={formData.unit || "pcs"}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setFormData({ ...formData, unit: String(e.target.value) });
+                }
+              }}
+              placeholder={
+                isNepali ? "-- एकाइ छान्नुहोस् --" : "-- Select Unit --"
+              }
+              options={[
+                ...(formData.unit &&
+                !COMMON_UNITS.some(
+                  (u) => u.value.toLowerCase() === formData.unit.toLowerCase(),
+                )
+                  ? [
+                      {
+                        value: formData.unit,
+                        label: `${formData.unit} (custom)`,
+                        searchLabel: formData.unit,
+                      },
+                    ]
+                  : []),
+                ...COMMON_UNITS.map((u) => ({
+                  value: u.value,
+                  label: u.label,
+                  searchLabel: `${u.value} ${u.label}`,
+                })),
+              ]}
+              className="font-mono"
+            />
             {/* Quick unit chips */}
             <div className="flex flex-wrap gap-1.5 mt-2">
               {["pcs", "kg", "ltr", "g", "ml", "pkt", "box", "bottle"].map(
@@ -1890,42 +1620,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </div>
 
           {/* Supplier / Vendor Selection */}
-          <Select
-            label={
-              <>
-                <Building2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>
-                  {isNepali
-                    ? "आपूर्तिकर्ता / सप्लायर (वैकल्पिक)"
-                    : "Supplier / Vendor (Optional)"}
-                </span>
-              </>
-            }
-            value={formData.vendorId}
-            onChange={(e) => {
-              const v = vendors.find(
-                (vend) => String(vend.id) === e.target.value,
-              );
-              setFormData({
-                ...formData,
-                vendorId: e.target.value,
-                vendorName: v ? v.name : "",
-              });
-            }}
-            options={[
-              {
-                value: "",
-                label: isNepali
-                  ? "-- आपूर्तिकर्ता तोकिएको छैन (None) --"
-                  : "-- No Specific Supplier --",
-              },
-              ...vendors.map((v) => ({
-                value: String(v.id),
-                label: `${v.name} ${v.pan_vat ? `(PAN: ${v.pan_vat})` : ""}`,
-              })),
-            ]}
-          />
-
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Input
@@ -2300,7 +1994,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       <BulkProductModal
         isOpen={isBulkCreateOpen}
         onClose={() => setIsBulkCreateOpen(false)}
-        vendors={vendors}
         currencySymbol={currencySymbol}
         lowStockThreshold={lowStockThreshold}
         onSuccess={() => {

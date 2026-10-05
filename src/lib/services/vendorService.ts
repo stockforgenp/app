@@ -15,7 +15,13 @@ export function getAllVendors(search?: string): Vendor[] {
   const baseSql = `
     SELECT 
       v.*,
-      (SELECT COUNT(*) FROM products WHERE vendor_id = v.id) as product_count,
+      (
+        SELECT COUNT(DISTINCT product_id) FROM (
+          SELECT pi.product_id FROM purchase_items pi JOIN purchases pu ON pi.purchase_id = pu.id WHERE pu.vendor_id = v.id
+          UNION
+          SELECT sm.product_id FROM stock_movements sm WHERE sm.vendor_id = v.id
+        )
+      ) as product_count,
       (
         COALESCE((SELECT SUM(COALESCE(p_rec.grand_total, p_rec.total)) FROM purchases p_rec WHERE p_rec.vendor_id = v.id), 0)
         +
@@ -44,7 +50,13 @@ export function getVendorById(id: number): Vendor | null {
   return queryOne<Vendor>(
     `SELECT 
        v.*,
-       (SELECT COUNT(*) FROM products WHERE vendor_id = v.id) as product_count,
+       (
+         SELECT COUNT(DISTINCT product_id) FROM (
+           SELECT pi.product_id FROM purchase_items pi JOIN purchases pu ON pi.purchase_id = pu.id WHERE pu.vendor_id = v.id
+           UNION
+           SELECT sm.product_id FROM stock_movements sm WHERE sm.vendor_id = v.id
+         )
+       ) as product_count,
        (
          COALESCE((SELECT SUM(COALESCE(p_rec.grand_total, p_rec.total)) FROM purchases p_rec WHERE p_rec.vendor_id = v.id), 0)
          +
@@ -69,9 +81,19 @@ export function searchVendors(
   limit: number = 20,
 ): Vendor[] {
   const term = searchTerm.trim();
+  const productCountSubquery = `
+    (
+      SELECT COUNT(DISTINCT product_id) FROM (
+        SELECT pi.product_id FROM purchase_items pi JOIN purchases pu ON pi.purchase_id = pu.id WHERE pu.vendor_id = v.id
+        UNION
+        SELECT sm.product_id FROM stock_movements sm WHERE sm.vendor_id = v.id
+      )
+    ) as product_count
+  `;
+
   if (!term) {
     return query<Vendor>(
-      `SELECT v.*, (SELECT COUNT(*) FROM products WHERE vendor_id = v.id) as product_count 
+      `SELECT v.*, ${productCountSubquery} 
        FROM vendors v 
        ORDER BY v.name ASC 
        LIMIT ?`,
@@ -81,7 +103,7 @@ export function searchVendors(
 
   const s = `%${term}%`;
   return query<Vendor>(
-    `SELECT v.*, (SELECT COUNT(*) FROM products WHERE vendor_id = v.id) as product_count 
+    `SELECT v.*, ${productCountSubquery} 
      FROM vendors v 
      WHERE v.name LIKE ? OR v.pan_vat LIKE ? OR v.phone LIKE ? OR v.email LIKE ?
      ORDER BY 
@@ -166,13 +188,13 @@ export function updateVendor(
       [name, email, phone, panVat, address, notes, now, id],
     );
 
-    // Keep denormalized vendor_name in products and stock_movements up-to-date
+    // Keep denormalized vendor_name in stock_movements and purchases up-to-date
     if (name !== existing.name) {
-      run(`UPDATE products SET vendor_name = ? WHERE vendor_id = ?`, [
+      run(`UPDATE stock_movements SET vendor_name = ? WHERE vendor_id = ?`, [
         name,
         id,
       ]);
-      run(`UPDATE stock_movements SET vendor_name = ? WHERE vendor_id = ?`, [
+      run(`UPDATE purchases SET vendor_name = ? WHERE vendor_id = ?`, [
         name,
         id,
       ]);
@@ -187,11 +209,7 @@ export function deleteVendor(id: number): void {
   }
 
   transaction(() => {
-    // Unlink products and stock movements before deleting vendor
-    run(
-      `UPDATE products SET vendor_id = NULL, vendor_name = NULL WHERE vendor_id = ?`,
-      [id],
-    );
+    // Unlink stock movements before deleting vendor
     run(
       `UPDATE stock_movements SET vendor_id = NULL, vendor_name = NULL WHERE vendor_id = ?`,
       [id],
@@ -277,8 +295,14 @@ export function findOrCreateVendor(data: {
 
 export function getVendorProducts(vendorId: number): Product[] {
   return query<Product>(
-    `SELECT * FROM products WHERE vendor_id = ? ORDER BY name ASC`,
-    [vendorId],
+    `SELECT DISTINCT p.* FROM products p 
+     WHERE p.id IN (
+       SELECT pi.product_id FROM purchase_items pi JOIN purchases pu ON pi.purchase_id = pu.id WHERE pu.vendor_id = ?
+       UNION
+       SELECT sm.product_id FROM stock_movements sm WHERE sm.vendor_id = ?
+     )
+     ORDER BY p.name ASC`,
+    [vendorId, vendorId],
   );
 }
 

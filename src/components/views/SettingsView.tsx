@@ -9,7 +9,8 @@
  * - Reset database to sample state
  * - Section 19 Automated Business Logic Test Suite runner
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   Settings,
   HardDrive,
@@ -26,48 +27,69 @@ import {
   Moon,
   Languages,
   LogOut,
-} from 'lucide-react';
-import { AppSettings, TestResultItem } from '../../types/index.ts';
-import { getSettings, updateSettings } from '../../lib/services/settingsService.ts';
+  Headphones,
+} from "lucide-react";
+import { AppSettings, TestResultItem } from "../../types/index.ts";
+import {
+  getSettings,
+  updateSettings,
+} from "../../lib/services/settingsService.ts";
 import {
   exportDatabase,
   importDatabase,
   resetDatabase,
-} from '../../lib/db/sqliteEngine.ts';
-import { runBusinessLogicTests } from '../../lib/services/testService.ts';
-import { ConfirmDialog } from '../common/ConfirmDialog.tsx';
-import { Select } from '../common/Select.tsx';
-import { Input } from '../common/Input.tsx';
-import { useToast } from '../../context/ToastContext.tsx';
-import { useTheme } from '../../context/ThemeContext.tsx';
-import { useLanguage } from '../../context/LanguageContext.tsx';
-import { useAuth } from '../../context/AuthContext.tsx';
+} from "../../lib/db/sqliteEngine.ts";
+import { runBusinessLogicTests } from "../../lib/services/testService.ts";
+import { ConfirmDialog } from "../common/ConfirmDialog.tsx";
+import { Select } from "../common/Select.tsx";
+import { Input } from "../common/Input.tsx";
+import { TechnicalSupportSection } from "../common/TechnicalSupportSection.tsx";
+import { useToast } from "../../context/ToastContext.tsx";
+import { useTheme } from "../../context/ThemeContext.tsx";
+import { useLanguage } from "../../context/LanguageContext.tsx";
+import { useAuth } from "../../context/AuthContext.tsx";
 
 interface SettingsViewProps {
   onSettingsUpdated: (newSettings: AppSettings) => void;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({
+  onSettingsUpdated,
+}) => {
   const { showToast } = useToast();
   const { theme, setTheme } = useTheme();
   const { t, language, setLanguage, isNepali } = useLanguage();
   const { currentShop, logout, allShops, switchShop } = useAuth();
   const [settings, setSettings] = useState<AppSettings>(getSettings());
   const [currencyInput, setCurrencyInput] = useState(settings.currency_symbol);
-  const [lowStockInput, setLowStockInput] = useState(settings.low_stock_threshold.toString());
-  const [negativeStock, setNegativeStock] = useState(settings.allow_negative_stock);
-  const [storeNameInput, setStoreNameInput] = useState(settings.store_name || 'StockForge Retail');
-  const [storeAddressInput, setStoreAddressInput] = useState(settings.store_address || '');
-  const [storePhoneInput, setStorePhoneInput] = useState(settings.store_phone || '');
-  const [storePanVatInput, setStorePanVatInput] = useState(settings.store_pan_vat || '');
+  const [lowStockInput, setLowStockInput] = useState(
+    settings.low_stock_threshold.toString(),
+  );
+  const [negativeStock, setNegativeStock] = useState(
+    settings.allow_negative_stock,
+  );
+  const [storeNameInput, setStoreNameInput] = useState(
+    settings.store_name || "StockForge Retail",
+  );
+  const [storeAddressInput, setStoreAddressInput] = useState(
+    settings.store_address || "",
+  );
+  const [storePhoneInput, setStorePhoneInput] = useState(
+    settings.store_phone || "",
+  );
+  const [storePanVatInput, setStorePanVatInput] = useState(
+    settings.store_pan_vat || "",
+  );
   const [enableVat, setEnableVat] = useState(settings.enable_vat !== false);
   const [receiptFooterInput, setReceiptFooterInput] = useState(
-    settings.receipt_footer || 'Thank you for shopping with us! Please come again.'
+    settings.receipt_footer ||
+      "Thank you for shopping with us! Please come again.",
   );
 
   // Dialogs
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
-  const [pendingRestoreData, setPendingRestoreData] = useState<Uint8Array | null>(null);
+  const [pendingRestoreData, setPendingRestoreData] =
+    useState<Uint8Array | null>(null);
   const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = useState(false);
 
   // Tests
@@ -76,41 +98,44 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
 
   useEffect(() => {
     const s = getSettings();
-    let cur = s.currency_symbol || (language === 'np' ? 'रु.' : 'Rs.');
-    if (language === 'np') {
+    let cur = s.currency_symbol || (language === "np" ? "रु." : "Rs.");
+    if (language === "np") {
       const isRs =
         !cur ||
-        cur === 'Rs.' ||
-        cur === 'Rs' ||
-        cur.toLowerCase() === 'rs' ||
-        cur.toLowerCase() === 'rs.' ||
-        cur.toUpperCase() === 'NRS' ||
-        cur.toUpperCase() === 'NRS.';
-      if (isRs) cur = 'रु.';
+        cur === "Rs." ||
+        cur === "Rs" ||
+        cur.toLowerCase() === "rs" ||
+        cur.toLowerCase() === "rs." ||
+        cur.toUpperCase() === "NRS" ||
+        cur.toUpperCase() === "NRS.";
+      if (isRs) cur = "रु.";
     } else {
-      const isNe = cur === 'रु.' || cur === 'रु' || cur === 'रू.' || cur === 'रू';
-      if (isNe) cur = 'Rs.';
+      const isNe =
+        cur === "रु." || cur === "रु" || cur === "रू." || cur === "रू";
+      if (isNe) cur = "Rs.";
     }
     setSettings({ ...s, currency_symbol: cur });
     setCurrencyInput(cur);
     setLowStockInput(s.low_stock_threshold.toString());
     setNegativeStock(s.allow_negative_stock);
-    setStoreNameInput(s.store_name || 'StockForge Retail');
-    setStoreAddressInput(s.store_address || '');
-    setStorePhoneInput(s.store_phone || '');
-    setStorePanVatInput(s.store_pan_vat || '');
+    setStoreNameInput(s.store_name || "StockForge Retail");
+    setStoreAddressInput(s.store_address || "");
+    setStorePhoneInput(s.store_phone || "");
+    setStorePanVatInput(s.store_pan_vat || "");
     setEnableVat(s.enable_vat !== false);
-    setReceiptFooterInput(s.receipt_footer || 'Thank you for shopping with us! Please come again.');
+    setReceiptFooterInput(
+      s.receipt_footer || "Thank you for shopping with us! Please come again.",
+    );
   }, [language]);
 
   const handleSaveGeneral = (e: React.FormEvent) => {
     e.preventDefault();
     const threshold = parseInt(lowStockInput, 10);
     const updated = updateSettings({
-      currency_symbol: currencyInput.trim() || 'Rs.',
+      currency_symbol: currencyInput.trim() || "Rs.",
       low_stock_threshold: isNaN(threshold) ? 10 : threshold,
       allow_negative_stock: negativeStock,
-      store_name: storeNameInput.trim() || 'StockForge Retail',
+      store_name: storeNameInput.trim() || "StockForge Retail",
       store_address: storeAddressInput.trim(),
       store_phone: storePhoneInput.trim(),
       store_pan_vat: storePanVatInput.trim(),
@@ -119,25 +144,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
     });
     setSettings(updated);
     onSettingsUpdated(updated);
-    showToast('Settings & bill receipt header updated successfully', 'success');
+    showToast("Settings & bill receipt header updated successfully", "success");
   };
 
   const handleExportBackup = () => {
     try {
       const binary = exportDatabase();
-      const blob = new Blob([binary.buffer as ArrayBuffer], { type: 'application/x-sqlite3' });
+      const blob = new Blob([binary.buffer as ArrayBuffer], {
+        type: "application/x-sqlite3",
+      });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const a = document.createElement("a");
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       a.href = url;
       a.download = `stockforge_backup_${timestamp}.sqlite`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast('Database backup downloaded successfully', 'success');
+      showToast("Database backup downloaded successfully", "success");
     } catch (err: unknown) {
-      showToast((err as Error).message, 'error', 'Export Failed');
+      showToast((err as Error).message, "error", "Export Failed");
     }
   };
 
@@ -152,24 +179,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
         setPendingRestoreData(new Uint8Array(buffer));
         setIsRestoreConfirmOpen(true);
       } catch (err: unknown) {
-        showToast((err as Error).message, 'error');
+        showToast((err as Error).message, "error");
       }
     };
     reader.readAsArrayBuffer(file);
     // Reset input
-    e.target.value = '';
+    e.target.value = "";
   };
 
   const handleConfirmRestore = async () => {
     if (!pendingRestoreData) return;
     try {
       await importDatabase(pendingRestoreData);
-      showToast('Database successfully restored from backup file', 'success');
+      showToast("Database successfully restored from backup file", "success");
       const s = getSettings();
       setSettings(s);
       onSettingsUpdated(s);
     } catch (err: unknown) {
-      showToast((err as Error).message, 'error', 'Restore Failed');
+      showToast((err as Error).message, "error", "Restore Failed");
     } finally {
       setPendingRestoreData(null);
     }
@@ -178,12 +205,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
   const handleConfirmReset = async () => {
     try {
       await resetDatabase();
-      showToast('Database reset to initial sample state', 'success');
+      showToast("Database reset to initial sample state", "success");
       const s = getSettings();
       setSettings(s);
       onSettingsUpdated(s);
     } catch (err: unknown) {
-      showToast((err as Error).message, 'error');
+      showToast((err as Error).message, "error");
     }
   };
 
@@ -194,12 +221,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
       setTestResults(results);
       const allPassed = results.every((r) => r.passed);
       if (allPassed) {
-        showToast('All 11 business logic & ACID tests passed perfectly!', 'success');
+        showToast(
+          "All 11 business logic & ACID tests passed perfectly!",
+          "success",
+        );
       } else {
-        showToast('Some business logic tests reported discrepancies', 'warning');
+        showToast(
+          "Some business logic tests reported discrepancies",
+          "warning",
+        );
       }
     } catch (err: unknown) {
-      showToast((err as Error).message, 'error', 'Testing Error');
+      showToast((err as Error).message, "error", "Testing Error");
     } finally {
       setIsRunningTests(false);
     }
@@ -208,11 +241,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-150">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-neutral-100">System Settings</h1>
-        <p className="text-xs text-neutral-400 mt-1">
-          Configure currency rules, visual theme, stock constraints, local backup, and test diagnostics
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-neutral-100">
+            {t("set_title")}
+          </h1>
+          <p className="text-xs text-neutral-400 mt-1">{t("set_subtitle")}</p>
+        </div>
+        <Link
+          to="/support"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer self-start sm:self-auto"
+        >
+          <Headphones className="w-3.5 h-3.5" />
+          <span>{t("dev_support_section_title")}</span>
+        </Link>
       </div>
 
       {/* Shop Profile & Identity Card */}
@@ -221,7 +263,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
           <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
             <div className="flex items-center gap-2 text-sm font-semibold text-neutral-100">
               <Store className="w-4 h-4 text-emerald-400" />
-              <span>{isNepali ? 'पसल खाता तथा दर्ता विवरण' : 'Registered Shop Profile & Account'}</span>
+              <span>
+                {isNepali
+                  ? "पसल खाता तथा दर्ता विवरण"
+                  : "Registered Shop Profile & Account"}
+              </span>
             </div>
             <button
               type="button"
@@ -230,14 +276,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
               title="Log out of this shop"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span>{isNepali ? 'लगआउट (Log Out)' : 'Log Out'}</span>
+              <span>{isNepali ? "लगआउट (Log Out)" : "Log Out"}</span>
             </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-1">
             <div className="p-3 bg-neutral-950 border border-neutral-800/80 rounded-lg">
               <span className="text-[10px] text-neutral-500 uppercase tracking-wider block mb-1">
-                {isNepali ? 'पसलको नाम' : 'Shop Name'}
+                {isNepali ? "पसलको नाम" : "Shop Name"}
               </span>
               <span className="text-xs font-bold text-neutral-100 block truncate">
                 {currentShop.name}
@@ -246,7 +292,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
 
             <div className="p-3 bg-neutral-950 border border-neutral-800/80 rounded-lg">
               <span className="text-[10px] text-neutral-500 uppercase tracking-wider block mb-1">
-                {isNepali ? 'सञ्चालक इमेल' : 'Registered Email'}
+                {isNepali ? "सञ्चालक इमेल" : "Registered Email"}
               </span>
               <span className="text-xs font-mono text-neutral-300 block truncate">
                 {currentShop.email}
@@ -255,7 +301,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
 
             <div className="p-3 bg-neutral-950 border border-neutral-800/80 rounded-lg">
               <span className="text-[10px] text-neutral-500 uppercase tracking-wider block mb-1">
-                {isNepali ? 'पसलको प्रकार' : 'Category / Type'}
+                {isNepali ? "पसलको प्रकार" : "Category / Type"}
               </span>
               <span className="text-xs font-semibold text-emerald-400 block truncate">
                 {currentShop.shop_type}
@@ -264,10 +310,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
 
             <div className="p-3 bg-neutral-950 border border-neutral-800/80 rounded-lg">
               <span className="text-[10px] text-neutral-500 uppercase tracking-wider block mb-1">
-                {isNepali ? 'सम्पर्क / फोन' : 'Contact Phone'}
+                {isNepali ? "सम्पर्क / फोन" : "Contact Phone"}
               </span>
               <span className="text-xs font-mono text-neutral-300 block truncate">
-                {currentShop.phone || '—'}
+                {currentShop.phone || "—"}
               </span>
             </div>
           </div>
@@ -275,7 +321,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
           {allShops.length > 1 && (
             <div className="pt-2 border-t border-neutral-800/60 flex items-center justify-between text-xs">
               <span className="text-neutral-400">
-                {isNepali ? 'अन्य दर्ता भएका पसलमा जानुहोस्:' : 'Switch to another registered shop:'}
+                {isNepali
+                  ? "अन्य दर्ता भएका पसलमा जानुहोस्:"
+                  : "Switch to another registered shop:"}
               </span>
               <Select
                 value={currentShop.id}
@@ -300,43 +348,50 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
             <span>Appearance & Interface Theme</span>
           </div>
           <span className="text-xs text-neutral-400">
-            Active: <strong className="text-neutral-200 capitalize">{theme} Theme</strong>
+            Active:{" "}
+            <strong className="text-neutral-200 capitalize">
+              {theme} Theme
+            </strong>
           </span>
         </div>
 
         <p className="text-xs text-neutral-400">
-          Choose your visual preference. Light theme is the default clean retail workspace, or switch to dark theme for low-light environments.
+          Choose your visual preference. Light theme is the default clean retail
+          workspace, or switch to dark theme for low-light environments.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
           {/* Light Theme Option (Default) */}
           <button
             type="button"
-            onClick={() => setTheme('light')}
+            onClick={() => setTheme("light")}
             className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3.5 ${
-              theme === 'light'
-                ? 'border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/30'
-                : 'border-neutral-800 bg-neutral-950 hover:border-neutral-700'
+              theme === "light"
+                ? "border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/30"
+                : "border-neutral-800 bg-neutral-950 hover:border-neutral-700"
             }`}
           >
             <div
               className={`p-2.5 rounded-lg shrink-0 ${
-                theme === 'light'
-                  ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                  : 'bg-neutral-800 text-neutral-400'
+                theme === "light"
+                  ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                  : "bg-neutral-800 text-neutral-400"
               }`}
             >
               <Sun className="w-5 h-5" />
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-neutral-100">Light Theme</span>
+                <span className="text-xs font-bold text-neutral-100">
+                  Light Theme
+                </span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-semibold border border-emerald-500/20">
                   Default
                 </span>
               </div>
               <p className="text-[11px] text-neutral-400 mt-1">
-                Bright, high-contrast, modern daylight canvas tailored for retail counters and bright shop floors.
+                Bright, high-contrast, modern daylight canvas tailored for
+                retail counters and bright shop floors.
               </p>
             </div>
           </button>
@@ -344,28 +399,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
           {/* Dark Theme Option */}
           <button
             type="button"
-            onClick={() => setTheme('dark')}
+            onClick={() => setTheme("dark")}
             className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3.5 ${
-              theme === 'dark'
-                ? 'border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/30'
-                : 'border-neutral-800 bg-neutral-950 hover:border-neutral-700'
+              theme === "dark"
+                ? "border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/30"
+                : "border-neutral-800 bg-neutral-950 hover:border-neutral-700"
             }`}
           >
             <div
               className={`p-2.5 rounded-lg shrink-0 ${
-                theme === 'dark'
-                  ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-                  : 'bg-neutral-800 text-neutral-400'
+                theme === "dark"
+                  ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                  : "bg-neutral-800 text-neutral-400"
               }`}
             >
               <Moon className="w-5 h-5" />
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-neutral-100">Dark Theme</span>
+                <span className="text-xs font-bold text-neutral-100">
+                  Dark Theme
+                </span>
               </div>
               <p className="text-[11px] text-neutral-400 mt-1">
-                Deep obsidian palette reduces eye strain during evening shifts and night stocktaking audits.
+                Deep obsidian palette reduces eye strain during evening shifts
+                and night stocktaking audits.
               </p>
             </div>
           </button>
@@ -377,48 +435,54 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
         <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
           <div className="flex items-center gap-2 text-sm font-semibold text-neutral-100">
             <Languages className="w-4 h-4 text-emerald-400" />
-            <span>{t('set_language_title')}</span>
+            <span>{t("set_language_title")}</span>
           </div>
           <span className="text-xs text-neutral-400">
-            Active: <strong className="text-emerald-400 font-medium">{isNepali ? 'नेपाली (Nepali)' : 'English (अंग्रेजी)'}</strong>
+            Active:{" "}
+            <strong className="text-emerald-400 font-medium">
+              {isNepali ? "नेपाली (Nepali)" : "English (अंग्रेजी)"}
+            </strong>
           </span>
         </div>
 
-        <p className="text-xs text-neutral-400">
-          {t('set_language_desc')}
-        </p>
+        <p className="text-xs text-neutral-400">{t("set_language_desc")}</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
           {/* English Option */}
           <button
             type="button"
             onClick={() => {
-              setLanguage('en');
-              setCurrencyInput('Rs.');
-              const updated = updateSettings({ currency_symbol: 'Rs.' });
+              setLanguage("en");
+              setCurrencyInput("Rs.");
+              const updated = updateSettings({ currency_symbol: "Rs." });
               setSettings(updated);
               onSettingsUpdated(updated);
-              showToast('Language switched to English and currency set to Rs.', 'info');
+              showToast(
+                "Language switched to English and currency set to Rs.",
+                "info",
+              );
             }}
             className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3.5 ${
-              language === 'en'
-                ? 'border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/30'
-                : 'border-neutral-800 bg-neutral-950 hover:border-neutral-700'
+              language === "en"
+                ? "border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/30"
+                : "border-neutral-800 bg-neutral-950 hover:border-neutral-700"
             }`}
           >
             <div
               className={`p-2.5 rounded-lg shrink-0 ${
-                language === 'en'
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                  : 'bg-neutral-800 text-neutral-400'
+                language === "en"
+                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  : "bg-neutral-800 text-neutral-400"
               }`}
             >
               <span className="font-mono text-xs font-bold">EN</span>
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-neutral-100">English</span>
-                {language === 'en' && (
+                <span className="text-xs font-bold text-neutral-100">
+                  English
+                </span>
+                {language === "en" && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-semibold border border-emerald-500/20">
                     Active
                   </span>
@@ -434,32 +498,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
           <button
             type="button"
             onClick={() => {
-              setLanguage('np');
-              setCurrencyInput('रु.');
-              const updated = updateSettings({ currency_symbol: 'रु.' });
+              setLanguage("np");
+              setCurrencyInput("रु.");
+              const updated = updateSettings({ currency_symbol: "रु." });
               setSettings(updated);
               onSettingsUpdated(updated);
-              showToast('भाषा नेपालीमा परिवर्तन भयो र मुद्रा संकेत रु. मा सेट भयो', 'info');
+              showToast(
+                "भाषा नेपालीमा परिवर्तन भयो र मुद्रा संकेत रु. मा सेट भयो",
+                "info",
+              );
             }}
             className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3.5 ${
-              language === 'np'
-                ? 'border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/30'
-                : 'border-neutral-800 bg-neutral-950 hover:border-neutral-700'
+              language === "np"
+                ? "border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/30"
+                : "border-neutral-800 bg-neutral-950 hover:border-neutral-700"
             }`}
           >
             <div
               className={`p-2.5 rounded-lg shrink-0 ${
-                language === 'np'
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                  : 'bg-neutral-800 text-neutral-400'
+                language === "np"
+                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  : "bg-neutral-800 text-neutral-400"
               }`}
             >
               <span className="font-mono text-xs font-bold">ने</span>
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-neutral-100">नेपाली (Nepali)</span>
-                {language === 'np' && (
+                <span className="text-xs font-bold text-neutral-100">
+                  नेपाली (Nepali)
+                </span>
+                {language === "np" && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-semibold border border-emerald-500/20">
                     सक्रिय
                   </span>
@@ -486,28 +555,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-medium text-neutral-300">
-                  {t('set_currency_label', 'Currency Symbol')}
+                  {t("set_currency_label", "Currency Symbol")}
                 </label>
                 <div className="flex items-center gap-1">
                   <span className="text-[10px] text-neutral-500">Preset:</span>
                   <button
                     type="button"
-                    onClick={() => setCurrencyInput('रु.')}
+                    onClick={() => setCurrencyInput("रु.")}
                     className={`px-1.5 py-0.5 text-[10px] font-mono rounded border transition-colors cursor-pointer ${
-                      currencyInput === 'रु.'
-                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 font-bold'
-                        : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-neutral-200'
+                      currencyInput === "रु."
+                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 font-bold"
+                        : "bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-neutral-200"
                     }`}
                   >
                     रु.
                   </button>
                   <button
                     type="button"
-                    onClick={() => setCurrencyInput('Rs.')}
+                    onClick={() => setCurrencyInput("Rs.")}
                     className={`px-1.5 py-0.5 text-[10px] font-mono rounded border transition-colors cursor-pointer ${
-                      currencyInput === 'Rs.'
-                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 font-bold'
-                        : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-neutral-200'
+                      currencyInput === "Rs."
+                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 font-bold"
+                        : "bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-neutral-200"
                     }`}
                   >
                     Rs.
@@ -520,7 +589,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
                 mono
                 value={currencyInput}
                 onChange={(e) => setCurrencyInput(e.target.value)}
-                placeholder={isNepali ? 'रु.' : 'Rs.'}
+                placeholder={isNepali ? "रु." : "Rs."}
                 helperText={
                   isNepali
                     ? 'नेपाली भाषामा डिफल्ट "रु."। सबै तालिका, बिक्री काउन्टर, रसिद र रिपोर्टहरूमा देखिन्छ।'
@@ -547,11 +616,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
           <div className="pt-2">
             <div className="flex items-start justify-between p-4 rounded-xl bg-neutral-950 border border-neutral-800">
               <div className="pr-4">
-                <div className="text-xs font-semibold text-neutral-200">Allow Negative Stock</div>
+                <div className="text-xs font-semibold text-neutral-200">
+                  Allow Negative Stock
+                </div>
                 <div className="text-[11px] text-neutral-400 mt-0.5">
-                  Default: <span className="font-semibold text-neutral-300">OFF</span>. When
-                  disabled, sales cannot exceed current on-hand inventory. When enabled, stock is
-                  allowed to drop below zero.
+                  Default:{" "}
+                  <span className="font-semibold text-neutral-300">OFF</span>.
+                  When disabled, sales cannot exceed current on-hand inventory.
+                  When enabled, stock is allowed to drop below zero.
                 </div>
               </div>
 
@@ -571,11 +643,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
           <div className="pt-2">
             <div className="flex items-start justify-between p-4 rounded-xl bg-neutral-950 border border-neutral-800">
               <div className="pr-4">
-                <div className="text-xs font-semibold text-neutral-200">Enable 13% VAT Calculation</div>
+                <div className="text-xs font-semibold text-neutral-200">
+                  Enable 13% VAT Calculation
+                </div>
                 <div className="text-[11px] text-neutral-400 mt-0.5">
-                  Default: <span className="font-semibold text-emerald-400">ON (13%)</span>. When enabled,
-                  sales and purchase invoices calculate standard 13% Value Added Tax on taxable amounts. If turned
-                  off, transactions are billed without VAT (0%).
+                  Default:{" "}
+                  <span className="font-semibold text-emerald-400">
+                    ON (13%)
+                  </span>
+                  . When enabled, sales and purchase invoices calculate standard
+                  13% Value Added Tax on taxable amounts. If turned off,
+                  transactions are billed without VAT (0%).
                 </div>
               </div>
 
@@ -670,8 +748,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
         </div>
 
         <p className="text-xs text-neutral-400 leading-relaxed">
-          All data is stored directly inside an offline SQLite database. You can export a snapshot
-          file at any time or restore an existing backup file.
+          All data is stored directly inside an offline SQLite database. You can
+          export a snapshot file at any time or restore an existing backup file.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -683,7 +761,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
                 <span>Backup SQLite File</span>
               </div>
               <div className="text-[11px] text-neutral-500 mt-1">
-                Downloads an immutable binary <code className="text-neutral-400">.sqlite</code> database file locally.
+                Downloads an immutable binary{" "}
+                <code className="text-neutral-400">.sqlite</code> database file
+                locally.
               </div>
             </div>
 
@@ -705,7 +785,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
                 <span>Restore Previous Backup</span>
               </div>
               <div className="text-[11px] text-neutral-500 mt-1">
-                Upload a <code className="text-neutral-400">.sqlite</code> file to restore tables, products, and sales.
+                Upload a <code className="text-neutral-400">.sqlite</code> file
+                to restore tables, products, and sales.
               </div>
             </div>
 
@@ -725,9 +806,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
         {/* Reset Database Option */}
         <div className="pt-2 border-t border-neutral-800/80 flex items-center justify-between">
           <div>
-            <div className="text-xs font-medium text-neutral-300">Reset / Clear Database</div>
+            <div className="text-xs font-medium text-neutral-300">
+              Reset / Clear Database
+            </div>
             <div className="text-[11px] text-neutral-500">
-              Permanently clears all inventory records, transactions, expenses, and staff data for a clean slate.
+              Permanently clears all inventory records, transactions, expenses,
+              and staff data for a clean slate.
             </div>
           </div>
 
@@ -759,15 +843,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
           >
             <Play className="w-3.5 h-3.5" />
-            <span>{isRunningTests ? 'Executing Tests...' : 'Run All 11 Tests'}</span>
+            <span>
+              {isRunningTests ? "Executing Tests..." : "Run All 11 Tests"}
+            </span>
           </button>
         </div>
 
         <p className="text-xs text-neutral-400">
-          Executes isolated test runs against a temporary WebAssembly SQLite instance to verify all 11
-          mandatory requirements from Section 19: Product creation, restocking, sales math (Gross,
-          Discount, Net Revenue, COGS, Gross Profit), historical cost snapshot preservation, stock
-          depletion, overselling prevention, and atomic rollback on failure.
+          Executes isolated test runs against a temporary WebAssembly SQLite
+          instance to verify all 11 mandatory requirements from Section 19:
+          Product creation, restocking, sales math (Gross, Discount, Net
+          Revenue, COGS, Gross Profit), historical cost snapshot preservation,
+          stock depletion, overselling prevention, and atomic rollback on
+          failure.
         </p>
 
         {testResults && (
@@ -775,7 +863,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
             <div className="flex items-center justify-between text-xs text-neutral-300 pb-1 font-mono">
               <span>Test Suite Execution Results:</span>
               <span className="text-emerald-400 font-semibold">
-                {testResults.filter((t) => t.passed).length} / {testResults.length} Invariants Passed
+                {testResults.filter((t) => t.passed).length} /{" "}
+                {testResults.length} Invariants Passed
               </span>
             </div>
 
@@ -785,8 +874,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
                   key={idx}
                   className={`p-3 rounded-lg border text-xs flex items-start justify-between gap-3 ${
                     t.passed
-                      ? 'bg-neutral-950 border-emerald-500/20 text-neutral-200'
-                      : 'bg-rose-950/20 border-rose-500/40 text-rose-200'
+                      ? "bg-neutral-950 border-emerald-500/20 text-neutral-200"
+                      : "bg-rose-950/20 border-rose-500/40 text-rose-200"
                   }`}
                 >
                   <div className="flex items-start gap-2.5 min-w-0">
@@ -796,15 +885,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
                       <XCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                     )}
                     <div>
-                      <div className="font-semibold text-neutral-100">{t.name}</div>
-                      <div className="text-[11px] text-neutral-400 mt-0.5 font-mono">{t.message}</div>
+                      <div className="font-semibold text-neutral-100">
+                        {t.name}
+                      </div>
+                      <div className="text-[11px] text-neutral-400 mt-0.5 font-mono">
+                        {t.message}
+                      </div>
                     </div>
                   </div>
 
                   {t.expected !== undefined && (
                     <div className="text-right shrink-0 font-mono text-[11px]">
-                      <div className="text-neutral-400">Expected: {t.expected}</div>
-                      <div className={t.passed ? 'text-emerald-400' : 'text-rose-400'}>
+                      <div className="text-neutral-400">
+                        Expected: {t.expected}
+                      </div>
+                      <div
+                        className={
+                          t.passed ? "text-emerald-400" : "text-rose-400"
+                        }
+                      >
                         Actual: {t.actual}
                       </div>
                     </div>

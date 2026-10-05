@@ -38,6 +38,14 @@ export const SHORTCUT_REGISTRY: ShortcutDefinition[] = [
     displayKeys: `${MODIFIER_LABEL}+B`,
   },
   {
+    id: 'nav-purchase-history',
+    category: 'Navigation',
+    label: 'Purchase History',
+    description: 'View supplier invoice audit records and billing history',
+    keys: ['ctrl+shift+b', 'cmd+shift+b', 'alt+shift+b'],
+    displayKeys: `${MODIFIER_LABEL}+Shift+B`,
+  },
+  {
     id: 'nav-dashboard',
     category: 'Navigation',
     label: 'Dashboard',
@@ -52,6 +60,14 @@ export const SHORTCUT_REGISTRY: ShortcutDefinition[] = [
     description: 'Stock valuation, product catalog, and movement adjustments',
     keys: ['ctrl+i', 'cmd+i', 'alt+i', 'ctrl+p', 'cmd+p', 'alt+p'],
     displayKeys: `${MODIFIER_LABEL}+I`,
+  },
+  {
+    id: 'nav-movements',
+    category: 'Navigation',
+    label: 'Stock Movement Log',
+    description: 'Immutable ledger of all stock ins, outs, restocks, and adjustments',
+    keys: ['ctrl+m', 'cmd+m', 'alt+m'],
+    displayKeys: `${MODIFIER_LABEL}+M`,
   },
   {
     id: 'nav-vendors',
@@ -116,6 +132,14 @@ export const SHORTCUT_REGISTRY: ShortcutDefinition[] = [
     description: 'Manage base currency, low stock alert rules, and backups',
     keys: ['ctrl+,', 'cmd+,', 'alt+,'],
     displayKeys: `${MODIFIER_LABEL}+,`,
+  },
+  {
+    id: 'nav-support',
+    category: 'Navigation',
+    label: 'Technical Support',
+    description: 'Direct contact with developer and technical support team',
+    keys: ['alt+h', 'ctrl+shift+h', 'cmd+shift+h'],
+    displayKeys: 'Alt+H',
   },
   {
     id: 'action-command-palette',
@@ -302,10 +326,24 @@ export function useGlobalShortcuts({
         return;
       }
 
+      // Ctrl+Shift+B / Cmd+Shift+B or Alt+Shift+B: Purchase History
+      if (!inInput && ((isModifier && e.shiftKey && key === 'b') || (isAlt && e.shiftKey && key === 'b'))) {
+        e.preventDefault();
+        onNavigate('purchase-history');
+        return;
+      }
+
       // Ctrl+B / Cmd+B or Alt+B: Purchases (only if not typing in input)
       if (!inInput && ((isModifier && !e.shiftKey && key === 'b') || (isAlt && key === 'b'))) {
         e.preventDefault();
         onNavigate('purchases');
+        return;
+      }
+
+      // Ctrl+M / Cmd+M or Alt+M: Stock Movement Log
+      if (!inInput && ((isModifier && !e.shiftKey && key === 'm') || (isAlt && key === 'm'))) {
+        e.preventDefault();
+        onNavigate('movements');
         return;
       }
 
@@ -362,6 +400,13 @@ export function useGlobalShortcuts({
       if ((isModifier && (key === ',' || e.code === 'Comma')) || (isAlt && (key === ',' || e.code === 'Comma'))) {
         e.preventDefault();
         onNavigate('settings');
+        return;
+      }
+
+      // Alt+H or Ctrl+Shift+H / Cmd+Shift+H: Technical Support
+      if (!inInput && ((isAlt && key === 'h') || (isModifier && e.shiftKey && key === 'h'))) {
+        e.preventDefault();
+        onNavigate('support');
         return;
       }
     };

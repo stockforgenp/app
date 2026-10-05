@@ -547,9 +547,9 @@ export async function runBusinessLogicTests(): Promise<TestResultItem[]> {
     const vendorName = vendorRow[0]?.values[0]?.[1] as string;
 
     testDb.run(
-      `INSERT INTO products (name, sku, unit, cost_price, selling_price, current_stock, vendor_id, vendor_name, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ['Organic Honey 500g', 'HONEY-001', 'bottle', 40000, 55000, 20, vendorId, vendorName, now, now]
+      `INSERT INTO products (name, sku, unit, cost_price, selling_price, current_stock, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['Organic Honey 500g', 'HONEY-001', 'bottle', 40000, 55000, 20, now, now]
     );
 
     testDb.run(
@@ -558,21 +558,20 @@ export async function runBusinessLogicTests(): Promise<TestResultItem[]> {
       [vendorId, vendorName, now]
     );
 
-    const prodCheck = testDb.exec("SELECT vendor_id, vendor_name FROM products WHERE sku = 'HONEY-001'");
+    const prodCheck = testDb.exec("SELECT sku, name FROM products WHERE sku = 'HONEY-001'");
     const moveCheck = testDb.exec("SELECT vendor_name, quantity FROM stock_movements WHERE vendor_id = " + vendorId);
 
-    const passed = prodCheck[0]?.values[0]?.[0] === vendorId &&
-                   prodCheck[0]?.values[0]?.[1] === 'Himalayan Agro Supplies' &&
+    const passed = prodCheck[0]?.values[0]?.[0] === 'HONEY-001' &&
                    moveCheck[0]?.values[0]?.[0] === 'Himalayan Agro Supplies';
 
     results.push({
       name: '18. Vendor Registration & Purchase Inflow Audit',
       passed,
       message: passed
-        ? 'Vendor successfully linked to purchase product and logged in stock movements.'
-        : 'Failed to properly link vendor to product purchase.',
-      expected: 'Vendor ID and Name mapped',
-      actual: `${prodCheck[0]?.values[0]?.[1]} (ID: ${prodCheck[0]?.values[0]?.[0]})`,
+        ? 'Vendor successfully linked to purchase restock movement and logged in stock movements.'
+        : 'Failed to properly link vendor to purchase movement.',
+      expected: 'Vendor ID and Name mapped in movements',
+      actual: `${moveCheck[0]?.values[0]?.[0]} (Vendor ID: ${vendorId})`,
     });
   } catch (err: unknown) {
     results.push({
@@ -806,7 +805,13 @@ export async function runBusinessLogicTests(): Promise<TestResultItem[]> {
     const vendorQuery = testDb.exec(`
       SELECT 
         v.*,
-        (SELECT COUNT(*) FROM products WHERE vendor_id = v.id) as product_count,
+        (
+          SELECT COUNT(DISTINCT product_id) FROM (
+            SELECT pi.product_id FROM purchase_items pi JOIN purchases pu ON pi.purchase_id = pu.id WHERE pu.vendor_id = v.id
+            UNION
+            SELECT sm.product_id FROM stock_movements sm WHERE sm.vendor_id = v.id
+          )
+        ) as product_count,
         (
           COALESCE((SELECT SUM(COALESCE(p_rec.grand_total, p_rec.total)) FROM purchases p_rec WHERE p_rec.vendor_id = v.id), 0)
           +

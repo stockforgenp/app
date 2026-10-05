@@ -26,12 +26,22 @@ import {
   MapPin,
   Tag,
   Coins,
+  Headphones,
+  MessageCircle,
+  HelpCircle,
+  Copy,
+  Check,
+  Clock,
+  Terminal,
+  ExternalLink,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.tsx";
 import { useLanguage } from "../../context/LanguageContext.tsx";
 import { useTheme } from "../../context/ThemeContext.tsx";
+import { useToast } from "../../context/ToastContext.tsx";
 import { Input } from "../common/Input.tsx";
 import { Select } from "../common/Select.tsx";
+import { Modal } from "../common/Modal.tsx";
 
 const SHOP_TYPES = [
   "Grocery & Supermarket",
@@ -61,8 +71,9 @@ interface AuthViewProps {
 
 export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
   const { login, register, allShops, switchShop, hasAnyShops } = useAuth();
-  const { t, isNepali, toggleLanguage } = useLanguage();
-  const { isDark, toggleTheme } = useTheme();
+  const { t, isNepali, toggleLanguage, language } = useLanguage();
+  const { isDark, toggleTheme, theme } = useTheme();
+  const { showToast } = useToast();
 
   const [mode, setMode] = useState<"login" | "register">(
     hasAnyShops ? "login" : "register",
@@ -70,6 +81,52 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const handleCopy = (text: string, key: string, msg: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    showToast(msg, "info");
+    setTimeout(() => setCopiedKey(null), 2500);
+  };
+
+  const handleWhatsAppSupport = () => {
+    const text = encodeURIComponent(
+      isNepali
+        ? "नमस्ते, मलाई स्टकफोर्ज (StockForge) पसल लगइन / टर्मिनल सेटअपमा प्राविधिक सहयोग चाहियो।"
+        : "Hello StockForge Support, I need assistance with shop login / terminal setup."
+    );
+    window.open(`https://wa.me/9779801234567?text=${text}`, "_blank");
+  };
+
+  const handleEmailSupport = () => {
+    const subject = encodeURIComponent("[StockForge Support] Shop Login & Terminal Help");
+    const body = encodeURIComponent(
+      `Hello StockForge Support Team,\n\nI need help accessing or setting up my shop terminal.\n\nIssue Details:\n\n\n--- Diagnostics ---\nApp: StockForge v0.1.0\nPlatform: ${typeof navigator !== 'undefined' ? navigator.platform || 'Desktop' : 'Desktop'}\nEngine: SQLite WASM (Local-First Offline)\n`
+    );
+    window.open(`mailto:support@stockforge.dev?subject=${subject}&body=${body}`, "_blank");
+  };
+
+  const handleCopyDiagnostics = () => {
+    const diag = {
+      app: "StockForge Desktop",
+      version: "0.1.0",
+      identifier: "com.stockforge.dev",
+      engine: "SQLite 3 WASM (Local-First)",
+      platform: typeof navigator !== "undefined" ? navigator.platform || "Desktop" : "Desktop",
+      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "Unknown",
+      language: language.toUpperCase(),
+      theme: theme.toUpperCase(),
+      storedShopsCount: allShops.length,
+      timestamp: new Date().toISOString(),
+    };
+    handleCopy(
+      JSON.stringify(diag, null, 2),
+      "diagnostics",
+      t("dev_diagnostics_copied") || "Diagnostic details copied to clipboard!"
+    );
+  };
 
   // Registration form state
   const [registerData, setRegisterData] = useState({
@@ -188,6 +245,19 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Technical Support Quick Button */}
+          <button
+            type="button"
+            onClick={() => setIsSupportModalOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-neutral-300 hover:text-emerald-400 bg-neutral-800/60 hover:bg-neutral-800 border border-neutral-700/60 hover:border-emerald-500/30 transition-colors cursor-pointer"
+            title={isNepali ? "प्राविधिक सहयोग तथा विकासकर्ता सम्पर्क" : "Technical Support & Terminal Help"}
+          >
+            <Headphones className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden sm:inline font-medium">
+              {t("auth_support_button")}
+            </span>
+          </button>
+
           {/* Language Switcher */}
           <button
             type="button"
@@ -282,10 +352,19 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                   initial={{ opacity: 0, y: -6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -6 }}
-                  className="mb-5 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-start gap-2.5"
+                  className="mb-5 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-start justify-between gap-2.5"
                 >
-                  <span className="text-rose-400 font-bold shrink-0">!</span>
-                  <div className="flex-1">{error}</div>
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <span className="text-rose-400 font-bold shrink-0">!</span>
+                    <div className="flex-1">{error}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsSupportModalOpen(true)}
+                    className="text-[11px] text-rose-300 hover:text-white underline font-semibold shrink-0 cursor-pointer"
+                  >
+                    {t("auth_support_button")}
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -489,6 +568,18 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                   }
                 />
 
+                {/* Forgot Password / Terminal Assistance */}
+                <div className="flex justify-end pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsSupportModalOpen(true)}
+                    className="text-[11px] text-neutral-400 hover:text-emerald-400 transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    <HelpCircle className="w-3 h-3 text-emerald-500/70" />
+                    <span>{t("auth_forgot_password_help")}</span>
+                  </button>
+                </div>
+
                 {/* Submit Button */}
                 <button
                   type="submit"
@@ -576,12 +667,235 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
           </div>
 
           {/* Footer note */}
-          <div className="text-center mt-6 text-[11px] text-neutral-500 space-y-1">
+          <div className="text-center mt-6 text-[11px] text-neutral-500 space-y-1.5">
             <p>StockForge Offline POS · SQLite ACID Transaction Engine</p>
             <p className="text-[10px]">{t("auth_footer_note")}</p>
+            <div className="pt-1 flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => setIsSupportModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-emerald-400 text-[10px] transition-colors cursor-pointer"
+              >
+                <Headphones className="w-3 h-3 text-emerald-400" />
+                <span>{t("auth_support_footer_line")} (+977 980-1234567)</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Optimized Technical Support Modal for Auth & Terminal Setup */}
+      {isSupportModalOpen && (
+        <Modal
+          isOpen={true}
+          onClose={() => setIsSupportModalOpen(false)}
+          title={t("auth_support_modal_title")}
+          subtitle={t("auth_support_modal_subtitle")}
+          maxWidth="2xl"
+        >
+          <div className="space-y-4">
+            {/* Quick Emergency Assistance Channels */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Phone / Hotline */}
+              <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-xl space-y-2 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
+                      {t("dev_call_support")}
+                    </span>
+                    <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                  </div>
+                  <div className="font-mono text-xs font-bold text-neutral-100 pt-1">
+                    +977 980-1234567
+                  </div>
+                  <span className="text-[10px] text-emerald-400 block pt-0.5">
+                    {isNepali ? "२४/७ काउन्टर हटलाइन" : "24/7 POS Hotline"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 pt-2 border-t border-neutral-800/60">
+                  <a
+                    href="tel:+9779801234567"
+                    className="flex-1 py-1 px-2 text-center text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer"
+                  >
+                    {t("dev_call_now")}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCopy("+977 980-1234567", "phone", "Phone copied to clipboard!")
+                    }
+                    className="p-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-800 transition-colors cursor-pointer"
+                    title="Copy Phone"
+                  >
+                    {copiedKey === "phone" ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* WhatsApp Support */}
+              <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-xl space-y-2 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
+                      {t("dev_whatsapp_support")}
+                    </span>
+                    <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                  </div>
+                  <div className="font-mono text-xs font-bold text-neutral-100 pt-1">
+                    +977 980-1234567
+                  </div>
+                  <span className="text-[10px] text-neutral-400 block pt-0.5">
+                    {isNepali ? "च्याट तथा स्क्रिनसट" : "Screenshots & Live Chat"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 pt-2 border-t border-neutral-800/60">
+                  <button
+                    type="button"
+                    onClick={handleWhatsAppSupport}
+                    className="flex-1 py-1 px-2 text-center text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer"
+                  >
+                    WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCopy("+977 980-1234567", "wa", "WhatsApp copied to clipboard!")
+                    }
+                    className="p-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-800 transition-colors cursor-pointer"
+                    title="Copy WhatsApp"
+                  >
+                    {copiedKey === "wa" ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Email Support */}
+              <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-xl space-y-2 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
+                      {t("dev_email_support")}
+                    </span>
+                    <Mail className="w-3.5 h-3.5 text-indigo-400" />
+                  </div>
+                  <div className="font-mono text-xs font-bold text-neutral-100 pt-1 truncate">
+                    support@stockforge.dev
+                  </div>
+                  <span className="text-[10px] text-neutral-400 block pt-0.5">
+                    {isNepali ? "२ घण्टाभित्र प्रत्युत्तर" : "Avg. response < 2 hrs"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 pt-2 border-t border-neutral-800/60">
+                  <button
+                    type="button"
+                    onClick={handleEmailSupport}
+                    className="flex-1 py-1 px-2 text-center text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors cursor-pointer truncate"
+                  >
+                    {t("dev_send_email")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCopy("support@stockforge.dev", "email", "Email copied to clipboard!")
+                    }
+                    className="p-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-800 transition-colors cursor-pointer"
+                    title="Copy Email"
+                  >
+                    {copiedKey === "email" ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Common Auth & Setup Troubleshooting Guides */}
+            <div className="p-3.5 bg-neutral-950 border border-neutral-800 rounded-xl space-y-2.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-neutral-200">
+                <HelpCircle className="w-4 h-4 text-emerald-400" />
+                <span>{isNepali ? "प्रायः आउने समस्याहरूको समाधान" : "Common Setup & Login Solutions"}</span>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <div className="p-2.5 rounded-lg bg-neutral-900 border border-neutral-800/80">
+                  <div className="font-semibold text-neutral-200 text-[11px]">
+                    {t("auth_help_faq_forgot")}
+                  </div>
+                  <p className="text-[10px] text-neutral-400 mt-0.5 leading-relaxed">
+                    {t("auth_help_faq_forgot_desc")}
+                  </p>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-neutral-900 border border-neutral-800/80">
+                  <div className="font-semibold text-neutral-200 text-[11px]">
+                    {t("auth_help_faq_setup")}
+                  </div>
+                  <p className="text-[10px] text-neutral-400 mt-0.5 leading-relaxed">
+                    {t("auth_help_faq_setup_desc")}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* System Diagnostics & Close Footer */}
+            <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-xl flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-neutral-500" />
+                <div>
+                  <span className="text-[11px] font-semibold text-neutral-300 block">
+                    StockForge v0.1.0 · SQLite Engine
+                  </span>
+                  <span className="text-[10px] text-neutral-500">
+                    {isNepali ? "सहायताका लागि प्रणाली विवरण क्लिपबोर्डमा कपी गर्नुहोस्" : "Copy diagnostics payload to share with technician"}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCopyDiagnostics}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-neutral-200 hover:text-white bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 rounded-lg transition-colors cursor-pointer shrink-0"
+              >
+                {copiedKey === "diagnostics" ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-400">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>{t("dev_copy_diagnostics")}</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Modal Bottom Action */}
+            <div className="flex items-center justify-between pt-2 border-t border-neutral-800">
+              <span className="text-[10px] text-neutral-500">
+                {t("dev_hours_val")}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsSupportModalOpen(false)}
+                className="px-4 py-1.5 text-xs font-semibold text-neutral-300 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors cursor-pointer"
+              >
+                {t("action_close")}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

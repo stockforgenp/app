@@ -24,18 +24,16 @@ export function restockProduct(
   }
 
   const now = new Date().toISOString();
-  const vId = vendorId !== undefined ? vendorId : product.vendor_id ?? null;
-  const vName = vendorName !== undefined ? (vendorName?.trim() || null) : product.vendor_name ?? null;
+  const vId = vendorId !== undefined ? vendorId : null;
+  const vName = vendorName !== undefined ? (vendorName?.trim() || null) : null;
 
   transaction(() => {
     run(
       `UPDATE products 
        SET current_stock = current_stock + ?, 
-           vendor_id = COALESCE(?, vendor_id),
-           vendor_name = COALESCE(?, vendor_name),
            updated_at = ?
        WHERE id = ?`,
-      [qty, vId, vName, now, productId]
+      [qty, now, productId]
     );
 
     run(
@@ -126,8 +124,8 @@ export function getStockMovements(
   }
 
   if (options.vendorId) {
-    conditions.push('(sm.vendor_id = ? OR p.vendor_id = ?)');
-    params.push(options.vendorId, options.vendorId);
+    conditions.push('sm.vendor_id = ?');
+    params.push(options.vendorId);
   }
 
   if (options.type && options.type !== 'ALL') {

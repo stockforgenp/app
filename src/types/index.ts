@@ -11,8 +11,6 @@ export interface Product {
   selling_price: number; // Default selling price
   current_stock: number;
   min_stock_alert?: number | null; // Specific minimum alert threshold (defaults to app low_stock_threshold if null)
-  vendor_id?: number | null;
-  vendor_name?: string | null;
   created_at: string;
   updated_at: string;
 }

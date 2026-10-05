@@ -57,7 +57,7 @@ function migrateDatabaseIfNeeded(db: Database) {
       changed = true;
     }
 
-    // Ensure products min_stock_alert, unit, vendor_id, vendor_name columns exist
+    // Ensure products min_stock_alert and unit columns exist
     const productTableInfo = db.exec("PRAGMA table_info(products);");
     if (productTableInfo.length > 0 && productTableInfo[0].values) {
       const colNames = productTableInfo[0].values.map((col: unknown[]) => col[1] as string);
@@ -69,13 +69,22 @@ function migrateDatabaseIfNeeded(db: Database) {
         db.run("ALTER TABLE products ADD COLUMN unit TEXT DEFAULT 'pcs';");
         changed = true;
       }
-      if (!colNames.includes('vendor_id')) {
-        db.run('ALTER TABLE products ADD COLUMN vendor_id INTEGER REFERENCES vendors(id) ON DELETE SET NULL;');
-        changed = true;
+      // Drop vendor columns if they existed in older schemas
+      if (colNames.includes('vendor_id')) {
+        try {
+          db.run('ALTER TABLE products DROP COLUMN vendor_id;');
+          changed = true;
+        } catch {
+          // Ignore if older SQLite doesn't support DROP COLUMN
+        }
       }
-      if (!colNames.includes('vendor_name')) {
-        db.run('ALTER TABLE products ADD COLUMN vendor_name TEXT;');
-        changed = true;
+      if (colNames.includes('vendor_name')) {
+        try {
+          db.run('ALTER TABLE products DROP COLUMN vendor_name;');
+          changed = true;
+        } catch {
+          // Ignore if older SQLite doesn't support DROP COLUMN
+        }
       }
     }
 

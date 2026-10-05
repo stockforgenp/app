@@ -52,8 +52,6 @@ CREATE TABLE IF NOT EXISTS products (
   selling_price INTEGER NOT NULL,
   current_stock INTEGER NOT NULL DEFAULT 0,
   min_stock_alert INTEGER DEFAULT NULL,
-  vendor_id INTEGER REFERENCES vendors(id) ON DELETE SET NULL,
-  vendor_name TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -200,7 +198,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_shops_email ON shops(email);
 CREATE INDEX IF NOT EXISTS idx_vendors_name ON vendors(name);
 CREATE INDEX IF NOT EXISTS idx_vendors_pan_vat ON vendors(pan_vat);
 CREATE INDEX IF NOT EXISTS idx_vendors_phone ON vendors(phone);
-CREATE INDEX IF NOT EXISTS idx_products_vendor_id ON products(vendor_id);
 CREATE INDEX IF NOT EXISTS idx_stock_movements_vendor_id ON stock_movements(vendor_id);
 CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);

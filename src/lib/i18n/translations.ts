@@ -18,8 +18,10 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     nav_dashboard: "Dashboard",
     nav_products: "Products",
     nav_sales: "New Sale",
-    nav_purchases: "Purchases",
-    nav_inventory: "Inventory",
+    nav_purchases: "New Purchase",
+    nav_purchase_history: "Purchase History",
+    nav_inventory: "Stock Ledger",
+    nav_movements: "Movement Log",
     nav_vendors: "Vendors",
     nav_customers: "Customers",
     nav_history: "Sales History",
@@ -33,6 +35,14 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     nav_theme_dark: "Dark Theme",
     nav_language: "Language",
     nav_logout: "Log Out",
+
+    // Navigation Groups
+    nav_group_overview: "OVERVIEW",
+    nav_group_sales: "SALES",
+    nav_group_inventory: "INVENTORY",
+    nav_group_procurement: "PROCUREMENT",
+    nav_group_finance_hr: "FINANCE & HR",
+    nav_group_system: "SYSTEM",
 
     // Common Actions
     action_search: "Search...",
@@ -297,6 +307,38 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     set_tests_desc:
       "Run comprehensive automated tests verifying SQLite transaction safety and profit accounting",
 
+    // Developer & Company Technical Support
+    dev_support_section_title: "Developer & Company Technical Support",
+    dev_support_section_subtitle:
+      "Direct technical assistance, software maintenance, thermal printer setup, and emergency POS support",
+    dev_company_name: "StockForge Technologies Pvt. Ltd.",
+    dev_team_label: "Core Engineering & Technical Support",
+    dev_call_support: "Phone / Hotline",
+    dev_email_support: "Official Support Email",
+    dev_whatsapp_support: "WhatsApp & Viber Support",
+    dev_office_location: "Office Headquarters",
+    dev_office_val: "Putalisadak, Kathmandu, Bagmati Province, Nepal",
+    dev_hours_label: "Support Operating Hours",
+    dev_hours_val: "Sun – Fri: 9:00 AM – 6:00 PM NPT (24/7 for POS emergencies)",
+    dev_website_label: "Official Portal & Docs",
+    dev_services_title: "Scope of Technical Support",
+    dev_service_printer: "Thermal Receipt & 58mm/80mm POS Printer Configuration",
+    dev_service_database: "SQLite Database Maintenance, Backup & Recovery",
+    dev_service_hardware: "Barcode Scanner & Cash Drawer Peripheral Integration",
+    dev_service_custom: "Custom Business Invoicing, VAT Compliance & Software Updates",
+    dev_diagnostics_title: "Live System Diagnostics",
+    dev_diagnostics_desc:
+      "Share these diagnostic details when contacting the developer for faster troubleshooting",
+    dev_copy_diagnostics: "Copy System Diagnostics",
+    dev_diagnostics_copied: "Diagnostic details copied to clipboard!",
+    dev_send_email: "Send Email",
+    dev_call_now: "Call Hotline",
+    dev_chat_whatsapp: "Chat on WhatsApp",
+    dev_open_portal: "Open Portal",
+    dev_quick_support_hint:
+      "Need immediate assistance with a frozen transaction, hardware issue, or database restore? Reach out directly via phone or WhatsApp.",
+    nav_support: "Technical Support",
+
     // Authentication & Shop Onboarding
     auth_badge_offline: "100% Offline Secure SQLite Engine",
     auth_register_title: "Register Your Retail Shop",
@@ -338,6 +380,19 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     auth_err_email_invalid: "A valid email address is required.",
     auth_err_password_length: "Password must be at least 4 characters.",
     auth_err_password_mismatch: "Passwords do not match.",
+    auth_support_button: "Technical Support",
+    auth_support_modal_title: "Technical Support & Terminal Assistance",
+    auth_support_modal_subtitle:
+      "Direct developer hotline for password reset, shop onboarding & troubleshooting",
+    auth_forgot_password_help: "Forgot password or terminal locked?",
+    auth_contact_support: "Contact Technical Support",
+    auth_support_footer_line: "Need setup help? Contact StockForge Dev Team",
+    auth_help_faq_forgot: "Forgot Password or Lockout",
+    auth_help_faq_forgot_desc:
+      "Since StockForge runs 100% offline, passwords are encrypted in your local SQLite file. The technical team can assist you with local credential recovery.",
+    auth_help_faq_setup: "First Time Terminal Setup",
+    auth_help_faq_setup_desc:
+      "Register your shop once to generate your local inventory database and offline checkout counter.",
   },
 
   np: {
@@ -353,8 +408,10 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     nav_dashboard: "ड्यासबोर्ड",
     nav_products: "सामानहरू (उत्पादन)",
     nav_sales: "नयाँ बिक्री (POS)",
-    nav_purchases: "खरिद (Purchases)",
-    nav_inventory: "मौज्दात (इन्भेन्टरी)",
+    nav_purchases: "नयाँ खरिद (Purchases)",
+    nav_purchase_history: "खरिद बिल इतिहास",
+    nav_inventory: "सामान तथा मौज्दात",
+    nav_movements: "चलान लग (Movements)",
     nav_vendors: "आपूर्तिकर्ता (Vendors)",
     nav_customers: "ग्राहकहरू (Customers)",
     nav_history: "बिक्री इतिहास",
@@ -368,6 +425,14 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     nav_theme_dark: "डार्क थिम",
     nav_language: "भाषा",
     nav_logout: "लगआउट",
+
+    // Navigation Groups
+    nav_group_overview: "अवलोकन (OVERVIEW)",
+    nav_group_sales: "बिक्री (SALES)",
+    nav_group_inventory: "मौज्दात (INVENTORY)",
+    nav_group_procurement: "खरिद (PROCUREMENT)",
+    nav_group_finance_hr: "वित्त तथा कर्मचारी (FINANCE & HR)",
+    nav_group_system: "प्रणाली (SYSTEM)",
 
     // Common Actions
     action_search: "खोज्नुहोस्...",
@@ -632,6 +697,38 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     set_tests_desc:
       "SQLite लेनदेन सुरक्षा र नाफा गणनाको स्वचालित परीक्षण चलाउनुहोस्",
 
+    // Developer & Company Technical Support
+    dev_support_section_title: "विकासकर्ता तथा कम्पनी प्राविधिक सहयोग",
+    dev_support_section_subtitle:
+      "प्रत्यक्ष प्राविधिक सहायता, सफ्टवेयर मर्मत, थर्मल प्रिन्टर सेटअप तथा आपतकालीन समाधान",
+    dev_company_name: "स्टकफोर्ज टेक्नोलोजिज प्रा. लि. (StockForge Technologies)",
+    dev_team_label: "मूल इन्जिनियरिङ तथा प्राविधिक सहयोग टोली",
+    dev_call_support: "फोन / हटलाइन सम्पर्क",
+    dev_email_support: "आधिकारिक सहयोग इमेल",
+    dev_whatsapp_support: "ह्वाट्सएप तथा भाइबर (WhatsApp / Viber)",
+    dev_office_location: "कार्यालय ठेगाना",
+    dev_office_val: "पुतलीसडक, काठमाडौँ, बागमती प्रदेश, नेपाल",
+    dev_hours_label: "सहयोग सञ्चालन समय",
+    dev_hours_val: "आइतबार – शुक्रबार: बिहान ९:०० – साँझ ६:०० (POS आपतकालीन २४/७)",
+    dev_website_label: "आधिकारिक पोर्टल तथा मद्दत",
+    dev_services_title: "प्राविधिक सहयोगका सेवाहरू",
+    dev_service_printer: "थर्मल बिल प्रिन्टर (५८/८०mm) तथा बारकोड स्क्यानर सेटअप",
+    dev_service_database: "SQLite डाटाबेस मर्मत, ब्याकअप तथा रिकभरी",
+    dev_service_hardware: "बारकोड स्क्यानर र क्यास ड्रअर हार्डवेयर जोड्ने सहायता",
+    dev_service_custom: "अनुकूलित बिलिङ, भ्याट नियम पालना र नयाँ सुविधा थप",
+    dev_diagnostics_title: "प्रत्यक्ष प्रणाली विवरण (System Diagnostics)",
+    dev_diagnostics_desc:
+      "छिटो प्राविधिक समाधानका लागि विकासकर्तालाई सम्पर्क गर्दा यो विवरण प्रदान गर्नुहोस्",
+    dev_copy_diagnostics: "प्रणाली विवरण कपी गर्नुहोस्",
+    dev_diagnostics_copied: "प्रणाली विवरण क्लिपबोर्डमा कपी भयो!",
+    dev_send_email: "इमेल पठाउनुहोस्",
+    dev_call_now: "फोन गर्नुहोस्",
+    dev_chat_whatsapp: "ह्वाट्सएपमा च्याट गर्नुहोस्",
+    dev_open_portal: "पोर्टल खोल्नुहोस्",
+    dev_quick_support_hint:
+      "बिलिङ अड्किएको, प्रिन्टर नचलेको वा डाटा रिकभरी चाहिएमा सिधै फोन वा ह्वाट्सएपमा सम्पर्क गर्नुहोस्।",
+    nav_support: "प्राविधिक सहयोग",
+
     // Authentication & Shop Onboarding
     auth_badge_offline: "१००% अफलाइन सुरक्षित SQLite भण्डारण",
     auth_register_title: "नयाँ पसल दर्ता गर्नुहोस्",
@@ -673,6 +770,20 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     auth_err_email_invalid: "कृपया मान्य इमेल ठेगाना लेख्नुहोस्।",
     auth_err_password_length: "पासवर्ड कम्तीमा ४ अक्षरको हुनुपर्दछ।",
     auth_err_password_mismatch: "पासवर्ड मिलेन। कृपया जाँच गर्नुहोस्।",
+    auth_support_button: "प्राविधिक सहयोग",
+    auth_support_modal_title: "प्राविधिक सहयोग तथा टर्मिनल सहायता",
+    auth_support_modal_subtitle:
+      "पासवर्ड रिसेट, पसल दर्ता तथा प्राविधिक समस्या समाधानका लागि सिधै सम्पर्क गर्नुहोस्",
+    auth_forgot_password_help: "पासवर्ड बिर्सिनुभयो वा लगइन भएन?",
+    auth_contact_support: "प्राविधिक सहयोग लिनुहोस्",
+    auth_support_footer_line:
+      "सेटअपमा समस्या आयो? विकासकर्ता सहायता टोलीलाई सम्पर्क गर्नुहोस्",
+    auth_help_faq_forgot: "पासवर्ड बिर्सिएको वा खाता रोकिएको",
+    auth_help_faq_forgot_desc:
+      "स्टकफोर्ज पूर्ण अफलाइन चल्ने भएकाले पासवर्ड स्थानीय SQLite डाटाबेसमा सुरक्षित रहन्छ। प्राविधिक टोलीले पासवर्ड रिकभरीमा सहायता गर्नेछ।",
+    auth_help_faq_setup: "पहिलो पटक टर्मिनल सेटअप",
+    auth_help_faq_setup_desc:
+      "आफ्नो पसल एकपटक दर्ता गर्नुहोस्, जसले स्थानीय डाटाबेस र बिलिङ काउन्टर तुरुन्तै सुरु गर्दछ।",
   },
 };
 

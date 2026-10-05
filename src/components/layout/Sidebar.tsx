@@ -24,6 +24,9 @@ import {
   Building2,
   UserCheck,
   Truck,
+  History,
+  FileText,
+  Headphones,
 } from 'lucide-react';
 import { MODIFIER_LABEL } from '../../lib/hooks/useGlobalShortcuts.ts';
 import { useTheme } from '../../context/ThemeContext.tsx';
@@ -34,7 +37,9 @@ export type NavTab =
   | 'dashboard'
   | 'sales'
   | 'purchases'
+  | 'purchase-history'
   | 'inventory'
+  | 'movements'
   | 'vendors'
   | 'customers'
   | 'history'
@@ -42,7 +47,8 @@ export type NavTab =
   | 'staff'
   | 'payroll'
   | 'analytics'
-  | 'settings';
+  | 'settings'
+  | 'support';
 
 interface SidebarProps {
   currentTab: NavTab;
@@ -51,6 +57,20 @@ interface SidebarProps {
   onOpenShortcuts?: () => void;
   toggleSidebar: boolean;
   setToggleSidebar: () => void;
+}
+
+interface NavItem {
+  id: NavTab;
+  label: string;
+  icon: React.ElementType;
+  shortcut: string;
+  badge?: number;
+}
+
+interface NavGroup {
+  id: string;
+  title: string;
+  items: NavItem[];
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -65,31 +85,79 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { t, toggleLanguage, isNepali } = useLanguage();
   const { currentShop, logout } = useAuth();
 
-  const navItems: Array<{
-    id: NavTab;
-    label: string;
-    icon: React.ElementType;
-    shortcut: string;
-    badge?: number;
-  }> = [
-    { id: 'dashboard', label: t('nav_dashboard'), icon: LayoutDashboard, shortcut: `${MODIFIER_LABEL}+D` },
-    { id: 'sales', label: t('nav_sales'), icon: ShoppingCart, shortcut: `${MODIFIER_LABEL}+N` },
-    { id: 'purchases', label: t('nav_purchases', 'Purchases'), icon: Truck, shortcut: `${MODIFIER_LABEL}+B` },
+  const navGroups: NavGroup[] = [
+    {
+      id: 'overview',
+      title: t('nav_group_overview', 'OVERVIEW'),
+      items: [
+        { id: 'dashboard', label: t('nav_dashboard'), icon: LayoutDashboard, shortcut: `${MODIFIER_LABEL}+D` },
+        { id: 'analytics', label: t('nav_analytics'), icon: BarChart3, shortcut: 'Alt+A' },
+      ],
+    },
+    {
+      id: 'sales',
+      title: t('nav_group_sales', 'SALES'),
+      items: [
+        { id: 'sales', label: t('nav_sales'), icon: ShoppingCart, shortcut: `${MODIFIER_LABEL}+N` },
+        { id: 'history', label: t('nav_history'), icon: Receipt, shortcut: `${MODIFIER_LABEL}+H` },
+        { id: 'customers', label: t('nav_customers', 'Customers'), icon: UserCheck, shortcut: `${MODIFIER_LABEL}+C` },
+      ],
+    },
     {
       id: 'inventory',
-      label: isNepali ? 'सामान तथा मौज्दात' : t('nav_inventory', 'Inventory'),
-      icon: Boxes,
-      shortcut: `${MODIFIER_LABEL}+I`,
-      badge: lowStockCount > 0 ? lowStockCount : undefined,
+      title: t('nav_group_inventory', 'INVENTORY'),
+      items: [
+        {
+          id: 'inventory',
+          label: isNepali ? 'सामान तथा मौज्दात' : t('nav_inventory', 'Stock Ledger'),
+          icon: Boxes,
+          shortcut: `${MODIFIER_LABEL}+I`,
+          badge: lowStockCount > 0 ? lowStockCount : undefined,
+        },
+        {
+          id: 'movements',
+          label: isNepali ? 'चलान अडिट लग' : t('nav_movements', 'Movement Log'),
+          icon: History,
+          shortcut: `${MODIFIER_LABEL}+M`,
+        },
+      ],
     },
-    { id: 'vendors', label: t('nav_vendors', 'Vendors'), icon: Building2, shortcut: `${MODIFIER_LABEL}+V` },
-    { id: 'customers', label: t('nav_customers', 'Customers'), icon: UserCheck, shortcut: `${MODIFIER_LABEL}+C` },
-    { id: 'history', label: t('nav_history'), icon: Receipt, shortcut: `${MODIFIER_LABEL}+H` },
-    { id: 'expenses', label: t('nav_expenses'), icon: ReceiptText, shortcut: `${MODIFIER_LABEL}+E` },
-    { id: 'staff', label: t('nav_staff'), icon: Users, shortcut: `${MODIFIER_LABEL}+U` },
-    { id: 'payroll', label: t('nav_payroll'), icon: CreditCard, shortcut: `${MODIFIER_LABEL}+Y` },
-    { id: 'analytics', label: t('nav_analytics'), icon: BarChart3, shortcut: 'Alt+A' },
-    { id: 'settings', label: t('nav_settings'), icon: Settings, shortcut: `${MODIFIER_LABEL}+,` },
+    {
+      id: 'procurement',
+      title: t('nav_group_procurement', 'PROCUREMENT'),
+      items: [
+        { id: 'purchases', label: t('nav_purchases', 'New Purchase'), icon: Truck, shortcut: `${MODIFIER_LABEL}+B` },
+        {
+          id: 'purchase-history',
+          label: isNepali ? 'खरिद बिल इतिहास' : t('nav_purchase_history', 'Purchase History'),
+          icon: FileText,
+          shortcut: `${MODIFIER_LABEL}+⇧+B`,
+        },
+        { id: 'vendors', label: t('nav_vendors', 'Vendors'), icon: Building2, shortcut: `${MODIFIER_LABEL}+V` },
+      ],
+    },
+    {
+      id: 'finance_hr',
+      title: t('nav_group_finance_hr', 'FINANCE & HR'),
+      items: [
+        { id: 'expenses', label: t('nav_expenses'), icon: ReceiptText, shortcut: `${MODIFIER_LABEL}+E` },
+        { id: 'staff', label: t('nav_staff'), icon: Users, shortcut: `${MODIFIER_LABEL}+U` },
+        { id: 'payroll', label: t('nav_payroll'), icon: CreditCard, shortcut: `${MODIFIER_LABEL}+Y` },
+      ],
+    },
+    {
+      id: 'system',
+      title: t('nav_group_system', 'SYSTEM'),
+      items: [
+        { id: 'settings', label: t('nav_settings'), icon: Settings, shortcut: `${MODIFIER_LABEL}+,` },
+        {
+          id: 'support',
+          label: isNepali ? 'प्राविधिक सहयोग' : t('nav_support', 'Technical Support'),
+          icon: Headphones,
+          shortcut: 'Alt+H',
+        },
+      ],
+    },
   ];
 
   return (
@@ -136,57 +204,71 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Navigation Links */}
-      <nav className="p-3 flex-1 space-y-1 overflow-y-auto overflow-x-hidden">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentTab === item.id;
-          return (
-            <Link
-              key={item.id}
-              to={`/${item.id}`}
-              onClick={() => onSelectTab(item.id)}
-              className={`group relative w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-colors cursor-pointer select-none ${
-                isActive
-                  ? 'text-neutral-100 font-semibold'
-                  : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/60'
-              }`}
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="activeNavHighlight"
-                  className="absolute inset-0 bg-neutral-800 rounded-lg shadow-xs"
-                  transition={{ type: 'spring', damping: 25, stiffness: 380 }}
-                />
-              )}
-              <div className="relative z-10 flex items-center gap-3 min-w-0">
-                <Icon
-                  className={`w-4 h-4 shrink-0 transition-colors ${
-                    isActive ? 'text-emerald-400' : 'text-neutral-500 group-hover:text-neutral-300'
-                  }`}
-                />
-                {toggleSidebar && <span className="truncate">{item.label}</span>}
+      <nav className="p-3 flex-1 space-y-3 overflow-y-auto overflow-x-hidden">
+        {navGroups.map((group, groupIdx) => (
+          <div key={group.id} className="space-y-0.5">
+            {toggleSidebar ? (
+              <div className="pt-2 pb-1 px-3 first:pt-0 select-none">
+                <span className="text-[10px] font-bold tracking-wider uppercase text-neutral-400 font-mono">
+                  {group.title}
+                </span>
               </div>
-              {toggleSidebar && (
-                <div className="relative z-10 flex items-center gap-1.5 shrink-0">
-                  {item.badge !== undefined && (
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold">
-                      {item.badge}
-                    </span>
+            ) : (
+              groupIdx > 0 && <div className="my-2 border-t border-neutral-800/80" />
+            )}
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentTab === item.id;
+              return (
+                <Link
+                  key={item.id}
+                  to={`/${item.id}`}
+                  onClick={() => onSelectTab(item.id)}
+                  title={!toggleSidebar ? `${item.label} (${item.shortcut})` : undefined}
+                  className={`group relative w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer select-none ${
+                    isActive
+                      ? 'text-neutral-100 font-semibold'
+                      : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/60'
+                  }`}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeNavHighlight"
+                      className="absolute inset-0 bg-neutral-800 rounded-lg shadow-xs"
+                      transition={{ type: 'spring', damping: 25, stiffness: 380 }}
+                    />
                   )}
-                  <kbd
-                    className={`text-[9px] font-mono px-1.5 py-0.5 rounded border transition-opacity ${
-                      isActive
-                        ? 'bg-neutral-900/80 text-neutral-300 border-neutral-700/80'
-                        : 'bg-neutral-900 text-neutral-500 border-neutral-800 opacity-60 group-hover:opacity-100'
-                    }`}
-                  >
-                    {item.shortcut}
-                  </kbd>
-                </div>
-              )}
-            </Link>
-          );
-        })}
+                  <div className="relative z-10 flex items-center gap-3 min-w-0">
+                    <Icon
+                      className={`w-4 h-4 shrink-0 transition-colors ${
+                        isActive ? 'text-emerald-400' : 'text-neutral-500 group-hover:text-neutral-300'
+                      }`}
+                    />
+                    {toggleSidebar && <span className="truncate">{item.label}</span>}
+                  </div>
+                  {toggleSidebar && (
+                    <div className="relative z-10 flex items-center gap-1.5 shrink-0">
+                      {item.badge !== undefined && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold">
+                          {item.badge}
+                        </span>
+                      )}
+                      <kbd
+                        className={`text-[9px] font-mono px-1.5 py-0.5 rounded border transition-opacity ${
+                          isActive
+                            ? 'bg-neutral-900/80 text-neutral-300 border-neutral-700/80'
+                            : 'bg-neutral-900 text-neutral-500 border-neutral-800 opacity-60 group-hover:opacity-100'
+                        }`}
+                      >
+                        {item.shortcut}
+                      </kbd>
+                    </div>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       {/* Language Switcher (EN <-> NP) */}
