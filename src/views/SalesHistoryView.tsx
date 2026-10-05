@@ -5,43 +5,35 @@
  * - Date filtering and search
  * - Modal to inspect all line items with snapshot cost, actual selling, discounts, and item profit
  */
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Receipt,
-  Eye,
-  User,
-  Phone,
-  Printer,
-  Copy,
-} from 'lucide-react';
-import { Sale, SaleItem } from '../../types/index.ts';
-import { getSales, getSaleWithItems } from '../../lib/services/salesService.ts';
-import {
-  formatCurrency,
-  formatDateTime,
-} from '../../lib/utils/format.ts';
-import { Modal } from '../common/Modal.tsx';
-import { PrintBillModal } from '../common/PrintBillModal.tsx';
-import { ActionMenu } from '../common/ActionMenu.tsx';
-import { DataTable, Column } from '../common/DataTable.tsx';
-import { getSalesHistoryColumns } from '../../columns/index.ts';
-import { DatePreset } from '../../lib/utils/dateFilters.ts';
-import { useToast } from '../../context/ToastContext.tsx';
-import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
-import { useLanguage } from '../../context/LanguageContext.tsx';
+import React, { useState, useEffect, useMemo } from "react";
+import { Receipt, Eye, User, Phone, Printer, Copy } from "lucide-react";
+import { Sale, SaleItem } from "../types/index.ts";
+import { getSales, getSaleWithItems } from "../lib/services/salesService.ts";
+import { formatCurrency, formatDateTime } from "../lib/utils/format.ts";
+import { Modal } from "../components/common/Modal.tsx";
+import { PrintBillModal } from "../components/common/PrintBillModal.tsx";
+import { ActionMenu } from "../components/common/ActionMenu.tsx";
+import { DataTable, Column } from "../components/common/DataTable.tsx";
+import { getSalesHistoryColumns } from "../columns/index.ts";
+import { DatePreset } from "../lib/utils/dateFilters.ts";
+import { useToast } from "../context/ToastContext.tsx";
+import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
+import { useLanguage } from "../context/LanguageContext.tsx";
 
 interface SalesHistoryViewProps {
   currencySymbol: string;
 }
 
-export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymbol }) => {
+export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
+  currencySymbol,
+}) => {
   const { showToast } = useToast();
   const { t } = useLanguage();
   const [sales, setSales] = useState<Sale[]>([]);
-  const [search, setSearch] = useState('');
-  const [datePreset, setDatePreset] = useState<DatePreset>('all');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [search, setSearch] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   // Selected sale inspection modal
   const [selectedSaleDetail, setSelectedSaleDetail] = useState<{
@@ -55,7 +47,8 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
 
   const loadSales = () => {
     try {
-      const options: { startDate?: string; endDate?: string; search?: string } = {};
+      const options: { startDate?: string; endDate?: string; search?: string } =
+        {};
       if (startDate) {
         options.startDate = `${startDate}T00:00:00.000Z`;
       }
@@ -67,7 +60,7 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
       }
       setSales(getSales(options));
     } catch (e) {
-      console.error('Error loading sales history:', e);
+      console.error("Error loading sales history:", e);
     }
   };
 
@@ -96,7 +89,7 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
         },
         onCopySaleId: (saleId) => {
           navigator.clipboard.writeText(`#${saleId}`);
-          showToast(`Sale #${saleId} copied to clipboard`, 'info');
+          showToast(`Sale #${saleId} copied to clipboard`, "info");
         },
       }),
     [currencySymbol, t],
@@ -107,10 +100,13 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold tracking-tight text-neutral-100">
-          {t('hist_title', 'Sales History')}
+          {t("hist_title", "Sales History")}
         </h1>
         <p className="text-xs text-neutral-400 mt-1">
-          {t('hist_subtitle', 'Complete immutable transaction log with historical cost price snapshots and profit calculations')}
+          {t(
+            "hist_subtitle",
+            "Complete immutable transaction log with historical cost price snapshots and profit calculations",
+          )}
         </p>
       </div>
 
@@ -120,7 +116,10 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
         columns={columns}
         searchQuery={search}
         onSearchChange={setSearch}
-        searchPlaceholder={t('hist_search_placeholder', 'Search by Sale #ID, customer name, phone, or product...')}
+        searchPlaceholder={t(
+          "hist_search_placeholder",
+          "Search by Sale #ID, customer name, phone, or product...",
+        )}
         dateFilterConfig={{
           preset: datePreset,
           onPresetChange: (p, start, end) => {
@@ -132,16 +131,21 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
           endDate,
           onStartDateChange: setStartDate,
           onEndDateChange: setEndDate,
-          hasActiveFilters: Boolean(startDate || endDate || search || datePreset !== 'all'),
+          hasActiveFilters: Boolean(
+            startDate || endDate || search || datePreset !== "all",
+          ),
           onClear: () => {
-            setDatePreset('all');
-            setStartDate('');
-            setEndDate('');
-            setSearch('');
+            setDatePreset("all");
+            setStartDate("");
+            setEndDate("");
+            setSearch("");
           },
         }}
         emptyIcon={Receipt}
-        emptyTitle={t('hist_no_sales', 'No sales transactions found for the specified criteria.')}
+        emptyTitle={t(
+          "hist_no_sales",
+          "No sales transactions found for the specified criteria.",
+        )}
         enablePagination={true}
         pageSize={15}
         pageSizeOptions={[10, 15, 25, 50, 100]}
@@ -155,7 +159,7 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
         subtitle={`Recorded on ${
           selectedSaleDetail?.sale.created_at
             ? formatDateTime(selectedSaleDetail.sale.created_at)
-            : ''
+            : ""
         }`}
         maxWidth="2xl"
       >
@@ -164,30 +168,50 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
             {/* Top Summary Chips */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800">
-                <div className="text-[11px] text-neutral-400">Gross Subtotal</div>
+                <div className="text-[11px] text-neutral-400">
+                  Gross Subtotal
+                </div>
                 <div className="text-sm font-bold font-mono text-neutral-200 mt-0.5">
-                  {formatCurrency(selectedSaleDetail.sale.subtotal, currencySymbol)}
+                  {formatCurrency(
+                    selectedSaleDetail.sale.subtotal,
+                    currencySymbol,
+                  )}
                 </div>
               </div>
 
               <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800">
-                <div className="text-[11px] text-neutral-400">Total Discount</div>
+                <div className="text-[11px] text-neutral-400">
+                  Total Discount
+                </div>
                 <div className="text-sm font-bold font-mono text-amber-400 mt-0.5">
-                  {formatCurrency(selectedSaleDetail.sale.discount, currencySymbol)}
+                  {formatCurrency(
+                    selectedSaleDetail.sale.discount,
+                    currencySymbol,
+                  )}
                 </div>
               </div>
 
               <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800">
-                <div className="text-[11px] text-neutral-400">Net Revenue Paid</div>
+                <div className="text-[11px] text-neutral-400">
+                  Net Revenue Paid
+                </div>
                 <div className="text-sm font-bold font-mono text-neutral-100 mt-0.5">
-                  {formatCurrency(selectedSaleDetail.sale.total, currencySymbol)}
+                  {formatCurrency(
+                    selectedSaleDetail.sale.total,
+                    currencySymbol,
+                  )}
                 </div>
               </div>
 
               <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800">
-                <div className="text-[11px] text-neutral-400">Transaction Profit</div>
+                <div className="text-[11px] text-neutral-400">
+                  Transaction Profit
+                </div>
                 <div className="text-sm font-bold font-mono text-emerald-400 mt-0.5">
-                  {formatCurrency(selectedSaleDetail.sale.gross_profit ?? 0, currencySymbol)}
+                  {formatCurrency(
+                    selectedSaleDetail.sale.gross_profit ?? 0,
+                    currencySymbol,
+                  )}
                 </div>
               </div>
             </div>
@@ -200,7 +224,8 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-neutral-200">
-                    {selectedSaleDetail.sale.customer_name || 'Walk-in Customer (Not Specified)'}
+                    {selectedSaleDetail.sale.customer_name ||
+                      "Walk-in Customer (Not Specified)"}
                   </div>
                   <div className="text-[11px] text-neutral-400 font-mono flex items-center flex-wrap gap-2 mt-0.5">
                     {selectedSaleDetail.sale.customer_phone ? (
@@ -236,11 +261,21 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
                   <tr>
                     <th className="py-2.5 px-4">Product</th>
                     <th className="py-2.5 px-2 text-center font-mono">Qty</th>
-                    <th className="py-2.5 px-3 text-right font-mono">Snapshot Cost</th>
-                    <th className="py-2.5 px-3 text-right font-mono">Sale Price</th>
-                    <th className="py-2.5 px-3 text-right font-mono">Discount</th>
-                    <th className="py-2.5 px-3 text-right font-mono">Net Total</th>
-                    <th className="py-2.5 px-4 text-right font-mono">Item Profit</th>
+                    <th className="py-2.5 px-3 text-right font-mono">
+                      Snapshot Cost
+                    </th>
+                    <th className="py-2.5 px-3 text-right font-mono">
+                      Sale Price
+                    </th>
+                    <th className="py-2.5 px-3 text-right font-mono">
+                      Discount
+                    </th>
+                    <th className="py-2.5 px-3 text-right font-mono">
+                      Net Total
+                    </th>
+                    <th className="py-2.5 px-4 text-right font-mono">
+                      Item Profit
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800/60">
@@ -251,7 +286,14 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
                       </td>
 
                       <td className="py-3 px-2 text-center font-mono text-neutral-300">
-                        {item.quantity} {item.product_unit ? <span className="text-[10px] text-neutral-400">{item.product_unit}</span> : ''}
+                        {item.quantity}{" "}
+                        {item.product_unit ? (
+                          <span className="text-[10px] text-neutral-400">
+                            {item.product_unit}
+                          </span>
+                        ) : (
+                          ""
+                        )}
                       </td>
 
                       <td className="py-3 px-3 text-right font-mono text-neutral-400">
@@ -265,7 +307,7 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
                       <td className="py-3 px-3 text-right font-mono text-amber-400">
                         {item.discount > 0
                           ? `- ${formatCurrency(item.discount, currencySymbol)}`
-                          : '—'}
+                          : "—"}
                       </td>
 
                       <td className="py-3 px-3 text-right font-mono font-bold text-neutral-100">
@@ -282,7 +324,9 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
             </div>
 
             <div className="text-[11px] text-neutral-500 font-mono">
-              Note: Cost price snapshot was recorded at the exact moment of sale #{selectedSaleDetail.sale.id} and remains immutable regardless of future catalog price changes.
+              Note: Cost price snapshot was recorded at the exact moment of sale
+              #{selectedSaleDetail.sale.id} and remains immutable regardless of
+              future catalog price changes.
             </div>
 
             <div className="pt-2 flex items-center justify-between">

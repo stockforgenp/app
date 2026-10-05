@@ -9,9 +9,9 @@
  * - Thermal & A4 printable salary vouchers
  * - Automatic overhead expense ledger synchronization
  */
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   CreditCard,
   Search,
@@ -27,14 +27,14 @@ import {
   Users,
   Check,
   RotateCcw,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   Staff,
   SalaryPayment,
   StaffMonthlyPayrollStatus,
   MonthlyPayrollSummary,
   RecordSalaryInput,
-} from '../../types/index.ts';
+} from "../types/index.ts";
 import {
   getAllStaff,
   getSalaryPayments,
@@ -43,22 +43,22 @@ import {
   getMonthlyPayrollSummary,
   MONTH_NAMES,
   SALARY_PAYMENT_METHODS,
-} from '../../lib/services/staffService.ts';
+} from "../lib/services/staffService.ts";
 import {
   formatCurrency,
   formatDate,
   toMinorUnits,
   fromMinorUnits,
   getTodayISODate,
-} from '../../lib/utils/format.ts';
-import { Modal } from '../common/Modal.tsx';
-import { ConfirmDialog } from '../common/ConfirmDialog.tsx';
-import { PrintSalarySlipModal } from '../common/PrintSalarySlipModal.tsx';
-import { ActionMenu } from '../common/ActionMenu.tsx';
-import { Select } from '../common/Select.tsx';
-import { Input } from '../common/Input.tsx';
-import { useToast } from '../../context/ToastContext.tsx';
-import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
+} from "../lib/utils/format.ts";
+import { Modal } from "../components/common/Modal.tsx";
+import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
+import { PrintSalarySlipModal } from "../components/common/PrintSalarySlipModal.tsx";
+import { ActionMenu } from "../components/common/ActionMenu.tsx";
+import { Select } from "../components/common/Select.tsx";
+import { Input } from "../components/common/Input.tsx";
+import { useToast } from "../context/ToastContext.tsx";
+import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 
 interface PayrollViewProps {
   currencySymbol: string;
@@ -71,24 +71,31 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
   // Selected Month & Year (defaults to today's current month & year)
   const today = useMemo(() => new Date(), []);
   const [selectedYear, setSelectedYear] = useState<number>(today.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth() + 1); // 1-12
+  const [selectedMonth, setSelectedMonth] = useState<number>(
+    today.getMonth() + 1,
+  ); // 1-12
 
   // Active View Tab: 'roster' (current month status roster) vs 'ledger' (all disbursements)
-  const [activeTab, setActiveTab] = useState<'roster' | 'ledger'>('roster');
+  const [activeTab, setActiveTab] = useState<"roster" | "ledger">("roster");
 
   // Roster sub-filter: 'all' | 'unpaid' | 'paid'
-  const [rosterStatusFilter, setRosterStatusFilter] = useState<'all' | 'unpaid' | 'paid'>('all');
+  const [rosterStatusFilter, setRosterStatusFilter] = useState<
+    "all" | "unpaid" | "paid"
+  >("all");
 
   // Ledger state & filters
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [payments, setPayments] = useState<SalaryPayment[]>([]);
-  const [paymentSearch, setPaymentSearch] = useState('');
-  const [selectedStaffFilter, setSelectedStaffFilter] = useState<number | 'all'>('all');
-  const [selectedMethodFilter, setSelectedMethodFilter] = useState<string>('all');
+  const [paymentSearch, setPaymentSearch] = useState("");
+  const [selectedStaffFilter, setSelectedStaffFilter] = useState<
+    number | "all"
+  >("all");
+  const [selectedMethodFilter, setSelectedMethodFilter] =
+    useState<string>("all");
 
   // Monthly status summary for the selected month/year
   const [monthlyStatus, setMonthlyStatus] = useState<MonthlyPayrollSummary>({
-    period_label: '',
+    period_label: "",
     year: selectedYear,
     month: selectedMonth,
     is_current_month: true,
@@ -99,11 +106,11 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
     total_commitment: 0,
     total_paid: 0,
     total_pending: 0,
-    overall_status: 'unpaid',
+    overall_status: "unpaid",
     staff_statuses: [],
     today_status: {
       date: getTodayISODate(),
-      formatted: 'Today',
+      formatted: "Today",
       is_paid: false,
       payments_count: 0,
       total_paid: 0,
@@ -113,22 +120,26 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
   // Modals state
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [payStaffId, setPayStaffId] = useState<number>(0);
-  const [payBaseAmount, setPayBaseAmount] = useState('');
-  const [payBonus, setPayBonus] = useState('0');
-  const [payDeductions, setPayDeductions] = useState('0');
+  const [payBaseAmount, setPayBaseAmount] = useState("");
+  const [payBonus, setPayBonus] = useState("0");
+  const [payDeductions, setPayDeductions] = useState("0");
   const [payDate, setPayDate] = useState(getTodayISODate());
-  const [payPeriod, setPayPeriod] = useState('');
+  const [payPeriod, setPayPeriod] = useState("");
   const [payMethod, setPayMethod] = useState(SALARY_PAYMENT_METHODS[0]);
-  const [payReference, setPayReference] = useState('');
-  const [payNote, setPayNote] = useState('');
+  const [payReference, setPayReference] = useState("");
+  const [payNote, setPayNote] = useState("");
   const [paySyncWithExpenses, setPaySyncWithExpenses] = useState(true);
   const [payFormError, setPayFormError] = useState<string | null>(null);
 
   // Print voucher modal
-  const [printingPayment, setPrintingPayment] = useState<SalaryPayment | null>(null);
+  const [printingPayment, setPrintingPayment] = useState<SalaryPayment | null>(
+    null,
+  );
 
   // Reversal / Delete modal
-  const [paymentToDelete, setPaymentToDelete] = useState<SalaryPayment | null>(null);
+  const [paymentToDelete, setPaymentToDelete] = useState<SalaryPayment | null>(
+    null,
+  );
 
   // Load Data
   const loadData = useCallback(() => {
@@ -136,7 +147,8 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
       const allStaff = getAllStaff();
       setStaffList(allStaff);
 
-      const staffFilter = selectedStaffFilter === 'all' ? undefined : selectedStaffFilter;
+      const staffFilter =
+        selectedStaffFilter === "all" ? undefined : selectedStaffFilter;
       const paymentRecords = getSalaryPayments({
         staffId: staffFilter,
         search: paymentSearch.trim() || undefined,
@@ -146,7 +158,7 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
       const mSummary = getMonthlyPayrollSummary(selectedYear, selectedMonth);
       setMonthlyStatus(mSummary);
     } catch (err: any) {
-      console.error('Error loading payroll data:', err);
+      console.error("Error loading payroll data:", err);
     }
   }, [selectedYear, selectedMonth, selectedStaffFilter, paymentSearch]);
 
@@ -161,12 +173,12 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
   // Handle URL Query Params
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const staffIdParam = params.get('staffId');
+    const staffIdParam = params.get("staffId");
     if (staffIdParam) {
       const id = parseInt(staffIdParam, 10);
       if (!isNaN(id)) {
         setSelectedStaffFilter(id);
-        setActiveTab('ledger');
+        setActiveTab("ledger");
       }
     }
   }, [location.search]);
@@ -196,17 +208,20 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
   };
 
   // Open Pay Modal pre-filled for a specific employee
-  const handleOpenPaySalary = (targetStaff?: Staff | StaffMonthlyPayrollStatus) => {
+  const handleOpenPaySalary = (
+    targetStaff?: Staff | StaffMonthlyPayrollStatus,
+  ) => {
     setPayFormError(null);
 
     let chosenId = 0;
-    let chosenBase = '0';
+    let chosenBase = "0";
 
     if (targetStaff) {
-      chosenId = 'staff_id' in targetStaff ? targetStaff.staff_id : targetStaff.id;
+      chosenId =
+        "staff_id" in targetStaff ? targetStaff.staff_id : targetStaff.id;
       chosenBase = fromMinorUnits(targetStaff.base_salary).toString();
     } else {
-      const firstActive = staffList.find((s) => s.status === 'active');
+      const firstActive = staffList.find((s) => s.status === "active");
       if (firstActive) {
         chosenId = firstActive.id;
         chosenBase = fromMinorUnits(firstActive.base_salary).toString();
@@ -215,13 +230,16 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
 
     setPayStaffId(chosenId);
     setPayBaseAmount(chosenBase);
-    setPayBonus('0');
-    setPayDeductions('0');
+    setPayBonus("0");
+    setPayDeductions("0");
     setPayDate(getTodayISODate());
-    setPayPeriod(monthlyStatus.period_label || `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`);
+    setPayPeriod(
+      monthlyStatus.period_label ||
+        `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`,
+    );
     setPayMethod(SALARY_PAYMENT_METHODS[0]);
-    setPayReference('');
-    setPayNote('');
+    setPayReference("");
+    setPayNote("");
     setPaySyncWithExpenses(true);
     setIsPayModalOpen(true);
   };
@@ -239,7 +257,7 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
   const alreadyPaidWarning = useMemo(() => {
     if (!payStaffId || !monthlyStatus.staff_statuses) return null;
     const match = monthlyStatus.staff_statuses.find(
-      (s) => s.staff_id === payStaffId && s.is_paid
+      (s) => s.staff_id === payStaffId && s.is_paid,
     );
     if (match && match.payment) {
       return {
@@ -265,13 +283,13 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
     setPayFormError(null);
 
     if (!payStaffId) {
-      setPayFormError('Please select an employee.');
+      setPayFormError("Please select an employee.");
       return;
     }
 
     const baseNum = parseFloat(payBaseAmount);
     if (isNaN(baseNum) || baseNum <= 0) {
-      setPayFormError('Base wage must be greater than zero.');
+      setPayFormError("Base wage must be greater than zero.");
       return;
     }
 
@@ -279,12 +297,12 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
     const deductionsNum = parseFloat(payDeductions) || 0;
 
     if (modalNetPay <= 0) {
-      setPayFormError('Net payable salary must be greater than zero.');
+      setPayFormError("Net payable salary must be greater than zero.");
       return;
     }
 
     if (!payPeriod.trim()) {
-      setPayFormError('Please enter a payment period (e.g. September 2026).');
+      setPayFormError("Please enter a payment period (e.g. September 2026).");
       return;
     }
 
@@ -305,7 +323,7 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
       const payment = recordSalaryPayment(input);
       showToast(
         `Disbursed ${formatCurrency(payment.net_paid, currencySymbol)} to ${payment.staff_name}`,
-        'success'
+        "success",
       );
       setIsPayModalOpen(false);
       loadData();
@@ -313,7 +331,7 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
       // Open print voucher preview
       setPrintingPayment(payment);
     } catch (err: any) {
-      setPayFormError(err.message || 'Failed to record salary disbursement');
+      setPayFormError(err.message || "Failed to record salary disbursement");
     }
   };
 
@@ -322,21 +340,21 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
     if (!paymentToDelete) return;
     try {
       deleteSalaryPayment(paymentToDelete.id);
-      showToast(`Payment #${paymentToDelete.id} reversed and removed`, 'info');
+      showToast(`Payment #${paymentToDelete.id} reversed and removed`, "info");
       setPaymentToDelete(null);
       loadData();
     } catch (err: any) {
-      showToast(err.message || 'Failed to delete payment record', 'error');
+      showToast(err.message || "Failed to delete payment record", "error");
     }
   };
 
   // Filtered Roster
   const filteredRoster = useMemo(() => {
     if (!monthlyStatus.staff_statuses) return [];
-    if (rosterStatusFilter === 'paid') {
+    if (rosterStatusFilter === "paid") {
       return monthlyStatus.staff_statuses.filter((s) => s.is_paid);
     }
-    if (rosterStatusFilter === 'unpaid') {
+    if (rosterStatusFilter === "unpaid") {
       return monthlyStatus.staff_statuses.filter((s) => !s.is_paid);
     }
     return monthlyStatus.staff_statuses;
@@ -344,13 +362,14 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
 
   // Filtered Payments (Ledger)
   const filteredPayments = useMemo(() => {
-    if (selectedMethodFilter === 'all') return payments;
+    if (selectedMethodFilter === "all") return payments;
     return payments.filter((p) => p.payment_method === selectedMethodFilter);
   }, [payments, selectedMethodFilter]);
 
   // Is viewing current month?
   const isCurrentMonth =
-    selectedYear === today.getFullYear() && selectedMonth === today.getMonth() + 1;
+    selectedYear === today.getFullYear() &&
+    selectedMonth === today.getMonth() + 1;
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-150">
@@ -366,7 +385,8 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
             </span>
           </div>
           <p className="text-xs text-neutral-400 mt-1">
-            Track current month wage disbursement status, employee dues, and print salary vouchers
+            Track current month wage disbursement status, employee dues, and
+            print salary vouchers
           </p>
         </div>
 
@@ -394,11 +414,11 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
         {/* Subtle background glow depending on status */}
         <div
           className={`absolute -right-20 -top-20 w-64 h-64 rounded-full blur-3xl pointer-events-none opacity-20 transition-all duration-700 ${
-            monthlyStatus.overall_status === 'fully_paid'
-              ? 'bg-emerald-500'
-              : monthlyStatus.overall_status === 'partially_paid'
-              ? 'bg-amber-500'
-              : 'bg-rose-500'
+            monthlyStatus.overall_status === "fully_paid"
+              ? "bg-emerald-500"
+              : monthlyStatus.overall_status === "partially_paid"
+                ? "bg-amber-500"
+                : "bg-rose-500"
           }`}
         />
 
@@ -424,7 +444,8 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                 </motion.button>
 
                 <div className="px-3 py-0.5 text-xs font-bold text-neutral-100 font-mono">
-                  {monthlyStatus.period_label || `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`}
+                  {monthlyStatus.period_label ||
+                    `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`}
                 </div>
 
                 <motion.button
@@ -463,26 +484,26 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
               <motion.div
                 whileHover={{ scale: 1.01 }}
                 className={`p-3 rounded-xl border flex flex-col justify-between ${
-                  monthlyStatus.overall_status === 'fully_paid'
-                    ? 'bg-emerald-500/10 border-emerald-500/30'
-                    : monthlyStatus.overall_status === 'partially_paid'
-                    ? 'bg-amber-500/10 border-amber-500/30'
-                    : 'bg-rose-500/10 border-rose-500/30'
+                  monthlyStatus.overall_status === "fully_paid"
+                    ? "bg-emerald-500/10 border-emerald-500/30"
+                    : monthlyStatus.overall_status === "partially_paid"
+                      ? "bg-amber-500/10 border-amber-500/30"
+                      : "bg-rose-500/10 border-rose-500/30"
                 }`}
               >
                 <div className="flex items-center justify-between text-[11px] font-medium text-neutral-400">
                   <span>Month Status ({monthlyStatus.period_label})</span>
-                  {monthlyStatus.overall_status === 'fully_paid' && (
+                  {monthlyStatus.overall_status === "fully_paid" && (
                     <span className="text-emerald-400 font-bold uppercase tracking-wider text-[10px]">
                       PAID
                     </span>
                   )}
-                  {monthlyStatus.overall_status === 'partially_paid' && (
+                  {monthlyStatus.overall_status === "partially_paid" && (
                     <span className="text-amber-400 font-bold uppercase tracking-wider text-[10px]">
                       PARTIAL
                     </span>
                   )}
-                  {monthlyStatus.overall_status === 'unpaid' && (
+                  {monthlyStatus.overall_status === "unpaid" && (
                     <span className="text-rose-400 font-bold uppercase tracking-wider text-[10px]">
                       UNPAID
                     </span>
@@ -490,27 +511,30 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                 </div>
 
                 <div className="mt-1 flex items-center gap-2">
-                  {monthlyStatus.overall_status === 'fully_paid' && (
+                  {monthlyStatus.overall_status === "fully_paid" && (
                     <>
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                       <span className="text-xs font-semibold text-emerald-300">
-                        Fully Paid — {monthlyStatus.paid_count}/{monthlyStatus.total_active_staff} Staff Disbursed
+                        Fully Paid — {monthlyStatus.paid_count}/
+                        {monthlyStatus.total_active_staff} Staff Disbursed
                       </span>
                     </>
                   )}
-                  {monthlyStatus.overall_status === 'partially_paid' && (
+                  {monthlyStatus.overall_status === "partially_paid" && (
                     <>
                       <Clock className="w-4 h-4 text-amber-400 shrink-0" />
                       <span className="text-xs font-semibold text-amber-300">
-                        Partially Paid — {monthlyStatus.paid_count} Paid, {monthlyStatus.unpaid_count} Pending
+                        Partially Paid — {monthlyStatus.paid_count} Paid,{" "}
+                        {monthlyStatus.unpaid_count} Pending
                       </span>
                     </>
                   )}
-                  {monthlyStatus.overall_status === 'unpaid' && (
+                  {monthlyStatus.overall_status === "unpaid" && (
                     <>
                       <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                       <span className="text-xs font-semibold text-rose-300">
-                        Unpaid / Due — {monthlyStatus.total_active_staff} Staff Pending
+                        Unpaid / Due — {monthlyStatus.total_active_staff} Staff
+                        Pending
                       </span>
                     </>
                   )}
@@ -522,12 +546,14 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                 whileHover={{ scale: 1.01 }}
                 className={`p-3 rounded-xl border flex flex-col justify-between ${
                   monthlyStatus.today_status.is_paid
-                    ? 'bg-emerald-500/10 border-emerald-500/30'
-                    : 'bg-neutral-950/70 border-neutral-800'
+                    ? "bg-emerald-500/10 border-emerald-500/30"
+                    : "bg-neutral-950/70 border-neutral-800"
                 }`}
               >
                 <div className="flex items-center justify-between text-[11px] font-medium text-neutral-400">
-                  <span>Today's Status ({monthlyStatus.today_status.formatted})</span>
+                  <span>
+                    Today's Status ({monthlyStatus.today_status.formatted})
+                  </span>
                   {monthlyStatus.today_status.is_paid ? (
                     <span className="text-emerald-400 font-bold uppercase tracking-wider text-[10px]">
                       PAID TODAY
@@ -545,9 +571,16 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                       <>
                         <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                         <span className="text-xs font-semibold text-emerald-300 truncate">
-                          {monthlyStatus.today_status.payments_count}{' '}
-                          {monthlyStatus.today_status.payments_count === 1 ? 'salary' : 'salaries'}{' '}
-                          disbursed today ({formatCurrency(monthlyStatus.today_status.total_paid, currencySymbol)})
+                          {monthlyStatus.today_status.payments_count}{" "}
+                          {monthlyStatus.today_status.payments_count === 1
+                            ? "salary"
+                            : "salaries"}{" "}
+                          disbursed today (
+                          {formatCurrency(
+                            monthlyStatus.today_status.total_paid,
+                            currencySymbol,
+                          )}
+                          )
                         </span>
                       </>
                     ) : (
@@ -579,24 +612,31 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
             <div className="w-full max-w-2xl pt-1">
               <div className="flex items-center justify-between text-[11px] text-neutral-400 mb-1 font-mono">
                 <span>
-                  Disbursed: {formatCurrency(monthlyStatus.total_paid, currencySymbol)} (
+                  Disbursed:{" "}
+                  {formatCurrency(monthlyStatus.total_paid, currencySymbol)} (
                   {monthlyStatus.percent_paid}%)
                 </span>
                 <span>
-                  Liability: {formatCurrency(monthlyStatus.total_commitment, currencySymbol)}
+                  Liability:{" "}
+                  {formatCurrency(
+                    monthlyStatus.total_commitment,
+                    currencySymbol,
+                  )}
                 </span>
               </div>
               <div className="w-full h-2 rounded-full bg-neutral-950 border border-neutral-800 overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, monthlyStatus.percent_paid)}%` }}
-                  transition={{ type: 'spring', damping: 20, stiffness: 120 }}
+                  animate={{
+                    width: `${Math.min(100, monthlyStatus.percent_paid)}%`,
+                  }}
+                  transition={{ type: "spring", damping: 20, stiffness: 120 }}
                   className={`h-full rounded-full ${
-                    monthlyStatus.overall_status === 'fully_paid'
-                      ? 'bg-emerald-400'
-                      : monthlyStatus.overall_status === 'partially_paid'
-                      ? 'bg-amber-400'
-                      : 'bg-rose-500'
+                    monthlyStatus.overall_status === "fully_paid"
+                      ? "bg-emerald-400"
+                      : monthlyStatus.overall_status === "partially_paid"
+                        ? "bg-amber-400"
+                        : "bg-rose-500"
                   }`}
                 />
               </div>
@@ -611,7 +651,9 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
               transition={{ duration: 0.15 }}
               className="p-3.5 rounded-xl bg-neutral-950 border border-neutral-800 text-center"
             >
-              <div className="text-[11px] font-medium text-neutral-400">Total Liability</div>
+              <div className="text-[11px] font-medium text-neutral-400">
+                Total Liability
+              </div>
               <div className="text-base font-bold text-neutral-100 font-mono tabular-nums mt-1">
                 {formatCurrency(monthlyStatus.total_commitment, currencySymbol)}
               </div>
@@ -626,7 +668,9 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
               transition={{ duration: 0.15 }}
               className="p-3.5 rounded-xl bg-neutral-950 border border-neutral-800 text-center"
             >
-              <div className="text-[11px] font-medium text-emerald-400">Total Disbursed</div>
+              <div className="text-[11px] font-medium text-emerald-400">
+                Total Disbursed
+              </div>
               <div className="text-base font-bold text-emerald-400 font-mono tabular-nums mt-1">
                 {formatCurrency(monthlyStatus.total_paid, currencySymbol)}
               </div>
@@ -641,7 +685,9 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
               transition={{ duration: 0.15 }}
               className="p-3.5 rounded-xl bg-neutral-950 border border-neutral-800 text-center"
             >
-              <div className="text-[11px] font-medium text-rose-400">Pending Dues</div>
+              <div className="text-[11px] font-medium text-rose-400">
+                Pending Dues
+              </div>
               <div className="text-base font-bold text-rose-400 font-mono tabular-nums mt-1">
                 {formatCurrency(monthlyStatus.total_pending, currencySymbol)}
               </div>
@@ -656,29 +702,39 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
               transition={{ duration: 0.15 }}
               className={`p-3.5 rounded-xl border text-center ${
                 monthlyStatus.today_status.is_paid
-                  ? 'bg-emerald-500/10 border-emerald-500/30'
-                  : 'bg-neutral-950 border-neutral-800'
+                  ? "bg-emerald-500/10 border-emerald-500/30"
+                  : "bg-neutral-950 border-neutral-800"
               }`}
             >
               <div
                 className={`text-[11px] font-medium ${
-                  monthlyStatus.today_status.is_paid ? 'text-emerald-400' : 'text-neutral-400'
+                  monthlyStatus.today_status.is_paid
+                    ? "text-emerald-400"
+                    : "text-neutral-400"
                 }`}
               >
                 Disbursed Today
               </div>
               <div
                 className={`text-base font-bold font-mono tabular-nums mt-1 ${
-                  monthlyStatus.today_status.is_paid ? 'text-emerald-300' : 'text-neutral-400'
+                  monthlyStatus.today_status.is_paid
+                    ? "text-emerald-300"
+                    : "text-neutral-400"
                 }`}
               >
                 {monthlyStatus.today_status.is_paid
-                  ? formatCurrency(monthlyStatus.today_status.total_paid, currencySymbol)
-                  : '$0'}
+                  ? formatCurrency(
+                      monthlyStatus.today_status.total_paid,
+                      currencySymbol,
+                    )
+                  : "$0"}
               </div>
               <div className="text-[10px] text-neutral-500 mt-0.5">
-                {monthlyStatus.today_status.payments_count}{' '}
-                {monthlyStatus.today_status.payments_count === 1 ? 'payment' : 'payments'} today
+                {monthlyStatus.today_status.payments_count}{" "}
+                {monthlyStatus.today_status.payments_count === 1
+                  ? "payment"
+                  : "payments"}{" "}
+                today
               </div>
             </motion.div>
           </div>
@@ -691,27 +747,27 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
           <motion.button
             whileTap={{ scale: 0.96 }}
             type="button"
-            onClick={() => setActiveTab('roster')}
+            onClick={() => setActiveTab("roster")}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              activeTab === 'roster'
-                ? 'bg-neutral-800 text-neutral-100 shadow-xs'
-                : 'text-neutral-400 hover:text-neutral-200'
+              activeTab === "roster"
+                ? "bg-neutral-800 text-neutral-100 shadow-xs"
+                : "text-neutral-400 hover:text-neutral-200"
             }`}
           >
             <Users className="w-4 h-4" />
             <span>
-              Staff Status Roster ({monthlyStatus.period_label || 'This Month'})
+              Staff Status Roster ({monthlyStatus.period_label || "This Month"})
             </span>
           </motion.button>
 
           <motion.button
             whileTap={{ scale: 0.96 }}
             type="button"
-            onClick={() => setActiveTab('ledger')}
+            onClick={() => setActiveTab("ledger")}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              activeTab === 'ledger'
-                ? 'bg-neutral-800 text-neutral-100 shadow-xs'
-                : 'text-neutral-400 hover:text-neutral-200'
+              activeTab === "ledger"
+                ? "bg-neutral-800 text-neutral-100 shadow-xs"
+                : "text-neutral-400 hover:text-neutral-200"
             }`}
           >
             <Receipt className="w-4 h-4" />
@@ -720,16 +776,16 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
         </div>
 
         {/* Tab 1 Roster Filter Controls */}
-        {activeTab === 'roster' && (
+        {activeTab === "roster" && (
           <div className="flex items-center gap-1.5 self-end sm:self-auto">
             <motion.button
               whileTap={{ scale: 0.95 }}
               type="button"
-              onClick={() => setRosterStatusFilter('all')}
+              onClick={() => setRosterStatusFilter("all")}
               className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
-                rosterStatusFilter === 'all'
-                  ? 'bg-neutral-800 text-neutral-200'
-                  : 'text-neutral-400 hover:text-neutral-300'
+                rosterStatusFilter === "all"
+                  ? "bg-neutral-800 text-neutral-200"
+                  : "text-neutral-400 hover:text-neutral-300"
               }`}
             >
               All ({monthlyStatus.total_active_staff})
@@ -737,11 +793,11 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
             <motion.button
               whileTap={{ scale: 0.95 }}
               type="button"
-              onClick={() => setRosterStatusFilter('unpaid')}
+              onClick={() => setRosterStatusFilter("unpaid")}
               className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors cursor-pointer flex items-center gap-1 ${
-                rosterStatusFilter === 'unpaid'
-                  ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                  : 'text-neutral-400 hover:text-rose-400'
+                rosterStatusFilter === "unpaid"
+                  ? "bg-rose-500/15 text-rose-400 border border-rose-500/30"
+                  : "text-neutral-400 hover:text-rose-400"
               }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
@@ -750,11 +806,11 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
             <motion.button
               whileTap={{ scale: 0.95 }}
               type="button"
-              onClick={() => setRosterStatusFilter('paid')}
+              onClick={() => setRosterStatusFilter("paid")}
               className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors cursor-pointer flex items-center gap-1 ${
-                rosterStatusFilter === 'paid'
-                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                  : 'text-neutral-400 hover:text-emerald-400'
+                rosterStatusFilter === "paid"
+                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                  : "text-neutral-400 hover:text-emerald-400"
               }`}
             >
               <Check className="w-3 h-3 text-emerald-400" />
@@ -765,39 +821,50 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
       </div>
 
       {/* VIEW 1: Monthly Staff Status Roster */}
-      {activeTab === 'roster' && (
+      {activeTab === "roster" && (
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 select-none">
                 <tr>
                   <th className="py-3 px-5">Employee & Role</th>
-                  <th className="py-3 px-5 text-right font-mono">Monthly Base Wage</th>
+                  <th className="py-3 px-5 text-right font-mono">
+                    Monthly Base Wage
+                  </th>
                   <th className="py-3 px-5 text-center">
                     {monthlyStatus.period_label} Status
                   </th>
                   <th className="py-3 px-5">Disbursement Details</th>
-                  <th className="py-3 px-5 text-right font-mono">Disbursed Net</th>
+                  <th className="py-3 px-5 text-right font-mono">
+                    Disbursed Net
+                  </th>
                   <th className="py-3 px-5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-800/60">
                 {filteredRoster.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-neutral-400 text-xs">
+                    <td
+                      colSpan={6}
+                      className="py-12 text-center text-neutral-400 text-xs"
+                    >
                       <Users className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
                       No staff records found in this category.
                     </td>
                   </tr>
                 ) : (
                   filteredRoster.map((item) => (
-                    <tr key={item.staff_id} className="hover:bg-neutral-800/40 transition-colors">
+                    <tr
+                      key={item.staff_id}
+                      className="hover:bg-neutral-800/40 transition-colors"
+                    >
                       <td className="px-5 py-3.5">
                         <div className="font-semibold text-neutral-200">
                           {item.staff_name}
                         </div>
                         <div className="text-[11px] text-neutral-400 mt-0.5">
-                          {item.staff_role} · <span className="font-mono">ID #{item.staff_id}</span>
+                          {item.staff_role} ·{" "}
+                          <span className="font-mono">ID #{item.staff_id}</span>
                         </div>
                       </td>
 
@@ -810,7 +877,8 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
 
                       <td className="px-5 py-3.5 text-center whitespace-nowrap">
                         {item.is_paid ? (
-                          item.payment?.payment_date === monthlyStatus.today_status.date ? (
+                          item.payment?.payment_date ===
+                          monthlyStatus.today_status.date ? (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                               <span>PAID TODAY</span>
@@ -833,8 +901,10 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                         {item.is_paid && item.payment ? (
                           <div className="space-y-0.5">
                             <div className="text-[11px] text-neutral-200 font-medium">
-                              Paid on {formatDate(item.payment.payment_date)} via {item.payment.payment_method}
-                              {item.payment.payment_date === monthlyStatus.today_status.date && (
+                              Paid on {formatDate(item.payment.payment_date)}{" "}
+                              via {item.payment.payment_method}
+                              {item.payment.payment_date ===
+                                monthlyStatus.today_status.date && (
                                 <span className="ml-1.5 text-[10px] text-emerald-400 font-semibold uppercase">
                                   (Today)
                                 </span>
@@ -856,7 +926,10 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                       <td className="px-5 py-3.5 text-right font-mono font-bold tabular-nums whitespace-nowrap">
                         {item.is_paid ? (
                           <span className="text-emerald-400">
-                            {formatCurrency(item.amount_paid || 0, currencySymbol)}
+                            {formatCurrency(
+                              item.amount_paid || 0,
+                              currencySymbol,
+                            )}
                           </span>
                         ) : (
                           <span className="text-neutral-500">—</span>
@@ -883,7 +956,9 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
                                   type="button"
-                                  onClick={() => setPrintingPayment(item.payment!)}
+                                  onClick={() =>
+                                    setPrintingPayment(item.payment!)
+                                  }
                                   className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded border border-emerald-500/20 transition-colors cursor-pointer"
                                   title="Print Voucher"
                                 >
@@ -894,32 +969,36 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                                   align="right"
                                   items={[
                                     {
-                                      label: 'Print Pay Slip',
+                                      label: "Print Pay Slip",
                                       icon: Printer,
-                                      color: 'emerald',
-                                      action: () => setPrintingPayment(item.payment!),
+                                      color: "emerald",
+                                      action: () =>
+                                        setPrintingPayment(item.payment!),
                                     },
                                     item.payment.reference
                                       ? {
-                                          label: 'Copy Reference',
+                                          label: "Copy Reference",
                                           icon: Copy,
-                                          color: 'sky',
+                                          color: "sky",
                                           action: () => {
-                                            navigator.clipboard.writeText(item.payment!.reference!);
+                                            navigator.clipboard.writeText(
+                                              item.payment!.reference!,
+                                            );
                                             showToast(
                                               `Reference ${item.payment!.reference} copied`,
-                                              'info'
+                                              "info",
                                             );
                                           },
                                         }
                                       : null,
                                     {
-                                      label: 'Reverse Payment',
+                                      label: "Reverse Payment",
                                       icon: Trash2,
-                                      color: 'rose',
+                                      color: "rose",
                                       isDestructive: true,
                                       divider: true,
-                                      action: () => setPaymentToDelete(item.payment!),
+                                      action: () =>
+                                        setPaymentToDelete(item.payment!),
                                     },
                                   ]}
                                 />
@@ -938,7 +1017,7 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
       )}
 
       {/* VIEW 2: Historical Disbursements Audit Ledger */}
-      {activeTab === 'ledger' && (
+      {activeTab === "ledger" && (
         <div className="space-y-4">
           {/* Filter & Search Bar */}
           <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -959,13 +1038,15 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                 value={selectedStaffFilter}
                 onChange={(e) =>
                   setSelectedStaffFilter(
-                    e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10)
+                    e.target.value === "all"
+                      ? "all"
+                      : parseInt(e.target.value, 10),
                   )
                 }
                 containerClassName="w-48"
                 sizeVariant="sm"
                 options={[
-                  { value: 'all', label: 'All Employees' },
+                  { value: "all", label: "All Employees" },
                   ...staffList.map((s) => ({
                     value: s.id,
                     label: `${s.name} (${s.role})`,
@@ -980,7 +1061,7 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                 containerClassName="w-36"
                 sizeVariant="sm"
                 options={[
-                  { value: 'all', label: 'All Methods' },
+                  { value: "all", label: "All Methods" },
                   ...SALARY_PAYMENT_METHODS.map((m) => ({
                     value: m,
                     label: m,
@@ -988,15 +1069,15 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                 ]}
               />
 
-              {(selectedStaffFilter !== 'all' ||
-                selectedMethodFilter !== 'all' ||
+              {(selectedStaffFilter !== "all" ||
+                selectedMethodFilter !== "all" ||
                 paymentSearch) && (
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedStaffFilter('all');
-                    setSelectedMethodFilter('all');
-                    setPaymentSearch('');
+                    setSelectedStaffFilter("all");
+                    setSelectedMethodFilter("all");
+                    setPaymentSearch("");
                   }}
                   className="text-xs text-neutral-400 hover:text-neutral-200 px-2 py-1 transition-colors cursor-pointer"
                 >
@@ -1016,8 +1097,12 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                     <th className="py-3 px-5">Date & Period</th>
                     <th className="py-3 px-5">Employee & Role</th>
                     <th className="py-3 px-5">Method & Ref</th>
-                    <th className="py-3 px-5 text-right font-mono">Base Salary</th>
-                    <th className="py-3 px-5 text-right font-mono">Adj (+ / -)</th>
+                    <th className="py-3 px-5 text-right font-mono">
+                      Base Salary
+                    </th>
+                    <th className="py-3 px-5 text-right font-mono">
+                      Adj (+ / -)
+                    </th>
                     <th className="py-3 px-5 text-right font-mono">Net Paid</th>
                     <th className="py-3 px-5 text-right">Actions</th>
                   </tr>
@@ -1025,7 +1110,10 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                 <tbody className="divide-y divide-neutral-800/60">
                   {filteredPayments.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-12 text-center text-neutral-400 text-xs">
+                      <td
+                        colSpan={8}
+                        className="py-12 text-center text-neutral-400 text-xs"
+                      >
                         <Receipt className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
                         No salary disbursement records found.
                         <div className="mt-2">
@@ -1041,7 +1129,10 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                     </tr>
                   ) : (
                     filteredPayments.map((p) => (
-                      <tr key={p.id} className="hover:bg-neutral-800/40 transition-colors group">
+                      <tr
+                        key={p.id}
+                        className="hover:bg-neutral-800/40 transition-colors group"
+                      >
                         <td className="px-5 py-3.5 font-mono font-bold text-neutral-300">
                           #{p.id}
                         </td>
@@ -1105,26 +1196,31 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                               align="right"
                               items={[
                                 {
-                                  label: 'Print Pay Slip',
+                                  label: "Print Pay Slip",
                                   icon: Printer,
-                                  color: 'emerald',
+                                  color: "emerald",
                                   action: () => setPrintingPayment(p),
                                 },
                                 p.reference
                                   ? {
-                                      label: 'Copy Reference',
+                                      label: "Copy Reference",
                                       icon: Copy,
-                                      color: 'sky',
+                                      color: "sky",
                                       action: () => {
-                                        navigator.clipboard.writeText(p.reference!);
-                                        showToast(`Reference ${p.reference} copied`, 'info');
+                                        navigator.clipboard.writeText(
+                                          p.reference!,
+                                        );
+                                        showToast(
+                                          `Reference ${p.reference} copied`,
+                                          "info",
+                                        );
                                       },
                                     }
                                   : null,
                                 {
-                                  label: 'Reverse Payment',
+                                  label: "Reverse Payment",
                                   icon: Trash2,
-                                  color: 'rose',
+                                  color: "rose",
                                   isDestructive: true,
                                   divider: true,
                                   action: () => setPaymentToDelete(p),
@@ -1164,11 +1260,14 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
             <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
               <div>
-                <span className="font-semibold">Notice:</span> This employee has already been
-                disbursed a salary for <span className="font-mono">{alreadyPaidWarning.period}</span> (
-                {formatCurrency(alreadyPaidWarning.amount, currencySymbol)} on{' '}
-                {alreadyPaidWarning.date ? formatDate(alreadyPaidWarning.date) : ''}). Confirm only if you intend to disburse an
-                additional payment.
+                <span className="font-semibold">Notice:</span> This employee has
+                already been disbursed a salary for{" "}
+                <span className="font-mono">{alreadyPaidWarning.period}</span> (
+                {formatCurrency(alreadyPaidWarning.amount, currencySymbol)} on{" "}
+                {alreadyPaidWarning.date
+                  ? formatDate(alreadyPaidWarning.date)
+                  : ""}
+                ). Confirm only if you intend to disburse an additional payment.
               </div>
             </div>
           )}
@@ -1182,7 +1281,7 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
             placeholder="-- Choose Staff Member --"
             options={staffList.map((s) => ({
               value: s.id,
-              label: `${s.name} (${s.role}) — ${formatCurrency(s.base_salary, currencySymbol)}/mo${s.status === 'inactive' ? ' (Inactive)' : ''}`,
+              label: `${s.name} (${s.role}) — ${formatCurrency(s.base_salary, currencySymbol)}/mo${s.status === "inactive" ? " (Inactive)" : ""}`,
             }))}
           />
 
@@ -1203,7 +1302,9 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
             />
 
             <Input
-              label={<span className="text-emerald-400">Bonus / Allowance</span>}
+              label={
+                <span className="text-emerald-400">Bonus / Allowance</span>
+              }
               type="number"
               step="0.01"
               min="0"
@@ -1227,7 +1328,9 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
 
           {/* Net Pay Callout Banner */}
           <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800 flex items-center justify-between">
-            <div className="text-xs text-neutral-400 font-medium">Net Disbursed Amount</div>
+            <div className="text-xs text-neutral-400 font-medium">
+              Net Disbursed Amount
+            </div>
             <div className="text-base font-bold text-emerald-400 font-mono tabular-nums">
               {formatCurrency(toMinorUnits(modalNetPay), currencySymbol)}
             </div>
@@ -1275,7 +1378,10 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
             <Input
               label={
                 <>
-                  Cheque / Txn Ref <span className="text-neutral-500 text-[10px]">(optional)</span>
+                  Cheque / Txn Ref{" "}
+                  <span className="text-neutral-500 text-[10px]">
+                    (optional)
+                  </span>
                 </>
               }
               type="text"
@@ -1290,7 +1396,8 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
           <Input
             label={
               <>
-                Voucher Notes <span className="text-neutral-500 text-[10px]">(optional)</span>
+                Voucher Notes{" "}
+                <span className="text-neutral-500 text-[10px]">(optional)</span>
               </>
             }
             type="text"
@@ -1306,7 +1413,8 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                 Sync with Expense Ledger
               </div>
               <div className="text-[11px] text-neutral-500 mt-0.5">
-                Automatically records an overhead expense under &quot;Salaries &amp; Wages&quot;
+                Automatically records an overhead expense under &quot;Salaries
+                &amp; Wages&quot;
               </div>
             </div>
             <Input

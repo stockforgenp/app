@@ -22,25 +22,25 @@ import {
   Eye,
   UserCheck,
 } from "lucide-react";
-import { Customer, Sale, CreateCustomerInput } from "../../types/index.ts";
-import { Input } from "../common/Input.tsx";
+import { Customer, Sale, CreateCustomerInput } from "../types/index.ts";
+import { Input } from "../components/common/Input.tsx";
 import {
   getAllCustomers,
   createCustomer,
   updateCustomer,
   deleteCustomer,
   getCustomerSales,
-} from "../../lib/services/customerService.ts";
-import { formatCurrency, formatDateTime } from "../../lib/utils/format.ts";
-import { Modal } from "../common/Modal.tsx";
-import { ConfirmDialog } from "../common/ConfirmDialog.tsx";
-import { ActionMenu } from "../common/ActionMenu.tsx";
-import { PrintBillModal } from "../common/PrintBillModal.tsx";
-import { DataTable, Column } from "../common/DataTable.tsx";
-import { getCustomerColumns } from "../../columns/index.ts";
-import { useToast } from "../../context/ToastContext.tsx";
-import { subscribeToDbChanges } from "../../lib/db/sqliteEngine.ts";
-import { useLanguage } from "../../context/LanguageContext.tsx";
+} from "../lib/services/customerService.ts";
+import { formatCurrency, formatDateTime } from "../lib/utils/format.ts";
+import { Modal } from "../components/common/Modal.tsx";
+import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
+import { ActionMenu } from "../components/common/ActionMenu.tsx";
+import { PrintBillModal } from "../components/common/PrintBillModal.tsx";
+import { DataTable, Column } from "../components/common/DataTable.tsx";
+import { getCustomerColumns } from "../columns/index.ts";
+import { useToast } from "../context/ToastContext.tsx";
+import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
+import { useLanguage } from "../context/LanguageContext.tsx";
 
 interface CustomersViewProps {
   currencySymbol: string;
@@ -245,10 +245,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
         onDelete: (c) => setDeletingCustomer(c),
         onCopyPhone: (phone) => {
           navigator.clipboard.writeText(phone);
-          showToast(
-            isNepali ? "फोन नं. कपी गरियो" : "Phone copied",
-            "info",
-          );
+          showToast(isNepali ? "फोन नं. कपी गरियो" : "Phone copied", "info");
         },
       }),
     [isNepali, currencySymbol, copiedPan, formatNumberByLang, showToast],

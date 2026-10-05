@@ -7,8 +7,8 @@
  * - Real-time stock validation (prevents negative stock if setting is OFF)
  * - Complete transactional checkout with snapshot cost prices
  */
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   Plus,
@@ -26,24 +26,27 @@ import {
   Percent,
   Printer,
   X,
-} from 'lucide-react';
-import { Product, CartItem } from '../../types/index.ts';
-import { getAllProducts } from '../../lib/services/productService.ts';
-import { processSale } from '../../lib/services/salesService.ts';
-import { calculateProportionalDiscounts } from '../../lib/utils/discountUtils.ts';
+} from "lucide-react";
+import { Product, CartItem } from "../types/index.ts";
+import { getAllProducts } from "../lib/services/productService.ts";
+import { processSale } from "../lib/services/salesService.ts";
+import { calculateProportionalDiscounts } from "../lib/utils/discountUtils.ts";
 import {
   formatCurrency,
   fromMinorUnits,
   toMinorUnits,
-} from '../../lib/utils/format.ts';
-import { useToast } from '../../context/ToastContext.tsx';
-import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
-import { MODIFIER_LABEL } from '../../lib/hooks/useGlobalShortcuts.ts';
-import { Modal } from '../common/Modal.tsx';
-import { PrintBillModal } from '../common/PrintBillModal.tsx';
-import { Input } from '../common/Input.tsx';
-import { CustomerInputSection, CustomerInputData } from '../common/CustomerInputSection.tsx';
-import { useLanguage } from '../../context/LanguageContext.tsx';
+} from "../lib/utils/format.ts";
+import { useToast } from "../context/ToastContext.tsx";
+import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
+import { MODIFIER_LABEL } from "../lib/hooks/useGlobalShortcuts.ts";
+import { Modal } from "../components/common/Modal.tsx";
+import { PrintBillModal } from "../components/common/PrintBillModal.tsx";
+import { Input } from "../components/common/Input.tsx";
+import {
+  CustomerInputSection,
+  CustomerInputData,
+} from "../components/common/CustomerInputSection.tsx";
+import { useLanguage } from "../context/LanguageContext.tsx";
 
 interface SalesViewProps {
   currencySymbol: string;
@@ -66,16 +69,18 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const { showToast } = useToast();
   const { t, isNepali, formatNumberByLang } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
-  const [search, setSearch] = useState('');
-  const [stockFilter, setStockFilter] = useState<'all' | 'inStock' | 'lowStock'>('all');
+  const [search, setSearch] = useState("");
+  const [stockFilter, setStockFilter] = useState<
+    "all" | "inStock" | "lowStock"
+  >("all");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerData, setCustomerData] = useState<CustomerInputData>({
     customerId: null,
-    name: '',
-    phone: '',
-    email: '',
-    pan_vat: '',
-    address: '',
+    name: "",
+    phone: "",
+    email: "",
+    pan_vat: "",
+    address: "",
     isNew: false,
   });
   const [completedSaleInfo, setCompletedSaleInfo] = useState<{
@@ -97,27 +102,37 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   // Quick Multi-SKU input right on POS
-  const [quickSkuInput, setQuickSkuInput] = useState('');
+  const [quickSkuInput, setQuickSkuInput] = useState("");
 
   // Whole / Overall Sale Discount State (proportionally divided across line items)
-  const [wholeDiscountValue, setWholeDiscountValue] = useState('');
-  const [wholeDiscountType, setWholeDiscountType] = useState<'fixed' | 'percent'>('fixed');
+  const [wholeDiscountValue, setWholeDiscountValue] = useState("");
+  const [wholeDiscountType, setWholeDiscountType] = useState<
+    "fixed" | "percent"
+  >("fixed");
 
   // Bulk / Whole Discount Modal
   const [isBulkDiscountModalOpen, setIsBulkDiscountModalOpen] = useState(false);
-  const [bulkDiscountTab, setBulkDiscountTab] = useState<'proportional' | 'uniform'>('proportional');
-  const [bulkDiscountType, setBulkDiscountType] = useState<'fixed' | 'percent'>('fixed');
-  const [bulkDiscountValue, setBulkDiscountValue] = useState('');
+  const [bulkDiscountTab, setBulkDiscountTab] = useState<
+    "proportional" | "uniform"
+  >("proportional");
+  const [bulkDiscountType, setBulkDiscountType] = useState<"fixed" | "percent">(
+    "fixed",
+  );
+  const [bulkDiscountValue, setBulkDiscountValue] = useState("");
 
   // Multi-Product Batch Mode States
   const [isBatchMode, setIsBatchMode] = useState(false);
   const [isMultiProductModalOpen, setIsMultiProductModalOpen] = useState(false);
-  const [batchQuantities, setBatchQuantities] = useState<Record<number, number>>({});
-  
+  const [batchQuantities, setBatchQuantities] = useState<
+    Record<number, number>
+  >({});
+
   // Bulk SKU entry in modal
-  const [modalTab, setModalTab] = useState<'checklist' | 'bulkSku'>('checklist');
-  const [bulkSkuInput, setBulkSkuInput] = useState('');
-  const [modalSearch, setModalSearch] = useState('');
+  const [modalTab, setModalTab] = useState<"checklist" | "bulkSku">(
+    "checklist",
+  );
+  const [bulkSkuInput, setBulkSkuInput] = useState("");
+  const [modalSearch, setModalSearch] = useState("");
 
   const quickSkuInputRef = useRef<HTMLInputElement>(null);
 
@@ -125,7 +140,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
     try {
       setProducts(getAllProducts());
     } catch (e) {
-      console.error('Error fetching catalog:', e);
+      console.error("Error fetching catalog:", e);
     }
   };
 
@@ -138,9 +153,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
   // Filter products for catalog
   const availableProducts = useMemo(() => {
     let list = products;
-    if (stockFilter === 'inStock') {
+    if (stockFilter === "inStock") {
       list = list.filter((p) => p.current_stock > 0);
-    } else if (stockFilter === 'lowStock') {
+    } else if (stockFilter === "lowStock") {
       list = list.filter((p) => p.current_stock <= 10);
     }
 
@@ -150,7 +165,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
       (p) =>
         p.name.toLowerCase().includes(q) ||
         (p.sku && p.sku.toLowerCase().includes(q)) ||
-        p.id.toString() === q
+        p.id.toString() === q,
     );
   }, [products, search, stockFilter]);
 
@@ -161,13 +176,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
     return products.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
-        (p.sku && p.sku.toLowerCase().includes(q))
+        (p.sku && p.sku.toLowerCase().includes(q)),
     );
   }, [products, modalSearch]);
 
   const handleAddToCart = (product: Product) => {
     // Check if already in cart
-    const existingIndex = cart.findIndex((item) => item.product.id === product.id);
+    const existingIndex = cart.findIndex(
+      (item) => item.product.id === product.id,
+    );
     if (existingIndex >= 0) {
       const existing = cart[existingIndex];
       const newQty = existing.quantity + 1;
@@ -176,7 +193,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
       if (!allowNegativeStock && newQty > product.current_stock) {
         showToast(
           `Cannot add more. Only ${product.current_stock} in stock for "${product.name}".`,
-          'warning'
+          "warning",
         );
         return;
       }
@@ -190,7 +207,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
     } else {
       // Validate initial 1 quantity
       if (!allowNegativeStock && product.current_stock < 1) {
-        showToast(`"${product.name}" is currently out of stock.`, 'warning');
+        showToast(`"${product.name}" is currently out of stock.`, "warning");
         return;
       }
 
@@ -207,9 +224,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
   };
 
   // Add multiple products to the sale cart in one batch operation
-  const handleBatchAddToCart = (itemsToAdd: Array<{ product: Product; quantity: number }>) => {
+  const handleBatchAddToCart = (
+    itemsToAdd: Array<{ product: Product; quantity: number }>,
+  ) => {
     if (itemsToAdd.length === 0) {
-      showToast('No items selected to add', 'warning');
+      showToast("No items selected to add", "warning");
       return;
     }
 
@@ -219,7 +238,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
     for (const item of itemsToAdd) {
       const qty = Math.max(1, Math.floor(item.quantity));
-      const existingIndex = updatedCart.findIndex((ci) => ci.product.id === item.product.id);
+      const existingIndex = updatedCart.findIndex(
+        (ci) => ci.product.id === item.product.id,
+      );
 
       if (existingIndex >= 0) {
         const currentQty = updatedCart[existingIndex].quantity;
@@ -262,14 +283,14 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
     if (addedCount > 0) {
       showToast(
-        `Added ${addedCount} product${addedCount > 1 ? 's' : ''} to transaction`,
-        'success'
+        `Added ${addedCount} product${addedCount > 1 ? "s" : ""} to transaction`,
+        "success",
       );
     }
     if (skippedCount > 0) {
       showToast(
-        `${skippedCount} product${skippedCount > 1 ? 's were' : ' was'} skipped due to insufficient stock`,
-        'warning'
+        `${skippedCount} product${skippedCount > 1 ? "s were" : " was"} skipped due to insufficient stock`,
+        "warning",
       );
     }
   };
@@ -281,7 +302,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
         initialProducts.map((p) => ({
           product: p.product,
           quantity: p.quantity || 1,
-        }))
+        })),
       );
       onClearInitialProducts?.();
     }
@@ -296,11 +317,13 @@ export const SalesView: React.FC<SalesViewProps> = ({
       } else {
         const prod = products.find((p) => p.id === productId);
         if (!allowNegativeStock && prod && prod.current_stock <= 0) {
-          showToast(`"${prod.name}" is out of stock.`, 'warning');
+          showToast(`"${prod.name}" is out of stock.`, "warning");
           return prev;
         }
         const maxStock = prod ? prod.current_stock : Infinity;
-        next[productId] = !allowNegativeStock ? Math.min(defaultQty, Math.max(1, maxStock)) : defaultQty;
+        next[productId] = !allowNegativeStock
+          ? Math.min(defaultQty, Math.max(1, maxStock))
+          : defaultQty;
       }
       return next;
     });
@@ -317,8 +340,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
         if (!allowNegativeStock && qty > maxStock) {
           next[productId] = Math.max(1, maxStock);
           showToast(
-            `Quantity cannot exceed available stock (${maxStock} ${prod?.unit || 'pcs'} for "${prod?.name || 'Item'}").`,
-            'warning'
+            `Quantity cannot exceed available stock (${maxStock} ${prod?.unit || "pcs"} for "${prod?.name || "Item"}").`,
+            "warning",
           );
         } else {
           next[productId] = qty;
@@ -366,11 +389,14 @@ export const SalesView: React.FC<SalesViewProps> = ({
           (p.sku && p.sku.toLowerCase() === code) ||
           p.id.toString() === code ||
           p.name.toLowerCase() === code ||
-          p.name.toLowerCase().startsWith(code)
+          p.name.toLowerCase().startsWith(code),
       );
 
       if (product) {
-        itemsToAdd.push({ product, quantity: isNaN(qty) || qty <= 0 ? 1 : qty });
+        itemsToAdd.push({
+          product,
+          quantity: isNaN(qty) || qty <= 0 ? 1 : qty,
+        });
       } else {
         notFound.push(token);
       }
@@ -378,13 +404,13 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
     if (itemsToAdd.length > 0) {
       handleBatchAddToCart(itemsToAdd);
-      setQuickSkuInput('');
+      setQuickSkuInput("");
     }
 
     if (notFound.length > 0) {
       showToast(
-        `Could not match: ${notFound.slice(0, 3).join(', ')}${notFound.length > 3 ? '...' : ''}`,
-        'warning'
+        `Could not match: ${notFound.slice(0, 3).join(", ")}${notFound.length > 3 ? "..." : ""}`,
+        "warning",
       );
     }
   };
@@ -393,27 +419,27 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const handleApplyBulkDiscount = () => {
     const val = parseFloat(bulkDiscountValue);
     if (isNaN(val) || val <= 0) {
-      showToast('Please enter a valid positive discount value', 'warning');
+      showToast("Please enter a valid positive discount value", "warning");
       return;
     }
 
-    if (bulkDiscountTab === 'proportional') {
+    if (bulkDiscountTab === "proportional") {
       setWholeDiscountValue(bulkDiscountValue);
       setWholeDiscountType(bulkDiscountType);
       setIsBulkDiscountModalOpen(false);
-      setBulkDiscountValue('');
+      setBulkDiscountValue("");
       showToast(
         `Applied whole discount of ${
-          bulkDiscountType === 'fixed'
+          bulkDiscountType === "fixed"
             ? formatCurrency(toMinorUnits(val), currencySymbol)
             : `${val}%`
         } divided proportionally across ${cart.length} items`,
-        'success'
+        "success",
       );
     } else {
       const updated = cart.map((item) => {
         let discountMinor = 0;
-        if (bulkDiscountType === 'fixed') {
+        if (bulkDiscountType === "fixed") {
           discountMinor = toMinorUnits(val);
         } else {
           const gross = item.quantity * item.actual_selling_price;
@@ -428,14 +454,21 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
       setCart(updated);
       setIsBulkDiscountModalOpen(false);
-      setBulkDiscountValue('');
-      showToast(`Applied uniform discount across ${cart.length} items`, 'success');
+      setBulkDiscountValue("");
+      showToast(
+        `Applied uniform discount across ${cart.length} items`,
+        "success",
+      );
     }
   };
 
   // Live preview for proportional whole discount in modal
   const modalProportionalPreview = useMemo(() => {
-    if (bulkDiscountTab !== 'proportional' || !isBulkDiscountModalOpen || cart.length === 0) {
+    if (
+      bulkDiscountTab !== "proportional" ||
+      !isBulkDiscountModalOpen ||
+      cart.length === 0
+    ) {
       return null;
     }
     const val = parseFloat(bulkDiscountValue) || 0;
@@ -449,13 +482,16 @@ export const SalesView: React.FC<SalesViewProps> = ({
     });
 
     let targetWholeMinor = 0;
-    if (bulkDiscountType === 'percent') {
+    if (bulkDiscountType === "percent") {
       targetWholeMinor = Math.round((subtotal * Math.min(100, val)) / 100);
     } else {
       targetWholeMinor = Math.min(subtotal, toMinorUnits(val));
     }
 
-    const distributed = calculateProportionalDiscounts(itemsForDiscount, targetWholeMinor);
+    const distributed = calculateProportionalDiscounts(
+      itemsForDiscount,
+      targetWholeMinor,
+    );
     return {
       subtotal,
       targetWholeMinor,
@@ -463,13 +499,20 @@ export const SalesView: React.FC<SalesViewProps> = ({
         id: item.product.id,
         name: item.product.name,
         quantity: item.quantity,
-        unit: item.product.unit || 'pcs',
+        unit: item.product.unit || "pcs",
         gross: itemsForDiscount[idx].gross,
         allocatedWhole: distributed[idx]?.allocatedWholeDiscount || 0,
-        effectiveNet: distributed[idx]?.effectiveNet || itemsForDiscount[idx].gross,
+        effectiveNet:
+          distributed[idx]?.effectiveNet || itemsForDiscount[idx].gross,
       })),
     };
-  }, [bulkDiscountTab, isBulkDiscountModalOpen, cart, bulkDiscountValue, bulkDiscountType]);
+  }, [
+    bulkDiscountTab,
+    isBulkDiscountModalOpen,
+    cart,
+    bulkDiscountValue,
+    bulkDiscountType,
+  ]);
 
   const selectAllFilteredInModal = () => {
     setBatchQuantities((prev) => {
@@ -499,7 +542,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
     }
 
     if (itemsToAdd.length === 0) {
-      showToast('Select at least one product with quantity > 0', 'warning');
+      showToast("Select at least one product with quantity > 0", "warning");
       return;
     }
 
@@ -512,7 +555,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
   // Format examples: "BEV-CC-500, SNK-CHP-050", or with counts "BEV-CC-500*3, SNK-CHP-050*2"
   const handleBulkSkuSubmit = () => {
     if (!bulkSkuInput.trim()) {
-      showToast('Please enter at least one SKU or product name', 'warning');
+      showToast("Please enter at least one SKU or product name", "warning");
       return;
     }
 
@@ -537,11 +580,14 @@ export const SalesView: React.FC<SalesViewProps> = ({
         (p) =>
           (p.sku && p.sku.toLowerCase() === code) ||
           p.id.toString() === code ||
-          p.name.toLowerCase() === code
+          p.name.toLowerCase() === code,
       );
 
       if (product) {
-        itemsToAdd.push({ product, quantity: isNaN(qty) || qty <= 0 ? 1 : qty });
+        itemsToAdd.push({
+          product,
+          quantity: isNaN(qty) || qty <= 0 ? 1 : qty,
+        });
       } else {
         notFound.push(token);
       }
@@ -549,14 +595,14 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
     if (itemsToAdd.length > 0) {
       handleBatchAddToCart(itemsToAdd);
-      setBulkSkuInput('');
+      setBulkSkuInput("");
       setIsMultiProductModalOpen(false);
     }
 
     if (notFound.length > 0) {
       showToast(
-        `Could not match: ${notFound.slice(0, 3).join(', ')}${notFound.length > 3 ? '...' : ''}`,
-        'warning'
+        `Could not match: ${notFound.slice(0, 3).join(", ")}${notFound.length > 3 ? "..." : ""}`,
+        "warning",
       );
     }
   };
@@ -574,8 +620,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
     } else if (!allowNegativeStock && rawQty > availableStock) {
       item.quantity = Math.max(1, availableStock);
       showToast(
-        `Quantity cannot exceed available stock (${availableStock} ${item.product.unit || 'pcs'} for "${item.product.name}").`,
-        'warning'
+        `Quantity cannot exceed available stock (${availableStock} ${item.product.unit || "pcs"} for "${item.product.name}").`,
+        "warning",
       );
     } else {
       item.quantity = rawQty;
@@ -601,15 +647,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
   const handleClearCart = () => {
     setCart([]);
-    setWholeDiscountValue('');
-    setWholeDiscountType('fixed');
+    setWholeDiscountValue("");
+    setWholeDiscountType("fixed");
     setCustomerData({
       customerId: null,
-      name: '',
-      phone: '',
-      email: '',
-      pan_vat: '',
-      address: '',
+      name: "",
+      phone: "",
+      email: "",
+      pan_vat: "",
+      address: "",
       isNew: false,
     });
   };
@@ -619,7 +665,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
     let subtotal = 0;
     let totalUnits = 0;
     let hasStockViolation = false;
-    let violationMessage = '';
+    let violationMessage = "";
 
     const itemsForDiscount = cart.map((item) => {
       const gross = item.quantity * item.actual_selling_price;
@@ -641,17 +687,22 @@ export const SalesView: React.FC<SalesViewProps> = ({
     const rawWholeVal = parseFloat(wholeDiscountValue) || 0;
     let targetWholeDiscountMinor = 0;
     if (rawWholeVal > 0 && subtotal > 0) {
-      if (wholeDiscountType === 'percent') {
-        targetWholeDiscountMinor = Math.round((subtotal * Math.min(100, rawWholeVal)) / 100);
+      if (wholeDiscountType === "percent") {
+        targetWholeDiscountMinor = Math.round(
+          (subtotal * Math.min(100, rawWholeVal)) / 100,
+        );
       } else {
-        targetWholeDiscountMinor = Math.min(subtotal, toMinorUnits(rawWholeVal));
+        targetWholeDiscountMinor = Math.min(
+          subtotal,
+          toMinorUnits(rawWholeVal),
+        );
       }
     }
 
     // Distribute whole discount proportionally across all items based on item gross
     const distributedResults = calculateProportionalDiscounts(
       itemsForDiscount,
-      targetWholeDiscountMinor
+      targetWholeDiscountMinor,
     );
 
     let totalIndividualDiscount = 0;
@@ -705,12 +756,12 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
   const handleCompleteSale = () => {
     if (cart.length === 0) {
-      showToast('Please add at least one product to the sale', 'warning');
+      showToast("Please add at least one product to the sale", "warning");
       return;
     }
 
     if (calculations.hasStockViolation) {
-      showToast(calculations.violationMessage, 'error');
+      showToast(calculations.violationMessage, "error");
       return;
     }
 
@@ -722,55 +773,54 @@ export const SalesView: React.FC<SalesViewProps> = ({
         discount: item.effectiveTotalDiscount,
       }));
 
-      const sale = processSale(
-        itemsInput,
-        {
-          customerId: customerData.customerId || undefined,
-          customerName: customerData.name.trim() || undefined,
-          customerPhone: customerData.phone.trim() || undefined,
-          customerEmail: customerData.email.trim() || undefined,
-          customerPanVat: customerData.pan_vat.trim() || undefined,
-          customerAddress: customerData.address.trim() || undefined,
-          customerInput: {
-            name: customerData.name.trim(),
-            phone: customerData.phone.trim() || undefined,
-            email: customerData.email.trim() || undefined,
-            pan_vat: customerData.pan_vat.trim() || undefined,
-            address: customerData.address.trim() || undefined,
-          },
-        }
-      );
+      const sale = processSale(itemsInput, {
+        customerId: customerData.customerId || undefined,
+        customerName: customerData.name.trim() || undefined,
+        customerPhone: customerData.phone.trim() || undefined,
+        customerEmail: customerData.email.trim() || undefined,
+        customerPanVat: customerData.pan_vat.trim() || undefined,
+        customerAddress: customerData.address.trim() || undefined,
+        customerInput: {
+          name: customerData.name.trim(),
+          phone: customerData.phone.trim() || undefined,
+          email: customerData.email.trim() || undefined,
+          pan_vat: customerData.pan_vat.trim() || undefined,
+          address: customerData.address.trim() || undefined,
+        },
+      });
 
-      showToast(`Sale #${sale.id} completed successfully!`, 'success');
+      showToast(`Sale #${sale.id} completed successfully!`, "success");
 
       // Alert the user if any product's stock levels fall to or below their specific minimum alert threshold
       if (sale.lowStockAlerts && sale.lowStockAlerts.length > 0) {
         sale.lowStockAlerts.forEach((alert) => {
           showToast(
             `"${alert.productName}" stock is now ${alert.remainingStock} unit${
-              alert.remainingStock === 1 ? '' : 's'
+              alert.remainingStock === 1 ? "" : "s"
             } (below minimum alert threshold of ${alert.threshold}). Restock recommended!`,
-            'warning',
+            "warning",
             {
-              title: '⚠️ Low Stock Alert',
+              title: "⚠️ Low Stock Alert",
               duration: 8500,
               action: onRestockProduct
                 ? {
-                    label: 'Restock Product',
+                    label: "Restock Product",
                     onClick: () => {
-                      const prod = products.find((p) => p.id === alert.productId);
+                      const prod = products.find(
+                        (p) => p.id === alert.productId,
+                      );
                       if (prod) {
                         onRestockProduct(prod);
                       } else {
-                        navigate('/inventory');
+                        navigate("/inventory");
                       }
                     },
                   }
                 : {
-                    label: 'View Inventory',
-                    onClick: () => navigate('/inventory'),
+                    label: "View Inventory",
+                    onClick: () => navigate("/inventory"),
                   },
-            }
+            },
           );
         });
       }
@@ -796,17 +846,17 @@ export const SalesView: React.FC<SalesViewProps> = ({
       setCart([]);
       setCustomerData({
         customerId: null,
-        name: '',
-        phone: '',
-        email: '',
-        pan_vat: '',
-        address: '',
+        name: "",
+        phone: "",
+        email: "",
+        pan_vat: "",
+        address: "",
         isNew: false,
       });
       loadCatalog();
       onSaleCompleted(sale.id);
     } catch (err: unknown) {
-      showToast((err as Error).message, 'error', 'Transaction Failed');
+      showToast((err as Error).message, "error", "Transaction Failed");
     }
   };
 
@@ -817,7 +867,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
       const key = e.key.toLowerCase();
 
       // F2 or Ctrl+Enter: Complete sale
-      if (e.key === 'F2' || (isModifier && e.key === 'Enter')) {
+      if (e.key === "F2" || (isModifier && e.key === "Enter")) {
         if (cart.length > 0 && !calculations.hasStockViolation) {
           e.preventDefault();
           handleCompleteSale();
@@ -826,7 +876,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
       }
 
       // Ctrl+B or Cmd+B: Focus barcode / quick SKU input
-      if (isModifier && key === 'b') {
+      if (isModifier && key === "b") {
         e.preventDefault();
         quickSkuInputRef.current?.focus();
         quickSkuInputRef.current?.select();
@@ -834,27 +884,33 @@ export const SalesView: React.FC<SalesViewProps> = ({
       }
     };
 
-    window.addEventListener('keydown', handlePosKeyDown);
-    return () => window.removeEventListener('keydown', handlePosKeyDown);
+    window.addEventListener("keydown", handlePosKeyDown);
+    return () => window.removeEventListener("keydown", handlePosKeyDown);
   }, [cart, calculations]);
 
   // Selected batch items summary stats
   const batchSelectedCount = Object.keys(batchQuantities).length;
-  const batchTotalUnits = Object.values(batchQuantities).reduce((acc, q) => acc + q, 0);
-  const batchTotalEst = Object.entries(batchQuantities).reduce((acc, [pIdStr, q]) => {
-    const p = products.find((prod) => prod.id === parseInt(pIdStr, 10));
-    return acc + (p ? p.selling_price * q : 0);
-  }, 0);
+  const batchTotalUnits = Object.values(batchQuantities).reduce(
+    (acc, q) => acc + q,
+    0,
+  );
+  const batchTotalEst = Object.entries(batchQuantities).reduce(
+    (acc, [pIdStr, q]) => {
+      const p = products.find((prod) => prod.id === parseInt(pIdStr, 10));
+      return acc + (p ? p.selling_price * q : 0);
+    },
+    0,
+  );
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-150">
       {/* View Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-neutral-100">{t('pos_title')}</h1>
-          <p className="text-xs text-neutral-400 mt-1">
-            {t('pos_subtitle')}
-          </p>
+          <h1 className="text-xl font-bold tracking-tight text-neutral-100">
+            {t("pos_title")}
+          </h1>
+          <p className="text-xs text-neutral-400 mt-1">{t("pos_subtitle")}</p>
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
@@ -867,7 +923,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors cursor-pointer"
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>{t('pos_add_multiple')}</span>
+            <span>{t("pos_add_multiple")}</span>
           </button>
 
           {cart.length > 0 && (
@@ -876,7 +932,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-neutral-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>{t('pos_clear_cart')}</span>
+              <span>{t("pos_clear_cart")}</span>
             </button>
           )}
         </div>
@@ -889,8 +945,12 @@ export const SalesView: React.FC<SalesViewProps> = ({
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-xs font-semibold text-neutral-200">Catalog & Multi-Product Picker</div>
-                <div className="text-[11px] text-neutral-400 mt-0.5">Select items to batch add, or click + to add 1</div>
+                <div className="text-xs font-semibold text-neutral-200">
+                  Catalog & Multi-Product Picker
+                </div>
+                <div className="text-[11px] text-neutral-400 mt-0.5">
+                  Select items to batch add, or click + to add 1
+                </div>
               </div>
 
               {/* Multi-Select Inline Toggle */}
@@ -902,13 +962,13 @@ export const SalesView: React.FC<SalesViewProps> = ({
                 }}
                 className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] rounded-md transition-colors cursor-pointer border ${
                   isBatchMode
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-semibold'
-                    : 'bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-neutral-200'
+                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-semibold"
+                    : "bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-neutral-200"
                 }`}
                 title="Toggle batch selection checkboxes"
               >
                 <ListChecks className="w-3.5 h-3.5" />
-                <span>{isBatchMode ? 'Multi-Select: ON' : 'Multi-Select'}</span>
+                <span>{isBatchMode ? "Multi-Select: ON" : "Multi-Select"}</span>
               </button>
             </div>
 
@@ -917,36 +977,37 @@ export const SalesView: React.FC<SalesViewProps> = ({
               <div className="flex items-center gap-1 bg-neutral-950 p-1 rounded-lg border border-neutral-800 text-[11px]">
                 <button
                   type="button"
-                  onClick={() => setStockFilter('all')}
+                  onClick={() => setStockFilter("all")}
                   className={`flex-1 py-1 rounded transition-colors text-center cursor-pointer ${
-                    stockFilter === 'all'
-                      ? 'bg-neutral-800 text-neutral-100 font-semibold'
-                      : 'text-neutral-400 hover:text-neutral-200'
+                    stockFilter === "all"
+                      ? "bg-neutral-800 text-neutral-100 font-semibold"
+                      : "text-neutral-400 hover:text-neutral-200"
                   }`}
                 >
-                  {t('pos_all_products')} ({formatNumberByLang(products.length)})
+                  {t("pos_all_products")} ({formatNumberByLang(products.length)}
+                  )
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStockFilter('inStock')}
+                  onClick={() => setStockFilter("inStock")}
                   className={`flex-1 py-1 rounded transition-colors text-center cursor-pointer ${
-                    stockFilter === 'inStock'
-                      ? 'bg-emerald-500/20 text-emerald-300 font-semibold'
-                      : 'text-neutral-400 hover:text-neutral-200'
+                    stockFilter === "inStock"
+                      ? "bg-emerald-500/20 text-emerald-300 font-semibold"
+                      : "text-neutral-400 hover:text-neutral-200"
                   }`}
                 >
-                  {t('pos_in_stock')}
+                  {t("pos_in_stock")}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStockFilter('lowStock')}
+                  onClick={() => setStockFilter("lowStock")}
                   className={`flex-1 py-1 rounded transition-colors text-center cursor-pointer ${
-                    stockFilter === 'lowStock'
-                      ? 'bg-amber-500/20 text-amber-300 font-semibold'
-                      : 'text-neutral-400 hover:text-neutral-200'
+                    stockFilter === "lowStock"
+                      ? "bg-amber-500/20 text-amber-300 font-semibold"
+                      : "text-neutral-400 hover:text-neutral-200"
                   }`}
                 >
-                  {t('pos_low_stock')}
+                  {t("pos_low_stock")}
                 </button>
               </div>
 
@@ -955,12 +1016,16 @@ export const SalesView: React.FC<SalesViewProps> = ({
                 <div className="flex-1">
                   <Input
                     type="text"
-                    placeholder={isNepali ? 'सामानको नाम वा SKU बाट खोज्नुहोस्...' : 'Search catalog or SKU to add...'}
+                    placeholder={
+                      isNepali
+                        ? "सामानको नाम वा SKU बाट खोज्नुहोस्..."
+                        : "Search catalog or SKU to add..."
+                    }
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     icon={Search}
                     clearable
-                    onClear={() => setSearch('')}
+                    onClear={() => setSearch("")}
                     className="py-1.5 text-xs"
                   />
                 </div>
@@ -992,8 +1057,10 @@ export const SalesView: React.FC<SalesViewProps> = ({
                 <div>
                   <span className="font-semibold text-emerald-300">
                     {batchSelectedCount} selected
-                  </span>{' '}
-                  <span className="text-neutral-400">({batchTotalUnits} units)</span>
+                  </span>{" "}
+                  <span className="text-neutral-400">
+                    ({batchTotalUnits} units)
+                  </span>
                   <div className="text-[10px] text-neutral-400 font-mono">
                     Est: {formatCurrency(batchTotalEst, currencySymbol)}
                   </div>
@@ -1021,17 +1088,20 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   const isSelected = batchQuantities[p.id] !== undefined;
                   const selectedQty = batchQuantities[p.id] || 1;
                   const inCartItem = cart.find((ci) => ci.product.id === p.id);
-                  const isMaxInCart = !allowNegativeStock && !!inCartItem && inCartItem.quantity >= p.current_stock;
+                  const isMaxInCart =
+                    !allowNegativeStock &&
+                    !!inCartItem &&
+                    inCartItem.quantity >= p.current_stock;
 
                   return (
                     <div
                       key={p.id}
                       className={`p-2.5 rounded-lg border transition-all flex items-center justify-between select-none ${
                         isSelected
-                          ? 'bg-emerald-950/30 border-emerald-500/50'
+                          ? "bg-emerald-950/30 border-emerald-500/50"
                           : isOutOfStock && !allowNegativeStock
-                          ? 'bg-neutral-950/40 border-neutral-800/40 opacity-50'
-                          : 'bg-neutral-950 border-neutral-800/80 hover:border-neutral-700'
+                            ? "bg-neutral-950/40 border-neutral-800/40 opacity-50"
+                            : "bg-neutral-950 border-neutral-800/80 hover:border-neutral-700"
                       }`}
                     >
                       {/* Checkbox & Product Info */}
@@ -1057,14 +1127,20 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               {formatCurrency(p.selling_price, currencySymbol)}
                             </span>
                             <span>·</span>
-                            <span>{p.sku || 'No SKU'}</span>
+                            <span>{p.sku || "No SKU"}</span>
                             <span>·</span>
                             <span className="px-1 py-0.2 rounded bg-neutral-900 text-neutral-400 border border-neutral-800">
-                              {p.unit || 'pcs'}
+                              {p.unit || "pcs"}
                             </span>
                             <span>·</span>
-                            <span className={p.current_stock <= 5 ? 'text-amber-400 font-semibold' : 'text-neutral-400'}>
-                              Stock: {p.current_stock} {p.unit || 'pcs'}
+                            <span
+                              className={
+                                p.current_stock <= 5
+                                  ? "text-amber-400 font-semibold"
+                                  : "text-neutral-400"
+                              }
+                            >
+                              Stock: {p.current_stock} {p.unit || "pcs"}
                             </span>
                           </div>
                         </div>
@@ -1077,7 +1153,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             <button
                               type="button"
                               disabled={selectedQty <= 1}
-                              onClick={() => updateBatchQty(p.id, selectedQty - 1)}
+                              onClick={() =>
+                                updateBatchQty(p.id, selectedQty - 1)
+                              }
                               className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <Minus className="w-3 h-3" />
@@ -1085,7 +1163,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             <Input
                               type="number"
                               min="1"
-                              max={!allowNegativeStock ? Math.max(1, p.current_stock) : undefined}
+                              max={
+                                !allowNegativeStock
+                                  ? Math.max(1, p.current_stock)
+                                  : undefined
+                              }
                               value={selectedQty}
                               onChange={(e) => {
                                 const val = parseInt(e.target.value, 10);
@@ -1096,9 +1178,19 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             />
                             <button
                               type="button"
-                              disabled={!allowNegativeStock && selectedQty >= p.current_stock}
-                              onClick={() => updateBatchQty(p.id, selectedQty + 1)}
-                              title={!allowNegativeStock && selectedQty >= p.current_stock ? `Max stock reached (${p.current_stock})` : 'Increase batch quantity'}
+                              disabled={
+                                !allowNegativeStock &&
+                                selectedQty >= p.current_stock
+                              }
+                              onClick={() =>
+                                updateBatchQty(p.id, selectedQty + 1)
+                              }
+                              title={
+                                !allowNegativeStock &&
+                                selectedQty >= p.current_stock
+                                  ? `Max stock reached (${p.current_stock})`
+                                  : "Increase batch quantity"
+                              }
                               className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <Plus className="w-3 h-3" />
@@ -1107,19 +1199,22 @@ export const SalesView: React.FC<SalesViewProps> = ({
                         ) : (
                           <button
                             type="button"
-                            disabled={(isOutOfStock || isMaxInCart) && !allowNegativeStock}
+                            disabled={
+                              (isOutOfStock || isMaxInCart) &&
+                              !allowNegativeStock
+                            }
                             onClick={() => handleAddToCart(p)}
                             title={
                               isMaxInCart
                                 ? `All available stock (${p.current_stock}) already in cart`
                                 : isOutOfStock
-                                ? 'Out of stock'
-                                : 'Add 1 unit to sale cart'
+                                  ? "Out of stock"
+                                  : "Add 1 unit to sale cart"
                             }
                             className="px-2 py-1 rounded bg-neutral-900 hover:bg-emerald-600 hover:text-white border border-neutral-800 flex items-center gap-1 text-[11px] text-neutral-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <Plus className="w-3 h-3" />
-                            <span>{isMaxInCart ? 'Max in cart' : 'Add'}</span>
+                            <span>{isMaxInCart ? "Max in cart" : "Add"}</span>
                           </button>
                         )}
                       </div>
@@ -1138,7 +1233,10 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   className="w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Add {batchSelectedCount} Selected Products ({batchTotalUnits} units)</span>
+                  <span>
+                    Add {batchSelectedCount} Selected Products (
+                    {batchTotalUnits} units)
+                  </span>
                 </button>
               </div>
             )}
@@ -1152,9 +1250,12 @@ export const SalesView: React.FC<SalesViewProps> = ({
             <div className="px-5 py-3.5 border-b border-neutral-800 bg-neutral-950/60 flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <Receipt className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs font-semibold text-neutral-200">Current Transaction Items</span>
+                <span className="text-xs font-semibold text-neutral-200">
+                  Current Transaction Items
+                </span>
                 <span className="text-[11px] text-neutral-400 font-mono ml-2">
-                  ({cart.length} {cart.length === 1 ? 'item' : 'items'} · {calculations.totalUnits} units)
+                  ({cart.length} {cart.length === 1 ? "item" : "items"} ·{" "}
+                  {calculations.totalUnits} units)
                 </span>
               </div>
 
@@ -1163,7 +1264,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setBulkDiscountValue('');
+                      setBulkDiscountValue("");
                       setIsBulkDiscountModalOpen(true);
                     }}
                     className="flex items-center gap-1 px-2.5 py-1 text-[11px] text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-md transition-colors cursor-pointer"
@@ -1178,7 +1279,10 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
             {/* Quick Multi-SKU / Barcode Scanner Input */}
             <div className="p-3 bg-neutral-950/80 border-b border-neutral-800/80">
-              <form onSubmit={handleQuickSkuSubmit} className="flex items-center gap-2">
+              <form
+                onSubmit={handleQuickSkuSubmit}
+                className="flex items-center gap-2"
+              >
                 <div className="flex-1">
                   <Input
                     ref={quickSkuInputRef}
@@ -1205,13 +1309,14 @@ export const SalesView: React.FC<SalesViewProps> = ({
             {cart.length === 0 ? (
               <div className="p-12 text-center text-xs text-neutral-400">
                 <Receipt className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
-                Your sale cart is empty. Check multiple items on the catalog, or click{' '}
+                Your sale cart is empty. Check multiple items on the catalog, or
+                click{" "}
                 <button
                   onClick={() => setIsMultiProductModalOpen(true)}
                   className="text-emerald-400 hover:underline font-semibold"
                 >
                   Add Multiple Products
-                </button>{' '}
+                </button>{" "}
                 to select several products at once.
               </div>
             ) : (
@@ -1221,22 +1326,29 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     <tr>
                       <th className="py-2 px-4">Item</th>
                       <th className="py-2 px-2 text-center w-28">Qty</th>
-                      <th className="py-2 px-3 text-right font-mono w-28">Sale Price</th>
-                      <th className="py-2 px-3 text-right font-mono w-24">Discount</th>
-                      <th className="py-2 px-4 text-right font-mono w-28">Net Total</th>
+                      <th className="py-2 px-3 text-right font-mono w-28">
+                        Sale Price
+                      </th>
+                      <th className="py-2 px-3 text-right font-mono w-24">
+                        Discount
+                      </th>
+                      <th className="py-2 px-4 text-right font-mono w-28">
+                        Net Total
+                      </th>
                       <th className="py-2 px-3 text-center w-10"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-800/60">
                     {calculations.itemsWithDiscounts.map((item, index) => {
                       const isOverStock =
-                        !allowNegativeStock && item.quantity > item.product.current_stock;
+                        !allowNegativeStock &&
+                        item.quantity > item.product.current_stock;
 
                       return (
                         <tr
                           key={item.product.id}
                           className={`hover:bg-neutral-800/30 transition-colors ${
-                            isOverStock ? 'bg-rose-500/5' : ''
+                            isOverStock ? "bg-rose-500/5" : ""
                           }`}
                         >
                           {/* Product Info */}
@@ -1244,22 +1356,37 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             <div className="font-semibold text-neutral-200 flex items-center gap-1.5">
                               <span>{item.product.name}</span>
                               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-neutral-800 text-neutral-300 border border-neutral-700/60">
-                                {item.product.unit || 'pcs'}
+                                {item.product.unit || "pcs"}
                               </span>
                             </div>
                             <div className="text-[10px] text-neutral-400 font-mono mt-0.5 flex items-center gap-1.5">
-                              <span>Default: {formatCurrency(item.product.selling_price, currencySymbol)}</span>
+                              <span>
+                                Default:{" "}
+                                {formatCurrency(
+                                  item.product.selling_price,
+                                  currencySymbol,
+                                )}
+                              </span>
                               <span>·</span>
                               <span
-                                className={isOverStock ? 'text-rose-400 font-bold' : 'text-neutral-400'}
+                                className={
+                                  isOverStock
+                                    ? "text-rose-400 font-bold"
+                                    : "text-neutral-400"
+                                }
                               >
-                                Stock: {item.product.current_stock} {item.product.unit || 'pcs'}
+                                Stock: {item.product.current_stock}{" "}
+                                {item.product.unit || "pcs"}
                               </span>
                             </div>
                             {isOverStock && (
                               <div className="text-[10px] text-rose-400 mt-1 flex items-center gap-1 font-semibold">
                                 <AlertTriangle className="w-3 h-3" />
-                                <span>Exceeds available stock ({item.product.current_stock} {item.product.unit || 'pcs'})</span>
+                                <span>
+                                  Exceeds available stock (
+                                  {item.product.current_stock}{" "}
+                                  {item.product.unit || "pcs"})
+                                </span>
                               </div>
                             )}
                           </td>
@@ -1271,7 +1398,12 @@ export const SalesView: React.FC<SalesViewProps> = ({
                                 <button
                                   type="button"
                                   disabled={item.quantity <= 1}
-                                  onClick={() => handleUpdateQuantity(index, (item.quantity - 1).toString())}
+                                  onClick={() =>
+                                    handleUpdateQuantity(
+                                      index,
+                                      (item.quantity - 1).toString(),
+                                    )
+                                  }
                                   className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                                 >
                                   <Minus className="w-3 h-3" />
@@ -1279,20 +1411,35 @@ export const SalesView: React.FC<SalesViewProps> = ({
                                 <Input
                                   type="number"
                                   min="1"
-                                  max={!allowNegativeStock ? Math.max(1, item.product.current_stock) : undefined}
+                                  max={
+                                    !allowNegativeStock
+                                      ? Math.max(1, item.product.current_stock)
+                                      : undefined
+                                  }
                                   value={item.quantity}
-                                  onChange={(e) => handleUpdateQuantity(index, e.target.value)}
+                                  onChange={(e) =>
+                                    handleUpdateQuantity(index, e.target.value)
+                                  }
                                   containerClassName="w-10"
                                   className="border-0 p-0 text-center text-xs font-mono text-neutral-100 bg-transparent focus:outline-none"
                                 />
                                 <button
                                   type="button"
-                                  disabled={!allowNegativeStock && item.quantity >= item.product.current_stock}
-                                  onClick={() => handleUpdateQuantity(index, (item.quantity + 1).toString())}
+                                  disabled={
+                                    !allowNegativeStock &&
+                                    item.quantity >= item.product.current_stock
+                                  }
+                                  onClick={() =>
+                                    handleUpdateQuantity(
+                                      index,
+                                      (item.quantity + 1).toString(),
+                                    )
+                                  }
                                   title={
-                                    !allowNegativeStock && item.quantity >= item.product.current_stock
+                                    !allowNegativeStock &&
+                                    item.quantity >= item.product.current_stock
                                       ? `Max available stock reached (${item.product.current_stock})`
-                                      : 'Increase quantity'
+                                      : "Increase quantity"
                                   }
                                   className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                                 >
@@ -1300,7 +1447,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                                 </button>
                               </div>
                               <span className="text-[10px] font-mono text-neutral-400">
-                                {item.product.unit || 'pcs'}
+                                {item.product.unit || "pcs"}
                               </span>
                             </div>
                           </td>
@@ -1312,7 +1459,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               step="0.01"
                               min="0"
                               value={fromMinorUnits(item.actual_selling_price)}
-                              onChange={(e) => handleUpdateActualPrice(index, e.target.value)}
+                              onChange={(e) =>
+                                handleUpdateActualPrice(index, e.target.value)
+                              }
                               containerClassName="w-24 ml-auto"
                               className="px-2 py-1 text-xs text-right font-mono text-neutral-100"
                             />
@@ -1326,7 +1475,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
                                 step="0.01"
                                 min="0"
                                 value={fromMinorUnits(item.discount)}
-                                onChange={(e) => handleUpdateDiscount(index, e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateDiscount(index, e.target.value)
+                                }
                                 containerClassName="w-20 ml-auto"
                                 className="px-2 py-1 text-xs text-right font-mono text-amber-400 focus:border-amber-500"
                               />
@@ -1335,7 +1486,12 @@ export const SalesView: React.FC<SalesViewProps> = ({
                                   className="text-[10px] text-amber-400/90 font-mono mt-0.5 whitespace-nowrap cursor-help"
                                   title={`Item discount: ${formatCurrency(item.individualDiscount, currencySymbol)} + Whole discount share: ${formatCurrency(item.allocatedWholeDiscount, currencySymbol)} = Total: ${formatCurrency(item.effectiveTotalDiscount, currencySymbol)}`}
                                 >
-                                  +{formatCurrency(item.allocatedWholeDiscount, currencySymbol)} whole
+                                  +
+                                  {formatCurrency(
+                                    item.allocatedWholeDiscount,
+                                    currencySymbol,
+                                  )}{" "}
+                                  whole
                                 </span>
                               )}
                             </div>
@@ -1348,7 +1504,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             </div>
                             {item.effectiveTotalDiscount > 0 && (
                               <div className="text-[10px] font-normal text-amber-400 font-mono">
-                                -{formatCurrency(item.effectiveTotalDiscount, currencySymbol)}
+                                -
+                                {formatCurrency(
+                                  item.effectiveTotalDiscount,
+                                  currencySymbol,
+                                )}
                               </div>
                             )}
                           </td>
@@ -1388,11 +1548,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     <div className="flex items-center gap-1.5">
                       <Percent className="w-3.5 h-3.5 text-amber-400" />
                       <span className="text-xs font-semibold text-neutral-200">
-                        {isNepali ? 'सम्पूर्ण बिलमा छुट (Whole Bill Discount)' : 'Whole Bill Discount'}
+                        {isNepali
+                          ? "सम्पूर्ण बिलमा छुट (Whole Bill Discount)"
+                          : "Whole Bill Discount"}
                       </span>
                     </div>
                     <span className="text-[10px] text-neutral-400">
-                      {isNepali ? 'मूल्य अनुसार दामासाही बाँडिने' : 'Divided proportionally by item amount'}
+                      {isNepali
+                        ? "मूल्य अनुसार दामासाही बाँडिने"
+                        : "Divided proportionally by item amount"}
                     </span>
                   </div>
 
@@ -1400,22 +1564,22 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     <div className="flex bg-neutral-950 p-0.5 rounded-lg border border-neutral-800 text-[11px] shrink-0">
                       <button
                         type="button"
-                        onClick={() => setWholeDiscountType('fixed')}
+                        onClick={() => setWholeDiscountType("fixed")}
                         className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
-                          wholeDiscountType === 'fixed'
-                            ? 'bg-neutral-800 text-neutral-100 font-semibold'
-                            : 'text-neutral-400 hover:text-neutral-200'
+                          wholeDiscountType === "fixed"
+                            ? "bg-neutral-800 text-neutral-100 font-semibold"
+                            : "text-neutral-400 hover:text-neutral-200"
                         }`}
                       >
                         {currencySymbol} Fixed
                       </button>
                       <button
                         type="button"
-                        onClick={() => setWholeDiscountType('percent')}
+                        onClick={() => setWholeDiscountType("percent")}
                         className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
-                          wholeDiscountType === 'percent'
-                            ? 'bg-neutral-800 text-neutral-100 font-semibold'
-                            : 'text-neutral-400 hover:text-neutral-200'
+                          wholeDiscountType === "percent"
+                            ? "bg-neutral-800 text-neutral-100 font-semibold"
+                            : "text-neutral-400 hover:text-neutral-200"
                         }`}
                       >
                         % Percent
@@ -1425,13 +1589,13 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     <div className="relative flex-1">
                       <Input
                         type="number"
-                        step={wholeDiscountType === 'fixed' ? '0.01' : '1'}
+                        step={wholeDiscountType === "fixed" ? "0.01" : "1"}
                         min="0"
-                        max={wholeDiscountType === 'percent' ? 100 : undefined}
+                        max={wholeDiscountType === "percent" ? 100 : undefined}
                         placeholder={
-                          wholeDiscountType === 'fixed'
+                          wholeDiscountType === "fixed"
                             ? `Whole discount (${currencySymbol})...`
-                            : 'Whole discount %...'
+                            : "Whole discount %..."
                         }
                         value={wholeDiscountValue}
                         onChange={(e) => setWholeDiscountValue(e.target.value)}
@@ -1440,7 +1604,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                       {wholeDiscountValue && (
                         <button
                           type="button"
-                          onClick={() => setWholeDiscountValue('')}
+                          onClick={() => setWholeDiscountValue("")}
                           className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-200 p-0.5 rounded cursor-pointer"
                           title="Clear whole discount"
                         >
@@ -1452,15 +1616,23 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
                   {calculations.wholeDiscountAmount > 0 && (
                     <div className="text-[11px] text-amber-400 flex items-center justify-between font-mono pt-1 border-t border-neutral-800/60">
-                      <span className="text-neutral-400">Proportionally distributed:</span>
-                      <span>-{formatCurrency(calculations.wholeDiscountAmount, currencySymbol)}</span>
+                      <span className="text-neutral-400">
+                        Proportionally distributed:
+                      </span>
+                      <span>
+                        -
+                        {formatCurrency(
+                          calculations.wholeDiscountAmount,
+                          currencySymbol,
+                        )}
+                      </span>
                     </div>
                   )}
                 </div>
               )}
 
               <div className="flex items-center justify-between text-xs text-neutral-400">
-                <span>{isNepali ? 'उप-जम्मा' : 'Subtotal (Gross)'}</span>
+                <span>{isNepali ? "उप-जम्मा" : "Subtotal (Gross)"}</span>
                 <span className="font-mono text-neutral-200">
                   {formatCurrency(calculations.subtotal, currencySymbol)}
                 </span>
@@ -1468,33 +1640,48 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
               {calculations.totalIndividualDiscount > 0 && (
                 <div className="flex items-center justify-between text-xs text-neutral-400">
-                  <span>{isNepali ? 'वस्तुगत छुट' : 'Individual Item Discounts'}</span>
+                  <span>
+                    {isNepali ? "वस्तुगत छुट" : "Individual Item Discounts"}
+                  </span>
                   <span className="font-mono text-amber-400">
-                    - {formatCurrency(calculations.totalIndividualDiscount, currencySymbol)}
+                    -{" "}
+                    {formatCurrency(
+                      calculations.totalIndividualDiscount,
+                      currencySymbol,
+                    )}
                   </span>
                 </div>
               )}
 
               {calculations.wholeDiscountAmount > 0 && (
                 <div className="flex items-center justify-between text-xs text-neutral-400">
-                  <span>{isNepali ? 'सम्पूर्ण बिल छुट' : 'Whole Bill Discount (Proportional)'}</span>
+                  <span>
+                    {isNepali
+                      ? "सम्पूर्ण बिल छुट"
+                      : "Whole Bill Discount (Proportional)"}
+                  </span>
                   <span className="font-mono text-amber-400">
-                    - {formatCurrency(calculations.wholeDiscountAmount, currencySymbol)}
+                    -{" "}
+                    {formatCurrency(
+                      calculations.wholeDiscountAmount,
+                      currencySymbol,
+                    )}
                   </span>
                 </div>
               )}
 
               {calculations.totalDiscount > 0 && (
                 <div className="flex items-center justify-between text-xs text-neutral-300 font-semibold pt-1 border-t border-neutral-800/60">
-                  <span>{isNepali ? 'जम्मा छुट' : 'Total Discounts'}</span>
+                  <span>{isNepali ? "जम्मा छुट" : "Total Discounts"}</span>
                   <span className="font-mono text-amber-400">
-                    - {formatCurrency(calculations.totalDiscount, currencySymbol)}
+                    -{" "}
+                    {formatCurrency(calculations.totalDiscount, currencySymbol)}
                   </span>
                 </div>
               )}
 
               <div className="flex items-center justify-between text-xs text-neutral-400">
-                <span>{isNepali ? 'करयोग्य रकम' : 'Taxable Amount'}</span>
+                <span>{isNepali ? "करयोग्य रकम" : "Taxable Amount"}</span>
                 <span className="font-mono text-neutral-200">
                   {formatCurrency(calculations.taxableAmount, currencySymbol)}
                 </span>
@@ -1505,7 +1692,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   <span className="px-1.5 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-400 border border-sky-500/20 font-bold">
                     13% VAT
                   </span>
-                  <span>{isNepali ? 'मूल्य अभिवृद्धि कर' : 'VAT (13%)'}</span>
+                  <span>{isNepali ? "मूल्य अभिवृद्धि कर" : "VAT (13%)"}</span>
                 </span>
                 <span className="font-mono text-sky-400">
                   + {formatCurrency(calculations.vatAmount, currencySymbol)}
@@ -1514,9 +1701,13 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
               <div className="pt-2 border-t border-neutral-800 flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-bold text-neutral-100">{isNepali ? 'कुल भुक्तानी रकम' : 'Grand Total Due'}</div>
+                  <div className="text-sm font-bold text-neutral-100">
+                    {isNepali ? "कुल भुक्तानी रकम" : "Grand Total Due"}
+                  </div>
                   <div className="text-[11px] text-neutral-400">
-                    {isNepali ? '१३% भ्याट समावेश' : 'Includes 13% statutory VAT'}
+                    {isNepali
+                      ? "१३% भ्याट समावेश"
+                      : "Includes 13% statutory VAT"}
                   </div>
                 </div>
                 <div className="text-xl font-bold font-mono text-emerald-400 tabular-nums">
@@ -1528,8 +1719,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
                 <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
                   <span>
-                    Cannot complete sale: one or more items exceed current inventory. (Adjust quantities or
-                    enable "Allow Negative Stock" in Settings).
+                    Cannot complete sale: one or more items exceed current
+                    inventory. (Adjust quantities or enable "Allow Negative
+                    Stock" in Settings).
                   </span>
                 </div>
               )}
@@ -1541,13 +1733,16 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   onClick={handleCompleteSale}
                   className={`w-full py-3 px-4 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer ${
                     cart.length === 0 || calculations.hasStockViolation
-                      ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed shadow-none'
-                      : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-[0.99]'
+                      ? "bg-neutral-800 text-neutral-500 cursor-not-allowed shadow-none"
+                      : "bg-emerald-600 hover:bg-emerald-500 text-white active:scale-[0.99]"
                   }`}
                   title="Complete sale and record transaction (F2 or Enter)"
                 >
                   <CheckCircle className="w-4 h-4" />
-                  <span>Complete Sale & Deduct Stock ({formatCurrency(calculations.grandTotal, currencySymbol)})</span>
+                  <span>
+                    Complete Sale & Deduct Stock (
+                    {formatCurrency(calculations.grandTotal, currencySymbol)})
+                  </span>
                   <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono rounded bg-emerald-700/80 text-emerald-100 border border-emerald-500/40">
                     F2
                   </kbd>
@@ -1570,11 +1765,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
           {/* Sub-Tabs: Visual Checklist vs Bulk SKU / Barcode text */}
           <div className="flex items-center gap-2 border-b border-neutral-800 pb-2">
             <button
-              onClick={() => setModalTab('checklist')}
+              onClick={() => setModalTab("checklist")}
               className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
-                modalTab === 'checklist'
-                  ? 'bg-neutral-800 text-neutral-100 font-semibold shadow-xs'
-                  : 'text-neutral-400 hover:text-neutral-200'
+                modalTab === "checklist"
+                  ? "bg-neutral-800 text-neutral-100 font-semibold shadow-xs"
+                  : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
               <div className="flex items-center gap-1.5">
@@ -1583,11 +1778,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
               </div>
             </button>
             <button
-              onClick={() => setModalTab('bulkSku')}
+              onClick={() => setModalTab("bulkSku")}
               className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
-                modalTab === 'bulkSku'
-                  ? 'bg-neutral-800 text-neutral-100 font-semibold shadow-xs'
-                  : 'text-neutral-400 hover:text-neutral-200'
+                modalTab === "bulkSku"
+                  ? "bg-neutral-800 text-neutral-100 font-semibold shadow-xs"
+                  : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
               <div className="flex items-center gap-1.5">
@@ -1597,7 +1792,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
             </button>
           </div>
 
-          {modalTab === 'checklist' && (
+          {modalTab === "checklist" && (
             <div className="space-y-3">
               {/* Modal Search & Quick Actions */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -1609,7 +1804,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     onChange={(e) => setModalSearch(e.target.value)}
                     icon={Search}
                     clearable
-                    onClear={() => setModalSearch('')}
+                    onClear={() => setModalSearch("")}
                     className="py-1.5 text-xs"
                   />
                 </div>
@@ -1650,8 +1845,10 @@ export const SalesView: React.FC<SalesViewProps> = ({
                       <div
                         key={p.id}
                         className={`p-3 flex items-center justify-between transition-colors ${
-                          isSelected ? 'bg-emerald-950/20' : 'hover:bg-neutral-900/60'
-                        } ${isOutOfStock && !allowNegativeStock ? 'opacity-50' : ''}`}
+                          isSelected
+                            ? "bg-emerald-950/20"
+                            : "hover:bg-neutral-900/60"
+                        } ${isOutOfStock && !allowNegativeStock ? "opacity-50" : ""}`}
                       >
                         {/* Checkbox & Product Details */}
                         <div
@@ -1672,20 +1869,28 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               {p.name}
                             </div>
                             <div className="text-[11px] text-neutral-400 font-mono mt-0.5 flex items-center gap-2">
-                              <span>SKU: {p.sku || 'None'}</span>
+                              <span>SKU: {p.sku || "None"}</span>
                               <span>·</span>
                               <span className="px-1 py-0.2 rounded bg-neutral-900 text-neutral-400 border border-neutral-800">
-                                {p.unit || 'pcs'}
+                                {p.unit || "pcs"}
                               </span>
                               <span>·</span>
-                              <span>Price: {formatCurrency(p.selling_price, currencySymbol)}</span>
+                              <span>
+                                Price:{" "}
+                                {formatCurrency(
+                                  p.selling_price,
+                                  currencySymbol,
+                                )}
+                              </span>
                               <span>·</span>
                               <span
                                 className={
-                                  p.current_stock <= 5 ? 'text-amber-400 font-semibold' : 'text-neutral-400'
+                                  p.current_stock <= 5
+                                    ? "text-amber-400 font-semibold"
+                                    : "text-neutral-400"
                                 }
                               >
-                                Stock: {p.current_stock} {p.unit || 'pcs'}
+                                Stock: {p.current_stock} {p.unit || "pcs"}
                               </span>
                             </div>
                           </div>
@@ -1698,7 +1903,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               <button
                                 type="button"
                                 disabled={currentQty <= 1}
-                                onClick={() => updateBatchQty(p.id, currentQty - 1)}
+                                onClick={() =>
+                                  updateBatchQty(p.id, currentQty - 1)
+                                }
                                 className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
                               >
                                 <Minus className="w-3.5 h-3.5" />
@@ -1706,7 +1913,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               <Input
                                 type="number"
                                 min="1"
-                                max={!allowNegativeStock ? Math.max(1, p.current_stock) : undefined}
+                                max={
+                                  !allowNegativeStock
+                                    ? Math.max(1, p.current_stock)
+                                    : undefined
+                                }
                                 value={currentQty}
                                 onChange={(e) => {
                                   const val = parseInt(e.target.value, 10);
@@ -1717,9 +1928,19 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               />
                               <button
                                 type="button"
-                                disabled={!allowNegativeStock && currentQty >= p.current_stock}
-                                onClick={() => updateBatchQty(p.id, currentQty + 1)}
-                                title={!allowNegativeStock && currentQty >= p.current_stock ? `Max stock reached (${p.current_stock})` : 'Increase quantity'}
+                                disabled={
+                                  !allowNegativeStock &&
+                                  currentQty >= p.current_stock
+                                }
+                                onClick={() =>
+                                  updateBatchQty(p.id, currentQty + 1)
+                                }
+                                title={
+                                  !allowNegativeStock &&
+                                  currentQty >= p.current_stock
+                                    ? `Max stock reached (${p.current_stock})`
+                                    : "Increase quantity"
+                                }
                                 className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
                               >
                                 <Plus className="w-3.5 h-3.5" />
@@ -1770,8 +1991,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     onClick={submitBatchFromQuantities}
                     className={`px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                       batchSelectedCount === 0
-                        ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
-                        : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
+                        ? "bg-neutral-800 text-neutral-500 cursor-not-allowed"
+                        : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
                     }`}
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -1782,13 +2003,18 @@ export const SalesView: React.FC<SalesViewProps> = ({
             </div>
           )}
 
-          {modalTab === 'bulkSku' && (
+          {modalTab === "bulkSku" && (
             <div className="space-y-4">
               <div className="text-xs text-neutral-400 leading-relaxed">
-                Paste or enter multiple product SKUs, Barcodes, or Product IDs separated by commas or
-                newlines. You can optionally include quantity multipliers like{' '}
-                <code className="text-emerald-400 font-mono">BEV-CC-500*3</code> or{' '}
-                <code className="text-emerald-400 font-mono">SNK-CHP-050 x 2</code>.
+                Paste or enter multiple product SKUs, Barcodes, or Product IDs
+                separated by commas or newlines. You can optionally include
+                quantity multipliers like{" "}
+                <code className="text-emerald-400 font-mono">BEV-CC-500*3</code>{" "}
+                or{" "}
+                <code className="text-emerald-400 font-mono">
+                  SNK-CHP-050 x 2
+                </code>
+                .
               </div>
 
               <div>
@@ -1828,12 +2054,12 @@ export const SalesView: React.FC<SalesViewProps> = ({
         isOpen={isBulkDiscountModalOpen}
         onClose={() => setIsBulkDiscountModalOpen(false)}
         title={
-          bulkDiscountTab === 'proportional'
-            ? 'Whole Bill Discount (Proportional)'
-            : 'Apply Uniform Discount to All Items'
+          bulkDiscountTab === "proportional"
+            ? "Whole Bill Discount (Proportional)"
+            : "Apply Uniform Discount to All Items"
         }
         subtitle={
-          bulkDiscountTab === 'proportional'
+          bulkDiscountTab === "proportional"
             ? `Divide a single whole discount proportionally across all ${cart.length} items based on their individual amounts.`
             : `Set a uniform discount across all ${cart.length} line items currently in this sale.`
         }
@@ -1844,11 +2070,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
           <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-950 rounded-lg border border-neutral-800 text-xs">
             <button
               type="button"
-              onClick={() => setBulkDiscountTab('proportional')}
+              onClick={() => setBulkDiscountTab("proportional")}
               className={`py-2 rounded font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
-                bulkDiscountTab === 'proportional'
-                  ? 'bg-neutral-800 text-amber-400 font-semibold'
-                  : 'text-neutral-400 hover:text-neutral-200'
+                bulkDiscountTab === "proportional"
+                  ? "bg-neutral-800 text-amber-400 font-semibold"
+                  : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
               <Percent className="w-3.5 h-3.5" />
@@ -1856,11 +2082,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => setBulkDiscountTab('uniform')}
+              onClick={() => setBulkDiscountTab("uniform")}
               className={`py-2 rounded font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
-                bulkDiscountTab === 'uniform'
-                  ? 'bg-neutral-800 text-neutral-100 font-semibold'
-                  : 'text-neutral-400 hover:text-neutral-200'
+                bulkDiscountTab === "uniform"
+                  ? "bg-neutral-800 text-neutral-100 font-semibold"
+                  : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
               <span>Uniform per Item</span>
@@ -1871,22 +2097,22 @@ export const SalesView: React.FC<SalesViewProps> = ({
           <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-950 rounded-lg border border-neutral-800 text-xs">
             <button
               type="button"
-              onClick={() => setBulkDiscountType('fixed')}
+              onClick={() => setBulkDiscountType("fixed")}
               className={`py-1.5 rounded font-medium transition-colors cursor-pointer ${
-                bulkDiscountType === 'fixed'
-                  ? 'bg-neutral-800 text-neutral-100 font-semibold'
-                  : 'text-neutral-400 hover:text-neutral-200'
+                bulkDiscountType === "fixed"
+                  ? "bg-neutral-800 text-neutral-100 font-semibold"
+                  : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
               Fixed Amount ({currencySymbol})
             </button>
             <button
               type="button"
-              onClick={() => setBulkDiscountType('percent')}
+              onClick={() => setBulkDiscountType("percent")}
               className={`py-1.5 rounded font-medium transition-colors cursor-pointer ${
-                bulkDiscountType === 'percent'
-                  ? 'bg-neutral-800 text-neutral-100 font-semibold'
-                  : 'text-neutral-400 hover:text-neutral-200'
+                bulkDiscountType === "percent"
+                  ? "bg-neutral-800 text-neutral-100 font-semibold"
+                  : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
               Percentage (%)
@@ -1896,19 +2122,21 @@ export const SalesView: React.FC<SalesViewProps> = ({
           <div>
             <Input
               label={
-                bulkDiscountTab === 'proportional'
-                  ? bulkDiscountType === 'fixed'
+                bulkDiscountTab === "proportional"
+                  ? bulkDiscountType === "fixed"
                     ? `Total Whole Discount Amount (${currencySymbol})`
-                    : 'Total Whole Discount Percentage (%)'
-                  : bulkDiscountType === 'fixed'
-                  ? `Discount Amount per Item (${currencySymbol})`
-                  : 'Discount Percentage per Item (%)'
+                    : "Total Whole Discount Percentage (%)"
+                  : bulkDiscountType === "fixed"
+                    ? `Discount Amount per Item (${currencySymbol})`
+                    : "Discount Percentage per Item (%)"
               }
               type="number"
-              step={bulkDiscountType === 'fixed' ? '0.01' : '1'}
+              step={bulkDiscountType === "fixed" ? "0.01" : "1"}
               min="0"
-              max={bulkDiscountType === 'percent' ? 100 : undefined}
-              placeholder={bulkDiscountType === 'fixed' ? 'e.g. 100.00' : 'e.g. 10'}
+              max={bulkDiscountType === "percent" ? 100 : undefined}
+              placeholder={
+                bulkDiscountType === "fixed" ? "e.g. 100.00" : "e.g. 10"
+              }
               value={bulkDiscountValue}
               onChange={(e) => setBulkDiscountValue(e.target.value)}
               className="font-mono focus:border-amber-500"
@@ -1916,12 +2144,18 @@ export const SalesView: React.FC<SalesViewProps> = ({
           </div>
 
           {/* Proportional Preview Table (Only in proportional tab with positive value) */}
-          {bulkDiscountTab === 'proportional' && modalProportionalPreview && (
+          {bulkDiscountTab === "proportional" && modalProportionalPreview && (
             <div className="space-y-2 pt-2 border-t border-neutral-800">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-neutral-300">Proportional Distribution Preview:</span>
+                <span className="font-semibold text-neutral-300">
+                  Proportional Distribution Preview:
+                </span>
                 <span className="font-mono text-amber-400 font-bold">
-                  Total Whole Discount: -{formatCurrency(modalProportionalPreview.targetWholeMinor, currencySymbol)}
+                  Total Whole Discount: -
+                  {formatCurrency(
+                    modalProportionalPreview.targetWholeMinor,
+                    currencySymbol,
+                  )}
                 </span>
               </div>
               <div className="max-h-48 overflow-y-auto rounded-lg border border-neutral-800 bg-neutral-950/60">
@@ -1929,16 +2163,22 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 sticky top-0">
                     <tr>
                       <th className="py-2 px-3">Item</th>
-                      <th className="py-2 px-2 text-right font-mono">Gross Amount</th>
-                      <th className="py-2 px-2 text-right font-mono text-amber-400">Discount Share</th>
-                      <th className="py-2 px-3 text-right font-mono">Effective Net</th>
+                      <th className="py-2 px-2 text-right font-mono">
+                        Gross Amount
+                      </th>
+                      <th className="py-2 px-2 text-right font-mono text-amber-400">
+                        Discount Share
+                      </th>
+                      <th className="py-2 px-3 text-right font-mono">
+                        Effective Net
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-800/60 font-mono">
                     {modalProportionalPreview.items.map((row) => (
                       <tr key={row.id} className="hover:bg-neutral-800/20">
                         <td className="py-2 px-3 font-sans text-neutral-200">
-                          {row.name}{' '}
+                          {row.name}{" "}
                           <span className="text-[10px] text-neutral-400">
                             ({row.quantity} {row.unit})
                           </span>
@@ -1973,9 +2213,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
               onClick={handleApplyBulkDiscount}
               className="px-4 py-1.5 rounded-lg text-xs font-semibold text-neutral-950 bg-amber-400 hover:bg-amber-300 transition-colors cursor-pointer font-medium"
             >
-              {bulkDiscountTab === 'proportional'
-                ? 'Apply Proportional Whole Discount'
-                : 'Apply to All Items'}
+              {bulkDiscountTab === "proportional"
+                ? "Apply Proportional Whole Discount"
+                : "Apply to All Items"}
             </button>
           </div>
         </div>
@@ -1991,11 +2231,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
                 <span>
                   {completedSaleInfo.billNumber
                     ? `Invoice ${completedSaleInfo.billNumber} (Sale #${completedSaleInfo.id})`
-                    : `Transaction #${completedSaleInfo.id}`} Successfully Recorded
+                    : `Transaction #${completedSaleInfo.id}`}{" "}
+                  Successfully Recorded
                 </span>
                 {completedSaleInfo.customerName && (
                   <span className="font-normal text-emerald-300 text-xs">
-                    · Customer: <span className="font-semibold text-neutral-100">{completedSaleInfo.customerName}</span>
+                    · Customer:{" "}
+                    <span className="font-semibold text-neutral-100">
+                      {completedSaleInfo.customerName}
+                    </span>
                     {completedSaleInfo.customerPhone && (
                       <span className="font-mono text-neutral-400 text-[11px] ml-1">
                         ({completedSaleInfo.customerPhone})
@@ -2008,20 +2252,46 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     )}
                   </span>
                 )}
-                {!completedSaleInfo.customerName && completedSaleInfo.customerPhone && (
-                  <span className="font-normal text-emerald-300 text-xs font-mono">
-                    · Phone: {completedSaleInfo.customerPhone}
-                  </span>
-                )}
+                {!completedSaleInfo.customerName &&
+                  completedSaleInfo.customerPhone && (
+                    <span className="font-normal text-emerald-300 text-xs font-mono">
+                      · Phone: {completedSaleInfo.customerPhone}
+                    </span>
+                  )}
               </div>
               <div className="text-[11px] text-neutral-400 mt-0.5">
-                Grand Total: <span className="font-mono text-emerald-300 font-semibold">{formatCurrency(completedSaleInfo.grandTotal ?? completedSaleInfo.total, currencySymbol)}</span>
-                {completedSaleInfo.vatAmount !== undefined && completedSaleInfo.vatAmount > 0 && (
-                  <span> · 13% VAT: <span className="font-mono text-sky-400">+{formatCurrency(completedSaleInfo.vatAmount, currencySymbol)}</span></span>
-                )}
-                <span> · Subtotal: {formatCurrency(completedSaleInfo.subtotal, currencySymbol)}</span>
+                Grand Total:{" "}
+                <span className="font-mono text-emerald-300 font-semibold">
+                  {formatCurrency(
+                    completedSaleInfo.grandTotal ?? completedSaleInfo.total,
+                    currencySymbol,
+                  )}
+                </span>
+                {completedSaleInfo.vatAmount !== undefined &&
+                  completedSaleInfo.vatAmount > 0 && (
+                    <span>
+                      {" "}
+                      · 13% VAT:{" "}
+                      <span className="font-mono text-sky-400">
+                        +
+                        {formatCurrency(
+                          completedSaleInfo.vatAmount,
+                          currencySymbol,
+                        )}
+                      </span>
+                    </span>
+                  )}
+                <span>
+                  {" "}
+                  · Subtotal:{" "}
+                  {formatCurrency(completedSaleInfo.subtotal, currencySymbol)}
+                </span>
                 {completedSaleInfo.discount > 0 && (
-                  <span> · Discounts: {formatCurrency(completedSaleInfo.discount, currencySymbol)}</span>
+                  <span>
+                    {" "}
+                    · Discounts:{" "}
+                    {formatCurrency(completedSaleInfo.discount, currencySymbol)}
+                  </span>
                 )}
               </div>
             </div>

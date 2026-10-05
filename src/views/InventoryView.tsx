@@ -32,40 +32,40 @@ import {
   PlusCircle,
   Table2,
 } from "lucide-react";
-import { Product, StockMovement, Vendor } from "../../types/index.ts";
+import { Product, StockMovement, Vendor } from "../types/index.ts";
 import {
   getAllProducts,
   createProduct,
   updateProduct,
   deleteProduct,
   generateProductSku,
-} from "../../lib/services/productService.ts";
+} from "../lib/services/productService.ts";
 import {
   restockProduct,
   adjustStock,
   getStockMovements,
-} from "../../lib/services/inventoryService.ts";
-import { getAllVendors } from "../../lib/services/vendorService.ts";
+} from "../lib/services/inventoryService.ts";
+import { getAllVendors } from "../lib/services/vendorService.ts";
 import {
   formatCurrency,
   formatDate,
   formatDateTime,
   fromMinorUnits,
   toMinorUnits,
-} from "../../lib/utils/format.ts";
-import { Modal } from "../common/Modal.tsx";
-import { ConfirmDialog } from "../common/ConfirmDialog.tsx";
-import { ActionMenu } from "../common/ActionMenu.tsx";
-import { Select } from "../common/Select.tsx";
-import { Input } from "../common/Input.tsx";
+} from "../lib/utils/format.ts";
+import { Modal } from "../components/common/Modal.tsx";
+import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
+import { ActionMenu } from "../components/common/ActionMenu.tsx";
+import { Select } from "../components/common/Select.tsx";
+import { Input } from "../components/common/Input.tsx";
 import { BulkProductModal } from "./BulkProductModal.tsx";
-import { DateFilterBar } from "../common/DateFilterBar.tsx";
-import { DatePreset } from "../../lib/utils/dateFilters.ts";
-import { useToast } from "../../context/ToastContext.tsx";
-import { subscribeToDbChanges } from "../../lib/db/sqliteEngine.ts";
-import { useLanguage } from "../../context/LanguageContext.tsx";
-import { MODIFIER_LABEL } from "../../lib/hooks/useGlobalShortcuts.ts";
-import { COMMON_UNITS } from "../../constants/index.ts";
+import { DateFilterBar } from "../components/common/DateFilterBar.tsx";
+import { DatePreset } from "../lib/utils/dateFilters.ts";
+import { useToast } from "../context/ToastContext.tsx";
+import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
+import { useLanguage } from "../context/LanguageContext.tsx";
+import { MODIFIER_LABEL } from "../lib/hooks/useGlobalShortcuts.ts";
+import { COMMON_UNITS } from "../constants/index.ts";
 
 export interface InventoryViewProps {
   currencySymbol: string;
@@ -97,8 +97,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 }) => {
   const { showToast } = useToast();
   const { t, isNepali, formatNumberByLang } = useLanguage();
-
-
 
   // Master Data
   const [products, setProducts] = useState<Product[]>([]);
@@ -650,9 +648,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             title="View Stock Movement Audit Log"
           >
             <History className="w-3.5 h-3.5 text-emerald-400" />
-            <span>
-              {isNepali ? "चलान अडिट लग" : "Movement Log"}
-            </span>
+            <span>{isNepali ? "चलान अडिट लग" : "Movement Log"}</span>
           </Link>
 
           {/* Quick Create Product Button */}
@@ -843,9 +839,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 },
                 {
                   value: "in_stock",
-                  label: isNepali
-                    ? "मौज्दातमा उपलब्ध (> 0)"
-                    : "In Stock (> 0)",
+                  label: isNepali ? "मौज्दातमा उपलब्ध (> 0)" : "In Stock (> 0)",
                 },
                 {
                   value: "low_stock",
@@ -882,337 +876,326 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       {/* Main Stock Ledger Content */}
       {/* ==================== PRODUCT & STOCK INVENTORY LEDGER ==================== */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 select-none">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 select-none">
+              <tr>
+                <th className="py-3 px-4 w-10 text-center">
+                  <Input
+                    type="checkbox"
+                    checked={
+                      filteredProducts.length > 0 &&
+                      selectedProductIds.length === filteredProducts.length
+                    }
+                    onChange={toggleSelectAll}
+                    title="Select/Deselect all filtered"
+                    className="w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                  />
+                </th>
+                <th
+                  onClick={() => toggleSort("name")}
+                  className="py-3 px-6 cursor-pointer hover:text-neutral-200"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>{t("prod_name", "Product Name")}</span>
+                    <ArrowUpDown className="w-3.5 h-3.5 text-neutral-500" />
+                  </div>
+                </th>
+                <th className="py-3 px-4 font-mono">{t("prod_sku", "SKU")}</th>
+                <th className="py-3 px-3 text-center font-mono">
+                  {t("prod_unit_short", "Unit")}
+                </th>
+                <th
+                  onClick={() => toggleSort("cost")}
+                  className="py-3 px-4 text-right font-mono cursor-pointer hover:text-neutral-200"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>{t("prod_cost_price", "Cost Price")}</span>
+                    <ArrowUpDown className="w-3.5 h-3.5 text-neutral-500" />
+                  </div>
+                </th>
+                <th
+                  onClick={() => toggleSort("selling")}
+                  className="py-3 px-4 text-right font-mono cursor-pointer hover:text-neutral-200"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>{t("prod_selling_price", "Selling Price")}</span>
+                    <ArrowUpDown className="w-3.5 h-3.5 text-neutral-500" />
+                  </div>
+                </th>
+                <th
+                  onClick={() => toggleSort("stock")}
+                  className="py-3 px-4 text-right font-mono cursor-pointer hover:text-neutral-200"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>{t("prod_current_stock", "Current Stock")}</span>
+                    <ArrowUpDown className="w-3.5 h-3.5 text-neutral-500" />
+                  </div>
+                </th>
+                <th
+                  onClick={() => toggleSort("valuation")}
+                  className="py-3 px-4 text-right font-mono cursor-pointer hover:text-neutral-200"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>{t("inv_col_valuation", "Stock Value")}</span>
+                    <ArrowUpDown className="w-3.5 h-3.5 text-neutral-500" />
+                  </div>
+                </th>
+                <th className="py-3 px-3 text-center">
+                  {isNepali ? "इतिहास" : "Ledger"}
+                </th>
+                <th className="py-3 px-6 text-right">
+                  {t("prod_actions", "Actions")}
+                </th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-neutral-800/60">
+              {filteredProducts.length === 0 ? (
                 <tr>
-                  <th className="py-3 px-4 w-10 text-center">
-                    <Input
-                      type="checkbox"
-                      checked={
-                        filteredProducts.length > 0 &&
-                        selectedProductIds.length === filteredProducts.length
-                      }
-                      onChange={toggleSelectAll}
-                      title="Select/Deselect all filtered"
-                      className="w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
-                    />
-                  </th>
-                  <th
-                    onClick={() => toggleSort("name")}
-                    className="py-3 px-6 cursor-pointer hover:text-neutral-200"
+                  <td
+                    colSpan={10}
+                    className="py-12 text-center text-neutral-400 text-xs"
                   >
-                    <div className="flex items-center gap-1.5">
-                      <span>{t("prod_name", "Product Name")}</span>
-                      <ArrowUpDown className="w-3.5 h-3.5 text-neutral-500" />
-                    </div>
-                  </th>
-                  <th className="py-3 px-4 font-mono">
-                    {t("prod_sku", "SKU")}
-                  </th>
-                  <th className="py-3 px-3 text-center font-mono">
-                    {t("prod_unit_short", "Unit")}
-                  </th>
-                  <th
-                    onClick={() => toggleSort("cost")}
-                    className="py-3 px-4 text-right font-mono cursor-pointer hover:text-neutral-200"
-                  >
-                    <div className="flex items-center justify-end gap-1.5">
-                      <span>{t("prod_cost_price", "Cost Price")}</span>
-                      <ArrowUpDown className="w-3.5 h-3.5 text-neutral-500" />
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => toggleSort("selling")}
-                    className="py-3 px-4 text-right font-mono cursor-pointer hover:text-neutral-200"
-                  >
-                    <div className="flex items-center justify-end gap-1.5">
-                      <span>{t("prod_selling_price", "Selling Price")}</span>
-                      <ArrowUpDown className="w-3.5 h-3.5 text-neutral-500" />
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => toggleSort("stock")}
-                    className="py-3 px-4 text-right font-mono cursor-pointer hover:text-neutral-200"
-                  >
-                    <div className="flex items-center justify-end gap-1.5">
-                      <span>{t("prod_current_stock", "Current Stock")}</span>
-                      <ArrowUpDown className="w-3.5 h-3.5 text-neutral-500" />
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => toggleSort("valuation")}
-                    className="py-3 px-4 text-right font-mono cursor-pointer hover:text-neutral-200"
-                  >
-                    <div className="flex items-center justify-end gap-1.5">
-                      <span>{t("inv_col_valuation", "Stock Value")}</span>
-                      <ArrowUpDown className="w-3.5 h-3.5 text-neutral-500" />
-                    </div>
-                  </th>
-                  <th className="py-3 px-3 text-center">
-                    {isNepali ? "इतिहास" : "Ledger"}
-                  </th>
-                  <th className="py-3 px-6 text-right">
-                    {t("prod_actions", "Actions")}
-                  </th>
+                    <Boxes className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
+                    <p className="font-semibold text-neutral-300">
+                      {isNepali
+                        ? "कुनै सामान फेला परेन।"
+                        : "No matching inventory items found."}
+                    </p>
+                    <p className="text-neutral-500 text-[11px] mt-1">
+                      {hasActiveFilters
+                        ? "Try clearing date, vendor, or search filters to see all products."
+                        : isNepali
+                          ? "सामान थप्न तलका बटनहरू प्रयोग गर्नुहोस्।"
+                          : "Click below to register products one by one or in bulk table format."}
+                    </p>
+                    {!hasActiveFilters && (
+                      <div className="flex items-center justify-center gap-3 mt-4">
+                        <button
+                          type="button"
+                          onClick={handleOpenCreate}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>{t("prod_add_button", "Add Product")}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsBulkCreateOpen(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg shadow-xs transition-colors cursor-pointer"
+                        >
+                          <Table2 className="w-4 h-4 text-emerald-400" />
+                          <span>
+                            {isNepali
+                              ? "थोक सामान थप्नुहोस् (तालिका)"
+                              : "Add Multiple (Table)"}
+                          </span>
+                        </button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
-              </thead>
+              ) : (
+                filteredProducts.map((p) => {
+                  const specificThreshold =
+                    p.min_stock_alert !== null &&
+                    p.min_stock_alert !== undefined
+                      ? p.min_stock_alert
+                      : lowStockThreshold;
+                  const isLow = p.current_stock <= specificThreshold;
+                  const isSelected = selectedProductIds.includes(p.id);
+                  const valuation = Math.max(0, p.current_stock * p.cost_price);
+                  const marginPct =
+                    p.selling_price > 0
+                      ? Math.round(
+                          ((p.selling_price - p.cost_price) / p.selling_price) *
+                            100,
+                        )
+                      : 0;
 
-              <tbody className="divide-y divide-neutral-800/60">
-                {filteredProducts.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={10}
-                      className="py-12 text-center text-neutral-400 text-xs"
+                  return (
+                    <tr
+                      key={p.id}
+                      className={`hover:bg-neutral-800/40 transition-colors group ${
+                        isSelected ? "bg-emerald-950/20" : ""
+                      }`}
                     >
-                      <Boxes className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
-                      <p className="font-semibold text-neutral-300">
-                        {isNepali
-                          ? "कुनै सामान फेला परेन।"
-                          : "No matching inventory items found."}
-                      </p>
-                      <p className="text-neutral-500 text-[11px] mt-1">
-                        {hasActiveFilters
-                          ? "Try clearing date, vendor, or search filters to see all products."
-                          : isNepali
-                            ? "सामान थप्न तलका बटनहरू प्रयोग गर्नुहोस्।"
-                            : "Click below to register products one by one or in bulk table format."}
-                      </p>
-                      {!hasActiveFilters && (
-                        <div className="flex items-center justify-center gap-3 mt-4">
-                          <button
-                            type="button"
-                            onClick={handleOpenCreate}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors cursor-pointer"
-                          >
-                            <Plus className="w-4 h-4" />
-                            <span>{t("prod_add_button", "Add Product")}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setIsBulkCreateOpen(true)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg shadow-xs transition-colors cursor-pointer"
-                          >
-                            <Table2 className="w-4 h-4 text-emerald-400" />
-                            <span>
-                              {isNepali
-                                ? "थोक सामान थप्नुहोस् (तालिका)"
-                                : "Add Multiple (Table)"}
-                            </span>
-                          </button>
+                      <td className="py-3 px-4 text-center">
+                        <Input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectProduct(p.id)}
+                          className="w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                        />
+                      </td>
+
+                      <td className="py-3 px-6">
+                        <div className="font-semibold text-neutral-100">
+                          {p.name}
                         </div>
-                      )}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredProducts.map((p) => {
-                    const specificThreshold =
-                      p.min_stock_alert !== null &&
-                      p.min_stock_alert !== undefined
-                        ? p.min_stock_alert
-                        : lowStockThreshold;
-                    const isLow = p.current_stock <= specificThreshold;
-                    const isSelected = selectedProductIds.includes(p.id);
-                    const valuation = Math.max(
-                      0,
-                      p.current_stock * p.cost_price,
-                    );
-                    const marginPct =
-                      p.selling_price > 0
-                        ? Math.round(
-                            ((p.selling_price - p.cost_price) /
-                              p.selling_price) *
-                              100,
-                          )
-                        : 0;
+                        <div className="text-[11px] text-neutral-500 mt-0.5 font-mono">
+                          ID: #{p.id} · Added: {formatDate(p.created_at)}
+                        </div>
+                      </td>
 
-                    return (
-                      <tr
-                        key={p.id}
-                        className={`hover:bg-neutral-800/40 transition-colors group ${
-                          isSelected ? "bg-emerald-950/20" : ""
-                        }`}
-                      >
-                        <td className="py-3 px-4 text-center">
-                          <Input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleSelectProduct(p.id)}
-                            className="w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
-                          />
-                        </td>
+                      <td className="py-3 px-4 font-mono text-neutral-400">
+                        {p.sku || (
+                          <span className="text-neutral-600 italic">None</span>
+                        )}
+                      </td>
 
-                        <td className="py-3 px-6">
-                          <div className="font-semibold text-neutral-100">
-                            {p.name}
-                          </div>
-                          <div className="text-[11px] text-neutral-500 mt-0.5 font-mono">
-                            ID: #{p.id} · Added: {formatDate(p.created_at)}
-                          </div>
-                        </td>
+                      <td className="py-3 px-3 text-center">
+                        <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-neutral-800 text-neutral-300 border border-neutral-700/60">
+                          {p.unit || "pcs"}
+                        </span>
+                      </td>
 
-                        <td className="py-3 px-4 font-mono text-neutral-400">
-                          {p.sku || (
-                            <span className="text-neutral-600 italic">
-                              None
-                            </span>
-                          )}
-                        </td>
+                      <td className="py-3 px-4 text-right font-mono text-neutral-400 tabular-nums">
+                        {formatCurrency(p.cost_price, currencySymbol)}
+                      </td>
 
-                        <td className="py-3 px-3 text-center">
-                          <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-neutral-800 text-neutral-300 border border-neutral-700/60">
+                      <td className="py-3 px-4 text-right font-mono text-neutral-200 font-medium tabular-nums">
+                        <div>
+                          {formatCurrency(p.selling_price, currencySymbol)}
+                        </div>
+                        <div className="text-[10px] text-neutral-500 font-sans">
+                          {marginPct}% margin
+                        </div>
+                      </td>
+
+                      <td className="py-3 px-4 text-right font-mono tabular-nums">
+                        <div>
+                          <span
+                            className={`font-semibold ${
+                              isLow
+                                ? "text-amber-400 font-bold"
+                                : "text-neutral-200"
+                            }`}
+                          >
+                            {p.current_stock}
+                          </span>
+                          <span className="text-[11px] text-neutral-400 font-sans ml-1">
                             {p.unit || "pcs"}
                           </span>
-                        </td>
-
-                        <td className="py-3 px-4 text-right font-mono text-neutral-400 tabular-nums">
-                          {formatCurrency(p.cost_price, currencySymbol)}
-                        </td>
-
-                        <td className="py-3 px-4 text-right font-mono text-neutral-200 font-medium tabular-nums">
-                          <div>
-                            {formatCurrency(p.selling_price, currencySymbol)}
-                          </div>
-                          <div className="text-[10px] text-neutral-500 font-sans">
-                            {marginPct}% margin
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-4 text-right font-mono tabular-nums">
-                          <div>
-                            <span
-                              className={`font-semibold ${
-                                isLow
-                                  ? "text-amber-400 font-bold"
-                                  : "text-neutral-200"
-                              }`}
-                            >
-                              {p.current_stock}
+                          {isLow && (
+                            <span className="ml-1.5 px-1.5 py-0.2 rounded text-[10px] font-sans font-medium bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                              low
                             </span>
-                            <span className="text-[11px] text-neutral-400 font-sans ml-1">
-                              {p.unit || "pcs"}
-                            </span>
-                            {isLow && (
-                              <span className="ml-1.5 px-1.5 py-0.2 rounded text-[10px] font-sans font-medium bg-amber-500/15 text-amber-400 border border-amber-500/20">
-                                low
+                          )}
+                        </div>
+                        <div className="text-[10px] text-neutral-500 font-sans mt-0.5">
+                          Alert ≤ {specificThreshold}
+                          {p.min_stock_alert !== null &&
+                            p.min_stock_alert !== undefined && (
+                              <span className="text-emerald-400 ml-1 font-mono text-[9px]">
+                                (custom)
                               </span>
                             )}
-                          </div>
-                          <div className="text-[10px] text-neutral-500 font-sans mt-0.5">
-                            Alert ≤ {specificThreshold}
-                            {p.min_stock_alert !== null &&
-                              p.min_stock_alert !== undefined && (
-                                <span className="text-emerald-400 ml-1 font-mono text-[9px]">
-                                  (custom)
-                                </span>
-                              )}
-                          </div>
-                        </td>
+                        </div>
+                      </td>
 
-                        <td className="py-3 px-4 text-right font-mono font-semibold text-emerald-400 tabular-nums">
-                          {formatCurrency(valuation, currencySymbol)}
-                        </td>
+                      <td className="py-3 px-4 text-right font-mono font-semibold text-emerald-400 tabular-nums">
+                        {formatCurrency(valuation, currencySymbol)}
+                      </td>
 
-                        <td className="py-3 px-3 text-center">
-                          <button
-                            onClick={() => {
-                              setSelectedMovements(p);
-                              loadMovements(p.id);
-                            }}
-                            className="p-1.5 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded transition-colors cursor-pointer"
-                            title="View stock movement ledger"
-                          >
-                            <History className="w-4 h-4" />
-                          </button>
-                        </td>
+                      <td className="py-3 px-3 text-center">
+                        <button
+                          onClick={() => {
+                            setSelectedMovements(p);
+                            loadMovements(p.id);
+                          }}
+                          className="p-1.5 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded transition-colors cursor-pointer"
+                          title="View stock movement ledger"
+                        >
+                          <History className="w-4 h-4" />
+                        </button>
+                      </td>
 
-                        <td className="py-3 px-6 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <ActionMenu
-                              align="right"
-                              items={[
-                                {
-                                  label: isNepali
-                                    ? "बिक्रीमा थप्नुहोस्"
-                                    : "Sell in POS",
-                                  icon: ShoppingCart,
-                                  color: "emerald",
-                                  action: () =>
-                                    onStartSaleWithProducts?.([
-                                      { product: p, quantity: 1 },
-                                    ]),
+                      <td className="py-3 px-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <ActionMenu
+                            align="right"
+                            items={[
+                              {
+                                label: isNepali
+                                  ? "बिक्रीमा थप्नुहोस्"
+                                  : "Sell in POS",
+                                icon: ShoppingCart,
+                                color: "emerald",
+                                action: () =>
+                                  onStartSaleWithProducts?.([
+                                    { product: p, quantity: 1 },
+                                  ]),
+                              },
+                              {
+                                label: isNepali
+                                  ? "मौज्दात थप (Restock)"
+                                  : "Restock Units",
+                                icon: PlusCircle,
+                                color: "emerald",
+                                action: () => {
+                                  setSelectedRestock(p);
+                                  setRestockQty("10");
+                                  setRestockNote("Inventory restock delivery");
+                                  setRestockVendorId("");
                                 },
-                                {
-                                  label: isNepali
-                                    ? "मौज्दात थप (Restock)"
-                                    : "Restock Units",
-                                  icon: PlusCircle,
-                                  color: "emerald",
-                                  action: () => {
-                                    setSelectedRestock(p);
-                                    setRestockQty("10");
-                                    setRestockNote(
-                                      "Inventory restock delivery",
-                                    );
-                                    setRestockVendorId("");
-                                  },
+                              },
+                              {
+                                label: isNepali
+                                  ? "मौज्दात मिलान (Adjust)"
+                                  : "Adjust Count",
+                                icon: SlidersHorizontal,
+                                color: "amber",
+                                action: () => {
+                                  setSelectedAdjust(p);
+                                  setAdjustTargetStock(
+                                    p.current_stock.toString(),
+                                  );
+                                  setAdjustNote("Physical inventory recount");
                                 },
-                                {
-                                  label: isNepali
-                                    ? "मौज्दात मिलान (Adjust)"
-                                    : "Adjust Count",
-                                  icon: SlidersHorizontal,
-                                  color: "amber",
-                                  action: () => {
-                                    setSelectedAdjust(p);
-                                    setAdjustTargetStock(
-                                      p.current_stock.toString(),
-                                    );
-                                    setAdjustNote("Physical inventory recount");
-                                  },
+                              },
+                              {
+                                label: isNepali
+                                  ? "चलान इतिहास (Ledger)"
+                                  : "Movement History",
+                                icon: History,
+                                color: "indigo",
+                                action: () => {
+                                  setSelectedMovements(p);
+                                  loadMovements(p.id);
                                 },
-                                {
-                                  label: isNepali
-                                    ? "चलान इतिहास (Ledger)"
-                                    : "Movement History",
-                                  icon: History,
-                                  color: "indigo",
-                                  action: () => {
-                                    setSelectedMovements(p);
-                                    loadMovements(p.id);
-                                  },
-                                },
-                                {
-                                  label: isNepali
-                                    ? "विवरण सम्पादन (Edit)"
-                                    : "Edit Product",
-                                  icon: Edit2,
-                                  color: "sky",
-                                  action: () => handleOpenEdit(p),
-                                },
-                                {
-                                  label: isNepali
-                                    ? "सामान मेटाउनुहोस् (Delete)"
-                                    : "Delete Product",
-                                  icon: Trash2,
-                                  color: "rose",
-                                  isDestructive: true,
-                                  divider: true,
-                                  action: () => setDeletingProduct(p),
-                                },
-                              ]}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                              },
+                              {
+                                label: isNepali
+                                  ? "विवरण सम्पादन (Edit)"
+                                  : "Edit Product",
+                                icon: Edit2,
+                                color: "sky",
+                                action: () => handleOpenEdit(p),
+                              },
+                              {
+                                label: isNepali
+                                  ? "सामान मेटाउनुहोस् (Delete)"
+                                  : "Delete Product",
+                                icon: Trash2,
+                                color: "rose",
+                                isDestructive: true,
+                                divider: true,
+                                action: () => setDeletingProduct(p),
+                              },
+                            ]}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
-
+      </div>
 
       {/* ==================== MODAL: CREATE PRODUCT ==================== */}
       <Modal

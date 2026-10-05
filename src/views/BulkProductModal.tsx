@@ -13,23 +13,17 @@ import {
   Sparkles,
   AlertTriangle,
 } from "lucide-react";
-import { Modal } from "../common/Modal.tsx";
-import { Select } from "../common/Select.tsx";
-import { Product } from "../../types/index.ts";
-import {
-  toMinorUnits,
-  formatCurrency,
-} from "../../lib/utils/format.ts";
+import { Modal } from "../components/common/Modal.tsx";
+import { Select } from "../components/common/Select.tsx";
+import { Product } from "../types/index.ts";
+import { toMinorUnits, formatCurrency } from "../lib/utils/format.ts";
 import {
   getAllProducts,
   createProductsBatch,
-} from "../../lib/services/productService.ts";
-import { useLanguage } from "../../context/LanguageContext.tsx";
-import { useToast } from "../../context/ToastContext.tsx";
-import {
-  COMMON_UNITS,
-  DEFAULT_PRODUCT_UNIT,
-} from "../../constants/index.ts";
+} from "../lib/services/productService.ts";
+import { useLanguage } from "../context/LanguageContext.tsx";
+import { useToast } from "../context/ToastContext.tsx";
+import { COMMON_UNITS, DEFAULT_PRODUCT_UNIT } from "../constants/index.ts";
 
 export interface BulkProductRow {
   id: string;
@@ -58,7 +52,9 @@ export interface BulkProductModalProps {
   onSuccess: () => void;
 }
 
-const createEmptyRow = (defaultUnit = DEFAULT_PRODUCT_UNIT): BulkProductRow => ({
+const createEmptyRow = (
+  defaultUnit = DEFAULT_PRODUCT_UNIT,
+): BulkProductRow => ({
   id: Math.random().toString(36).substring(2, 9),
   name: "",
   sku: "",
@@ -168,7 +164,8 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
       } else {
         // Check duplicate in database
         const existsSkuInDb = existingProducts.some(
-          (p) => p.sku && p.sku.trim().toLowerCase() === trimmedSku.toLowerCase(),
+          (p) =>
+            p.sku && p.sku.trim().toLowerCase() === trimmedSku.toLowerCase(),
         );
         if (existsSkuInDb) {
           errors.sku = t(
@@ -182,10 +179,7 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
     // 3. Cost Price Validation
     const trimmedCost = row.costPrice.trim();
     if (!trimmedCost) {
-      errors.costPrice = t(
-        "prod_bulk_val_cost_req",
-        "Cost price is required",
-      );
+      errors.costPrice = t("prod_bulk_val_cost_req", "Cost price is required");
     } else {
       const costNum = parseFloat(trimmedCost);
       if (isNaN(costNum) || costNum < 0) {
@@ -664,9 +658,7 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
                 title="Validate current row and add another product"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>
-                  {t("prod_bulk_add_another", "Add Another Product")}
-                </span>
+                <span>{t("prod_bulk_add_another", "Add Another Product")}</span>
               </button>
 
               <button
@@ -739,8 +731,8 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
                     <span className="text-rose-400">*</span>
                   </th>
                   <th className="py-2.5 px-3 w-36 text-right">
-                    {t("prod_selling_price", "Selling Price")} ({currencySymbol}){" "}
-                    <span className="text-rose-400">*</span>
+                    {t("prod_selling_price", "Selling Price")} ({currencySymbol}
+                    ) <span className="text-rose-400">*</span>
                   </th>
                   <th className="py-2.5 px-3 w-28 text-right">
                     {t("prod_initial_stock", "Stock Qty")}
@@ -891,14 +883,23 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
                           allowCustom
                           value={row.unit || "pcs"}
                           onChange={(e) => {
-                            if (e.target.value !== undefined && e.target.value !== null) {
-                              handleUpdateRow(row.id, "unit", String(e.target.value));
+                            if (
+                              e.target.value !== undefined &&
+                              e.target.value !== null
+                            ) {
+                              handleUpdateRow(
+                                row.id,
+                                "unit",
+                                String(e.target.value),
+                              );
                             }
                           }}
                           options={[
                             ...(row.unit &&
                             !COMMON_UNITS.some(
-                              (u) => u.value.toLowerCase() === row.unit.toLowerCase(),
+                              (u) =>
+                                u.value.toLowerCase() ===
+                                row.unit.toLowerCase(),
                             )
                               ? [
                                   {
@@ -994,7 +995,9 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
                               title="Selling price is lower than cost price"
                             >
                               <span>
-                                {isNepali ? "घाटा मूल्य (Loss)" : "Selling < Cost"}
+                                {isNepali
+                                  ? "घाटा मूल्य (Loss)"
+                                  : "Selling < Cost"}
                               </span>
                               <AlertTriangle className="w-3 h-3 shrink-0" />
                             </p>
@@ -1171,10 +1174,7 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
         <Modal
           isOpen={isPasteDialogOpen}
           onClose={() => setIsPasteDialogOpen(false)}
-          title={t(
-            "prod_bulk_paste_title",
-            "Paste Spreadsheet / CSV Data",
-          )}
+          title={t("prod_bulk_paste_title", "Paste Spreadsheet / CSV Data")}
           subtitle={t(
             "prod_bulk_paste_hint",
             "Paste tab-separated rows copied from Excel or Google Sheets. Columns: Name | SKU | Unit | Cost Price | Selling Price | Initial Stock | Min Alert",

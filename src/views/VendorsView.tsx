@@ -27,8 +27,8 @@ import {
   Product,
   CreateVendorInput,
   Purchase,
-} from "../../types/index.ts";
-import { Input, Textarea } from "../common/Input.tsx";
+} from "../types/index.ts";
+import { Input, Textarea } from "../components/common/Input.tsx";
 import {
   getAllVendors,
   createVendor,
@@ -36,29 +36,24 @@ import {
   deleteVendor,
   getVendorProducts,
   getVendorPurchases,
-} from "../../lib/services/vendorService.ts";
-import {
-  formatCurrency,
-  formatDate,
-} from "../../lib/utils/format.ts";
-import { Modal } from "../common/Modal.tsx";
-import { ConfirmDialog } from "../common/ConfirmDialog.tsx";
-import { ActionMenu } from "../common/ActionMenu.tsx";
-import { PrintPurchaseBillModal } from "../common/PrintPurchaseBillModal.tsx";
-import { DataTable, Column } from "../common/DataTable.tsx";
-import { getVendorColumns } from "../../columns/index.ts";
-import { useToast } from "../../context/ToastContext.tsx";
-import { subscribeToDbChanges } from "../../lib/db/sqliteEngine.ts";
-import { useLanguage } from "../../context/LanguageContext.tsx";
+} from "../lib/services/vendorService.ts";
+import { formatCurrency, formatDate } from "../lib/utils/format.ts";
+import { Modal } from "../components/common/Modal.tsx";
+import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
+import { ActionMenu } from "../components/common/ActionMenu.tsx";
+import { PrintPurchaseBillModal } from "../components/common/PrintPurchaseBillModal.tsx";
+import { DataTable, Column } from "../components/common/DataTable.tsx";
+import { getVendorColumns } from "../columns/index.ts";
+import { useToast } from "../context/ToastContext.tsx";
+import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
+import { useLanguage } from "../context/LanguageContext.tsx";
 
 interface VendorsViewProps {
   currencySymbol: string;
   onNavigateToProducts?: () => void;
 }
 
-export const VendorsView: React.FC<VendorsViewProps> = ({
-  currencySymbol,
-}) => {
+export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
   const { showToast } = useToast();
   const { isNepali, formatNumberByLang } = useLanguage();
 
@@ -276,10 +271,7 @@ export const VendorsView: React.FC<VendorsViewProps> = ({
         onDelete: (v) => setDeletingVendor(v),
         onCopyPhone: (phone) => {
           navigator.clipboard.writeText(phone);
-          showToast(
-            isNepali ? "फोन नं. कपी गरियो" : "Phone copied",
-            "info",
-          );
+          showToast(isNepali ? "फोन नं. कपी गरियो" : "Phone copied", "info");
         },
       }),
     [isNepali, currencySymbol, copiedPan, formatNumberByLang, showToast],

@@ -21,21 +21,21 @@ import { Product, AppSettings } from "./types/index.ts";
 import { ToastProvider } from "./context/ToastContext.tsx";
 import { Sidebar, NavTab } from "./components/layout/Sidebar.tsx";
 import { Header } from "./components/layout/Header.tsx";
-import { DashboardView } from "./components/views/DashboardView.tsx";
-import { SalesView } from "./components/views/SalesView.tsx";
-import { PurchasesView } from "./components/views/PurchasesView.tsx";
-import { PurchaseHistoryView } from "./components/views/PurchaseHistoryView.tsx";
-import { InventoryView } from "./components/views/InventoryView.tsx";
-import { StockMovementsView } from "./components/views/StockMovementsView.tsx";
-import { VendorsView } from "./components/views/VendorsView.tsx";
-import { CustomersView } from "./components/views/CustomersView.tsx";
-import { SalesHistoryView } from "./components/views/SalesHistoryView.tsx";
-import { ExpensesView } from "./components/views/ExpensesView.tsx";
-import { StaffView } from "./components/views/StaffView.tsx";
-import { PayrollView } from "./components/views/PayrollView.tsx";
-import { AnalyticsView } from "./components/views/AnalyticsView.tsx";
-import { SettingsView } from "./components/views/SettingsView.tsx";
-import { TechnicalSupportView } from "./components/views/TechnicalSupportView.tsx";
+import { DashboardView } from "./views/DashboardView.tsx";
+import { SalesView } from "./views/SalesView.tsx";
+import { PurchasesView } from "./views/PurchasesView.tsx";
+import { PurchaseHistoryView } from "./views/PurchaseHistoryView.tsx";
+import { InventoryView } from "./views/InventoryView.tsx";
+import { StockMovementsView } from "./views/StockMovementsView.tsx";
+import { VendorsView } from "./views/VendorsView.tsx";
+import { CustomersView } from "./views/CustomersView.tsx";
+import { SalesHistoryView } from "./views/SalesHistoryView.tsx";
+import { ExpensesView } from "./views/ExpensesView.tsx";
+import { StaffView } from "./views/StaffView.tsx";
+import { PayrollView } from "./views/PayrollView.tsx";
+import { AnalyticsView } from "./views/AnalyticsView.tsx";
+import { SettingsView } from "./views/SettingsView.tsx";
+import { TechnicalSupportView } from "./views/TechnicalSupportView.tsx";
 import { HardDrive, Loader2 } from "lucide-react";
 import { useGlobalShortcuts } from "./lib/hooks/useGlobalShortcuts.ts";
 import { ShortcutsHelpModal } from "./components/common/ShortcutsHelpModal.tsx";
@@ -455,10 +455,7 @@ export default function App() {
                       />
                     }
                   />
-                  <Route
-                    path="/support"
-                    element={<TechnicalSupportView />}
-                  />
+                  <Route path="/support" element={<TechnicalSupportView />} />
                   <Route
                     path="/technical-support"
                     element={<Navigate to="/support" replace />}

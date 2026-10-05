@@ -17,18 +17,18 @@ import {
   TrendingUp,
   RotateCcw,
 } from "lucide-react";
-import { StockMovement, Vendor } from "../../types/index.ts";
-import { getStockMovements } from "../../lib/services/inventoryService.ts";
-import { getAllVendors } from "../../lib/services/vendorService.ts";
-import { Input } from "../common/Input.tsx";
-import { Select } from "../common/Select.tsx";
-import { DateFilterBar } from "../common/DateFilterBar.tsx";
-import { DataTable, Column } from "../common/DataTable.tsx";
-import { getStockMovementColumns } from "../../columns/index.ts";
-import { DatePreset } from "../../lib/utils/dateFilters.ts";
-import { formatDateTime } from "../../lib/utils/format.ts";
-import { subscribeToDbChanges } from "../../lib/db/sqliteEngine.ts";
-import { useLanguage } from "../../context/LanguageContext.tsx";
+import { StockMovement, Vendor } from "../types/index.ts";
+import { getStockMovements } from "../lib/services/inventoryService.ts";
+import { getAllVendors } from "../lib/services/vendorService.ts";
+import { Input } from "../components/common/Input.tsx";
+import { Select } from "../components/common/Select.tsx";
+import { DateFilterBar } from "../components/common/DateFilterBar.tsx";
+import { DataTable, Column } from "../components/common/DataTable.tsx";
+import { getStockMovementColumns } from "../columns/index.ts";
+import { DatePreset } from "../lib/utils/dateFilters.ts";
+import { formatDateTime } from "../lib/utils/format.ts";
+import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
+import { useLanguage } from "../context/LanguageContext.tsx";
 
 interface StockMovementsViewProps {
   currencySymbol: string;

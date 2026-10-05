@@ -2,9 +2,9 @@
  * Staff Directory & Management View
  * Handles employee profiles, designations, salary structures, contact information, and active status.
  */
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   Users,
   UserPlus,
@@ -19,7 +19,7 @@ import {
   UserCheck,
   UserX,
   Briefcase,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   Staff,
   StaffSummary,
@@ -28,7 +28,7 @@ import {
   StaffStatus,
   CreateStaffInput,
   UpdateStaffInput,
-} from '../../types/index.ts';
+} from "../types/index.ts";
 import {
   getAllStaff,
   createStaff,
@@ -36,21 +36,21 @@ import {
   deleteStaff,
   getStaffSummary,
   DEFAULT_STAFF_ROLES,
-} from '../../lib/services/staffService.ts';
+} from "../lib/services/staffService.ts";
 import {
   formatCurrency,
   formatDate,
   toMinorUnits,
   fromMinorUnits,
   getTodayISODate,
-} from '../../lib/utils/format.ts';
-import { Modal } from '../common/Modal.tsx';
-import { ConfirmDialog } from '../common/ConfirmDialog.tsx';
-import { ActionMenu } from '../common/ActionMenu.tsx';
-import { Select } from '../common/Select.tsx';
-import { Input } from '../common/Input.tsx';
-import { useToast } from '../../context/ToastContext.tsx';
-import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
+} from "../lib/utils/format.ts";
+import { Modal } from "../components/common/Modal.tsx";
+import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
+import { ActionMenu } from "../components/common/ActionMenu.tsx";
+import { Select } from "../components/common/Select.tsx";
+import { Input } from "../components/common/Input.tsx";
+import { useToast } from "../context/ToastContext.tsx";
+import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 
 interface StaffViewProps {
   currencySymbol: string;
@@ -70,9 +70,11 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
   });
 
   // Filters
-  const [staffSearch, setStaffSearch] = useState('');
-  const [staffStatusFilter, setStaffStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all');
+  const [staffSearch, setStaffSearch] = useState("");
+  const [staffStatusFilter, setStaffStatusFilter] = useState<
+    "all" | "active" | "inactive"
+  >("all");
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>("all");
 
   // Staff Form Modal States
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
@@ -80,17 +82,17 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
   const [staffToDelete, setStaffToDelete] = useState<Staff | null>(null);
 
   // Form Fields
-  const [formName, setFormName] = useState('');
+  const [formName, setFormName] = useState("");
   const [formRole, setFormRole] = useState<StaffRole>(DEFAULT_STAFF_ROLES[0]);
   const [isCustomRole, setIsCustomRole] = useState(false);
-  const [formCustomRole, setFormCustomRole] = useState('');
-  const [formSalaryType, setFormSalaryType] = useState<SalaryType>('monthly');
-  const [formBaseSalary, setFormBaseSalary] = useState('');
-  const [formPhone, setFormPhone] = useState('');
-  const [formEmail, setFormEmail] = useState('');
+  const [formCustomRole, setFormCustomRole] = useState("");
+  const [formSalaryType, setFormSalaryType] = useState<SalaryType>("monthly");
+  const [formBaseSalary, setFormBaseSalary] = useState("");
+  const [formPhone, setFormPhone] = useState("");
+  const [formEmail, setFormEmail] = useState("");
   const [formJoinDate, setFormJoinDate] = useState(getTodayISODate());
-  const [formStatus, setFormStatus] = useState<StaffStatus>('active');
-  const [formNotes, setFormNotes] = useState('');
+  const [formStatus, setFormStatus] = useState<StaffStatus>("active");
+  const [formNotes, setFormNotes] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
   // Load Data
@@ -105,7 +107,7 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
       const stats = getStaffSummary();
       setSummary(stats);
     } catch (err: any) {
-      console.error('Error loading staff data:', err);
+      console.error("Error loading staff data:", err);
     }
   }, [staffStatusFilter, staffSearch]);
 
@@ -120,17 +122,17 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
   // Open Create Staff Modal
   const handleOpenAddStaff = () => {
     setEditingStaff(null);
-    setFormName('');
+    setFormName("");
     setFormRole(DEFAULT_STAFF_ROLES[0]);
     setIsCustomRole(false);
-    setFormCustomRole('');
-    setFormSalaryType('monthly');
-    setFormBaseSalary('25000');
-    setFormPhone('');
-    setFormEmail('');
+    setFormCustomRole("");
+    setFormSalaryType("monthly");
+    setFormBaseSalary("25000");
+    setFormPhone("");
+    setFormEmail("");
     setFormJoinDate(getTodayISODate());
-    setFormStatus('active');
-    setFormNotes('');
+    setFormStatus("active");
+    setFormNotes("");
     setFormError(null);
     setIsStaffModalOpen(true);
   };
@@ -143,20 +145,20 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
     if (DEFAULT_STAFF_ROLES.includes(staff.role as StaffRole)) {
       setFormRole(staff.role as StaffRole);
       setIsCustomRole(false);
-      setFormCustomRole('');
+      setFormCustomRole("");
     } else {
-      setFormRole('Other');
+      setFormRole("Other");
       setIsCustomRole(true);
       setFormCustomRole(staff.role);
     }
 
     setFormSalaryType(staff.salary_type);
     setFormBaseSalary(fromMinorUnits(staff.base_salary).toString());
-    setFormPhone(staff.phone || '');
-    setFormEmail(staff.email || '');
+    setFormPhone(staff.phone || "");
+    setFormEmail(staff.email || "");
     setFormJoinDate(staff.join_date || getTodayISODate());
     setFormStatus(staff.status);
-    setFormNotes(staff.notes || '');
+    setFormNotes(staff.notes || "");
     setFormError(null);
     setIsStaffModalOpen(true);
   };
@@ -168,19 +170,19 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
 
     const trimmedName = formName.trim();
     if (!trimmedName) {
-      setFormError('Please enter the employee full name.');
+      setFormError("Please enter the employee full name.");
       return;
     }
 
     const effectiveRole = isCustomRole ? formCustomRole.trim() : formRole;
     if (!effectiveRole) {
-      setFormError('Please select or specify a designation.');
+      setFormError("Please select or specify a designation.");
       return;
     }
 
     const numSalary = parseFloat(formBaseSalary);
     if (isNaN(numSalary) || numSalary < 0) {
-      setFormError('Please enter a valid base wage (e.g. 25000).');
+      setFormError("Please enter a valid base wage (e.g. 25000).");
       return;
     }
 
@@ -200,7 +202,7 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
           notes: formNotes.trim() || null,
         };
         updateStaff(editingStaff.id, updateInput);
-        showToast(`Employee "${trimmedName}" updated successfully.`, 'success');
+        showToast(`Employee "${trimmedName}" updated successfully.`, "success");
       } else {
         const createInput: CreateStaffInput = {
           name: trimmedName,
@@ -214,25 +216,25 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
           notes: formNotes.trim() || null,
         };
         createStaff(createInput);
-        showToast(`Employee "${trimmedName}" added to team.`, 'success');
+        showToast(`Employee "${trimmedName}" added to team.`, "success");
       }
 
       setIsStaffModalOpen(false);
       loadData();
     } catch (err: any) {
-      setFormError(err.message || 'Failed to save staff record');
+      setFormError(err.message || "Failed to save staff record");
     }
   };
 
   // Toggle active/inactive status
   const handleToggleStaffStatus = (staff: Staff) => {
     try {
-      const nextStatus = staff.status === 'active' ? 'inactive' : 'active';
+      const nextStatus = staff.status === "active" ? "inactive" : "active";
       updateStaff(staff.id, { status: nextStatus });
-      showToast(`${staff.name} is now marked ${nextStatus}`, 'info');
+      showToast(`${staff.name} is now marked ${nextStatus}`, "info");
       loadData();
     } catch (err: any) {
-      showToast(err.message || 'Failed to update employee status', 'error');
+      showToast(err.message || "Failed to update employee status", "error");
     }
   };
 
@@ -241,17 +243,17 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
     if (!staffToDelete) return;
     try {
       deleteStaff(staffToDelete.id);
-      showToast(`Employee "${staffToDelete.name}" removed`, 'info');
+      showToast(`Employee "${staffToDelete.name}" removed`, "info");
       setStaffToDelete(null);
       loadData();
     } catch (err: any) {
-      showToast(err.message || 'Failed to delete employee', 'error');
+      showToast(err.message || "Failed to delete employee", "error");
     }
   };
 
   // Filtered staff by role
   const filteredStaffList = useMemo(() => {
-    if (selectedRoleFilter === 'all') return staffList;
+    if (selectedRoleFilter === "all") return staffList;
     return staffList.filter((s) => s.role === selectedRoleFilter);
   }, [staffList, selectedRoleFilter]);
 
@@ -278,7 +280,8 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
             </span>
           </div>
           <p className="text-xs text-neutral-400 mt-1">
-            Employee profiles, job roles, salary structures, contact information, and employment status
+            Employee profiles, job roles, salary structures, contact
+            information, and employment status
           </p>
         </div>
 
@@ -305,7 +308,9 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
           className="p-5 rounded-xl bg-neutral-900 border border-neutral-800 flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs text-neutral-400 font-medium">Total Staff</span>
+            <span className="text-xs text-neutral-400 font-medium">
+              Total Staff
+            </span>
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
               <Users className="w-4 h-4" />
             </div>
@@ -327,16 +332,24 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
           className="p-5 rounded-xl bg-neutral-900 border border-neutral-800 flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs text-neutral-400 font-medium">Active Workforce</span>
+            <span className="text-xs text-neutral-400 font-medium">
+              Active Workforce
+            </span>
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
               <UserCheck className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-neutral-100 font-mono tabular-nums">
-              {summary.active_staff}{' '}
+              {summary.active_staff}{" "}
               <span className="text-xs font-normal text-emerald-400">
-                ({summary.total_staff > 0 ? Math.round((summary.active_staff / summary.total_staff) * 100) : 0}%)
+                (
+                {summary.total_staff > 0
+                  ? Math.round(
+                      (summary.active_staff / summary.total_staff) * 100,
+                    )
+                  : 0}
+                %)
               </span>
             </div>
             <div className="text-[11px] text-neutral-400 mt-1">
@@ -352,7 +365,9 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
           className="p-5 rounded-xl bg-neutral-900 border border-neutral-800 flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs text-neutral-400 font-medium">Job Designations</span>
+            <span className="text-xs text-neutral-400 font-medium">
+              Job Designations
+            </span>
             <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
               <Briefcase className="w-4 h-4" />
             </div>
@@ -374,7 +389,9 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
           className="p-5 rounded-xl bg-neutral-900 border border-neutral-800 flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs text-neutral-400 font-medium">Inactive Staff</span>
+            <span className="text-xs text-neutral-400 font-medium">
+              Inactive Staff
+            </span>
             <div className="w-8 h-8 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center text-neutral-400">
               <UserX className="w-4 h-4" />
             </div>
@@ -411,9 +428,9 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
             containerClassName="w-32"
             sizeVariant="sm"
             options={[
-              { value: 'all', label: 'All Status' },
-              { value: 'active', label: 'Active Only' },
-              { value: 'inactive', label: 'Inactive Only' },
+              { value: "all", label: "All Status" },
+              { value: "active", label: "Active Only" },
+              { value: "inactive", label: "Inactive Only" },
             ]}
           />
 
@@ -424,18 +441,20 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
             containerClassName="w-40"
             sizeVariant="sm"
             options={[
-              { value: 'all', label: 'All Designations' },
+              { value: "all", label: "All Designations" },
               ...uniqueRoles.map((r) => ({ value: r, label: r })),
             ]}
           />
 
-          {(staffStatusFilter !== 'all' || selectedRoleFilter !== 'all' || staffSearch) && (
+          {(staffStatusFilter !== "all" ||
+            selectedRoleFilter !== "all" ||
+            staffSearch) && (
             <button
               type="button"
               onClick={() => {
-                setStaffStatusFilter('all');
-                setSelectedRoleFilter('all');
-                setStaffSearch('');
+                setStaffStatusFilter("all");
+                setSelectedRoleFilter("all");
+                setStaffSearch("");
               }}
               className="text-xs text-neutral-400 hover:text-neutral-200 px-2 py-1 transition-colors cursor-pointer"
             >
@@ -453,7 +472,9 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
               <tr>
                 <th className="py-3 px-5">Employee</th>
                 <th className="py-3 px-5">Designation</th>
-                <th className="py-3 px-5 text-right font-mono">Salary Structure</th>
+                <th className="py-3 px-5 text-right font-mono">
+                  Salary Structure
+                </th>
                 <th className="py-3 px-5">Contact</th>
                 <th className="py-3 px-5 text-center">Status</th>
                 <th className="py-3 px-5 text-right">Actions</th>
@@ -462,7 +483,10 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
             <tbody className="divide-y divide-neutral-800/60">
               {filteredStaffList.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-neutral-400 text-xs">
+                  <td
+                    colSpan={6}
+                    className="py-12 text-center text-neutral-400 text-xs"
+                  >
                     <Users className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
                     No employees found matching the search criteria.
                     <div className="mt-2">
@@ -478,17 +502,21 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
                 </tr>
               ) : (
                 filteredStaffList.map((staff) => (
-                  <tr key={staff.id} className="hover:bg-neutral-800/40 transition-colors group">
+                  <tr
+                    key={staff.id}
+                    className="hover:bg-neutral-800/40 transition-colors group"
+                  >
                     <td className="px-5 py-3.5">
                       <div className="font-semibold text-neutral-100 flex items-center gap-2">
                         <span>{staff.name}</span>
-                        {staff.status === 'active' && (
+                        {staff.status === "active" && (
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                         )}
                       </div>
                       <div className="text-[11px] text-neutral-500 font-mono mt-0.5">
                         ID: #{staff.id}
-                        {staff.join_date && ` · Joined: ${formatDate(staff.join_date)}`}
+                        {staff.join_date &&
+                          ` · Joined: ${formatDate(staff.join_date)}`}
                       </div>
                     </td>
 
@@ -519,19 +547,21 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
                         </div>
                       ) : null}
                       {!staff.phone && !staff.email && (
-                        <span className="text-neutral-600 italic">No contact info</span>
+                        <span className="text-neutral-600 italic">
+                          No contact info
+                        </span>
                       )}
                     </td>
 
                     <td className="px-5 py-3.5 text-center whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                          staff.status === 'active'
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                            : 'bg-neutral-800 text-neutral-400 border border-neutral-700'
+                          staff.status === "active"
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            : "bg-neutral-800 text-neutral-400 border border-neutral-700"
                         }`}
                       >
-                        {staff.status === 'active' ? 'Active' : 'Inactive'}
+                        {staff.status === "active" ? "Active" : "Inactive"}
                       </span>
                     </td>
 
@@ -541,36 +571,39 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
                           align="right"
                           items={[
                             {
-                              label: 'Disburse Salary',
+                              label: "Disburse Salary",
                               icon: CreditCard,
-                              color: 'emerald',
-                              action: () => navigate(`/payroll?staffId=${staff.id}`),
+                              color: "emerald",
+                              action: () =>
+                                navigate(`/payroll?staffId=${staff.id}`),
                             },
                             {
-                              label: 'Edit Employee',
+                              label: "Edit Employee",
                               icon: Edit2,
-                              color: 'sky',
+                              color: "sky",
                               action: () => handleOpenEditStaff(staff),
                             },
                             {
-                              label: 'View Disbursements',
+                              label: "View Disbursements",
                               icon: Calendar,
-                              color: 'indigo',
-                              action: () => navigate(`/payroll?staffId=${staff.id}`),
+                              color: "indigo",
+                              action: () =>
+                                navigate(`/payroll?staffId=${staff.id}`),
                             },
                             {
                               label:
-                                staff.status === 'active'
-                                  ? 'Mark as Inactive'
-                                  : 'Mark as Active',
-                              icon: staff.status === 'active' ? UserX : UserCheck,
-                              color: 'amber',
+                                staff.status === "active"
+                                  ? "Mark as Inactive"
+                                  : "Mark as Active",
+                              icon:
+                                staff.status === "active" ? UserX : UserCheck,
+                              color: "amber",
                               action: () => handleToggleStaffStatus(staff),
                             },
                             {
-                              label: 'Delete Employee',
+                              label: "Delete Employee",
                               icon: Trash2,
-                              color: 'rose',
+                              color: "rose",
                               isDestructive: true,
                               divider: true,
                               action: () => setStaffToDelete(staff),
@@ -591,7 +624,11 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
       <Modal
         isOpen={isStaffModalOpen}
         onClose={() => setIsStaffModalOpen(false)}
-        title={editingStaff ? `Edit Employee #${editingStaff.id}` : 'Add New Employee'}
+        title={
+          editingStaff
+            ? `Edit Employee #${editingStaff.id}`
+            : "Add New Employee"
+        }
         subtitle="Configure employee job profile, salary rates, and contact details."
         maxWidth="lg"
       >
@@ -622,17 +659,20 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
             <Select
               label="Designation / Role"
               required
-              value={isCustomRole ? 'Other' : formRole}
+              value={isCustomRole ? "Other" : formRole}
               onChange={(e) => {
                 const val = e.target.value;
-                if (val === 'Other') {
+                if (val === "Other") {
                   setIsCustomRole(true);
                 } else {
                   setIsCustomRole(false);
                   setFormRole(val as StaffRole);
                 }
               }}
-              options={DEFAULT_STAFF_ROLES.map((role) => ({ value: role, label: role }))}
+              options={DEFAULT_STAFF_ROLES.map((role) => ({
+                value: role,
+                label: role,
+              }))}
             />
 
             {/* Custom Designation if 'Other' */}
@@ -655,8 +695,8 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
                 value={formStatus}
                 onChange={(e) => setFormStatus(e.target.value as StaffStatus)}
                 options={[
-                  { value: 'active', label: 'Active' },
-                  { value: 'inactive', label: 'Inactive' },
+                  { value: "active", label: "Active" },
+                  { value: "inactive", label: "Inactive" },
                 ]}
               />
             )}
@@ -669,9 +709,9 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
               value={formSalaryType}
               onChange={(e) => setFormSalaryType(e.target.value as SalaryType)}
               options={[
-                { value: 'monthly', label: 'Monthly Fixed' },
-                { value: 'hourly', label: 'Hourly Rate' },
-                { value: 'commission', label: 'Commission Based' },
+                { value: "monthly", label: "Monthly Fixed" },
+                { value: "hourly", label: "Hourly Rate" },
+                { value: "commission", label: "Commission Based" },
               ]}
             />
 
@@ -679,7 +719,8 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
             <Input
               label={
                 <>
-                  Base Wage Amount ({currencySymbol}) <span className="text-rose-400">*</span>
+                  Base Wage Amount ({currencySymbol}){" "}
+                  <span className="text-rose-400">*</span>
                 </>
               }
               type="number"
@@ -698,7 +739,10 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
             <Input
               label={
                 <>
-                  Phone Number <span className="text-neutral-500 text-[10px]">(optional)</span>
+                  Phone Number{" "}
+                  <span className="text-neutral-500 text-[10px]">
+                    (optional)
+                  </span>
                 </>
               }
               type="tel"
@@ -712,7 +756,10 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
             <Input
               label={
                 <>
-                  Email Address <span className="text-neutral-500 text-[10px]">(optional)</span>
+                  Email Address{" "}
+                  <span className="text-neutral-500 text-[10px]">
+                    (optional)
+                  </span>
                 </>
               }
               type="email"
@@ -737,8 +784,8 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
                 value={formStatus}
                 onChange={(e) => setFormStatus(e.target.value as StaffStatus)}
                 options={[
-                  { value: 'active', label: 'Active' },
-                  { value: 'inactive', label: 'Inactive' },
+                  { value: "active", label: "Active" },
+                  { value: "inactive", label: "Inactive" },
                 ]}
               />
             )}
@@ -747,7 +794,8 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
           {/* Notes */}
           <div>
             <label className="block text-xs font-medium text-neutral-300 mb-1">
-              Internal Profile Notes <span className="text-neutral-500 text-[10px]">(optional)</span>
+              Internal Profile Notes{" "}
+              <span className="text-neutral-500 text-[10px]">(optional)</span>
             </label>
             <textarea
               rows={2}
@@ -771,7 +819,7 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
               type="submit"
               className="px-4 py-2 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer"
             >
-              {editingStaff ? 'Update Employee' : 'Add Employee'}
+              {editingStaff ? "Update Employee" : "Add Employee"}
             </button>
           </div>
         </form>

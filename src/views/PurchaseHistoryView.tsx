@@ -18,25 +18,25 @@ import {
   Building2,
   Calendar,
 } from "lucide-react";
-import { Purchase, PurchaseItem } from "../../types/index.ts";
+import { Purchase, PurchaseItem } from "../types/index.ts";
 import {
   getPurchases,
   getPurchaseWithItems,
-} from "../../lib/services/purchaseService.ts";
-import { PrintPurchaseBillModal } from "../common/PrintPurchaseBillModal.tsx";
-import { Modal } from "../common/Modal.tsx";
-import { DataTable, Column } from "../common/DataTable.tsx";
-import { ActionMenu } from "../common/ActionMenu.tsx";
-import { getPurchaseHistoryColumns } from "../../columns/index.ts";
-import { DatePreset } from "../../lib/utils/dateFilters.ts";
+} from "../lib/services/purchaseService.ts";
+import { PrintPurchaseBillModal } from "../components/common/PrintPurchaseBillModal.tsx";
+import { Modal } from "../components/common/Modal.tsx";
+import { DataTable, Column } from "../components/common/DataTable.tsx";
+import { ActionMenu } from "../components/common/ActionMenu.tsx";
+import { getPurchaseHistoryColumns } from "../columns/index.ts";
+import { DatePreset } from "../lib/utils/dateFilters.ts";
 import {
   formatCurrency,
   fromMinorUnits,
   formatDateTime,
-} from "../../lib/utils/format.ts";
-import { useToast } from "../../context/ToastContext.tsx";
-import { subscribeToDbChanges } from "../../lib/db/sqliteEngine.ts";
-import { useLanguage } from "../../context/LanguageContext.tsx";
+} from "../lib/utils/format.ts";
+import { useToast } from "../context/ToastContext.tsx";
+import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
+import { useLanguage } from "../context/LanguageContext.tsx";
 
 interface PurchaseHistoryViewProps {
   currencySymbol: string;

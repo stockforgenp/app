@@ -17,25 +17,22 @@ import {
   Receipt,
   ReceiptText,
 } from "lucide-react";
-import { DateFilterBar } from "../common/DateFilterBar.tsx";
-import { DatePreset } from "../../lib/utils/dateFilters.ts";
+import { DateFilterBar } from "../components/common/DateFilterBar.tsx";
+import { DatePreset } from "../lib/utils/dateFilters.ts";
 import {
   DateFilterPreset,
   getDateRangeFromPreset,
   getFinancialSummary,
   getProductAnalytics,
   getDailySalesTrend,
-} from "../../lib/services/analyticsService.ts";
-import {
-  formatCurrency,
-  formatDate,
-} from "../../lib/utils/format.ts";
+} from "../lib/services/analyticsService.ts";
+import { formatCurrency, formatDate } from "../lib/utils/format.ts";
 import {
   FinancialSummary,
   ProductAnalytics,
   DailySalesData,
-} from "../../types/index.ts";
-import { subscribeToDbChanges } from "../../lib/db/sqliteEngine.ts";
+} from "../types/index.ts";
+import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 
 interface AnalyticsViewProps {
   currencySymbol: string;
