@@ -26,6 +26,10 @@ import {
 } from "../../lib/services/productService.ts";
 import { useLanguage } from "../../context/LanguageContext.tsx";
 import { useToast } from "../../context/ToastContext.tsx";
+import {
+  COMMON_UNITS,
+  DEFAULT_PRODUCT_UNIT,
+} from "../../constants/index.ts";
 
 export interface BulkProductRow {
   id: string;
@@ -54,29 +58,7 @@ export interface BulkProductModalProps {
   onSuccess: () => void;
 }
 
-const COMMON_UNITS = [
-  { value: "pcs", label: "pcs (piece)" },
-  { value: "kg", label: "kg (kilogram)" },
-  { value: "g", label: "g (gram)" },
-  { value: "ltr", label: "ltr (litre)" },
-  { value: "ml", label: "ml (millilitre)" },
-  { value: "pkt", label: "pkt (packet)" },
-  { value: "box", label: "box (box)" },
-  { value: "bottle", label: "bottle" },
-  { value: "can", label: "can" },
-  { value: "dozen", label: "dozen" },
-  { value: "bag", label: "bag" },
-  { value: "strip", label: "strip" },
-  { value: "tablet", label: "tablet" },
-  { value: "m", label: "m (meter)" },
-  { value: "roll", label: "roll" },
-  { value: "set", label: "set" },
-  { value: "carton", label: "carton" },
-  { value: "jar", label: "jar" },
-  { value: "pair", label: "pair" },
-];
-
-const createEmptyRow = (defaultUnit = "pcs"): BulkProductRow => ({
+const createEmptyRow = (defaultUnit = DEFAULT_PRODUCT_UNIT): BulkProductRow => ({
   id: Math.random().toString(36).substring(2, 9),
   name: "",
   sku: "",

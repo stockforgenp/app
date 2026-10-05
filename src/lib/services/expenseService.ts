@@ -4,28 +4,13 @@
  */
 import { Expense, ExpenseSummary, ExpenseCategoryBreakdown } from '../../types/index.ts';
 import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
-
-export const DEFAULT_EXPENSE_CATEGORIES: string[] = [
-  'Rent & Lease',
-  'Utilities (Electricity, Water)',
-  'Salaries & Wages',
-  'Packaging & Bags',
-  'Marketing & Advertising',
-  'Repairs & Maintenance',
-  'Delivery & Transportation',
-  'Internet & Software',
-  'Taxes & Licensing',
-  'Miscellaneous / Other',
-];
-
-export const DEFAULT_PAYMENT_METHODS: string[] = [
-  'Cash',
-  'Bank Transfer',
-  'Card',
-  'Digital Wallet',
-  'Check',
-  'Other',
-];
+export {
+  DEFAULT_EXPENSE_CATEGORIES,
+  DEFAULT_PAYMENT_METHODS,
+} from '../../constants/finance.ts';
+import {
+  DEFAULT_EXPENSE_CATEGORIES,
+} from '../../constants/finance.ts';
 
 export interface CreateExpenseInput {
   category: string;

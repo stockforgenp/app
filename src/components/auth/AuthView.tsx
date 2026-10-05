@@ -42,28 +42,12 @@ import { useToast } from "../../context/ToastContext.tsx";
 import { Input } from "../common/Input.tsx";
 import { Select } from "../common/Select.tsx";
 import { Modal } from "../common/Modal.tsx";
-
-const SHOP_TYPES = [
-  "Grocery & Supermarket",
-  "Clothing & Apparel",
-  "Electronics & Mobile",
-  "Pharmacy & Healthcare",
-  "Cafe, Bakery & Restaurant",
-  "Hardware & Construction",
-  "Stationery & Bookshop",
-  "Cosmetics & Personal Care",
-  "Departmental & Wholesale",
-  "General Retail & Store",
-  "Other",
-];
-
-const CURRENCY_OPTIONS = [
-  { value: "रु.", label: "रु. (Nepali Rupee - Default)" },
-  { value: "Rs.", label: "Rs. (Rupee)" },
-  { value: "$", label: "$ (USD)" },
-  { value: "€", label: "€ (Euro)" },
-  { value: "£", label: "£ (GBP)" },
-];
+import {
+  SHOP_TYPES,
+  CURRENCY_OPTIONS,
+  SUPPORT_CONTACTS,
+} from "../../constants/index.ts";
+import { compileSystemDiagnostics } from "../../helpers/index.ts";
 
 interface AuthViewProps {
   onSuccess?: () => void;
@@ -97,32 +81,27 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
         ? "नमस्ते, मलाई स्टकफोर्ज (StockForge) पसल लगइन / टर्मिनल सेटअपमा प्राविधिक सहयोग चाहियो।"
         : "Hello StockForge Support, I need assistance with shop login / terminal setup."
     );
-    window.open(`https://wa.me/9779801234567?text=${text}`, "_blank");
+    window.open(`https://wa.me/${SUPPORT_CONTACTS.whatsappRaw}?text=${text}`, "_blank");
   };
 
   const handleEmailSupport = () => {
     const subject = encodeURIComponent("[StockForge Support] Shop Login & Terminal Help");
     const body = encodeURIComponent(
-      `Hello StockForge Support Team,\n\nI need help accessing or setting up my shop terminal.\n\nIssue Details:\n\n\n--- Diagnostics ---\nApp: StockForge v0.1.0\nPlatform: ${typeof navigator !== 'undefined' ? navigator.platform || 'Desktop' : 'Desktop'}\nEngine: SQLite WASM (Local-First Offline)\n`
+      `Hello StockForge Support Team,\n\nI need help accessing or setting up my shop terminal.\n\nIssue Details:\n\n\n--- Diagnostics ---\nApp: StockForge Desktop\nEngine: SQLite WASM (Local-First Offline)\n`
     );
-    window.open(`mailto:support@stockforge.dev?subject=${subject}&body=${body}`, "_blank");
+    window.open(`mailto:${SUPPORT_CONTACTS.email}?subject=${subject}&body=${body}`, "_blank");
   };
 
   const handleCopyDiagnostics = () => {
-    const diag = {
-      app: "StockForge Desktop",
-      version: "0.1.0",
-      identifier: "com.stockforge.dev",
-      engine: "SQLite 3 WASM (Local-First)",
-      platform: typeof navigator !== "undefined" ? navigator.platform || "Desktop" : "Desktop",
-      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "Unknown",
-      language: language.toUpperCase(),
-      theme: theme.toUpperCase(),
-      storedShopsCount: allShops.length,
-      timestamp: new Date().toISOString(),
-    };
+    const diagStr = compileSystemDiagnostics({
+      language,
+      theme,
+      extra: {
+        storedShopsCount: allShops.length,
+      },
+    });
     handleCopy(
-      JSON.stringify(diag, null, 2),
+      diagStr,
       "diagnostics",
       t("dev_diagnostics_copied") || "Diagnostic details copied to clipboard!"
     );
@@ -706,7 +685,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                     <Phone className="w-3.5 h-3.5 text-emerald-400" />
                   </div>
                   <div className="font-mono text-xs font-bold text-neutral-100 pt-1">
-                    +977 980-1234567
+                    {SUPPORT_CONTACTS.phone}
                   </div>
                   <span className="text-[10px] text-emerald-400 block pt-0.5">
                     {isNepali ? "२४/७ काउन्टर हटलाइन" : "24/7 POS Hotline"}
@@ -714,7 +693,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                 </div>
                 <div className="flex items-center gap-1.5 pt-2 border-t border-neutral-800/60">
                   <a
-                    href="tel:+9779801234567"
+                    href={`tel:${SUPPORT_CONTACTS.phoneRaw}`}
                     className="flex-1 py-1 px-2 text-center text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer"
                   >
                     {t("dev_call_now")}
@@ -722,7 +701,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                   <button
                     type="button"
                     onClick={() =>
-                      handleCopy("+977 980-1234567", "phone", "Phone copied to clipboard!")
+                      handleCopy(SUPPORT_CONTACTS.phone, "phone", "Phone copied to clipboard!")
                     }
                     className="p-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-800 transition-colors cursor-pointer"
                     title="Copy Phone"
@@ -746,7 +725,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                     <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
                   </div>
                   <div className="font-mono text-xs font-bold text-neutral-100 pt-1">
-                    +977 980-1234567
+                    {SUPPORT_CONTACTS.whatsapp}
                   </div>
                   <span className="text-[10px] text-neutral-400 block pt-0.5">
                     {isNepali ? "च्याट तथा स्क्रिनसट" : "Screenshots & Live Chat"}
@@ -763,7 +742,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                   <button
                     type="button"
                     onClick={() =>
-                      handleCopy("+977 980-1234567", "wa", "WhatsApp copied to clipboard!")
+                      handleCopy(SUPPORT_CONTACTS.whatsapp, "wa", "WhatsApp copied to clipboard!")
                     }
                     className="p-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-800 transition-colors cursor-pointer"
                     title="Copy WhatsApp"
@@ -787,7 +766,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                     <Mail className="w-3.5 h-3.5 text-indigo-400" />
                   </div>
                   <div className="font-mono text-xs font-bold text-neutral-100 pt-1 truncate">
-                    support@stockforge.dev
+                    {SUPPORT_CONTACTS.email}
                   </div>
                   <span className="text-[10px] text-neutral-400 block pt-0.5">
                     {isNepali ? "२ घण्टाभित्र प्रत्युत्तर" : "Avg. response < 2 hrs"}
@@ -804,7 +783,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                   <button
                     type="button"
                     onClick={() =>
-                      handleCopy("support@stockforge.dev", "email", "Email copied to clipboard!")
+                      handleCopy(SUPPORT_CONTACTS.email, "email", "Email copied to clipboard!")
                     }
                     className="p-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-800 transition-colors cursor-pointer"
                     title="Copy Email"

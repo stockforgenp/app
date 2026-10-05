@@ -65,6 +65,7 @@ import { useToast } from "../../context/ToastContext.tsx";
 import { subscribeToDbChanges } from "../../lib/db/sqliteEngine.ts";
 import { useLanguage } from "../../context/LanguageContext.tsx";
 import { MODIFIER_LABEL } from "../../lib/hooks/useGlobalShortcuts.ts";
+import { COMMON_UNITS } from "../../constants/index.ts";
 
 export interface InventoryViewProps {
   currencySymbol: string;
@@ -81,20 +82,6 @@ export interface InventoryViewProps {
   onClearInitialOpenCreate?: () => void;
   onEditProduct?: (product: Product) => void;
 }
-
-const COMMON_UNITS = [
-  { value: "pcs", label: "pcs (piece)" },
-  { value: "kg", label: "kg (kilogram)" },
-  { value: "g", label: "g (gram)" },
-  { value: "ltr", label: "ltr (litre)" },
-  { value: "ml", label: "ml (millilitre)" },
-  { value: "pkt", label: "pkt (packet)" },
-  { value: "box", label: "box (box)" },
-  { value: "bottle", label: "bottle" },
-  { value: "can", label: "can" },
-  { value: "dozen", label: "dozen" },
-  { value: "m", label: "m (meter)" },
-];
 
 export const InventoryView: React.FC<InventoryViewProps> = ({
   currencySymbol,

@@ -18,25 +18,10 @@ import {
 import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
 import { getTodayISODate } from '../utils/format.ts';
 
-export const DEFAULT_STAFF_ROLES: StaffRole[] = [
-  'Store Manager',
-  'Cashier',
-  'Sales Associate',
-  'Inventory Manager',
-  'Delivery Person',
-  'Accountant',
-  'Security Guard',
-  'Cleaner',
-  'Other',
-];
-
-export const SALARY_PAYMENT_METHODS: string[] = [
-  'Cash',
-  'Bank Transfer',
-  'Check',
-  'Digital Wallet',
-  'Other',
-];
+export {
+  DEFAULT_STAFF_ROLES,
+  SALARY_PAYMENT_METHODS,
+} from '../../constants/finance.ts';
 
 /**
  * Retrieve all staff members with aggregated payment stats

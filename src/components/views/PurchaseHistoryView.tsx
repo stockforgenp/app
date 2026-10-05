@@ -27,6 +27,7 @@ import { PrintPurchaseBillModal } from "../common/PrintPurchaseBillModal.tsx";
 import { Modal } from "../common/Modal.tsx";
 import { DataTable, Column } from "../common/DataTable.tsx";
 import { ActionMenu } from "../common/ActionMenu.tsx";
+import { getPurchaseHistoryColumns } from "../../columns/index.ts";
 import { DatePreset } from "../../lib/utils/dateFilters.ts";
 import {
   formatCurrency,
@@ -118,134 +119,25 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
 
   // Columns for DataTable
   const historyColumns: Column<Purchase>[] = useMemo(
-    () => [
-      {
-        id: "bill_number",
-        header: isNepali ? "खरिद बिल नं" : "Purchase Bill #",
-        accessor: (row: Purchase) => (
-          <div>
-            <div className="font-mono font-bold text-neutral-100 flex items-center gap-1.5">
-              <span>{row.bill_number || `PO-${row.id}`}</span>
-            </div>
-            {row.invoice_number && (
-              <div className="text-[10px] text-neutral-400 font-mono">
-                Inv: {row.invoice_number}
-              </div>
-            )}
-          </div>
-        ),
-      },
-      {
-        id: "vendor_name",
-        header: isNepali ? "आपूर्तिकर्ता (Vendor)" : "Supplier / Vendor",
-        accessor: (row: Purchase) => (
-          <div>
-            <div className="font-medium text-neutral-200">
-              {row.vendor_name || (
-                <span className="text-neutral-500 italic">Self-Supplied</span>
-              )}
-            </div>
-            {row.vendor_pan_vat && (
-              <div className="text-[10px] text-neutral-400 font-mono">
-                PAN: {row.vendor_pan_vat}
-              </div>
-            )}
-          </div>
-        ),
-      },
-      {
-        id: "created_at",
-        header: isNepali ? "मिति र समय" : "Date & Time",
-        accessor: (row: Purchase) => (
-          <span className="text-neutral-400 font-mono text-xs">
-            {formatDateTime(row.created_at)}
-          </span>
-        ),
-      },
-      {
-        id: "total_units",
-        header: isNepali ? "एकाइ" : "Units",
-        align: "right",
-        accessor: (row: Purchase) => (
-          <span className="font-mono text-neutral-300">
-            {formatNumberByLang(row.total_units || 0)}
-          </span>
-        ),
-      },
-      {
-        id: "subtotal",
-        header: isNepali ? "करयोग्य रकम" : "Taxable Amt",
-        align: "right",
-        accessor: (row: Purchase) => (
-          <span className="font-mono text-neutral-400">
-            {formatCurrency(row.taxable_amount || row.subtotal, currencySymbol)}
-          </span>
-        ),
-      },
-      {
-        id: "vat_amount",
-        header: isNepali ? "१३% भ्याट" : "13% VAT",
-        align: "right",
-        accessor: (row: Purchase) => (
-          <span className="font-mono text-amber-400/90 text-xs">
-            {row.vat_amount && row.vat_amount > 0
-              ? formatCurrency(row.vat_amount, currencySymbol)
-              : "—"}
-          </span>
-        ),
-      },
-      {
-        id: "grand_total",
-        header: isNepali ? "कुल रकम" : "Grand Total",
-        align: "right",
-        accessor: (row: Purchase) => (
-          <span className="font-mono font-bold text-emerald-400">
-            {formatCurrency(row.grand_total || row.total, currencySymbol)}
-          </span>
-        ),
-      },
-      {
-        id: "actions",
-        header: isNepali ? "कार्य" : "Actions",
-        align: "right",
-        accessor: (row: Purchase) => (
-          <ActionMenu
-            items={[
-              {
-                label: isNepali ? "विवरण हेर्नुहोस्" : "View Details",
-                icon: Eye,
-                color: "emerald",
-                action: () => handleInspectPurchase(row),
-              },
-              {
-                label: isNepali ? "बिल पुनः प्रिन्ट" : "Reprint Bill",
-                icon: Printer,
-                color: "sky",
-                action: () => {
-                  setPrintPurchaseId(row.id);
-                  setIsPrintModalOpen(true);
-                },
-              },
-              {
-                label: isNepali ? "बिल नं प्रतिलिपि" : "Copy Bill #",
-                icon: Copy,
-                color: "default",
-                action: () => {
-                  navigator.clipboard.writeText(
-                    row.bill_number || `PO-${row.id}`,
-                  );
-                  showToast(
-                    isNepali ? "बिल नं कपी गरियो" : "Bill number copied",
-                    "info",
-                  );
-                },
-              },
-            ]}
-          />
-        ),
-      },
-    ],
-    [currencySymbol, isNepali],
+    () =>
+      getPurchaseHistoryColumns({
+        isNepali,
+        currencySymbol,
+        formatNumberByLang,
+        onInspectPurchase: handleInspectPurchase,
+        onPrintPurchase: (row) => {
+          setPrintPurchaseId(row.id);
+          setIsPrintModalOpen(true);
+        },
+        onCopyBillNumber: (billNumber) => {
+          navigator.clipboard.writeText(billNumber);
+          showToast(
+            isNepali ? "बिल नं कपी गरियो" : "Bill number copied",
+            "info",
+          );
+        },
+      }),
+    [currencySymbol, isNepali, formatNumberByLang],
   );
 
   return (

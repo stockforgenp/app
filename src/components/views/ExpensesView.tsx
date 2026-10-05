@@ -24,11 +24,13 @@ import {
   updateExpense,
   deleteExpense,
   getAllCategories,
-  DEFAULT_EXPENSE_CATEGORIES,
-  DEFAULT_PAYMENT_METHODS,
   CreateExpenseInput,
   UpdateExpenseInput,
 } from '../../lib/services/expenseService.ts';
+import {
+  DEFAULT_EXPENSE_CATEGORIES,
+  DEFAULT_PAYMENT_METHODS,
+} from '../../constants/index.ts';
 import {
   formatCurrency,
   formatDate,
@@ -42,6 +44,7 @@ import { ActionMenu } from '../common/ActionMenu.tsx';
 import { Select } from '../common/Select.tsx';
 import { Input, Textarea } from '../common/Input.tsx';
 import { DataTable, Column } from '../common/DataTable.tsx';
+import { getExpenseColumns } from '../../columns/index.ts';
 import { DatePreset, calculateDateRange } from '../../lib/utils/dateFilters.ts';
 import { useToast } from '../../context/ToastContext.tsx';
 import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
@@ -239,119 +242,16 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ currencySymbol }) =>
   }, [summary]);
 
   const expenseColumns = useMemo<Column<Expense>[]>(
-    () => [
-      {
-        id: 'date',
-        header: 'Date',
-        accessor: (exp) => (
-          <span className="font-mono text-neutral-300 whitespace-nowrap">
-            {formatDate(exp.date)}
-          </span>
-        ),
-        sortable: true,
-        sortKey: (exp) => exp.date,
-      },
-      {
-        id: 'category',
-        header: 'Category',
-        accessor: (exp) => (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-800 text-neutral-200 border border-neutral-700/60">
-            {exp.category}
-          </span>
-        ),
-        sortable: true,
-        sortKey: (exp) => exp.category,
-      },
-      {
-        id: 'receipt_reference',
-        header: 'Receipt / Ref',
-        accessor: (exp) =>
-          exp.receipt_reference ? (
-            <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-neutral-950 border border-neutral-800 text-neutral-300">
-              {exp.receipt_reference}
-            </span>
-          ) : (
-            <span className="text-neutral-600">—</span>
-          ),
-        sortable: true,
-        sortKey: (exp) => exp.receipt_reference || '',
-      },
-      {
-        id: 'payment_method',
-        header: 'Payment',
-        accessor: (exp) => (
-          <span className="text-neutral-400 whitespace-nowrap">
-            {exp.payment_method || 'Cash'}
-          </span>
-        ),
-        sortable: true,
-        sortKey: (exp) => exp.payment_method || 'Cash',
-      },
-      {
-        id: 'note',
-        header: 'Description / Notes',
-        accessor: (exp) => (
-          <div className="max-w-xs truncate text-neutral-300">
-            {exp.note ? (
-              <span>{exp.note}</span>
-            ) : (
-              <span className="text-neutral-600 italic">No notes</span>
-            )}
-          </div>
-        ),
-      },
-      {
-        id: 'amount',
-        header: 'Amount',
-        align: 'right',
-        accessor: (exp) => (
-          <span className="font-mono font-semibold text-rose-400 tabular-nums whitespace-nowrap">
-            {formatCurrency(exp.amount, currencySymbol)}
-          </span>
-        ),
-        sortable: true,
-        sortKey: (exp) => exp.amount,
-      },
-      {
-        id: 'actions',
-        header: 'Actions',
-        align: 'right',
-        accessor: (exp) => (
-          <div className="flex items-center justify-end gap-1.5">
-            <ActionMenu
-              align="right"
-              items={[
-                {
-                  label: 'Edit Expense',
-                  icon: Edit2,
-                  color: 'emerald',
-                  action: () => handleOpenEditModal(exp),
-                },
-                exp.receipt_reference
-                  ? {
-                      label: 'Copy Receipt Ref',
-                      icon: Copy,
-                      color: 'sky',
-                      action: () => {
-                        navigator.clipboard.writeText(exp.receipt_reference!);
-                        showToast('Receipt reference copied', 'info');
-                      },
-                    }
-                  : null,
-                {
-                  label: 'Delete Expense',
-                  icon: Trash2,
-                  color: 'rose',
-                  isDestructive: true,
-                  divider: true,
-                  action: () => setExpenseToDelete(exp),
-                },
-              ]}
-            />
-          </div>
-        ),
-      },
-    ],
+    () =>
+      getExpenseColumns({
+        currencySymbol,
+        onEdit: handleOpenEditModal,
+        onDelete: (exp) => setExpenseToDelete(exp),
+        onCopyReceiptRef: (ref) => {
+          navigator.clipboard.writeText(ref);
+          showToast('Receipt reference copied', 'info');
+        },
+      }),
     [currencySymbol, showToast],
   );
 

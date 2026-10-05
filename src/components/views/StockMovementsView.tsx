@@ -23,6 +23,8 @@ import { getAllVendors } from "../../lib/services/vendorService.ts";
 import { Input } from "../common/Input.tsx";
 import { Select } from "../common/Select.tsx";
 import { DateFilterBar } from "../common/DateFilterBar.tsx";
+import { DataTable, Column } from "../common/DataTable.tsx";
+import { getStockMovementColumns } from "../../columns/index.ts";
 import { DatePreset } from "../../lib/utils/dateFilters.ts";
 import { formatDateTime } from "../../lib/utils/format.ts";
 import { subscribeToDbChanges } from "../../lib/db/sqliteEngine.ts";
@@ -123,6 +125,11 @@ export const StockMovementsView: React.FC<StockMovementsViewProps> = () => {
     setStartDate("");
     setEndDate("");
   };
+
+  const movementColumns = useMemo<Column<StockMovement>[]>(
+    () => getStockMovementColumns({ isNepali, formatNumberByLang }),
+    [isNepali, formatNumberByLang],
+  );
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-150">
@@ -296,118 +303,23 @@ export const StockMovementsView: React.FC<StockMovementsViewProps> = () => {
       </div>
 
       {/* Movement Log Table */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 select-none">
-              <tr>
-                <th className="py-3 px-4 font-mono">
-                  {isNepali ? "मिति र समय" : "Timestamp"}
-                </th>
-                <th className="py-3 px-4">
-                  {isNepali ? "सामान विवरण" : "Product Item"}
-                </th>
-                <th className="py-3 px-3 text-center">
-                  {isNepali ? "प्रकार" : "Movement Type"}
-                </th>
-                <th className="py-3 px-4">
-                  {isNepali ? "स्रोत / आपूर्तिकर्ता" : "Vendor / Source"}
-                </th>
-                <th className="py-3 px-4 text-right font-mono">
-                  {isNepali ? "मात्रा परिवर्तन (Delta)" : "Quantity Delta"}
-                </th>
-                <th className="py-3 px-6">
-                  {isNepali ? "कैफियत / सन्दर्भ" : "Audit Reference / Note"}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800/60">
-              {movementsList.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="py-12 text-center text-neutral-500 text-xs"
-                  >
-                    <History className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
-                    <p className="font-semibold text-neutral-300">
-                      {isNepali
-                        ? "कुनै चलान रेकर्ड फेला परेन।"
-                        : "No stock movements found matching filter criteria."}
-                    </p>
-                    <p className="text-neutral-500 text-[11px] mt-1">
-                      {isNepali
-                        ? "फिल्टर रिसेट गरेर पुनः प्रयास गर्नुहोस्।"
-                        : "Try resetting date, vendor, or type filters."}
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                movementsList.map((m) => {
-                  const isPositive = m.quantity > 0;
-                  return (
-                    <tr
-                      key={m.id}
-                      className="hover:bg-neutral-800/30 transition-colors"
-                    >
-                      <td className="py-3 px-4 font-mono text-neutral-400 whitespace-nowrap">
-                        {formatDateTime(m.created_at)}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-neutral-200">
-                          {m.product_name || `Product #${m.product_id}`}
-                        </div>
-                        <div className="text-[10px] text-neutral-500 font-mono">
-                          ID: #{m.product_id}
-                        </div>
-                      </td>
-                      <td className="py-3 px-3 text-center">
-                        <span
-                          className={`font-mono text-[10px] font-semibold px-2 py-0.5 rounded ${
-                            m.type === "RESTOCK"
-                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                              : m.type === "PURCHASE"
-                                ? "bg-teal-500/10 text-teal-400 border border-teal-500/20"
-                                : m.type === "SALE"
-                                  ? "bg-sky-500/10 text-sky-400 border border-sky-500/20"
-                                  : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                          }`}
-                        >
-                          {m.type}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        {m.vendor_name ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-800 text-neutral-300 border border-neutral-700/60">
-                            <Building2 className="w-3 h-3 text-emerald-400" />
-                            <span className="truncate max-w-[140px]">
-                              {m.vendor_name}
-                            </span>
-                          </span>
-                        ) : (
-                          <span className="text-neutral-600 text-[11px]">
-                            —
-                          </span>
-                        )}
-                      </td>
-                      <td
-                        className={`py-3 px-4 text-right font-mono font-bold whitespace-nowrap ${
-                          isPositive ? "text-emerald-400" : "text-rose-400"
-                        }`}
-                      >
-                        {isPositive ? `+${m.quantity}` : m.quantity}{" "}
-                        {m.product_unit || "units"}
-                      </td>
-                      <td className="py-3 px-6 text-neutral-300 break-words">
-                        {m.note || "—"}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <DataTable<StockMovement>
+        data={movementsList}
+        columns={movementColumns}
+        showSearch={false}
+        getRowId={(m) => m.id}
+        emptyIcon={History}
+        emptyTitle={
+          isNepali
+            ? "कुनै चलान रेकर्ड फेला परेन।"
+            : "No stock movements found matching filter criteria."
+        }
+        emptyMessage={
+          isNepali
+            ? "फिल्टर रिसेट गरेर पुनः प्रयास गर्नुहोस्।"
+            : "Try resetting date, vendor, or type filters."
+        }
+      />
     </div>
   );
 };

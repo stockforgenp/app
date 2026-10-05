@@ -28,6 +28,8 @@ import { useLanguage } from '../../context/LanguageContext.tsx';
 import { useTheme } from '../../context/ThemeContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
+import { SUPPORT_CONTACTS } from '../../constants/index.ts';
+import { compileSystemDiagnostics } from '../../helpers/index.ts';
 
 interface TechnicalSupportSectionProps {
   id?: string;
@@ -46,24 +48,16 @@ export const TechnicalSupportSection: React.FC<TechnicalSupportSectionProps> = (
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const supportContacts = {
-    phonePrimary: '+977 980-1234567',
-    phoneSecondary: '+977 1-4567890',
-    email: 'support@stockforge.dev',
-    emailDev: 'developer@stockforge.dev',
-    whatsapp: '+977 9801234567',
-    website: 'https://stockforge.dev',
-    address: isNepali
-      ? 'पुतलीसडक, काठमाडौँ, बागमती प्रदेश, नेपाल'
-      : 'Putalisadak, Kathmandu, Bagmati Province, Nepal',
-    hours: isNepali
-      ? 'आइतबार – शुक्रबार: बिहान ९:०० – साँझ ६:०० (POS आपतकालीन २४/७)'
-      : 'Sun – Fri: 9:00 AM – 6:00 PM NPT (24/7 for POS emergencies)',
-    companyName: isNepali
-      ? 'स्टकफोर्ज टेक्नोलोजिज प्रा. लि.'
-      : 'StockForge Technologies Pvt. Ltd.',
-    teamName: isNepali
-      ? 'मूल इन्जिनियरिङ तथा प्राविधिक सहयोग टोली'
-      : 'Core Engineering & Technical Support Team',
+    phonePrimary: SUPPORT_CONTACTS.phonePrimary,
+    phoneSecondary: SUPPORT_CONTACTS.phoneSecondary,
+    email: SUPPORT_CONTACTS.email,
+    emailDev: SUPPORT_CONTACTS.emailDev,
+    whatsapp: SUPPORT_CONTACTS.whatsapp,
+    website: SUPPORT_CONTACTS.website,
+    address: isNepali ? SUPPORT_CONTACTS.addressNe : SUPPORT_CONTACTS.addressEn,
+    hours: isNepali ? SUPPORT_CONTACTS.hoursNe : SUPPORT_CONTACTS.hoursEn,
+    companyName: isNepali ? SUPPORT_CONTACTS.companyNameNe : SUPPORT_CONTACTS.companyNameEn,
+    teamName: isNepali ? SUPPORT_CONTACTS.teamNameNe : SUPPORT_CONTACTS.teamNameEn,
   };
 
   const handleCopy = (text: string, labelKey: string, message: string) => {
@@ -77,27 +71,11 @@ export const TechnicalSupportSection: React.FC<TechnicalSupportSectionProps> = (
 
   // Compile live diagnostic snapshot for support tickets
   const generateDiagnosticsText = () => {
-    const diag = {
-      app: 'StockForge Desktop',
-      version: '0.1.0',
-      identifier: 'com.stockforge.dev',
-      engine: 'SQLite 3 WASM (Local-First Offline)',
-      platform: typeof navigator !== 'undefined' ? navigator.platform || 'macOS/Desktop' : 'Desktop',
-      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
-      language: language.toUpperCase(),
-      theme: theme.toUpperCase(),
-      activeShop: currentShop
-        ? {
-            id: currentShop.id,
-            name: currentShop.name,
-            email: currentShop.email,
-            type: currentShop.shop_type,
-            phone: currentShop.phone || 'N/A',
-          }
-        : 'Not Logged In',
-      timestamp: new Date().toISOString(),
-    };
-    return JSON.stringify(diag, null, 2);
+    return compileSystemDiagnostics({
+      language,
+      theme,
+      shop: currentShop,
+    });
   };
 
   const handleCopyDiagnostics = () => {

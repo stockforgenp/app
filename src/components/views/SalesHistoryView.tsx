@@ -5,7 +5,7 @@
  * - Date filtering and search
  * - Modal to inspect all line items with snapshot cost, actual selling, discounts, and item profit
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Receipt,
   Eye,
@@ -24,6 +24,7 @@ import { Modal } from '../common/Modal.tsx';
 import { PrintBillModal } from '../common/PrintBillModal.tsx';
 import { ActionMenu } from '../common/ActionMenu.tsx';
 import { DataTable, Column } from '../common/DataTable.tsx';
+import { getSalesHistoryColumns } from '../../columns/index.ts';
 import { DatePreset } from '../../lib/utils/dateFilters.ts';
 import { useToast } from '../../context/ToastContext.tsx';
 import { subscribeToDbChanges } from '../../lib/db/sqliteEngine.ts';
@@ -83,152 +84,23 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({ currencySymb
     }
   };
 
-  const columns: Column<Sale>[] = [
-    {
-      id: 'bill_number',
-      header: t('hist_col_id', 'Sale ID'),
-      sortable: true,
-      accessor: (s) => (
-        <div className="font-mono text-neutral-200">
-          <div className="font-bold">
-            {s.bill_number || `#${s.id}`}
-          </div>
-          {s.bill_number && (
-            <div className="text-[10px] text-neutral-500 font-normal">
-              #{s.id}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      id: 'created_at',
-      header: t('hist_col_date', 'Date & Time'),
-      sortable: true,
-      accessor: (s) => (
-        <span className="font-mono text-neutral-400 whitespace-nowrap">
-          {formatDateTime(s.created_at)}
-        </span>
-      ),
-    },
-    {
-      id: 'customer_name',
-      header: t('hist_col_customer', 'Customer'),
-      sortable: true,
-      accessor: (s) => (
-        s.customer_name ? (
-          <div>
-            <div className="font-semibold text-neutral-200 truncate max-w-[150px]">
-              {s.customer_name}
-            </div>
-            <div className="text-[10px] font-mono text-neutral-400 mt-0.5 truncate max-w-[150px] flex items-center gap-1.5">
-              {s.customer_phone && <span>{s.customer_phone}</span>}
-              {s.customer_pan_vat && <span className="text-emerald-400">PAN:{s.customer_pan_vat}</span>}
-            </div>
-          </div>
-        ) : s.customer_phone ? (
-          <div className="font-mono text-[11px] text-neutral-300">
-            {s.customer_phone}
-          </div>
-        ) : (
-          <span className="text-[11px] text-neutral-500 italic">Walk-in</span>
-        )
-      ),
-    },
-    {
-      id: 'item_count',
-      header: t('hist_col_items', 'Items'),
-      align: 'center',
-      sortable: true,
-      accessor: (s) => (
-        <span className="font-mono text-neutral-300">{s.item_count || 1}</span>
-      ),
-    },
-    {
-      id: 'subtotal',
-      header: t('hist_col_subtotal', 'Subtotal'),
-      align: 'right',
-      sortable: true,
-      accessor: (s) => (
-        <span className="font-mono text-neutral-400 tabular-nums">
-          {formatCurrency(s.subtotal, currencySymbol)}
-        </span>
-      ),
-    },
-    {
-      id: 'discount',
-      header: t('hist_col_discount', 'Discount'),
-      align: 'right',
-      sortable: true,
-      accessor: (s) => (
-        <span className="font-mono text-amber-400 tabular-nums">
-          {s.discount > 0 ? `- ${formatCurrency(s.discount, currencySymbol)}` : '—'}
-        </span>
-      ),
-    },
-    {
-      id: 'total',
-      header: t('hist_col_total', 'Net Total'),
-      align: 'right',
-      sortable: true,
-      accessor: (s) => (
-        <span className="font-mono font-bold text-neutral-100 tabular-nums">
-          {formatCurrency(s.total, currencySymbol)}
-        </span>
-      ),
-    },
-    {
-      id: 'gross_profit',
-      header: t('hist_col_profit', 'Gross Profit'),
-      align: 'right',
-      sortable: true,
-      accessor: (s) => (
-        <span className="font-mono font-semibold text-emerald-400 tabular-nums">
-          {formatCurrency(s.gross_profit ?? 0, currencySymbol)}
-        </span>
-      ),
-    },
-    {
-      id: 'actions',
-      header: t('hist_col_actions', 'Details'),
-      align: 'right',
-      width: '80px',
-      accessor: (s) => (
-        <div className="flex items-center justify-end gap-2">
-          <ActionMenu
-            align="right"
-            items={[
-              {
-                label: 'Inspect Transaction',
-                icon: Eye,
-                color: 'sky',
-                action: () => handleOpenSale(s.id),
-              },
-              {
-                label: 'Print Thermal Bill',
-                icon: Printer,
-                color: 'emerald',
-                action: () => {
-                  setPrintBillSaleId(s.id);
-                  setIsPrintModalOpen(true);
-                },
-              },
-              {
-                label: 'Copy Sale ID',
-                icon: Copy,
-                color: 'indigo',
-                divider: true,
-                action: () => {
-                  navigator.clipboard.writeText(`#${s.id}`);
-                  showToast(`Sale #${s.id} copied to clipboard`, 'info');
-                },
-              },
-            ]}
-          />
-        </div>
-      ),
-    },
-  ];
+  const columns: Column<Sale>[] = useMemo(
+    () =>
+      getSalesHistoryColumns({
+        currencySymbol,
+        t,
+        onInspectSale: handleOpenSale,
+        onPrintThermalBill: (saleId) => {
+          setPrintBillSaleId(saleId);
+          setIsPrintModalOpen(true);
+        },
+        onCopySaleId: (saleId) => {
+          navigator.clipboard.writeText(`#${saleId}`);
+          showToast(`Sale #${saleId} copied to clipboard`, 'info');
+        },
+      }),
+    [currencySymbol, t],
+  );
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-150">
