@@ -33,12 +33,10 @@ import {
   SalaryPayment,
   StaffMonthlyPayrollStatus,
   MonthlyPayrollSummary,
-  RecordSalaryInput,
 } from "../types/index.ts";
 import {
   getAllStaff,
   getSalaryPayments,
-  recordSalaryPayment,
   deleteSalaryPayment,
   getMonthlyPayrollSummary,
   MONTH_NAMES,
@@ -47,8 +45,6 @@ import {
 import {
   formatCurrency,
   formatDate,
-  toMinorUnits,
-  fromMinorUnits,
   getTodayISODate,
 } from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
@@ -58,7 +54,9 @@ import { ActionMenu } from "../components/common/ActionMenu.tsx";
 import { Select } from "../components/common/Select.tsx";
 import { Input } from "../components/common/Input.tsx";
 import { useToast } from "../context/ToastContext.tsx";
+import { useLanguage } from "../context/LanguageContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
+import { NewPayrollForm } from "../components/forms/NewPayrollForm.tsx";
 
 interface PayrollViewProps {
   currencySymbol: string;
@@ -66,6 +64,7 @@ interface PayrollViewProps {
 
 export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
   const { showToast } = useToast();
+  const { isNepali } = useLanguage();
   const location = useLocation();
 
   // Selected Month & Year (defaults to today's current month & year)
@@ -119,17 +118,9 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
 
   // Modals state
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
-  const [payStaffId, setPayStaffId] = useState<number>(0);
-  const [payBaseAmount, setPayBaseAmount] = useState("");
-  const [payBonus, setPayBonus] = useState("0");
-  const [payDeductions, setPayDeductions] = useState("0");
-  const [payDate, setPayDate] = useState(getTodayISODate());
-  const [payPeriod, setPayPeriod] = useState("");
-  const [payMethod, setPayMethod] = useState(SALARY_PAYMENT_METHODS[0]);
-  const [payReference, setPayReference] = useState("");
-  const [payNote, setPayNote] = useState("");
-  const [paySyncWithExpenses, setPaySyncWithExpenses] = useState(true);
-  const [payFormError, setPayFormError] = useState<string | null>(null);
+  const [disbursingStaff, setDisbursingStaff] = useState<
+    Staff | StaffMonthlyPayrollStatus | null
+  >(null);
 
   // Print voucher modal
   const [printingPayment, setPrintingPayment] = useState<SalaryPayment | null>(
@@ -211,128 +202,8 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
   const handleOpenPaySalary = (
     targetStaff?: Staff | StaffMonthlyPayrollStatus,
   ) => {
-    setPayFormError(null);
-
-    let chosenId = 0;
-    let chosenBase = "0";
-
-    if (targetStaff) {
-      chosenId =
-        "staff_id" in targetStaff ? targetStaff.staff_id : targetStaff.id;
-      chosenBase = fromMinorUnits(targetStaff.base_salary).toString();
-    } else {
-      const firstActive = staffList.find((s) => s.status === "active");
-      if (firstActive) {
-        chosenId = firstActive.id;
-        chosenBase = fromMinorUnits(firstActive.base_salary).toString();
-      }
-    }
-
-    setPayStaffId(chosenId);
-    setPayBaseAmount(chosenBase);
-    setPayBonus("0");
-    setPayDeductions("0");
-    setPayDate(getTodayISODate());
-    setPayPeriod(
-      monthlyStatus.period_label ||
-        `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`,
-    );
-    setPayMethod(SALARY_PAYMENT_METHODS[0]);
-    setPayReference("");
-    setPayNote("");
-    setPaySyncWithExpenses(true);
+    setDisbursingStaff(targetStaff || null);
     setIsPayModalOpen(true);
-  };
-
-  // When staff selection changes in modal
-  const handlePayStaffChange = (staffId: number) => {
-    setPayStaffId(staffId);
-    const found = staffList.find((s) => s.id === staffId);
-    if (found) {
-      setPayBaseAmount(fromMinorUnits(found.base_salary).toString());
-    }
-  };
-
-  // Check if selected staff in modal is already paid for the current target period
-  const alreadyPaidWarning = useMemo(() => {
-    if (!payStaffId || !monthlyStatus.staff_statuses) return null;
-    const match = monthlyStatus.staff_statuses.find(
-      (s) => s.staff_id === payStaffId && s.is_paid,
-    );
-    if (match && match.payment) {
-      return {
-        date: match.payment_date,
-        amount: match.amount_paid || 0,
-        period: match.payment_period,
-      };
-    }
-    return null;
-  }, [payStaffId, monthlyStatus]);
-
-  // Live Net Pay
-  const modalNetPay = useMemo(() => {
-    const b = parseFloat(payBaseAmount) || 0;
-    const bonus = parseFloat(payBonus) || 0;
-    const ded = parseFloat(payDeductions) || 0;
-    return Math.max(0, b + bonus - ded);
-  }, [payBaseAmount, payBonus, payDeductions]);
-
-  // Save Salary Payment
-  const handleSaveSalaryPayment = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPayFormError(null);
-
-    if (!payStaffId) {
-      setPayFormError("Please select an employee.");
-      return;
-    }
-
-    const baseNum = parseFloat(payBaseAmount);
-    if (isNaN(baseNum) || baseNum <= 0) {
-      setPayFormError("Base wage must be greater than zero.");
-      return;
-    }
-
-    const bonusNum = parseFloat(payBonus) || 0;
-    const deductionsNum = parseFloat(payDeductions) || 0;
-
-    if (modalNetPay <= 0) {
-      setPayFormError("Net payable salary must be greater than zero.");
-      return;
-    }
-
-    if (!payPeriod.trim()) {
-      setPayFormError("Please enter a payment period (e.g. September 2026).");
-      return;
-    }
-
-    try {
-      const input: RecordSalaryInput = {
-        staff_id: payStaffId,
-        amount: toMinorUnits(baseNum),
-        bonus: toMinorUnits(bonusNum),
-        deductions: toMinorUnits(deductionsNum),
-        payment_date: payDate,
-        payment_period: payPeriod.trim(),
-        payment_method: payMethod,
-        reference: payReference.trim() || null,
-        note: payNote.trim() || null,
-        syncWithExpenses: paySyncWithExpenses,
-      };
-
-      const payment = recordSalaryPayment(input);
-      showToast(
-        `Disbursed ${formatCurrency(payment.net_paid, currencySymbol)} to ${payment.staff_name}`,
-        "success",
-      );
-      setIsPayModalOpen(false);
-      loadData();
-
-      // Open print voucher preview
-      setPrintingPayment(payment);
-    } catch (err: any) {
-      setPayFormError(err.message || "Failed to record salary disbursement");
-    }
   };
 
   // Reversal / Delete
@@ -1243,207 +1114,33 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
       <Modal
         isOpen={isPayModalOpen}
         onClose={() => setIsPayModalOpen(false)}
-        title="Record Salary Disbursement"
-        subtitle="Calculate employee net salary with bonuses, withholdings, and automatic expense synchronization."
+        title={
+          isNepali
+            ? "तलब भुक्तानी रेकर्ड गर्नुहोस्"
+            : "Record Salary Disbursement"
+        }
+        subtitle={
+          isNepali
+            ? "बोनस, कट्टी र स्वचालित खर्च मिलानसहित कर्मचारीको खुद तलब गणना गर्नुहोस्।"
+            : "Calculate employee net salary with bonuses, withholdings, and automatic expense synchronization."
+        }
         maxWidth="lg"
       >
-        <form onSubmit={handleSaveSalaryPayment} className="space-y-4">
-          {payFormError && (
-            <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{payFormError}</span>
-            </div>
-          )}
-
-          {/* Already Paid Warning Notice if applicable */}
-          {alreadyPaidWarning && (
-            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
-              <div>
-                <span className="font-semibold">Notice:</span> This employee has
-                already been disbursed a salary for{" "}
-                <span className="font-mono">{alreadyPaidWarning.period}</span> (
-                {formatCurrency(alreadyPaidWarning.amount, currencySymbol)} on{" "}
-                {alreadyPaidWarning.date
-                  ? formatDate(alreadyPaidWarning.date)
-                  : ""}
-                ). Confirm only if you intend to disburse an additional payment.
-              </div>
-            </div>
-          )}
-
-          {/* Select Staff Member */}
-          <Select
-            label="Select Employee"
-            required
-            value={payStaffId}
-            onChange={(e) => handlePayStaffChange(parseInt(e.target.value, 10))}
-            placeholder="-- Choose Staff Member --"
-            options={staffList.map((s) => ({
-              value: s.id,
-              label: `${s.name} (${s.role}) — ${formatCurrency(s.base_salary, currencySymbol)}/mo${s.status === "inactive" ? " (Inactive)" : ""}`,
-            }))}
-          />
-
-          <div className="grid grid-cols-3 gap-3">
-            <Input
-              label={
-                <>
-                  Base Wage <span className="text-rose-400">*</span>
-                </>
-              }
-              type="number"
-              step="0.01"
-              min="0"
-              mono
-              required
-              value={payBaseAmount}
-              onChange={(e) => setPayBaseAmount(e.target.value)}
-            />
-
-            <Input
-              label={
-                <span className="text-emerald-400">Bonus / Allowance</span>
-              }
-              type="number"
-              step="0.01"
-              min="0"
-              mono
-              className="text-emerald-400"
-              value={payBonus}
-              onChange={(e) => setPayBonus(e.target.value)}
-            />
-
-            <Input
-              label={<span className="text-rose-400">Deductions / Adv.</span>}
-              type="number"
-              step="0.01"
-              min="0"
-              mono
-              className="text-rose-400"
-              value={payDeductions}
-              onChange={(e) => setPayDeductions(e.target.value)}
-            />
-          </div>
-
-          {/* Net Pay Callout Banner */}
-          <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800 flex items-center justify-between">
-            <div className="text-xs text-neutral-400 font-medium">
-              Net Disbursed Amount
-            </div>
-            <div className="text-base font-bold text-emerald-400 font-mono tabular-nums">
-              {formatCurrency(toMinorUnits(modalNetPay), currencySymbol)}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label={
-                <>
-                  Payment Period <span className="text-rose-400">*</span>
-                </>
-              }
-              type="text"
-              required
-              placeholder="e.g. September 2026"
-              value={payPeriod}
-              onChange={(e) => setPayPeriod(e.target.value)}
-            />
-
-            <Input
-              label={
-                <>
-                  Disbursement Date <span className="text-rose-400">*</span>
-                </>
-              }
-              type="date"
-              required
-              value={payDate}
-              onChange={(e) => setPayDate(e.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {/* Payment Method */}
-            <Select
-              label="Payment Method"
-              value={payMethod}
-              onChange={(e) => setPayMethod(e.target.value)}
-              options={SALARY_PAYMENT_METHODS.map((m) => ({
-                value: m,
-                label: m,
-              }))}
-            />
-
-            <Input
-              label={
-                <>
-                  Cheque / Txn Ref{" "}
-                  <span className="text-neutral-500 text-[10px]">
-                    (optional)
-                  </span>
-                </>
-              }
-              type="text"
-              mono
-              placeholder="e.g. TXN-99824"
-              value={payReference}
-              onChange={(e) => setPayReference(e.target.value)}
-            />
-          </div>
-
-          {/* Notes */}
-          <Input
-            label={
-              <>
-                Voucher Notes{" "}
-                <span className="text-neutral-500 text-[10px]">(optional)</span>
-              </>
-            }
-            type="text"
-            placeholder="e.g. Includes festival holiday bonus"
-            value={payNote}
-            onChange={(e) => setPayNote(e.target.value)}
-          />
-
-          {/* Sync With Expenses Toggle */}
-          <div className="p-3 bg-neutral-950 border border-neutral-800 rounded-lg flex items-center justify-between">
-            <div className="text-xs">
-              <div className="font-semibold text-neutral-200">
-                Sync with Expense Ledger
-              </div>
-              <div className="text-[11px] text-neutral-500 mt-0.5">
-                Automatically records an overhead expense under &quot;Salaries
-                &amp; Wages&quot;
-              </div>
-            </div>
-            <Input
-              type="checkbox"
-              id="payrollSyncExpenses"
-              checked={paySyncWithExpenses}
-              onChange={(e) => setPaySyncWithExpenses(e.target.checked)}
-              className="w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
-            />
-          </div>
-
-          {/* Buttons */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-800">
-            <button
-              type="button"
-              onClick={() => setIsPayModalOpen(false)}
-              className="px-4 py-2 text-xs font-medium text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded-lg transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer"
-            >
-              <CreditCard className="w-4 h-4" />
-              <span>Confirm Disbursement</span>
-            </button>
-          </div>
-        </form>
+        <NewPayrollForm
+          initialStaff={disbursingStaff}
+          defaultPeriod={
+            monthlyStatus.period_label ||
+            `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`
+          }
+          monthlyStatus={monthlyStatus}
+          staffList={staffList}
+          currencySymbol={currencySymbol}
+          onClose={() => setIsPayModalOpen(false)}
+          loadPayroll={loadData}
+          onSuccess={(payment) => {
+            setPrintingPayment(payment);
+          }}
+        />
       </Modal>
 
       {/* Print Salary Slip Modal */}

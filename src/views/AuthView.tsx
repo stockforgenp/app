@@ -31,23 +31,21 @@ import {
   HelpCircle,
   Copy,
   Check,
-  Clock,
   Terminal,
-  ExternalLink,
 } from "lucide-react";
-import { useAuth } from "../../context/AuthContext.tsx";
-import { useLanguage } from "../../context/LanguageContext.tsx";
-import { useTheme } from "../../context/ThemeContext.tsx";
-import { useToast } from "../../context/ToastContext.tsx";
-import { Input } from "../common/Input.tsx";
-import { Select } from "../common/Select.tsx";
-import { Modal } from "../common/Modal.tsx";
+import { useAuth } from "../context/AuthContext.tsx";
+import { useLanguage } from "../context/LanguageContext.tsx";
+import { useTheme } from "../context/ThemeContext.tsx";
+import { useToast } from "../context/ToastContext.tsx";
+import { Input } from "../components/common/Input.tsx";
+import { Select } from "../components/common/Select.tsx";
+import { Modal } from "../components/common/Modal.tsx";
 import {
   SHOP_TYPES,
   CURRENCY_OPTIONS,
   SUPPORT_CONTACTS,
-} from "../../constants/index.ts";
-import { compileSystemDiagnostics } from "../../helpers/index.ts";
+} from "../constants/index.ts";
+import { compileSystemDiagnostics } from "../helpers/index.ts";
 
 interface AuthViewProps {
   onSuccess?: () => void;
@@ -79,17 +77,25 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
     const text = encodeURIComponent(
       isNepali
         ? "नमस्ते, मलाई स्टकफोर्ज (StockForge) पसल लगइन / टर्मिनल सेटअपमा प्राविधिक सहयोग चाहियो।"
-        : "Hello StockForge Support, I need assistance with shop login / terminal setup."
+        : "Hello StockForge Support, I need assistance with shop login / terminal setup.",
     );
-    window.open(`https://wa.me/${SUPPORT_CONTACTS.whatsappRaw}?text=${text}`, "_blank");
+    window.open(
+      `https://wa.me/${SUPPORT_CONTACTS.whatsappRaw}?text=${text}`,
+      "_blank",
+    );
   };
 
   const handleEmailSupport = () => {
-    const subject = encodeURIComponent("[StockForge Support] Shop Login & Terminal Help");
-    const body = encodeURIComponent(
-      `Hello StockForge Support Team,\n\nI need help accessing or setting up my shop terminal.\n\nIssue Details:\n\n\n--- Diagnostics ---\nApp: StockForge Desktop\nEngine: SQLite WASM (Local-First Offline)\n`
+    const subject = encodeURIComponent(
+      "[StockForge Support] Shop Login & Terminal Help",
     );
-    window.open(`mailto:${SUPPORT_CONTACTS.email}?subject=${subject}&body=${body}`, "_blank");
+    const body = encodeURIComponent(
+      `Hello StockForge Support Team,\n\nI need help accessing or setting up my shop terminal.\n\nIssue Details:\n\n\n--- Diagnostics ---\nApp: StockForge Desktop\nEngine: SQLite WASM (Local-First Offline)\n`,
+    );
+    window.open(
+      `mailto:${SUPPORT_CONTACTS.email}?subject=${subject}&body=${body}`,
+      "_blank",
+    );
   };
 
   const handleCopyDiagnostics = () => {
@@ -103,7 +109,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
     handleCopy(
       diagStr,
       "diagnostics",
-      t("dev_diagnostics_copied") || "Diagnostic details copied to clipboard!"
+      t("dev_diagnostics_copied") || "Diagnostic details copied to clipboard!",
     );
   };
 
@@ -229,7 +235,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
             type="button"
             onClick={() => setIsSupportModalOpen(true)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-neutral-300 hover:text-emerald-400 bg-neutral-800/60 hover:bg-neutral-800 border border-neutral-700/60 hover:border-emerald-500/30 transition-colors cursor-pointer"
-            title={isNepali ? "प्राविधिक सहयोग तथा विकासकर्ता सम्पर्क" : "Technical Support & Terminal Help"}
+            title={
+              isNepali
+                ? "प्राविधिक सहयोग तथा विकासकर्ता सम्पर्क"
+                : "Technical Support & Terminal Help"
+            }
           >
             <Headphones className="w-3.5 h-3.5 text-emerald-400" />
             <span className="hidden sm:inline font-medium">
@@ -701,7 +711,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                   <button
                     type="button"
                     onClick={() =>
-                      handleCopy(SUPPORT_CONTACTS.phone, "phone", "Phone copied to clipboard!")
+                      handleCopy(
+                        SUPPORT_CONTACTS.phone,
+                        "phone",
+                        "Phone copied to clipboard!",
+                      )
                     }
                     className="p-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-800 transition-colors cursor-pointer"
                     title="Copy Phone"
@@ -728,7 +742,9 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                     {SUPPORT_CONTACTS.whatsapp}
                   </div>
                   <span className="text-[10px] text-neutral-400 block pt-0.5">
-                    {isNepali ? "च्याट तथा स्क्रिनसट" : "Screenshots & Live Chat"}
+                    {isNepali
+                      ? "च्याट तथा स्क्रिनसट"
+                      : "Screenshots & Live Chat"}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 pt-2 border-t border-neutral-800/60">
@@ -742,7 +758,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                   <button
                     type="button"
                     onClick={() =>
-                      handleCopy(SUPPORT_CONTACTS.whatsapp, "wa", "WhatsApp copied to clipboard!")
+                      handleCopy(
+                        SUPPORT_CONTACTS.whatsapp,
+                        "wa",
+                        "WhatsApp copied to clipboard!",
+                      )
                     }
                     className="p-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-800 transition-colors cursor-pointer"
                     title="Copy WhatsApp"
@@ -769,7 +789,9 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                     {SUPPORT_CONTACTS.email}
                   </div>
                   <span className="text-[10px] text-neutral-400 block pt-0.5">
-                    {isNepali ? "२ घण्टाभित्र प्रत्युत्तर" : "Avg. response < 2 hrs"}
+                    {isNepali
+                      ? "२ घण्टाभित्र प्रत्युत्तर"
+                      : "Avg. response < 2 hrs"}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 pt-2 border-t border-neutral-800/60">
@@ -783,7 +805,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                   <button
                     type="button"
                     onClick={() =>
-                      handleCopy(SUPPORT_CONTACTS.email, "email", "Email copied to clipboard!")
+                      handleCopy(
+                        SUPPORT_CONTACTS.email,
+                        "email",
+                        "Email copied to clipboard!",
+                      )
                     }
                     className="p-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-800 transition-colors cursor-pointer"
                     title="Copy Email"
@@ -802,7 +828,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
             <div className="p-3.5 bg-neutral-950 border border-neutral-800 rounded-xl space-y-2.5">
               <div className="flex items-center gap-2 text-xs font-bold text-neutral-200">
                 <HelpCircle className="w-4 h-4 text-emerald-400" />
-                <span>{isNepali ? "प्रायः आउने समस्याहरूको समाधान" : "Common Setup & Login Solutions"}</span>
+                <span>
+                  {isNepali
+                    ? "प्रायः आउने समस्याहरूको समाधान"
+                    : "Common Setup & Login Solutions"}
+                </span>
               </div>
 
               <div className="space-y-2 text-xs">
@@ -835,7 +865,9 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                     StockForge v0.1.0 · SQLite Engine
                   </span>
                   <span className="text-[10px] text-neutral-500">
-                    {isNepali ? "सहायताका लागि प्रणाली विवरण क्लिपबोर्डमा कपी गर्नुहोस्" : "Copy diagnostics payload to share with technician"}
+                    {isNepali
+                      ? "सहायताका लागि प्रणाली विवरण क्लिपबोर्डमा कपी गर्नुहोस्"
+                      : "Copy diagnostics payload to share with technician"}
                   </span>
                 </div>
               </div>

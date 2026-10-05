@@ -15,41 +15,26 @@ import {
   Search,
   Phone,
   Mail,
-  AlertCircle,
   UserCheck,
   UserX,
   Briefcase,
 } from "lucide-react";
-import {
-  Staff,
-  StaffSummary,
-  StaffRole,
-  SalaryType,
-  StaffStatus,
-  CreateStaffInput,
-  UpdateStaffInput,
-} from "../types/index.ts";
+import { Staff, StaffSummary } from "../types/index.ts";
 import {
   getAllStaff,
-  createStaff,
   updateStaff,
   deleteStaff,
   getStaffSummary,
-  DEFAULT_STAFF_ROLES,
 } from "../lib/services/staffService.ts";
-import {
-  formatCurrency,
-  formatDate,
-  toMinorUnits,
-  fromMinorUnits,
-  getTodayISODate,
-} from "../lib/utils/format.ts";
+import { formatCurrency, formatDate } from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { ActionMenu } from "../components/common/ActionMenu.tsx";
 import { Select } from "../components/common/Select.tsx";
 import { Input } from "../components/common/Input.tsx";
+import { NewStaffForm } from "../components/forms/NewStaffForm.tsx";
 import { useToast } from "../context/ToastContext.tsx";
+import { useLanguage } from "../context/LanguageContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 
 interface StaffViewProps {
@@ -58,6 +43,7 @@ interface StaffViewProps {
 
 export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
   const { showToast } = useToast();
+  const { isNepali } = useLanguage();
   const navigate = useNavigate();
 
   const [staffList, setStaffList] = useState<Staff[]>([]);
@@ -80,20 +66,6 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const [staffToDelete, setStaffToDelete] = useState<Staff | null>(null);
-
-  // Form Fields
-  const [formName, setFormName] = useState("");
-  const [formRole, setFormRole] = useState<StaffRole>(DEFAULT_STAFF_ROLES[0]);
-  const [isCustomRole, setIsCustomRole] = useState(false);
-  const [formCustomRole, setFormCustomRole] = useState("");
-  const [formSalaryType, setFormSalaryType] = useState<SalaryType>("monthly");
-  const [formBaseSalary, setFormBaseSalary] = useState("");
-  const [formPhone, setFormPhone] = useState("");
-  const [formEmail, setFormEmail] = useState("");
-  const [formJoinDate, setFormJoinDate] = useState(getTodayISODate());
-  const [formStatus, setFormStatus] = useState<StaffStatus>("active");
-  const [formNotes, setFormNotes] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
 
   // Load Data
   const loadData = useCallback(() => {
@@ -122,108 +94,13 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
   // Open Create Staff Modal
   const handleOpenAddStaff = () => {
     setEditingStaff(null);
-    setFormName("");
-    setFormRole(DEFAULT_STAFF_ROLES[0]);
-    setIsCustomRole(false);
-    setFormCustomRole("");
-    setFormSalaryType("monthly");
-    setFormBaseSalary("25000");
-    setFormPhone("");
-    setFormEmail("");
-    setFormJoinDate(getTodayISODate());
-    setFormStatus("active");
-    setFormNotes("");
-    setFormError(null);
     setIsStaffModalOpen(true);
   };
 
   // Open Edit Staff Modal
   const handleOpenEditStaff = (staff: Staff) => {
     setEditingStaff(staff);
-    setFormName(staff.name);
-
-    if (DEFAULT_STAFF_ROLES.includes(staff.role as StaffRole)) {
-      setFormRole(staff.role as StaffRole);
-      setIsCustomRole(false);
-      setFormCustomRole("");
-    } else {
-      setFormRole("Other");
-      setIsCustomRole(true);
-      setFormCustomRole(staff.role);
-    }
-
-    setFormSalaryType(staff.salary_type);
-    setFormBaseSalary(fromMinorUnits(staff.base_salary).toString());
-    setFormPhone(staff.phone || "");
-    setFormEmail(staff.email || "");
-    setFormJoinDate(staff.join_date || getTodayISODate());
-    setFormStatus(staff.status);
-    setFormNotes(staff.notes || "");
-    setFormError(null);
     setIsStaffModalOpen(true);
-  };
-
-  // Save Staff (Create or Update)
-  const handleSaveStaff = (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-
-    const trimmedName = formName.trim();
-    if (!trimmedName) {
-      setFormError("Please enter the employee full name.");
-      return;
-    }
-
-    const effectiveRole = isCustomRole ? formCustomRole.trim() : formRole;
-    if (!effectiveRole) {
-      setFormError("Please select or specify a designation.");
-      return;
-    }
-
-    const numSalary = parseFloat(formBaseSalary);
-    if (isNaN(numSalary) || numSalary < 0) {
-      setFormError("Please enter a valid base wage (e.g. 25000).");
-      return;
-    }
-
-    const minorSalary = toMinorUnits(numSalary);
-
-    try {
-      if (editingStaff) {
-        const updateInput: UpdateStaffInput = {
-          name: trimmedName,
-          role: effectiveRole,
-          salary_type: formSalaryType,
-          base_salary: minorSalary,
-          phone: formPhone.trim() || null,
-          email: formEmail.trim() || null,
-          join_date: formJoinDate || undefined,
-          status: formStatus,
-          notes: formNotes.trim() || null,
-        };
-        updateStaff(editingStaff.id, updateInput);
-        showToast(`Employee "${trimmedName}" updated successfully.`, "success");
-      } else {
-        const createInput: CreateStaffInput = {
-          name: trimmedName,
-          role: effectiveRole,
-          salary_type: formSalaryType,
-          base_salary: minorSalary,
-          phone: formPhone.trim() || null,
-          email: formEmail.trim() || null,
-          join_date: formJoinDate || undefined,
-          status: formStatus,
-          notes: formNotes.trim() || null,
-        };
-        createStaff(createInput);
-        showToast(`Employee "${trimmedName}" added to team.`, "success");
-      }
-
-      setIsStaffModalOpen(false);
-      loadData();
-    } catch (err: any) {
-      setFormError(err.message || "Failed to save staff record");
-    }
   };
 
   // Toggle active/inactive status
@@ -626,203 +503,26 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
         onClose={() => setIsStaffModalOpen(false)}
         title={
           editingStaff
-            ? `Edit Employee #${editingStaff.id}`
-            : "Add New Employee"
+            ? isNepali
+              ? `कर्मचारी विवरण सम्पादन #${editingStaff.id}`
+              : `Edit Employee #${editingStaff.id}`
+            : isNepali
+              ? "नयाँ कर्मचारी थप्नुहोस्"
+              : "Add New Employee"
         }
-        subtitle="Configure employee job profile, salary rates, and contact details."
+        subtitle={
+          isNepali
+            ? "कर्मचारीको पद, तलब दर र सम्पर्क विवरणहरू प्रविष्ट गर्नुहोस्।"
+            : "Configure employee job profile, salary rates, and contact details."
+        }
         maxWidth="lg"
       >
-        <form onSubmit={handleSaveStaff} className="space-y-4">
-          {formError && (
-            <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{formError}</span>
-            </div>
-          )}
-
-          {/* Full Name */}
-          <Input
-            label={
-              <>
-                Full Name <span className="text-rose-400">*</span>
-              </>
-            }
-            type="text"
-            required
-            placeholder="e.g. Rahul Sharma"
-            value={formName}
-            onChange={(e) => setFormName(e.target.value)}
-          />
-
-          <div className="grid grid-cols-2 gap-3">
-            {/* Designation / Role */}
-            <Select
-              label="Designation / Role"
-              required
-              value={isCustomRole ? "Other" : formRole}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === "Other") {
-                  setIsCustomRole(true);
-                } else {
-                  setIsCustomRole(false);
-                  setFormRole(val as StaffRole);
-                }
-              }}
-              options={DEFAULT_STAFF_ROLES.map((role) => ({
-                value: role,
-                label: role,
-              }))}
-            />
-
-            {/* Custom Designation if 'Other' */}
-            {isCustomRole ? (
-              <Input
-                label={
-                  <>
-                    Custom Role Title <span className="text-rose-400">*</span>
-                  </>
-                }
-                type="text"
-                required
-                placeholder="e.g. Shift Supervisor"
-                value={formCustomRole}
-                onChange={(e) => setFormCustomRole(e.target.value)}
-              />
-            ) : (
-              <Select
-                label="Employment Status"
-                value={formStatus}
-                onChange={(e) => setFormStatus(e.target.value as StaffStatus)}
-                options={[
-                  { value: "active", label: "Active" },
-                  { value: "inactive", label: "Inactive" },
-                ]}
-              />
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {/* Salary Type */}
-            <Select
-              label="Salary Type"
-              value={formSalaryType}
-              onChange={(e) => setFormSalaryType(e.target.value as SalaryType)}
-              options={[
-                { value: "monthly", label: "Monthly Fixed" },
-                { value: "hourly", label: "Hourly Rate" },
-                { value: "commission", label: "Commission Based" },
-              ]}
-            />
-
-            {/* Base Salary Rate */}
-            <Input
-              label={
-                <>
-                  Base Wage Amount ({currencySymbol}){" "}
-                  <span className="text-rose-400">*</span>
-                </>
-              }
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              mono
-              placeholder="25000"
-              value={formBaseSalary}
-              onChange={(e) => setFormBaseSalary(e.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {/* Phone */}
-            <Input
-              label={
-                <>
-                  Phone Number{" "}
-                  <span className="text-neutral-500 text-[10px]">
-                    (optional)
-                  </span>
-                </>
-              }
-              type="tel"
-              mono
-              placeholder="+91 98765 43210"
-              value={formPhone}
-              onChange={(e) => setFormPhone(e.target.value)}
-            />
-
-            {/* Email */}
-            <Input
-              label={
-                <>
-                  Email Address{" "}
-                  <span className="text-neutral-500 text-[10px]">
-                    (optional)
-                  </span>
-                </>
-              }
-              type="email"
-              placeholder="staff@store.com"
-              value={formEmail}
-              onChange={(e) => setFormEmail(e.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {/* Joining Date */}
-            <Input
-              label="Joining Date"
-              type="date"
-              value={formJoinDate}
-              onChange={(e) => setFormJoinDate(e.target.value)}
-            />
-
-            {isCustomRole && (
-              <Select
-                label="Status"
-                value={formStatus}
-                onChange={(e) => setFormStatus(e.target.value as StaffStatus)}
-                options={[
-                  { value: "active", label: "Active" },
-                  { value: "inactive", label: "Inactive" },
-                ]}
-              />
-            )}
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="block text-xs font-medium text-neutral-300 mb-1">
-              Internal Profile Notes{" "}
-              <span className="text-neutral-500 text-[10px]">(optional)</span>
-            </label>
-            <textarea
-              rows={2}
-              placeholder="e.g. Bank details: HDFC Bank A/C 5010023423..."
-              value={formNotes}
-              onChange={(e) => setFormNotes(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50 resize-none"
-            />
-          </div>
-
-          {/* Buttons */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-800">
-            <button
-              type="button"
-              onClick={() => setIsStaffModalOpen(false)}
-              className="px-4 py-2 text-xs font-medium text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded-lg transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer"
-            >
-              {editingStaff ? "Update Employee" : "Add Employee"}
-            </button>
-          </div>
-        </form>
+        <NewStaffForm
+          editingStaff={editingStaff}
+          onClose={() => setIsStaffModalOpen(false)}
+          currencySymbol={currencySymbol}
+          loadStaff={loadData}
+        />
       </Modal>
 
       {/* Confirm Staff Deletion Dialog */}

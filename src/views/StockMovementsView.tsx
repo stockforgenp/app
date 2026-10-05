@@ -11,11 +11,8 @@ import {
   Building2,
   Search,
   SlidersHorizontal,
-  PackagePlus,
-  ShoppingCart,
   TrendingDown,
   TrendingUp,
-  RotateCcw,
 } from "lucide-react";
 import { StockMovement, Vendor } from "../types/index.ts";
 import { getStockMovements } from "../lib/services/inventoryService.ts";
@@ -26,7 +23,6 @@ import { DateFilterBar } from "../components/common/DateFilterBar.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
 import { getStockMovementColumns } from "../columns/index.ts";
 import { DatePreset } from "../lib/utils/dateFilters.ts";
-import { formatDateTime } from "../lib/utils/format.ts";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 import { useLanguage } from "../context/LanguageContext.tsx";
 

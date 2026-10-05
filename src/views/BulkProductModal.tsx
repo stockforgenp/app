@@ -1,15 +1,11 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
-  Table2,
   Plus,
   Trash2,
   Copy,
   ClipboardPaste,
   CheckCircle2,
   AlertCircle,
-  HelpCircle,
-  X,
-  Layers,
   Sparkles,
   AlertTriangle,
 } from "lucide-react";

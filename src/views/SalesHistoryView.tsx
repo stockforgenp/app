@@ -6,13 +6,12 @@
  * - Modal to inspect all line items with snapshot cost, actual selling, discounts, and item profit
  */
 import React, { useState, useEffect, useMemo } from "react";
-import { Receipt, Eye, User, Phone, Printer, Copy } from "lucide-react";
+import { Receipt, User, Phone, Printer } from "lucide-react";
 import { Sale, SaleItem } from "../types/index.ts";
 import { getSales, getSaleWithItems } from "../lib/services/salesService.ts";
 import { formatCurrency, formatDateTime } from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
 import { PrintBillModal } from "../components/common/PrintBillModal.tsx";
-import { ActionMenu } from "../components/common/ActionMenu.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
 import { getSalesHistoryColumns } from "../columns/index.ts";
 import { DatePreset } from "../lib/utils/dateFilters.ts";

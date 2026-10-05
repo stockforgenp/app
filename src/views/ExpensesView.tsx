@@ -8,46 +8,28 @@ import { motion } from "framer-motion";
 import {
   ReceiptText,
   PlusCircle,
-  Trash2,
-  Edit2,
   DollarSign,
   TrendingDown,
   PieChart,
-  AlertCircle,
-  Copy,
 } from "lucide-react";
 import { Expense, ExpenseSummary } from "../types/index.ts";
 import {
   getExpenses,
   getExpenseSummary,
-  createExpense,
-  updateExpense,
   deleteExpense,
   getAllCategories,
-  CreateExpenseInput,
-  UpdateExpenseInput,
 } from "../lib/services/expenseService.ts";
-import {
-  DEFAULT_EXPENSE_CATEGORIES,
-  DEFAULT_PAYMENT_METHODS,
-} from "../constants/index.ts";
-import {
-  formatCurrency,
-  formatDate,
-  formatNumber,
-  toMinorUnits,
-  fromMinorUnits,
-  getTodayISODate,
-} from "../lib/utils/format.ts";
+import { DEFAULT_EXPENSE_CATEGORIES } from "../constants/index.ts";
+import { formatCurrency, formatNumber } from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
-import { ActionMenu } from "../components/common/ActionMenu.tsx";
 import { Select } from "../components/common/Select.tsx";
-import { Input, Textarea } from "../components/common/Input.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
 import { getExpenseColumns } from "../columns/index.ts";
 import { DatePreset, calculateDateRange } from "../lib/utils/dateFilters.ts";
 import { useToast } from "../context/ToastContext.tsx";
+import { useLanguage } from "../context/LanguageContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
+import { NewExpenseForm } from "../components/forms/NewExpenseForm.tsx";
 
 interface ExpensesViewProps {
   currencySymbol: string;
@@ -57,6 +39,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   currencySymbol,
 }) => {
   const { showToast } = useToast();
+  const { isNepali } = useLanguage();
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<string[]>(
@@ -79,21 +62,6 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
-
-  // Form fields
-  const [formCategory, setFormCategory] = useState(
-    DEFAULT_EXPENSE_CATEGORIES[0],
-  );
-  const [isCustomCategory, setIsCustomCategory] = useState(false);
-  const [customCategoryInput, setCustomCategoryInput] = useState("");
-  const [formAmount, setFormAmount] = useState("");
-  const [formDate, setFormDate] = useState(getTodayISODate());
-  const [formPaymentMethod, setFormPaymentMethod] = useState(
-    DEFAULT_PAYMENT_METHODS[0],
-  );
-  const [formNote, setFormNote] = useState("");
-  const [formReceiptRef, setFormReceiptRef] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
 
   // Compute effective date range based on preset
   const computedDateRange = useMemo(() => {
@@ -141,97 +109,12 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
   const handleOpenCreateModal = () => {
     setEditingExpense(null);
-    setFormCategory(DEFAULT_EXPENSE_CATEGORIES[0]);
-    setIsCustomCategory(false);
-    setCustomCategoryInput("");
-    setFormAmount("");
-    setFormDate(getTodayISODate());
-    setFormPaymentMethod(DEFAULT_PAYMENT_METHODS[0]);
-    setFormNote("");
-    setFormReceiptRef("");
-    setFormError(null);
     setIsFormModalOpen(true);
   };
 
   const handleOpenEditModal = (expense: Expense) => {
     setEditingExpense(expense);
-    const isStandard = DEFAULT_EXPENSE_CATEGORIES.includes(expense.category);
-    if (isStandard) {
-      setFormCategory(expense.category);
-      setIsCustomCategory(false);
-      setCustomCategoryInput("");
-    } else {
-      setFormCategory("__custom__");
-      setIsCustomCategory(true);
-      setCustomCategoryInput(expense.category);
-    }
-    setFormAmount(fromMinorUnits(expense.amount).toString());
-    setFormDate(expense.date.split("T")[0]);
-    setFormPaymentMethod(expense.payment_method || DEFAULT_PAYMENT_METHODS[0]);
-    setFormNote(expense.note || "");
-    setFormReceiptRef(expense.receipt_reference || "");
-    setFormError(null);
     setIsFormModalOpen(true);
-  };
-
-  const handleSaveExpense = (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-
-    const categoryToSave = isCustomCategory
-      ? customCategoryInput.trim()
-      : formCategory.trim();
-    if (!categoryToSave) {
-      setFormError("Please select or specify an expense category.");
-      return;
-    }
-
-    const numAmount = parseFloat(formAmount);
-    if (isNaN(numAmount) || numAmount <= 0) {
-      setFormError("Please enter a valid expense amount greater than 0.");
-      return;
-    }
-
-    if (!formDate.trim()) {
-      setFormError("Please select a valid date.");
-      return;
-    }
-
-    const minorAmount = toMinorUnits(numAmount);
-
-    try {
-      if (editingExpense) {
-        const updateInput: UpdateExpenseInput = {
-          category: categoryToSave,
-          amount: minorAmount,
-          date: formDate,
-          payment_method: formPaymentMethod || null,
-          note: formNote.trim() || null,
-          receipt_reference: formReceiptRef.trim() || null,
-        };
-        updateExpense(editingExpense.id, updateInput);
-        showToast(
-          `Expense #${editingExpense.id} updated successfully.`,
-          "success",
-        );
-      } else {
-        const createInput: CreateExpenseInput = {
-          category: categoryToSave,
-          amount: minorAmount,
-          date: formDate,
-          payment_method: formPaymentMethod || null,
-          note: formNote.trim() || null,
-          receipt_reference: formReceiptRef.trim() || null,
-        };
-        createExpense(createInput);
-        showToast("Expense recorded successfully.", "success");
-      }
-
-      setIsFormModalOpen(false);
-      loadData();
-    } catch (err: any) {
-      setFormError(err.message || "Failed to save expense");
-    }
   };
 
   const handleDeleteExpense = () => {
@@ -539,135 +422,27 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         onClose={() => setIsFormModalOpen(false)}
         title={
           editingExpense
-            ? `Edit Expense #${editingExpense.id}`
+            ? isNepali
+              ? `खर्च विवरण सम्पादन #${editingExpense.id}`
+              : `Edit Expense #${editingExpense.id}`
+            : isNepali
+            ? "नयाँ खर्च रेकर्ड गर्नुहोस्"
             : "Record New Expense"
         }
-        subtitle="Track shop overheads, utilities, inventory supplies, and bills"
+        subtitle={
+          isNepali
+            ? "दुकान वा व्यवसायको सञ्चालन खर्च, बिल तथा भुक्तानीहरू ट्र्याक गर्नुहोस्"
+            : "Track shop overheads, utilities, inventory supplies, and bills"
+        }
         maxWidth="md"
       >
-        <form onSubmit={handleSaveExpense} className="space-y-4">
-          {formError && (
-            <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-300 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{formError}</span>
-            </div>
-          )}
-
-          {/* Category */}
-          <div>
-            <Select
-              label="Expense Category"
-              required
-              value={isCustomCategory ? "__custom__" : formCategory}
-              onChange={(e) => {
-                if (e.target.value === "__custom__") {
-                  setIsCustomCategory(true);
-                } else {
-                  setIsCustomCategory(false);
-                  setFormCategory(e.target.value);
-                }
-              }}
-              options={[
-                ...DEFAULT_EXPENSE_CATEGORIES.map((cat) => ({
-                  value: cat,
-                  label: cat,
-                })),
-                { value: "__custom__", label: "+ Custom Category..." },
-              ]}
-            />
-
-            {isCustomCategory && (
-              <Input
-                type="text"
-                placeholder="Enter custom category name..."
-                value={customCategoryInput}
-                onChange={(e) => setCustomCategoryInput(e.target.value)}
-                containerClassName="mt-2"
-                autoFocus
-              />
-            )}
-          </div>
-
-          {/* Amount & Date in 2 columns */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input
-              label={
-                <>
-                  Amount ({currencySymbol}){" "}
-                  <span className="text-rose-400">*</span>
-                </>
-              }
-              type="number"
-              step="0.01"
-              min="0.01"
-              mono
-              placeholder="0.00"
-              value={formAmount}
-              onChange={(e) => setFormAmount(e.target.value)}
-              required
-            />
-
-            <Input
-              label={
-                <>
-                  Date <span className="text-rose-400">*</span>
-                </>
-              }
-              type="date"
-              value={formDate}
-              onChange={(e) => setFormDate(e.target.value)}
-              required
-            />
-          </div>
-
-          {/* Payment Method & Receipt Reference */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Select
-              label="Payment Method"
-              value={formPaymentMethod}
-              onChange={(e) => setFormPaymentMethod(e.target.value)}
-              options={DEFAULT_PAYMENT_METHODS.map((pm) => ({
-                value: pm,
-                label: pm,
-              }))}
-            />
-
-            <Input
-              label="Receipt / Bill Reference #"
-              type="text"
-              mono
-              placeholder="e.g. INV-9021 or Bill #"
-              value={formReceiptRef}
-              onChange={(e) => setFormReceiptRef(e.target.value)}
-            />
-          </div>
-
-          {/* Description Note */}
-          <Textarea
-            label="Description / Notes"
-            rows={3}
-            placeholder="e.g. Paid electricity bill for warehouse unit A..."
-            value={formNote}
-            onChange={(e) => setFormNote(e.target.value)}
-          />
-
-          {/* Form Actions */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-neutral-800">
-            <button
-              type="button"
-              onClick={() => setIsFormModalOpen(false)}
-              className="px-4 py-2 text-xs font-medium text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded-lg transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer"
-            >
-              {editingExpense ? "Save Changes" : "Record Expense"}
-            </button>
-          </div>
-        </form>
+        <NewExpenseForm
+          editingExpense={editingExpense}
+          onClose={() => setIsFormModalOpen(false)}
+          currencySymbol={currencySymbol}
+          loadExpenses={loadData}
+          availableCategories={categories}
+        />
       </Modal>
 
       {/* Delete Confirmation Modal */}

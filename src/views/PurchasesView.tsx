@@ -15,7 +15,6 @@ import {
   ListChecks,
   ScanLine,
   Tag,
-  PackagePlus,
   Percent,
   Printer,
   Package,

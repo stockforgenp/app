@@ -43,7 +43,6 @@ import { runBusinessLogicTests } from "../lib/services/testService.ts";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { Select } from "../components/common/Select.tsx";
 import { Input } from "../components/common/Input.tsx";
-import { TechnicalSupportSection } from "../components/common/TechnicalSupportSection.tsx";
 import { useToast } from "../context/ToastContext.tsx";
 import { useTheme } from "../context/ThemeContext.tsx";
 import { useLanguage } from "../context/LanguageContext.tsx";

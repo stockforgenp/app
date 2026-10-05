@@ -3,7 +3,6 @@
  * Complete standalone page accessible via the SYSTEM sidebar menu (/support)
  */
 import React from "react";
-import { motion } from "framer-motion";
 import {
   Headphones,
   Phone,
@@ -16,8 +15,6 @@ import {
   ExternalLink,
   Laptop,
   CheckCircle2,
-  FileQuestion,
-  LifeBuoy,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { TechnicalSupportSection } from "../components/common/TechnicalSupportSection.tsx";

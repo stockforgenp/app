@@ -319,13 +319,17 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     dev_office_location: "Office Headquarters",
     dev_office_val: "Putalisadak, Kathmandu, Bagmati Province, Nepal",
     dev_hours_label: "Support Operating Hours",
-    dev_hours_val: "Sun – Fri: 9:00 AM – 6:00 PM NPT (24/7 for POS emergencies)",
+    dev_hours_val:
+      "Sun – Fri: 9:00 AM – 6:00 PM NPT (24/7 for POS emergencies)",
     dev_website_label: "Official Portal & Docs",
     dev_services_title: "Scope of Technical Support",
-    dev_service_printer: "Thermal Receipt & 58mm/80mm POS Printer Configuration",
+    dev_service_printer:
+      "Thermal Receipt & 58mm/80mm POS Printer Configuration",
     dev_service_database: "SQLite Database Maintenance, Backup & Recovery",
-    dev_service_hardware: "Barcode Scanner & Cash Drawer Peripheral Integration",
-    dev_service_custom: "Custom Business Invoicing, VAT Compliance & Software Updates",
+    dev_service_hardware:
+      "Barcode Scanner & Cash Drawer Peripheral Integration",
+    dev_service_custom:
+      "Custom Business Invoicing, VAT Compliance & Software Updates",
     dev_diagnostics_title: "Live System Diagnostics",
     dev_diagnostics_desc:
       "Share these diagnostic details when contacting the developer for faster troubleshooting",
@@ -407,7 +411,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     // Navigation
     nav_dashboard: "ड्यासबोर्ड",
     nav_products: "सामानहरू (उत्पादन)",
-    nav_sales: "नयाँ बिक्री (POS)",
+    nav_sales: "नयाँ बिक्री",
     nav_purchases: "नयाँ खरिद (Purchases)",
     nav_purchase_history: "खरिद बिल इतिहास",
     nav_inventory: "सामान तथा मौज्दात",
@@ -701,7 +705,8 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     dev_support_section_title: "विकासकर्ता तथा कम्पनी प्राविधिक सहयोग",
     dev_support_section_subtitle:
       "प्रत्यक्ष प्राविधिक सहायता, सफ्टवेयर मर्मत, थर्मल प्रिन्टर सेटअप तथा आपतकालीन समाधान",
-    dev_company_name: "स्टकफोर्ज टेक्नोलोजिज प्रा. लि. (StockForge Technologies)",
+    dev_company_name:
+      "स्टकफोर्ज टेक्नोलोजिज प्रा. लि. (StockForge Technologies)",
     dev_team_label: "मूल इन्जिनियरिङ तथा प्राविधिक सहयोग टोली",
     dev_call_support: "फोन / हटलाइन सम्पर्क",
     dev_email_support: "आधिकारिक सहयोग इमेल",
@@ -709,12 +714,15 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     dev_office_location: "कार्यालय ठेगाना",
     dev_office_val: "पुतलीसडक, काठमाडौँ, बागमती प्रदेश, नेपाल",
     dev_hours_label: "सहयोग सञ्चालन समय",
-    dev_hours_val: "आइतबार – शुक्रबार: बिहान ९:०० – साँझ ६:०० (POS आपतकालीन २४/७)",
+    dev_hours_val:
+      "आइतबार – शुक्रबार: बिहान ९:०० – साँझ ६:०० (POS आपतकालीन २४/७)",
     dev_website_label: "आधिकारिक पोर्टल तथा मद्दत",
     dev_services_title: "प्राविधिक सहयोगका सेवाहरू",
-    dev_service_printer: "थर्मल बिल प्रिन्टर (५८/८०mm) तथा बारकोड स्क्यानर सेटअप",
+    dev_service_printer:
+      "थर्मल बिल प्रिन्टर (५८/८०mm) तथा बारकोड स्क्यानर सेटअप",
     dev_service_database: "SQLite डाटाबेस मर्मत, ब्याकअप तथा रिकभरी",
-    dev_service_hardware: "बारकोड स्क्यानर र क्यास ड्रअर हार्डवेयर जोड्ने सहायता",
+    dev_service_hardware:
+      "बारकोड स्क्यानर र क्यास ड्रअर हार्डवेयर जोड्ने सहायता",
     dev_service_custom: "अनुकूलित बिलिङ, भ्याट नियम पालना र नयाँ सुविधा थप",
     dev_diagnostics_title: "प्रत्यक्ष प्रणाली विवरण (System Diagnostics)",
     dev_diagnostics_desc:

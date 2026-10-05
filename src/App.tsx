@@ -43,7 +43,7 @@ import { CommandPaletteModal } from "./components/common/CommandPaletteModal.tsx
 import { useTheme } from "./context/ThemeContext.tsx";
 import { useLanguage } from "./context/LanguageContext.tsx";
 import { useAuth } from "./context/AuthContext.tsx";
-import { AuthView } from "./components/auth/AuthView.tsx";
+import { AuthView } from "./views/AuthView.tsx";
 
 export default function App() {
   const { toggleTheme } = useTheme();

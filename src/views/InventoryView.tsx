@@ -26,7 +26,6 @@ import {
   Receipt,
   ShoppingCart,
   SlidersHorizontal,
-  Sparkles,
   Boxes,
   Building2,
   PlusCircle,
@@ -35,10 +34,7 @@ import {
 import { Product, StockMovement, Vendor } from "../types/index.ts";
 import {
   getAllProducts,
-  createProduct,
-  updateProduct,
   deleteProduct,
-  generateProductSku,
 } from "../lib/services/productService.ts";
 import {
   restockProduct,
@@ -50,14 +46,13 @@ import {
   formatCurrency,
   formatDate,
   formatDateTime,
-  fromMinorUnits,
-  toMinorUnits,
 } from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { ActionMenu } from "../components/common/ActionMenu.tsx";
 import { Select } from "../components/common/Select.tsx";
 import { Input } from "../components/common/Input.tsx";
+import { NewProductForm } from "../components/forms/NewProductForm.tsx";
 import { BulkProductModal } from "./BulkProductModal.tsx";
 import { DateFilterBar } from "../components/common/DateFilterBar.tsx";
 import { DatePreset } from "../lib/utils/dateFilters.ts";
@@ -65,7 +60,6 @@ import { useToast } from "../context/ToastContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 import { useLanguage } from "../context/LanguageContext.tsx";
 import { MODIFIER_LABEL } from "../lib/hooks/useGlobalShortcuts.ts";
-import { COMMON_UNITS } from "../constants/index.ts";
 
 export interface InventoryViewProps {
   currencySymbol: string;
@@ -135,17 +129,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [selectedMovements, setSelectedMovements] = useState<Product | null>(
     activeMovementsProduct || null,
   );
-
-  // Form states for Add/Edit Product
-  const [formData, setFormData] = useState({
-    name: "",
-    sku: "",
-    unit: "pcs",
-    costPrice: "",
-    sellingPrice: "",
-    initialStock: "",
-    minStockAlert: "",
-  });
 
   // Restock Form
   const [restockQty, setRestockQty] = useState("10");
@@ -258,119 +241,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
   // Product Create/Edit Handlers
   const handleOpenCreate = () => {
-    setFormData({
-      name: "",
-      sku: "",
-      unit: "pcs",
-      costPrice: "",
-      sellingPrice: "",
-      initialStock: "0",
-      minStockAlert: "",
-    });
+    setEditingProduct(null);
     setIsCreateOpen(true);
   };
 
   const handleOpenEdit = (p: Product) => {
+    setIsCreateOpen(false);
     setEditingProduct(p);
-    setFormData({
-      name: p.name,
-      sku: p.sku || "",
-      unit: p.unit || "pcs",
-      costPrice: fromMinorUnits(p.cost_price).toString(),
-      sellingPrice: fromMinorUnits(p.selling_price).toString(),
-      initialStock: p.current_stock.toString(),
-      minStockAlert:
-        p.min_stock_alert !== null && p.min_stock_alert !== undefined
-          ? p.min_stock_alert.toString()
-          : "",
-    });
-  };
-
-  const handleSaveCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name.trim()) {
-      showToast("Product name is required", "warning");
-      return;
-    }
-
-    const cost = toMinorUnits(formData.costPrice);
-    const selling = toMinorUnits(formData.sellingPrice);
-    const stock = parseInt(formData.initialStock, 10) || 0;
-    const parsedMinAlert =
-      formData.minStockAlert.trim() !== ""
-        ? parseInt(formData.minStockAlert, 10)
-        : null;
-    const minStockAlert =
-      parsedMinAlert !== null && !isNaN(parsedMinAlert)
-        ? Math.max(0, parsedMinAlert)
-        : null;
-
-    try {
-      const created = createProduct({
-        name: formData.name.trim(),
-        sku: formData.sku.trim() || null,
-        unit: formData.unit.trim() || "pcs",
-        cost_price: cost,
-        selling_price: selling,
-        current_stock: stock,
-        min_stock_alert: minStockAlert,
-      });
-
-      showToast(
-        isNepali
-          ? `सामान "${created.name}" (एकाइ: ${created.unit || "pcs"}) सफलतापूर्वक थपियो`
-          : `Product "${created.name}" created successfully`,
-        "success",
-      );
-      setIsCreateOpen(false);
-      loadData();
-      loadMovements();
-    } catch (err: unknown) {
-      showToast((err as Error).message, "error");
-    }
-  };
-
-  const handleSaveEdit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingProduct) return;
-    if (!formData.name.trim()) {
-      showToast("Product name is required", "warning");
-      return;
-    }
-
-    const cost = toMinorUnits(formData.costPrice);
-    const selling = toMinorUnits(formData.sellingPrice);
-    const parsedMinAlert =
-      formData.minStockAlert.trim() !== ""
-        ? parseInt(formData.minStockAlert, 10)
-        : null;
-    const minStockAlert =
-      parsedMinAlert !== null && !isNaN(parsedMinAlert)
-        ? Math.max(0, parsedMinAlert)
-        : null;
-
-    try {
-      updateProduct(editingProduct.id, {
-        name: formData.name.trim(),
-        sku: formData.sku.trim() || null,
-        unit: formData.unit.trim() || "pcs",
-        cost_price: cost,
-        selling_price: selling,
-        min_stock_alert: minStockAlert,
-      });
-
-      showToast(
-        isNepali
-          ? "सामानको विवरण अद्यावधिक गरियो"
-          : "Product updated successfully",
-        "success",
-      );
-      setEditingProduct(null);
-      loadData();
-      loadMovements();
-    } catch (err: unknown) {
-      showToast((err as Error).message, "error");
-    }
   };
 
   const handleConfirmDelete = () => {
@@ -587,42 +464,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       lowCount,
     };
   }, [products, lowStockThreshold]);
-
-  // Filtered movements for in-page audit log
-  const filteredMovements = useMemo(() => {
-    let result = movementsList;
-    if (movementTypeFilter !== "ALL") {
-      result = result.filter((m) => m.type === movementTypeFilter);
-    }
-    if (selectedVendorId !== "all") {
-      const vId = Number(selectedVendorId);
-      result = result.filter((m) => m.vendor_id === vId);
-    }
-    if (startDate) {
-      result = result.filter((m) => m.created_at.slice(0, 10) >= startDate);
-    }
-    if (endDate) {
-      result = result.filter((m) => m.created_at.slice(0, 10) <= endDate);
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (m) =>
-          (m.product_name && m.product_name.toLowerCase().includes(q)) ||
-          (m.note && m.note.toLowerCase().includes(q)) ||
-          m.product_id.toString() === q ||
-          (m.vendor_name && m.vendor_name.toLowerCase().includes(q)),
-      );
-    }
-    return result;
-  }, [
-    movementsList,
-    movementTypeFilter,
-    selectedVendorId,
-    startDate,
-    endDate,
-    search,
-  ]);
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-150">
@@ -1197,484 +1038,49 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         </div>
       </div>
 
-      {/* ==================== MODAL: CREATE PRODUCT ==================== */}
+      {/* ==================== MODAL: CREATE / EDIT PRODUCT ==================== */}
       <Modal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        title={t("prod_create_title", "Create New Product")}
+        isOpen={isCreateOpen || !!editingProduct}
+        onClose={() => {
+          setIsCreateOpen(false);
+          setEditingProduct(null);
+        }}
+        title={
+          editingProduct
+            ? t("prod_edit_title", "Edit Product Master")
+            : t("prod_create_title", "Create New Product")
+        }
         subtitle={
-          isNepali
+          editingProduct
+            ? t(
+                "prod_edit_subtitle",
+                "Update attributes, pricing, or unit of measure",
+              )
+            : isNepali
             ? "नयाँ सामानको विवरण, मूल्य, आपूर्तिकर्ता र प्रारम्भिक मौज्दात प्रविष्टि गर्नुहोस्।"
             : "Specify product attributes, pricing, vendor supplier, and initial stock."
         }
         maxWidth="md"
       >
-        <div className="flex items-center justify-between pb-2 mb-3 border-b border-neutral-800">
-          <span className="text-xs text-neutral-400">
-            {isNepali ? "एक पटकमा एउटा सामान दर्ता" : "Single Product Entry"}
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              setIsCreateOpen(false);
-              setIsBulkCreateOpen(true);
-            }}
-            className="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <Table2 className="w-3.5 h-3.5" />
-            <span>
-              {isNepali
-                ? "तालिकामा धेरै सामान थप्नुहोस् (Bulk Mode)"
-                : "Add Multiple in Table Mode"}
-            </span>
-          </button>
-        </div>
-
-        <form onSubmit={handleSaveCreate} className="space-y-4">
-          <div>
-            <Input
-              label={`${t("prod_name", "Product Name")} *`}
-              type="text"
-              required
-              placeholder={
-                isNepali ? "उदा. कोकाकोला ५०० मि.लि." : "e.g. Coca Cola 500ml"
-              }
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-medium text-neutral-300">
-                {t("prod_sku", "SKU / Barcode")}
-                <span className="text-neutral-500 font-normal ml-1">
-                  ({t("prod_sku_auto_hint", "Auto-generated if left blank")})
-                </span>
-              </label>
-              <button
-                type="button"
-                onClick={() => {
-                  const gen = generateProductSku(formData.name);
-                  setFormData((prev) => ({ ...prev, sku: gen }));
-                }}
-                className="text-[11px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-mono transition-colors cursor-pointer"
-                title={
-                  isNepali
-                    ? "स्वतः SKU कोड बनाउनुहोस्"
-                    : "Auto-generate unique SKU code"
-                }
-              >
-                <Sparkles className="w-3 h-3" />
-                <span>{t("prod_sku_auto_btn", "Auto-Generate")}</span>
-              </button>
-            </div>
-            <Input
-              type="text"
-              placeholder={t(
-                "prod_sku_placeholder",
-                "e.g. BEV-CC-500 (or leave blank to auto-generate)",
-              )}
-              value={formData.sku}
-              onChange={(e) =>
-                setFormData({ ...formData, sku: e.target.value })
-              }
-              className="font-mono"
-              clearable
-              onClear={() => setFormData((prev) => ({ ...prev, sku: "" }))}
-            />
-          </div>
-
-          {/* Unit of Measure */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-medium text-neutral-300">
-                {t("prod_unit", "Unit of Measure")} *
-              </label>
-              <span className="text-[10px] text-neutral-400 font-mono">
-                {isNepali
-                  ? "उदा. pcs, kg, ltr, box"
-                  : "e.g. pcs, kg, litre, box"}
-              </span>
-            </div>
-            <Select
-              searchable
-              allowCustom
-              searchPlaceholder={
-                isNepali
-                  ? "एकाइ खोज्नुहोस् वा नयाँ एकाइ लेख्नुहोस्..."
-                  : "Search unit or type custom unit..."
-              }
-              value={formData.unit || "pcs"}
-              onChange={(e) => {
-                if (e.target.value) {
-                  setFormData({ ...formData, unit: String(e.target.value) });
-                }
-              }}
-              placeholder={
-                isNepali ? "-- एकाइ छान्नुहोस् --" : "-- Select Unit --"
-              }
-              options={[
-                ...(formData.unit &&
-                !COMMON_UNITS.some(
-                  (u) => u.value.toLowerCase() === formData.unit.toLowerCase(),
-                )
-                  ? [
-                      {
-                        value: formData.unit,
-                        label: `${formData.unit} (custom)`,
-                        searchLabel: formData.unit,
-                      },
-                    ]
-                  : []),
-                ...COMMON_UNITS.map((u) => ({
-                  value: u.value,
-                  label: u.label,
-                  searchLabel: `${u.value} ${u.label}`,
-                })),
-              ]}
-              className="font-mono"
-            />
-            {/* Quick unit chips */}
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {["pcs", "kg", "ltr", "g", "ml", "pkt", "box", "bottle"].map(
-                (u) => (
-                  <button
-                    key={u}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, unit: u })}
-                    className={`px-2 py-0.5 rounded text-[10px] font-mono transition-colors cursor-pointer ${
-                      formData.unit.toLowerCase() === u
-                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold"
-                        : "bg-neutral-800/80 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-700/60"
-                    }`}
-                  >
-                    {u}
-                  </button>
-                ),
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Input
-                label={`${t("prod_cost_price", "Cost Price")} (${currencySymbol}) *`}
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                placeholder="45.00"
-                value={formData.costPrice}
-                onChange={(e) =>
-                  setFormData({ ...formData, costPrice: e.target.value })
-                }
-                className="font-mono"
-              />
-            </div>
-
-            <div>
-              <Input
-                label={`${t("prod_selling_price", "Default Selling")} (${currencySymbol}) *`}
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                placeholder="60.00"
-                value={formData.sellingPrice}
-                onChange={(e) =>
-                  setFormData({ ...formData, sellingPrice: e.target.value })
-                }
-                className="font-mono"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Input
-                label={t("prod_initial_stock", "Opening Stock")}
-                helperText={
-                  isNepali
-                    ? "प्रारम्भिक मौज्दात प्रविष्टि गर्दछ।"
-                    : "Creates initial 'RESTOCK' movement."
-                }
-                type="number"
-                min="0"
-                placeholder="100"
-                value={formData.initialStock}
-                onChange={(e) =>
-                  setFormData({ ...formData, initialStock: e.target.value })
-                }
-                className="font-mono"
-              />
-            </div>
-
-            <div>
-              <Input
-                label={t("prod_min_alert", "Minimum Alert Threshold")}
-                helperText={t(
-                  "prod_min_alert_hint",
-                  "Triggers low-stock warning when below threshold.",
-                )}
-                type="number"
-                min="0"
-                placeholder={
-                  isNepali
-                    ? `डिफल्ट: ${lowStockThreshold} एकाइ`
-                    : `Default: ${lowStockThreshold} units`
-                }
-                value={formData.minStockAlert}
-                onChange={(e) =>
-                  setFormData({ ...formData, minStockAlert: e.target.value })
-                }
-                className="font-mono"
-              />
-            </div>
-          </div>
-
-          <div className="pt-4 flex justify-end gap-3 border-t border-neutral-800">
-            <button
-              type="button"
-              onClick={() => setIsCreateOpen(false)}
-              className="px-4 py-2 text-xs font-medium text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer"
-            >
-              {t("action_cancel", "Cancel")}
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors cursor-pointer"
-            >
-              {t("action_create", "Create Product")}
-            </button>
-          </div>
-        </form>
+        <NewProductForm
+          editingProduct={editingProduct}
+          onClose={() => {
+            setIsCreateOpen(false);
+            setEditingProduct(null);
+          }}
+          currencySymbol={currencySymbol}
+          lowStockThreshold={lowStockThreshold}
+          loadProducts={() => {
+            loadData();
+            loadMovements();
+          }}
+          onOpenBulkCreate={() => {
+            setIsCreateOpen(false);
+            setIsBulkCreateOpen(true);
+          }}
+        />
       </Modal>
 
-      {/* ==================== MODAL: EDIT PRODUCT ==================== */}
-      <Modal
-        isOpen={!!editingProduct}
-        onClose={() => setEditingProduct(null)}
-        title={t("prod_edit_title", "Edit Product Master")}
-        subtitle={t(
-          "prod_edit_subtitle",
-          "Update attributes, pricing, or unit of measure",
-        )}
-        maxWidth="md"
-      >
-        <form onSubmit={handleSaveEdit} className="space-y-4">
-          <div>
-            <Input
-              label={`${t("prod_name", "Product Name")} *`}
-              type="text"
-              required
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-medium text-neutral-300">
-                {t("prod_sku", "SKU / Barcode")}
-                <span className="text-neutral-500 font-normal ml-1">
-                  ({t("prod_sku_auto_hint", "Auto-generated if left blank")})
-                </span>
-              </label>
-              <button
-                type="button"
-                onClick={() => {
-                  const gen = generateProductSku(formData.name);
-                  setFormData((prev) => ({ ...prev, sku: gen }));
-                }}
-                className="text-[11px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-mono transition-colors cursor-pointer"
-                title={
-                  isNepali
-                    ? "स्वतः नयाँ SKU बनाउनुहोस्"
-                    : "Auto-generate new SKU code"
-                }
-              >
-                <Sparkles className="w-3 h-3" />
-                <span>{t("prod_sku_auto_btn", "Auto-Generate")}</span>
-              </button>
-            </div>
-            <Input
-              type="text"
-              placeholder={t(
-                "prod_sku_placeholder",
-                "e.g. BEV-CC-500 (or leave blank to auto-generate)",
-              )}
-              value={formData.sku}
-              onChange={(e) =>
-                setFormData({ ...formData, sku: e.target.value })
-              }
-              className="font-mono"
-              clearable
-              onClear={() => setFormData((prev) => ({ ...prev, sku: "" }))}
-            />
-          </div>
-
-          {/* Unit of Measure */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-medium text-neutral-300">
-                {t("prod_unit", "Unit of Measure")} *
-              </label>
-              <span className="text-[10px] text-neutral-400 font-mono">
-                {isNepali
-                  ? "उदा. pcs, kg, ltr, box"
-                  : "e.g. pcs, kg, litre, box"}
-              </span>
-            </div>
-            <Select
-              searchable
-              allowCustom
-              searchPlaceholder={
-                isNepali
-                  ? "एकाइ खोज्नुहोस् वा नयाँ एकाइ लेख्नुहोस्..."
-                  : "Search unit or type custom unit..."
-              }
-              value={formData.unit || "pcs"}
-              onChange={(e) => {
-                if (e.target.value) {
-                  setFormData({ ...formData, unit: String(e.target.value) });
-                }
-              }}
-              placeholder={
-                isNepali ? "-- एकाइ छान्नुहोस् --" : "-- Select Unit --"
-              }
-              options={[
-                ...(formData.unit &&
-                !COMMON_UNITS.some(
-                  (u) => u.value.toLowerCase() === formData.unit.toLowerCase(),
-                )
-                  ? [
-                      {
-                        value: formData.unit,
-                        label: `${formData.unit} (custom)`,
-                        searchLabel: formData.unit,
-                      },
-                    ]
-                  : []),
-                ...COMMON_UNITS.map((u) => ({
-                  value: u.value,
-                  label: u.label,
-                  searchLabel: `${u.value} ${u.label}`,
-                })),
-              ]}
-              className="font-mono"
-            />
-            {/* Quick unit chips */}
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {["pcs", "kg", "ltr", "g", "ml", "pkt", "box", "bottle"].map(
-                (u) => (
-                  <button
-                    key={u}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, unit: u })}
-                    className={`px-2 py-0.5 rounded text-[10px] font-mono transition-colors cursor-pointer ${
-                      formData.unit.toLowerCase() === u
-                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold"
-                        : "bg-neutral-800/80 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-700/60"
-                    }`}
-                  >
-                    {u}
-                  </button>
-                ),
-              )}
-            </div>
-          </div>
-
-          {/* Supplier / Vendor Selection */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Input
-                label={`${t("prod_cost_price", "Cost Price")} (${currencySymbol}) *`}
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                value={formData.costPrice}
-                onChange={(e) =>
-                  setFormData({ ...formData, costPrice: e.target.value })
-                }
-                className="font-mono"
-              />
-            </div>
-
-            <div>
-              <Input
-                label={`${t("prod_selling_price", "Default Selling")} (${currencySymbol}) *`}
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                value={formData.sellingPrice}
-                onChange={(e) =>
-                  setFormData({ ...formData, sellingPrice: e.target.value })
-                }
-                className="font-mono"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Input
-              label={`${t("prod_min_alert", "Minimum Alert Threshold")} (${isNepali ? "वैकल्पिक" : "Optional"})`}
-              helperText={t(
-                "prod_min_alert_hint",
-                "Triggers low-stock warning when below threshold.",
-              )}
-              type="number"
-              min="0"
-              placeholder={
-                isNepali
-                  ? `डिफल्ट: ${lowStockThreshold} एकाइ`
-                  : `Default: ${lowStockThreshold} units`
-              }
-              value={formData.minStockAlert}
-              onChange={(e) =>
-                setFormData({ ...formData, minStockAlert: e.target.value })
-              }
-              className="font-mono"
-            />
-          </div>
-
-          <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800/80 text-[11px] text-neutral-400 flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-semibold text-neutral-200">
-                {isNepali
-                  ? "ऐतिहासिक स्न्यापसट नियम: "
-                  : "Historical Snapshot Rule: "}
-              </span>
-              {isNepali
-                ? "मूल्य परिवर्तन भविष्यका कारोबारहरूमा मात्र लागू हुन्छ। पुराना बिलहरूमा ऐतिहासिक लागत र बिक्री मूल्य सुरक्षित रहन्छ।"
-                : "Updating prices applies to future transactions only. Past sales retain their original snapshot cost and selling values."}
-            </div>
-          </div>
-
-          <div className="pt-4 flex justify-end gap-3 border-t border-neutral-800">
-            <button
-              type="button"
-              onClick={() => setEditingProduct(null)}
-              className="px-4 py-2 text-xs font-medium text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer"
-            >
-              {t("action_cancel", "Cancel")}
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors cursor-pointer"
-            >
-              {t("action_save_changes", "Save Changes")}
-            </button>
-          </div>
-        </form>
-      </Modal>
 
       {/* ==================== DIALOG: CONFIRM DELETE ==================== */}
       <ConfirmDialog

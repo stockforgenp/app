@@ -8,31 +8,18 @@ import { motion } from "framer-motion";
 import {
   Building2,
   Plus,
-  Phone,
-  Mail,
   FileText,
-  MapPin,
   Package,
   DollarSign,
-  Copy,
-  Check,
-  Edit2,
-  Trash2,
-  Receipt,
-  Eye,
   Printer,
 } from "lucide-react";
 import {
   Vendor,
   Product,
-  CreateVendorInput,
   Purchase,
 } from "../types/index.ts";
-import { Input, Textarea } from "../components/common/Input.tsx";
 import {
   getAllVendors,
-  createVendor,
-  updateVendor,
   deleteVendor,
   getVendorProducts,
   getVendorPurchases,
@@ -40,13 +27,13 @@ import {
 import { formatCurrency, formatDate } from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
-import { ActionMenu } from "../components/common/ActionMenu.tsx";
 import { PrintPurchaseBillModal } from "../components/common/PrintPurchaseBillModal.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
 import { getVendorColumns } from "../columns/index.ts";
 import { useToast } from "../context/ToastContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 import { useLanguage } from "../context/LanguageContext.tsx";
+import { NewVendorForm } from "../components/forms/NewVendorForm.tsx";
 
 interface VendorsViewProps {
   currencySymbol: string;
@@ -80,16 +67,6 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
   const [isPrintPurchaseModalOpen, setIsPrintPurchaseModalOpen] =
     useState(false);
 
-  // Form Fields
-  const [formData, setFormData] = useState<CreateVendorInput>({
-    name: "",
-    pan_vat: "",
-    phone: "",
-    email: "",
-    address: "",
-    notes: "",
-  });
-
   const loadVendors = useCallback(() => {
     try {
       setVendors(getAllVendors());
@@ -106,27 +83,11 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
 
   const handleOpenCreate = () => {
     setEditingVendor(null);
-    setFormData({
-      name: "",
-      pan_vat: "",
-      phone: "",
-      email: "",
-      address: "",
-      notes: "",
-    });
     setIsFormModalOpen(true);
   };
 
   const handleOpenEdit = (v: Vendor) => {
     setEditingVendor(v);
-    setFormData({
-      name: v.name,
-      pan_vat: v.pan_vat || "",
-      phone: v.phone || "",
-      email: v.email || "",
-      address: v.address || "",
-      notes: v.notes || "",
-    });
     setIsFormModalOpen(true);
   };
 
@@ -165,41 +126,6 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
       "info",
     );
     setTimeout(() => setCopiedPan(null), 2000);
-  };
-
-  const handleSubmitForm = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name.trim()) {
-      showToast(
-        isNepali ? "आपूर्तिकर्ताको नाम आवश्यक छ" : "Vendor name is required",
-        "warning",
-      );
-      return;
-    }
-
-    try {
-      if (editingVendor) {
-        updateVendor(editingVendor.id, formData);
-        showToast(
-          isNepali
-            ? `आपूर्तिकर्ता "${formData.name.trim()}" अद्यावधिक गरियो`
-            : `Vendor "${formData.name.trim()}" updated successfully`,
-          "success",
-        );
-      } else {
-        createVendor(formData);
-        showToast(
-          isNepali
-            ? `नयाँ आपूर्तिकर्ता "${formData.name.trim()}" सफलतापूर्वक थपियो`
-            : `Vendor "${formData.name.trim()}" created successfully`,
-          "success",
-        );
-      }
-      setIsFormModalOpen(false);
-      loadVendors();
-    } catch (err: unknown) {
-      showToast((err as Error).message, "error");
-    }
   };
 
   const handleConfirmDelete = () => {
@@ -423,114 +349,11 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
               : "Add New Vendor"
         }
       >
-        <form onSubmit={handleSubmitForm} className="space-y-4">
-          <div>
-            <Input
-              label={
-                <>
-                  {isNepali ? "आपूर्तिकर्ताको नाम" : "Vendor / Business Name"}{" "}
-                  <span className="text-rose-400">*</span>
-                </>
-              }
-              type="text"
-              required
-              placeholder={
-                isNepali
-                  ? "जस्तै: सूर्य डिस्ट्रिब्युटर्स"
-                  : "e.g. Acme Supplies Pvt. Ltd."
-              }
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label={`PAN / VAT ${isNepali ? "नम्बर" : "Number"}`}
-              type="text"
-              mono
-              placeholder="e.g. 601234567"
-              value={formData.pan_vat}
-              onChange={(e) =>
-                setFormData({ ...formData, pan_vat: e.target.value })
-              }
-            />
-
-            <Input
-              label={isNepali ? "फोन नम्बर" : "Phone / Mobile"}
-              type="text"
-              placeholder="e.g. 9841234567"
-              value={formData.phone}
-              onChange={(e) =>
-                setFormData({ ...formData, phone: e.target.value })
-              }
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label={isNepali ? "इमेल ठेगाना" : "Email Address"}
-              type="email"
-              placeholder="vendor@example.com"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-            />
-
-            <Input
-              label={isNepali ? "ठेगाना / स्थान" : "Address / Location"}
-              type="text"
-              placeholder={
-                isNepali
-                  ? "जस्तै: नयाँ सडक, काठमाडौँ"
-                  : "e.g. New Road, Kathmandu"
-              }
-              value={formData.address}
-              onChange={(e) =>
-                setFormData({ ...formData, address: e.target.value })
-              }
-            />
-          </div>
-
-          <Textarea
-            label={isNepali ? "थप कैफियत / टिप्पणी" : "Notes / Payment Terms"}
-            rows={2}
-            placeholder={
-              isNepali
-                ? "जस्तै: क्रेडिट अवधि १५ दिन, डेलिभरी आइतबार"
-                : "e.g. Credit terms 15 days, weekly delivery on Sundays"
-            }
-            value={formData.notes}
-            onChange={(e) =>
-              setFormData({ ...formData, notes: e.target.value })
-            }
-          />
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-neutral-800">
-            <button
-              type="button"
-              onClick={() => setIsFormModalOpen(false)}
-              className="px-4 py-2 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors cursor-pointer"
-            >
-              {isNepali ? "रद्द गर्नुहोस्" : "Cancel"}
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors cursor-pointer"
-            >
-              {editingVendor
-                ? isNepali
-                  ? "अद्यावधिक गर्नुहोस्"
-                  : "Save Changes"
-                : isNepali
-                  ? "आपूर्तिकर्ता थप्नुहोस्"
-                  : "Create Vendor"}
-            </button>
-          </div>
-        </form>
+        <NewVendorForm
+          editingVendor={editingVendor}
+          onClose={() => setIsFormModalOpen(false)}
+          loadVendors={loadVendors}
+        />
       </Modal>
 
       {/* Inspect Supplied Products Modal */}
