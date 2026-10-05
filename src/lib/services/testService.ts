@@ -456,7 +456,7 @@ export async function runBusinessLogicTests(): Promise<TestResultItem[]> {
     });
   }
 
-  // Test 16: Shop Registration with Seed Test Data Check & Login Authentication
+  // Test 16: Shop Registration (Clean Slate) & Login Authentication
   try {
     const { hashPassword } = await import('./authService.ts');
     const pwdHash = await hashPassword('securePass123');
@@ -479,7 +479,7 @@ export async function runBusinessLogicTests(): Promise<TestResultItem[]> {
 
     const pass = foundShop && registeredName === 'Himalayan Grocers' && authMatches;
     results.push({
-      name: '16. Shop Registration & Auth (Seed Test Data Check & Login)',
+      name: '16. Shop Registration & Auth (Clean Slate & Login)',
       passed: pass,
       message: pass
         ? 'Shop "Himalayan Grocers" registered, credentials hashed via SHA-256, and authenticated successfully.'
@@ -489,7 +489,7 @@ export async function runBusinessLogicTests(): Promise<TestResultItem[]> {
     });
   } catch (err: unknown) {
     results.push({
-      name: '16. Shop Registration & Auth (Seed Test Data Check & Login)',
+      name: '16. Shop Registration & Auth (Clean Slate & Login)',
       passed: false,
       message: (err as Error).message,
     });

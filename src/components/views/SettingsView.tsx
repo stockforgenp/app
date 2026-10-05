@@ -725,9 +725,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
         {/* Reset Database Option */}
         <div className="pt-2 border-t border-neutral-800/80 flex items-center justify-between">
           <div>
-            <div className="text-xs font-medium text-neutral-300">Reset to Sample Demo Catalog</div>
+            <div className="text-xs font-medium text-neutral-300">Reset / Clear Database</div>
             <div className="text-[11px] text-neutral-500">
-              Reloads the initial sample beverages, snacks, and initial sales transaction.
+              Permanently clears all inventory records, transactions, expenses, and staff data for a clean slate.
             </div>
           </div>
 
@@ -835,9 +835,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onSettingsUpdated })
         isOpen={isResetConfirmOpen}
         onClose={() => setIsResetConfirmOpen(false)}
         onConfirm={handleConfirmReset}
-        title="Reset Database to Sample Data?"
-        message="This will wipe the current local SQLite database and restore the default sample catalog and initial transaction. Are you sure you wish to proceed?"
-        confirmText="Reset to Sample Data"
+        title="Clear & Reset Database?"
+        message="This will completely wipe all current products, inventory movements, transactions, expenses, and staff records. Are you sure you wish to start with a clean slate?"
+        confirmText="Clear All Data"
         isDestructive={true}
       />
     </div>

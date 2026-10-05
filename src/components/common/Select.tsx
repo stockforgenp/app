@@ -50,7 +50,10 @@ const renderIcon = (
 ) => {
   if (!icon) return null;
   if (React.isValidElement(icon)) {
-    return icon;
+    const el = icon as React.ReactElement<{ className?: string }>;
+    return React.cloneElement(el, {
+      className: `${el.props?.className || ''} ${extraClass}`.trim(),
+    });
   }
   if (typeof icon === 'function' || (typeof icon === 'object' && icon !== null)) {
     const IconComponent = icon as React.ComponentType<{ className?: string }>;
@@ -241,7 +244,7 @@ export const Select: React.FC<SelectProps> = ({
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {hasLeftIcon && (
-            <span className="shrink-0 flex items-center text-neutral-500 dark:text-neutral-400">
+            <span className="shrink-0 flex items-center text-neutral-400">
               {renderIcon(icon, 'w-4 h-4 text-current shrink-0')}
             </span>
           )}
@@ -249,22 +252,22 @@ export const Select: React.FC<SelectProps> = ({
           {selectedOption ? (
             <div className="truncate flex items-center gap-1.5 text-neutral-100 font-medium">
               {selectedOption.icon && (
-                <span className="shrink-0 flex items-center text-neutral-500 dark:text-neutral-400">
+                <span className="shrink-0 flex items-center text-neutral-400">
                   {renderIcon(selectedOption.icon, 'w-3.5 h-3.5 text-current shrink-0')}
                 </span>
               )}
               <span className="truncate">{selectedOption.label}</span>
             </div>
           ) : (
-            <span className="text-neutral-500 dark:text-neutral-400 truncate">{placeholder}</span>
+            <span className="text-neutral-400 truncate">{placeholder}</span>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0 ml-2 text-neutral-500 dark:text-neutral-400">
+        <div className="flex items-center gap-1.5 shrink-0 ml-2 text-neutral-400">
           {clearable && selectedOption && !disabled && (
             <span
               onClick={handleClear}
-              className="p-0.5 hover:text-neutral-800 dark:hover:text-neutral-200 rounded transition-colors"
+              className="p-0.5 hover:text-neutral-100 rounded transition-colors"
               title="Clear"
             >
               <X className="w-3.5 h-3.5 text-current" />
@@ -273,8 +276,8 @@ export const Select: React.FC<SelectProps> = ({
           <ChevronDown
             className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
               isOpen
-                ? 'rotate-180 text-emerald-500 dark:text-emerald-400'
-                : 'text-neutral-500 dark:text-neutral-400'
+                ? 'rotate-180 text-emerald-500'
+                : 'text-neutral-400'
             }`}
           />
         </div>
@@ -287,7 +290,7 @@ export const Select: React.FC<SelectProps> = ({
           {searchable && parsedOptions.length > 3 && (
             <div className="p-2 border-b border-neutral-800 bg-neutral-950/60 sticky top-0 z-10">
               <div className="relative flex items-center">
-                <Search className="w-3.5 h-3.5 absolute inset-y-0 left-2.5 my-auto text-neutral-500 dark:text-neutral-400 pointer-events-none" />
+                <Search className="w-3.5 h-3.5 absolute inset-y-0 left-2.5 my-auto text-neutral-400 pointer-events-none" />
                 <input
                   ref={searchInputRef}
                   type="text"

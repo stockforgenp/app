@@ -4,8 +4,7 @@
  * and test data seeding control for offline-first retail operations.
  */
 import { Shop, RegisterShopInput, LoginInput } from '../../types/index.ts';
-import { query, queryOne, run, getDatabase } from '../db/sqliteEngine.ts';
-import { seedInitialData, clearAllTestData } from '../db/seed.ts';
+import { query, queryOne, run } from '../db/sqliteEngine.ts';
 
 const ACTIVE_SHOP_STORAGE_KEY = 'stockforge_active_shop_id';
 
@@ -121,14 +120,6 @@ export async function registerShop(input: RegisterShopInput): Promise<Shop> {
     `INSERT INTO app_settings (key, value) VALUES ('currency_symbol', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
     [currencySymbol]
   );
-
-  // Handle seed test data check
-  const db = await getDatabase();
-  if (input.seedTestData) {
-    seedInitialData(db);
-  } else {
-    clearAllTestData(db);
-  }
 
   // Store active session in localStorage
   try {
@@ -291,32 +282,4 @@ export function switchShop(shopId: number): Shop | null {
   );
 
   return shop;
-}
-
-/**
- * Creates or retrieves a standard demo shop for instant 1-click test exploration
- */
-export async function seedDemoShopIfEmpty(): Promise<Shop> {
-  const existing = queryOne<Shop>(
-    "SELECT id, name, email, phone, shop_type, address, currency_symbol, is_active, created_at, updated_at FROM shops WHERE email = 'demo@stockforge.pos'"
-  );
-  if (existing) {
-    try {
-      localStorage.setItem(ACTIVE_SHOP_STORAGE_KEY, String(existing.id));
-    } catch {
-      // Ignore
-    }
-    return existing;
-  }
-
-  return registerShop({
-    name: 'StockForge Demo Retail',
-    email: 'demo@stockforge.pos',
-    password: 'demo',
-    phone: '+977 9801234567',
-    shop_type: 'Grocery & Supermarket',
-    address: 'Commercial Avenue, Kathmandu',
-    currency_symbol: 'रु.',
-    seedTestData: true,
-  });
 }

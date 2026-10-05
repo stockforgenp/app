@@ -221,7 +221,7 @@ export interface RegisterShopInput {
   shop_type: string;
   address?: string;
   currency_symbol?: string;
-  seedTestData: boolean;
+  seedTestData?: boolean;
 }
 
 export interface LoginInput {

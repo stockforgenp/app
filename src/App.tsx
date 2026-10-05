@@ -2,35 +2,45 @@
  * StockForge - Offline Desktop Inventory & Sales Management
  * React + TypeScript + SQLite WASM + Tailwind CSS
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
-import { getDatabase, subscribeToDbChanges, queryOne } from './lib/db/sqliteEngine.ts';
-import { getSettings } from './lib/services/settingsService.ts';
-import { Product, AppSettings } from './types/index.ts';
-import { ToastProvider } from './context/ToastContext.tsx';
-import { Sidebar, NavTab } from './components/layout/Sidebar.tsx';
-import { Header } from './components/layout/Header.tsx';
-import { DashboardView } from './components/views/DashboardView.tsx';
-import { SalesView } from './components/views/SalesView.tsx';
-import { PurchasesView } from './components/views/PurchasesView.tsx';
-import { InventoryView } from './components/views/InventoryView.tsx';
-import { VendorsView } from './components/views/VendorsView.tsx';
-import { CustomersView } from './components/views/CustomersView.tsx';
-import { SalesHistoryView } from './components/views/SalesHistoryView.tsx';
-import { ExpensesView } from './components/views/ExpensesView.tsx';
-import { StaffView } from './components/views/StaffView.tsx';
-import { PayrollView } from './components/views/PayrollView.tsx';
-import { AnalyticsView } from './components/views/AnalyticsView.tsx';
-import { SettingsView } from './components/views/SettingsView.tsx';
-import { HardDrive, Loader2 } from 'lucide-react';
-import { useGlobalShortcuts } from './lib/hooks/useGlobalShortcuts.ts';
-import { ShortcutsHelpModal } from './components/common/ShortcutsHelpModal.tsx';
-import { CommandPaletteModal } from './components/common/CommandPaletteModal.tsx';
-import { useTheme } from './context/ThemeContext.tsx';
-import { useLanguage } from './context/LanguageContext.tsx';
-import { useAuth } from './context/AuthContext.tsx';
-import { AuthView } from './components/auth/AuthView.tsx';
+import { useState, useEffect, useCallback, useMemo } from "react";
+import {
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  getDatabase,
+  subscribeToDbChanges,
+  queryOne,
+} from "./lib/db/sqliteEngine.ts";
+import { getSettings } from "./lib/services/settingsService.ts";
+import { Product, AppSettings } from "./types/index.ts";
+import { ToastProvider } from "./context/ToastContext.tsx";
+import { Sidebar, NavTab } from "./components/layout/Sidebar.tsx";
+import { Header } from "./components/layout/Header.tsx";
+import { DashboardView } from "./components/views/DashboardView.tsx";
+import { SalesView } from "./components/views/SalesView.tsx";
+import { PurchasesView } from "./components/views/PurchasesView.tsx";
+import { InventoryView } from "./components/views/InventoryView.tsx";
+import { VendorsView } from "./components/views/VendorsView.tsx";
+import { CustomersView } from "./components/views/CustomersView.tsx";
+import { SalesHistoryView } from "./components/views/SalesHistoryView.tsx";
+import { ExpensesView } from "./components/views/ExpensesView.tsx";
+import { StaffView } from "./components/views/StaffView.tsx";
+import { PayrollView } from "./components/views/PayrollView.tsx";
+import { AnalyticsView } from "./components/views/AnalyticsView.tsx";
+import { SettingsView } from "./components/views/SettingsView.tsx";
+import { HardDrive, Loader2 } from "lucide-react";
+import { useGlobalShortcuts } from "./lib/hooks/useGlobalShortcuts.ts";
+import { ShortcutsHelpModal } from "./components/common/ShortcutsHelpModal.tsx";
+import { CommandPaletteModal } from "./components/common/CommandPaletteModal.tsx";
+import { useTheme } from "./context/ThemeContext.tsx";
+import { useLanguage } from "./context/LanguageContext.tsx";
+import { useAuth } from "./context/AuthContext.tsx";
+import { AuthView } from "./components/auth/AuthView.tsx";
 
 export default function App() {
   const { toggleTheme } = useTheme();
@@ -44,57 +54,57 @@ export default function App() {
 
   // Derive active tab from URL path
   const currentTab: NavTab = useMemo(() => {
-    const path = location.pathname.replace(/^\//, '').split('/')[0];
+    const path = location.pathname.replace(/^\//, "").split("/")[0];
     const validTabs: NavTab[] = [
-      'dashboard',
-      'sales',
-      'purchases',
-      'inventory',
-      'vendors',
-      'customers',
-      'history',
-      'expenses',
-      'staff',
-      'payroll',
-      'analytics',
-      'settings',
+      "dashboard",
+      "sales",
+      "purchases",
+      "inventory",
+      "vendors",
+      "customers",
+      "history",
+      "expenses",
+      "staff",
+      "payroll",
+      "analytics",
+      "settings",
     ];
-    return validTabs.includes(path as NavTab) ? (path as NavTab) : 'dashboard';
+    return validTabs.includes(path as NavTab) ? (path as NavTab) : "dashboard";
   }, [location.pathname]);
 
   const [settings, setSettings] = useState<AppSettings>({
-    currency_symbol: 'Rs.',
+    currency_symbol: "Rs.",
     low_stock_threshold: 10,
     allow_negative_stock: false,
   });
 
   // Automatically adapt Rs. <-> Nepali rupee symbol रु. based on active language
   const effectiveCurrencySymbol = useMemo(() => {
-    const raw = (settings.currency_symbol || '').trim();
-    if (language === 'np') {
+    const raw = (settings.currency_symbol || "").trim();
+    if (language === "np") {
       if (
         !raw ||
-        raw === 'Rs.' ||
-        raw === 'Rs' ||
-        raw.toLowerCase() === 'rs' ||
-        raw.toLowerCase() === 'rs.' ||
-        raw.toUpperCase() === 'NRS' ||
-        raw.toUpperCase() === 'NRS.'
+        raw === "Rs." ||
+        raw === "Rs" ||
+        raw.toLowerCase() === "rs" ||
+        raw.toLowerCase() === "rs." ||
+        raw.toUpperCase() === "NRS" ||
+        raw.toUpperCase() === "NRS."
       ) {
-        return 'रु.';
+        return "रु.";
       }
     } else {
       if (
         !raw ||
-        raw === 'रु.' ||
-        raw === 'रु' ||
-        raw === 'रू.' ||
-        raw === 'रू'
+        raw === "रु." ||
+        raw === "रु" ||
+        raw === "रू." ||
+        raw === "रू"
       ) {
-        return 'Rs.';
+        return "Rs.";
       }
     }
-    return raw || (language === 'np' ? 'रु.' : 'Rs.');
+    return raw || (language === "np" ? "रु." : "Rs.");
   }, [settings.currency_symbol, language]);
 
   const [lowStockCount, setLowStockCount] = useState(0);
@@ -102,13 +112,19 @@ export default function App() {
   // Power user modal states
   const [isShortcutsHelpOpen, setIsShortcutsHelpOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [initialOpenCreateProduct, setInitialOpenCreateProduct] = useState(false);
+  const [initialOpenCreateProduct, setInitialOpenCreateProduct] =
+    useState(false);
 
   // Cross-view shortcuts
-  const [activeRestockProduct, setActiveRestockProduct] = useState<Product | null>(null);
-  const [activeAdjustProduct, setActiveAdjustProduct] = useState<Product | null>(null);
-  const [activeMovementsProduct, setActiveMovementsProduct] = useState<Product | null>(null);
-  const [initialSaleProducts, setInitialSaleProducts] = useState<Array<{ product: Product; quantity?: number }>>([]);
+  const [activeRestockProduct, setActiveRestockProduct] =
+    useState<Product | null>(null);
+  const [activeAdjustProduct, setActiveAdjustProduct] =
+    useState<Product | null>(null);
+  const [activeMovementsProduct, setActiveMovementsProduct] =
+    useState<Product | null>(null);
+  const [initialSaleProducts, setInitialSaleProducts] = useState<
+    Array<{ product: Product; quantity?: number }>
+  >([]);
 
   const handleClearActiveModals = useCallback(() => {
     setActiveRestockProduct(null);
@@ -121,18 +137,18 @@ export default function App() {
       handleClearActiveModals();
       navigate(`/${tab}`);
     },
-    [handleClearActiveModals, navigate]
+    [handleClearActiveModals, navigate],
   );
 
   const handleStartSaleWithProducts = useCallback(
     (items: Array<{ product: Product; quantity?: number }>) => {
       setInitialSaleProducts(items);
       handleClearActiveModals();
-      navigate('/sales');
+      navigate("/sales");
     },
-    [handleClearActiveModals, navigate]
+    [handleClearActiveModals, navigate],
   );
-  
+
   const [toggleSidebar, setToggleSidebar] = useState(false);
 
   // Wire up global keyboard shortcuts across the app (Ctrl+N, Ctrl+P, Ctrl+D, Ctrl+I, Ctrl+K, ?, etc.)
@@ -152,7 +168,7 @@ export default function App() {
     onOpenCreateProduct: () => {
       handleClearActiveModals();
       setInitialOpenCreateProduct(true);
-      navigate('/products');
+      navigate("/products");
     },
     onToggleTheme: toggleTheme,
     onToggleLanguage: toggleLanguage,
@@ -167,8 +183,8 @@ export default function App() {
         setDbReady(true);
       })
       .catch((err) => {
-        console.error('Failed to initialize local SQLite database:', err);
-        setDbError((err as Error).message || 'SQLite initialization error');
+        console.error("Failed to initialize local SQLite database:", err);
+        setDbError((err as Error).message || "SQLite initialization error");
       });
   }, []);
 
@@ -178,7 +194,7 @@ export default function App() {
     try {
       const res = queryOne<{ count: number }>(
         `SELECT COUNT(*) as count FROM products WHERE current_stock <= ?`,
-        [settings.low_stock_threshold]
+        [settings.low_stock_threshold],
       );
       setLowStockCount(res?.count ?? 0);
     } catch {
@@ -202,7 +218,7 @@ export default function App() {
     setActiveRestockProduct(product);
     setActiveAdjustProduct(null);
     setActiveMovementsProduct(null);
-    navigate('/inventory');
+    navigate("/inventory");
   };
 
   if (dbError) {
@@ -212,7 +228,9 @@ export default function App() {
           <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-400 mx-auto flex items-center justify-center">
             <HardDrive className="w-6 h-6" />
           </div>
-          <h2 className="text-base font-bold text-neutral-100">Database Initialization Error</h2>
+          <h2 className="text-base font-bold text-neutral-100">
+            Database Initialization Error
+          </h2>
           <p className="text-xs text-neutral-400">{dbError}</p>
           <button
             onClick={() => window.location.reload()}
@@ -230,7 +248,9 @@ export default function App() {
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center p-6">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
-          <div className="text-xs font-mono text-neutral-400">Loading SQLite Offline Engine...</div>
+          <div className="text-xs font-mono text-neutral-400">
+            Loading SQLite Offline Engine...
+          </div>
         </div>
       </div>
     );
@@ -239,7 +259,7 @@ export default function App() {
   if (!isAuthenticated) {
     return (
       <ToastProvider>
-        <AuthView onSuccess={() => navigate('/dashboard')} />
+        <AuthView onSuccess={() => navigate("/dashboard")} />
       </ToastProvider>
     );
   }
@@ -263,11 +283,11 @@ export default function App() {
           <Header
             currentTab={currentTab}
             currencySymbol={effectiveCurrencySymbol}
-            onNewSaleClick={() => handleNavigate('sales')}
+            onNewSaleClick={() => handleNavigate("sales")}
             onNewProductClick={() => {
               handleClearActiveModals();
               setInitialOpenCreateProduct(true);
-              handleNavigate('inventory');
+              handleNavigate("inventory");
             }}
             onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
             onOpenShortcutsHelp={() => setIsShortcutsHelpOpen(true)}
@@ -281,122 +301,147 @@ export default function App() {
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -5 }}
-                transition={{ duration: 0.14, ease: 'easeOut' }}
+                transition={{ duration: 0.14, ease: "easeOut" }}
                 className="h-full"
               >
                 <Routes location={location}>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route
-                path="/dashboard"
-                element={
-                  <DashboardView
-                    currencySymbol={effectiveCurrencySymbol}
-                    onNavigateToTab={handleNavigate}
-                    onRestockClick={handleRestockFromAnywhere}
+                  <Route
+                    path="/"
+                    element={<Navigate to="/dashboard" replace />}
                   />
-                }
-              />
-              <Route path="/products" element={<Navigate to="/inventory" replace />} />
-              <Route
-                path="/sales"
-                element={
-                  <SalesView
-                    currencySymbol={effectiveCurrencySymbol}
-                    allowNegativeStock={settings.allow_negative_stock}
-                    initialProducts={initialSaleProducts}
-                    onClearInitialProducts={() => setInitialSaleProducts([])}
-                    onRestockProduct={handleRestockFromAnywhere}
-                    onSaleCompleted={() => {
-                      updateLowStockBadge();
-                    }}
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <DashboardView
+                        currencySymbol={effectiveCurrencySymbol}
+                        onNavigateToTab={handleNavigate}
+                        onRestockClick={handleRestockFromAnywhere}
+                      />
+                    }
                   />
-                }
-              />
-              <Route
-                path="/purchases"
-                element={
-                  <PurchasesView
-                    currencySymbol={effectiveCurrencySymbol}
-                    onOpenCreateProduct={() => {
-                      handleClearActiveModals();
-                      setInitialOpenCreateProduct(true);
-                      handleNavigate('inventory');
-                    }}
+                  <Route
+                    path="/products"
+                    element={<Navigate to="/inventory" replace />}
                   />
-                }
-              />
-              <Route
-                path="/inventory"
-                element={
-                  <InventoryView
-                    currencySymbol={effectiveCurrencySymbol}
-                    lowStockThreshold={settings.low_stock_threshold}
-                    allowNegativeStock={settings.allow_negative_stock}
-                    activeRestockProduct={activeRestockProduct}
-                    activeAdjustProduct={activeAdjustProduct}
-                    activeMovementsProduct={activeMovementsProduct}
-                    onClearActiveModals={handleClearActiveModals}
-                    onStartSaleWithProducts={handleStartSaleWithProducts}
-                    initialOpenCreate={initialOpenCreateProduct}
-                    onClearInitialOpenCreate={() => setInitialOpenCreateProduct(false)}
+                  <Route
+                    path="/sales"
+                    element={
+                      <SalesView
+                        currencySymbol={effectiveCurrencySymbol}
+                        allowNegativeStock={settings.allow_negative_stock}
+                        initialProducts={initialSaleProducts}
+                        onClearInitialProducts={() =>
+                          setInitialSaleProducts([])
+                        }
+                        onRestockProduct={handleRestockFromAnywhere}
+                        onSaleCompleted={() => {
+                          updateLowStockBadge();
+                        }}
+                      />
+                    }
                   />
-                }
-              />
-              <Route
-                path="/vendors"
-                element={
-                  <VendorsView
-                    currencySymbol={effectiveCurrencySymbol}
-                    onNavigateToProducts={() => handleNavigate('inventory')}
+                  <Route
+                    path="/purchases"
+                    element={
+                      <PurchasesView
+                        currencySymbol={effectiveCurrencySymbol}
+                        onOpenCreateProduct={() => {
+                          handleClearActiveModals();
+                          setInitialOpenCreateProduct(true);
+                          handleNavigate("inventory");
+                        }}
+                      />
+                    }
                   />
-                }
-              />
-              <Route
-                path="/customers"
-                element={
-                  <CustomersView
-                    currencySymbol={effectiveCurrencySymbol}
-                    onNavigateToSales={() => handleNavigate('sales')}
+                  <Route
+                    path="/inventory"
+                    element={
+                      <InventoryView
+                        currencySymbol={effectiveCurrencySymbol}
+                        lowStockThreshold={settings.low_stock_threshold}
+                        allowNegativeStock={settings.allow_negative_stock}
+                        activeRestockProduct={activeRestockProduct}
+                        activeAdjustProduct={activeAdjustProduct}
+                        activeMovementsProduct={activeMovementsProduct}
+                        onClearActiveModals={handleClearActiveModals}
+                        onStartSaleWithProducts={handleStartSaleWithProducts}
+                        initialOpenCreate={initialOpenCreateProduct}
+                        onClearInitialOpenCreate={() =>
+                          setInitialOpenCreateProduct(false)
+                        }
+                      />
+                    }
                   />
-                }
-              />
-              <Route
-                path="/history"
-                element={<SalesHistoryView currencySymbol={effectiveCurrencySymbol} />}
-              />
-              <Route
-                path="/expenses"
-                element={<ExpensesView currencySymbol={effectiveCurrencySymbol} />}
-              />
-              <Route
-                path="/staff"
-                element={<StaffView currencySymbol={effectiveCurrencySymbol} />}
-              />
-              <Route
-                path="/payroll"
-                element={<PayrollView currencySymbol={effectiveCurrencySymbol} />}
-              />
-              <Route
-                path="/analytics"
-                element={<AnalyticsView currencySymbol={effectiveCurrencySymbol} />}
-              />
-              <Route
-                path="/settings"
-                element={
-                  <SettingsView
-                    onSettingsUpdated={(newSettings) => {
-                      setSettings(newSettings);
-                      updateLowStockBadge();
-                    }}
+                  <Route
+                    path="/vendors"
+                    element={
+                      <VendorsView
+                        currencySymbol={effectiveCurrencySymbol}
+                        onNavigateToProducts={() => handleNavigate("inventory")}
+                      />
+                    }
                   />
-                }
-              />
-              {/* Fallback route */}
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </motion.div>
-        </AnimatePresence>
-      </main>
+                  <Route
+                    path="/customers"
+                    element={
+                      <CustomersView
+                        currencySymbol={effectiveCurrencySymbol}
+                        onNavigateToSales={() => handleNavigate("sales")}
+                      />
+                    }
+                  />
+                  <Route
+                    path="/history"
+                    element={
+                      <SalesHistoryView
+                        currencySymbol={effectiveCurrencySymbol}
+                      />
+                    }
+                  />
+                  <Route
+                    path="/expenses"
+                    element={
+                      <ExpensesView currencySymbol={effectiveCurrencySymbol} />
+                    }
+                  />
+                  <Route
+                    path="/staff"
+                    element={
+                      <StaffView currencySymbol={effectiveCurrencySymbol} />
+                    }
+                  />
+                  <Route
+                    path="/payroll"
+                    element={
+                      <PayrollView currencySymbol={effectiveCurrencySymbol} />
+                    }
+                  />
+                  <Route
+                    path="/analytics"
+                    element={
+                      <AnalyticsView currencySymbol={effectiveCurrencySymbol} />
+                    }
+                  />
+                  <Route
+                    path="/settings"
+                    element={
+                      <SettingsView
+                        onSettingsUpdated={(newSettings) => {
+                          setSettings(newSettings);
+                          updateLowStockBadge();
+                        }}
+                      />
+                    }
+                  />
+                  {/* Fallback route */}
+                  <Route
+                    path="*"
+                    element={<Navigate to="/dashboard" replace />}
+                  />
+                </Routes>
+              </motion.div>
+            </AnimatePresence>
+          </main>
         </div>
       </div>
 
@@ -414,7 +459,7 @@ export default function App() {
         onOpenCreateProduct={() => {
           handleClearActiveModals();
           setInitialOpenCreateProduct(true);
-          handleNavigate('inventory');
+          handleNavigate("inventory");
         }}
         onOpenShortcutsHelp={() => setIsShortcutsHelpOpen(true)}
         onStartSaleWithProduct={(product) => {

@@ -29,6 +29,7 @@ import {
   Boxes,
   Building2,
   PlusCircle,
+  Table2,
 } from "lucide-react";
 import { Product, StockMovement, Vendor } from "../../types/index.ts";
 import {
@@ -56,6 +57,7 @@ import { ConfirmDialog } from "../common/ConfirmDialog.tsx";
 import { ActionMenu } from "../common/ActionMenu.tsx";
 import { Select } from "../common/Select.tsx";
 import { Input } from "../common/Input.tsx";
+import { BulkProductModal } from "./BulkProductModal.tsx";
 import { DateFilterBar } from "../common/DateFilterBar.tsx";
 import { DatePreset } from "../../lib/utils/dateFilters.ts";
 import { useToast } from "../../context/ToastContext.tsx";
@@ -136,6 +138,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
   // Modals
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [selectedRestock, setSelectedRestock] = useState<Product | null>(
@@ -729,6 +732,20 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             <Plus className="w-4 h-4" />
             <span>{t("prod_add_button", "Add Product")}</span>
           </button>
+
+          {/* Add Multiple (Table) Button */}
+          <button
+            onClick={() => setIsBulkCreateOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg shadow-xs transition-colors cursor-pointer"
+            title="Add Multiple Products in Table Format"
+          >
+            <Table2 className="w-4 h-4 text-emerald-400" />
+            <span>
+              {isNepali
+                ? "थोक सामान थप्नुहोस् (तालिका)"
+                : "Add Multiple (Table)"}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -1062,8 +1079,34 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       <p className="text-neutral-500 text-[11px] mt-1">
                         {hasActiveFilters
                           ? "Try clearing date, vendor, or search filters to see all products."
-                          : 'Click "+ Add Product" to register your first product.'}
+                          : isNepali
+                            ? "सामान थप्न तलका बटनहरू प्रयोग गर्नुहोस्।"
+                            : "Click below to register products one by one or in bulk table format."}
                       </p>
+                      {!hasActiveFilters && (
+                        <div className="flex items-center justify-center gap-3 mt-4">
+                          <button
+                            type="button"
+                            onClick={handleOpenCreate}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors cursor-pointer"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>{t("prod_add_button", "Add Product")}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsBulkCreateOpen(true)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg shadow-xs transition-colors cursor-pointer"
+                          >
+                            <Table2 className="w-4 h-4 text-emerald-400" />
+                            <span>
+                              {isNepali
+                                ? "थोक सामान थप्नुहोस् (तालिका)"
+                                : "Add Multiple (Table)"}
+                            </span>
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ) : (
@@ -1425,6 +1468,27 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         }
         maxWidth="md"
       >
+        <div className="flex items-center justify-between pb-2 mb-3 border-b border-neutral-800">
+          <span className="text-xs text-neutral-400">
+            {isNepali ? "एक पटकमा एउटा सामान दर्ता" : "Single Product Entry"}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setIsCreateOpen(false);
+              setIsBulkCreateOpen(true);
+            }}
+            className="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Table2 className="w-3.5 h-3.5" />
+            <span>
+              {isNepali
+                ? "तालिकामा धेरै सामान थप्नुहोस् (Bulk Mode)"
+                : "Add Multiple in Table Mode"}
+            </span>
+          </button>
+        </div>
+
         <form onSubmit={handleSaveCreate} className="space-y-4">
           <div>
             <Input
@@ -1494,41 +1558,45 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   : "e.g. pcs, kg, litre, box"}
               </span>
             </div>
-            <div className="flex gap-2">
-              <Input
-                type="text"
-                required
-                placeholder={t(
-                  "prod_unit_placeholder",
-                  "e.g. pcs, kg, ltr, box",
-                )}
-                value={formData.unit}
-                onChange={(e) =>
-                  setFormData({ ...formData, unit: e.target.value })
-                }
-                className="font-mono"
-                containerClassName="flex-1"
-              />
-              <Select
-                value={
-                  COMMON_UNITS.some(
-                    (u) => u.value === formData.unit.toLowerCase(),
-                  )
-                    ? formData.unit.toLowerCase()
-                    : ""
-                }
-                onChange={(e) => {
-                  if (e.target.value) {
-                    setFormData({ ...formData, unit: e.target.value });
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <Input
+                  type="text"
+                  required
+                  placeholder={t(
+                    "prod_unit_placeholder",
+                    "e.g. pcs, kg, ltr, box",
+                  )}
+                  value={formData.unit}
+                  onChange={(e) =>
+                    setFormData({ ...formData, unit: e.target.value })
                   }
-                }}
-                placeholder={isNepali ? "-- एकाइ --" : "-- Common Units --"}
-                containerClassName="w-48"
-                options={COMMON_UNITS.map((u) => ({
-                  value: u.value,
-                  label: u.label,
-                }))}
-              />
+                  className="font-mono"
+                />
+              </div>
+              <div className="w-52 sm:w-60 shrink-0">
+                <Select
+                  value={
+                    COMMON_UNITS.some(
+                      (u) => u.value === formData.unit.toLowerCase(),
+                    )
+                      ? formData.unit.toLowerCase()
+                      : ""
+                  }
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setFormData({ ...formData, unit: e.target.value });
+                    }
+                  }}
+                  placeholder={
+                    isNepali ? "-- एकाइ छान्नुहोस् --" : "-- Select Unit --"
+                  }
+                  options={COMMON_UNITS.map((u) => ({
+                    value: u.value,
+                    label: u.label,
+                  }))}
+                />
+              </div>
             </div>
             {/* Quick unit chips */}
             <div className="flex flex-wrap gap-1.5 mt-2">
@@ -1760,41 +1828,45 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   : "e.g. pcs, kg, litre, box"}
               </span>
             </div>
-            <div className="flex gap-2">
-              <Input
-                type="text"
-                required
-                placeholder={t(
-                  "prod_unit_placeholder",
-                  "e.g. pcs, kg, ltr, box",
-                )}
-                value={formData.unit}
-                onChange={(e) =>
-                  setFormData({ ...formData, unit: e.target.value })
-                }
-                className="font-mono"
-                containerClassName="flex-1"
-              />
-              <Select
-                value={
-                  COMMON_UNITS.some(
-                    (u) => u.value === formData.unit.toLowerCase(),
-                  )
-                    ? formData.unit.toLowerCase()
-                    : ""
-                }
-                onChange={(e) => {
-                  if (e.target.value) {
-                    setFormData({ ...formData, unit: e.target.value });
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <Input
+                  type="text"
+                  required
+                  placeholder={t(
+                    "prod_unit_placeholder",
+                    "e.g. pcs, kg, ltr, box",
+                  )}
+                  value={formData.unit}
+                  onChange={(e) =>
+                    setFormData({ ...formData, unit: e.target.value })
                   }
-                }}
-                placeholder={isNepali ? "-- एकाइ --" : "-- Common Units --"}
-                containerClassName="w-48"
-                options={COMMON_UNITS.map((u) => ({
-                  value: u.value,
-                  label: u.label,
-                }))}
-              />
+                  className="font-mono"
+                />
+              </div>
+              <div className="w-52 sm:w-60 shrink-0">
+                <Select
+                  value={
+                    COMMON_UNITS.some(
+                      (u) => u.value === formData.unit.toLowerCase(),
+                    )
+                      ? formData.unit.toLowerCase()
+                      : ""
+                  }
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setFormData({ ...formData, unit: e.target.value });
+                    }
+                  }}
+                  placeholder={
+                    isNepali ? "-- एकाइ छान्नुहोस् --" : "-- Select Unit --"
+                  }
+                  options={COMMON_UNITS.map((u) => ({
+                    value: u.value,
+                    label: u.label,
+                  }))}
+                />
+              </div>
             </div>
             {/* Quick unit chips */}
             <div className="flex flex-wrap gap-1.5 mt-2">
@@ -2223,6 +2295,19 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </div>
         </div>
       </Modal>
+
+      {/* ==================== MODAL: BULK CREATE PRODUCTS (TABLE) ==================== */}
+      <BulkProductModal
+        isOpen={isBulkCreateOpen}
+        onClose={() => setIsBulkCreateOpen(false)}
+        vendors={vendors}
+        currencySymbol={currencySymbol}
+        lowStockThreshold={lowStockThreshold}
+        onSuccess={() => {
+          loadData();
+          loadMovements();
+        }}
+      />
     </div>
   );
 };

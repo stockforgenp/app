@@ -6,61 +6,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  MoreHorizontal,
-  ChevronRight,
-  Eye,
-  Edit2,
-  Trash2,
-  Printer,
-  Copy,
-  PlusCircle,
-  ShoppingCart,
-  CreditCard,
-  History,
-} from "lucide-react";
-
-const getFallbackIcon = (
-  label: string,
-  isDestructive?: boolean
-): React.ComponentType<{ className?: string }> => {
-  const l = label.toLowerCase();
-  if (
-    isDestructive ||
-    l.includes("delete") ||
-    l.includes("remove") ||
-    l.includes("मेटाउनुहोस्") ||
-    l.includes("हटाउनुहोस्") ||
-    l.includes("reverse")
-  ) {
-    return Trash2;
-  }
-  if (l.includes("edit") || l.includes("सम्पादन")) {
-    return Edit2;
-  }
-  if (l.includes("view") || l.includes("inspect") || l.includes("हेर्नुहोस्")) {
-    return Eye;
-  }
-  if (l.includes("print") || l.includes("छाप्नुहोस्") || l.includes("प्रिन्ट")) {
-    return Printer;
-  }
-  if (l.includes("copy") || l.includes("कपी")) {
-    return Copy;
-  }
-  if (l.includes("sell") || l.includes("pos") || l.includes("बिक्री")) {
-    return ShoppingCart;
-  }
-  if (l.includes("restock") || l.includes("add") || l.includes("थप")) {
-    return PlusCircle;
-  }
-  if (l.includes("history") || l.includes("ledger") || l.includes("इतिहास")) {
-    return History;
-  }
-  if (l.includes("pay") || l.includes("salary") || l.includes("disburse")) {
-    return CreditCard;
-  }
-  return ChevronRight;
-};
+import { MoreHorizontal } from "lucide-react";
 
 export type ActionMenuColor =
   | "default"
@@ -316,15 +262,13 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
             >
               <div className="flex flex-col space-y-0.5">
                 {validItems.map((item, index) => {
+                  const ItemIcon = item.icon;
                   const isDanger =
                     item.isDestructive ||
                     item.variant === "danger" ||
                     item.variant === "destructive" ||
                     item.color === "danger" ||
                     item.color === "rose";
-
-                  const ItemIcon =
-                    item.icon || getFallbackIcon(item.label, isDanger);
 
                   const effectiveColor: ActionMenuColor = isDanger
                     ? "rose"
@@ -359,12 +303,17 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
                           {ItemIcon &&
                             (React.isValidElement(ItemIcon) ? (
                               <span className="shrink-0">{ItemIcon}</span>
-                            ) : typeof ItemIcon === "function" || (typeof ItemIcon === "object" && ItemIcon !== null) ? (
+                            ) : typeof ItemIcon === "function" ||
+                              (typeof ItemIcon === "object" &&
+                                ItemIcon !== null) ? (
                               (() => {
-                                const IconComponent = ItemIcon as React.ComponentType<{ className?: string }>;
+                                const IconComponent =
+                                  ItemIcon as React.ComponentType<{
+                                    className?: string;
+                                  }>;
                                 return (
                                   <IconComponent
-                                    className={`w-4 h-4 shrink-0 transition-colors ${
+                                    className={`w-3.5 h-3.5 shrink-0 transition-colors ${
                                       item.disabled
                                         ? "text-neutral-500"
                                         : style.icon

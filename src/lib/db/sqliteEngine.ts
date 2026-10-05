@@ -7,7 +7,7 @@
 import initSqlJs, { Database, SqlValue } from 'sql.js';
 import sqlWasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
 import { SCHEMA_SQL } from './schema.ts';
-import { seedInitialData } from './seed.ts';
+import { seedInitialData, cleanupMockData } from './seed.ts';
 import { saveDatabaseToStorage, loadDatabaseFromStorage, clearDatabaseStorage } from './storage.ts';
 
 let dbInstance: Database | null = null;
@@ -307,6 +307,7 @@ export async function getDatabase(): Promise<Database> {
         dbInstance = new SQL.Database(savedBinary);
         dbInstance.run('PRAGMA foreign_keys = ON;');
         const migrated = migrateDatabaseIfNeeded(dbInstance);
+        cleanupMockData(dbInstance);
         if (migrated) {
           await persistCurrentDatabase();
         }

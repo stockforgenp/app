@@ -12,7 +12,6 @@ import {
   logoutShop,
   getAllShops,
   switchShop as switchShopService,
-  seedDemoShopIfEmpty,
   getShopsCount,
 } from '../lib/services/authService.ts';
 import { getDatabase, subscribeToDbChanges } from '../lib/db/sqliteEngine.ts';
@@ -27,7 +26,6 @@ interface AuthContextType {
   register: (input: RegisterShopInput) => Promise<Shop>;
   logout: () => void;
   switchShop: (shopId: number) => Promise<Shop>;
-  loginDemoShop: () => Promise<Shop>;
   refreshShops: () => void;
 }
 
@@ -53,13 +51,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     getDatabase()
       .then(async () => {
-        if (getShopsCount() === 0) {
-          try {
-            await seedDemoShopIfEmpty();
-          } catch (e) {
-            console.error('Error auto-seeding demo shop:', e);
-          }
-        }
         refreshShops();
         setIsLoading(false);
       })
@@ -105,13 +96,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return shop;
   }, [refreshShops]);
 
-  const loginDemoShop = useCallback(async (): Promise<Shop> => {
-    const shop = await seedDemoShopIfEmpty();
-    setCurrentShop(shop);
-    refreshShops();
-    return shop;
-  }, [refreshShops]);
-
   return (
     <AuthContext.Provider
       value={{
@@ -124,7 +108,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         switchShop,
-        loginDemoShop,
         refreshShops,
       }}
     >

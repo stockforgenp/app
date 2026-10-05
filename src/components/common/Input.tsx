@@ -31,7 +31,10 @@ const renderIcon = (
 ) => {
   if (!icon) return null;
   if (React.isValidElement(icon)) {
-    return icon;
+    const el = icon as React.ReactElement<{ className?: string }>;
+    return React.cloneElement(el, {
+      className: `${el.props?.className || ''} ${extraClass}`.trim(),
+    });
   }
   if (typeof icon === 'function' || (typeof icon === 'object' && icon !== null)) {
     const IconComponent = icon as React.ComponentType<{ className?: string }>;
@@ -176,7 +179,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           />
 
           {hasLeftIcon && (
-            <div className="absolute inset-y-0 left-2.5 z-10 flex items-center pointer-events-none text-neutral-500 dark:text-neutral-400">
+            <div className="absolute inset-y-0 left-2.5 z-10 flex items-center pointer-events-none text-neutral-400">
               {renderIcon(effectiveLeftIcon, `${iconSizeClasses[sizeVariant]} shrink-0 text-current`)}
             </div>
           )}
@@ -185,13 +188,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             <button
               type="button"
               onClick={onClear}
-              className="absolute inset-y-0 right-2.5 z-10 flex items-center text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 text-xs cursor-pointer p-0.5"
+              className="absolute inset-y-0 right-2.5 z-10 flex items-center text-neutral-400 hover:text-neutral-100 text-xs cursor-pointer p-0.5"
               title="Clear input"
             >
               ✕
             </button>
           ) : effectiveRightIcon ? (
-            <div className="absolute inset-y-0 right-2.5 z-10 flex items-center text-neutral-500 dark:text-neutral-400">
+            <div className="absolute inset-y-0 right-2.5 z-10 flex items-center text-neutral-400">
               {renderIcon(effectiveRightIcon, `${iconSizeClasses[sizeVariant]} shrink-0 text-current`)}
             </div>
           ) : null}

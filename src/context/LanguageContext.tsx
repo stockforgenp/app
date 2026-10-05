@@ -4,7 +4,14 @@
  * Persists selection to localStorage and SQLite app_settings
  */
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { SupportedLanguage, TRANSLATIONS, toNepaliDigits } from '../lib/i18n/translations.ts';
+import {
+  SupportedLanguage,
+  TRANSLATIONS,
+  toNepaliDigits,
+  BilingualPair,
+  setI18nLanguage,
+  interpolateParams,
+} from '../lib/i18n/translations.ts';
 import { run, queryOne } from '../lib/db/sqliteEngine.ts';
 
 interface LanguageContextType {
@@ -13,10 +20,11 @@ interface LanguageContextType {
   setLanguage: (lang: SupportedLanguage) => void;
   toggleLanguage: () => void;
   t: (
-    key: string,
-    fallbackOrParams?: string | Record<string, string | number>,
+    keyOrPair: string | BilingualPair,
+    fallbackOrNepaliOrParams?: string | Record<string, string | number>,
     params?: Record<string, string | number>
   ) => string;
+  tr: (enText: string, npText: string) => string;
   formatNumberByLang: (val: number | string) => string;
   isNepali: boolean;
 }
@@ -67,6 +75,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       const row = queryOne<{ value: string }>('SELECT value FROM app_settings WHERE key = ?', ['language']);
       if (row?.value === 'en' || row?.value === 'np') {
         setLanguageState(row.value);
+        setI18nLanguage(row.value);
         localStorage.setItem(LANGUAGE_STORAGE_KEY, row.value);
 
         // Ensure currency symbol in SQLite is synchronized with the loaded language
@@ -91,6 +100,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const setLanguage = useCallback((newLang: SupportedLanguage) => {
     setLanguageState(newLang);
+    setI18nLanguage(newLang);
     try {
       localStorage.setItem(LANGUAGE_STORAGE_KEY, newLang);
       run(
@@ -127,34 +137,63 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const t = useCallback(
     (
-      key: string,
-      fallbackOrParams?: string | Record<string, string | number>,
+      keyOrPair: string | BilingualPair,
+      fallbackOrNepaliOrParams?: string | Record<string, string | number>,
       params?: Record<string, string | number>
     ): string => {
-      let fallback = key;
-      let interpolationParams: Record<string, string | number> | undefined;
+      // 1. Bilingual object { en: '...', np: '...' }
+      if (
+        typeof keyOrPair === 'object' &&
+        keyOrPair !== null &&
+        'en' in keyOrPair &&
+        'np' in keyOrPair
+      ) {
+        const raw = language === 'np' ? keyOrPair.np : keyOrPair.en;
+        const interParams =
+          typeof fallbackOrNepaliOrParams === 'object'
+            ? fallbackOrNepaliOrParams
+            : params;
+        return interpolateParams(raw, interParams, language);
+      }
 
-      if (typeof fallbackOrParams === 'string') {
-        fallback = fallbackOrParams;
-        interpolationParams = params;
-      } else if (fallbackOrParams && typeof fallbackOrParams === 'object') {
-        interpolationParams = fallbackOrParams;
+      const key = String(keyOrPair);
+
+      // 2. Inline string pair: t('English', 'नेपाली')
+      if (
+        typeof fallbackOrNepaliOrParams === 'string' &&
+        !TRANSLATIONS.en[key] &&
+        !TRANSLATIONS.np[key] &&
+        /[\u0900-\u097F]/.test(fallbackOrNepaliOrParams)
+      ) {
+        const chosen = language === 'np' ? fallbackOrNepaliOrParams : key;
+        return interpolateParams(chosen, params, language);
+      }
+
+      // 3. Key lookup with optional fallback or params
+      let fallback = key;
+      let interParams: Record<string, string | number> | undefined;
+
+      if (typeof fallbackOrNepaliOrParams === 'string') {
+        fallback = fallbackOrNepaliOrParams;
+        interParams = params;
+      } else if (
+        fallbackOrNepaliOrParams &&
+        typeof fallbackOrNepaliOrParams === 'object'
+      ) {
+        interParams = fallbackOrNepaliOrParams;
       }
 
       const dict = TRANSLATIONS[language] || TRANSLATIONS.en;
-      let text = dict[key] || TRANSLATIONS.en[key] || fallback;
+      const rawText = dict[key] || TRANSLATIONS.en[key] || fallback;
 
-      if (interpolationParams) {
-        Object.entries(interpolationParams).forEach(([paramKey, paramVal]) => {
-          const valStr =
-            language === 'np' && typeof paramVal === 'number'
-              ? toNepaliDigits(paramVal)
-              : String(paramVal);
-          text = text.replace(new RegExp(`\\{${paramKey}\\}`, 'g'), valStr);
-        });
-      }
+      return interpolateParams(rawText, interParams, language);
+    },
+    [language]
+  );
 
-      return text;
+  const trHook = useCallback(
+    (enText: string, npText: string): string => {
+      return language === 'np' ? npText : enText;
     },
     [language]
   );
@@ -177,6 +216,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         setLanguage,
         toggleLanguage,
         t,
+        tr: trHook,
         formatNumberByLang,
         isNepali: language === 'np',
       }}
