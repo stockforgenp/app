@@ -420,6 +420,8 @@ export interface MonthlyPayrollSummary {
   total_commitment: number; // minor units
   total_paid: number; // minor units
   total_pending: number; // minor units
+  total_deductions: number; // minor units
+  total_bonus: number; // minor units
   overall_status: 'fully_paid' | 'partially_paid' | 'unpaid';
   staff_statuses: StaffMonthlyPayrollStatus[];
   today_status: TodayPayrollStatus;

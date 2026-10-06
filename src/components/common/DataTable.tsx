@@ -621,6 +621,8 @@ export function DataTable<T>({
                     handlePageChange(1);
                   }}
                   sizeVariant="sm"
+                  portal={true}
+                  dropdownPosition="up"
                   containerClassName="w-20"
                   options={pageSizeOptions.map((opt) => ({
                     value: opt,

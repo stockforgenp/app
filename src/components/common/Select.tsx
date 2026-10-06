@@ -44,6 +44,7 @@ export interface SelectProps {
   clearable?: boolean;
   onClear?: () => void;
   portal?: boolean;
+  dropdownPosition?: 'auto' | 'up' | 'down';
   allowCustom?: boolean;
 }
 
@@ -87,6 +88,7 @@ export const Select: React.FC<SelectProps> = ({
   clearable = false,
   onClear,
   portal = false,
+  dropdownPosition = 'auto',
   allowCustom = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -96,11 +98,13 @@ export const Select: React.FC<SelectProps> = ({
     left: number;
     width: number;
     openUp: boolean;
+    maxHeight?: number;
   }>({
     top: 0,
     left: 0,
     width: 0,
     openUp: false,
+    maxHeight: 256,
   });
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -182,11 +186,12 @@ export const Select: React.FC<SelectProps> = ({
     const windowWidth = window.innerWidth;
 
     const openUp =
-      rect.bottom + dropdownHeight > windowHeight && rect.top > dropdownHeight;
-    const top = openUp
-      ? Math.max(8, rect.top - dropdownHeight - 4)
-      : rect.bottom + 4;
-    const width = Math.max(rect.width, 170);
+      dropdownPosition === 'up' ||
+      (dropdownPosition !== 'down' &&
+        rect.bottom + dropdownHeight > windowHeight &&
+        rect.top > dropdownHeight);
+    const top = openUp ? rect.top - 4 : rect.bottom + 4;
+    const width = Math.max(rect.width, 150);
     let left = rect.left;
 
     if (left + width > windowWidth - 12) {
@@ -196,8 +201,13 @@ export const Select: React.FC<SelectProps> = ({
       left = 12;
     }
 
-    setCoords({ top, left, width, openUp });
-  }, []);
+    const availableHeight = openUp
+      ? rect.top - 16
+      : windowHeight - rect.bottom - 16;
+    const maxHeight = Math.min(256, Math.max(100, availableHeight));
+
+    setCoords({ top, left, width, openUp, maxHeight });
+  }, [dropdownPosition]);
 
   // Update position on scroll/resize when portal is active
   useEffect(() => {
@@ -304,15 +314,23 @@ export const Select: React.FC<SelectProps> = ({
         portal
           ? {
               position: 'fixed',
-              top: `${coords.top}px`,
+              top: coords.openUp ? undefined : `${coords.top}px`,
+              bottom: coords.openUp
+                ? `${window.innerHeight - coords.top}px`
+                : undefined,
               left: `${coords.left}px`,
               width: `${coords.width}px`,
+              maxHeight: coords.maxHeight ? `${coords.maxHeight}px` : undefined,
               zIndex: 99999,
             }
           : undefined
       }
       className={`${
-        portal ? '' : 'absolute left-0 right-0 mt-1 z-50'
+        portal
+          ? ''
+          : coords.openUp || dropdownPosition === 'up'
+          ? 'absolute left-0 bottom-full mb-1 z-50 min-w-full min-w-[140px]'
+          : 'absolute left-0 top-full mt-1 z-50 min-w-full min-w-[140px]'
       } bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 max-h-64 flex flex-col`}
     >
       {/* Search Input within Dropdown */}
@@ -434,7 +452,7 @@ export const Select: React.FC<SelectProps> = ({
         type="button"
         disabled={disabled}
         onClick={() => {
-          if (!isOpen && portal) {
+          if (!isOpen) {
             updatePosition();
           }
           setIsOpen(!isOpen);

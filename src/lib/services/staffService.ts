@@ -478,10 +478,23 @@ export function getMonthlyPayrollSummary(
   const percentPaid = totalActive > 0 ? Math.round((paidCount / totalActive) * 100) : 0;
   const totalCommitment = activeStaff.reduce((sum, s) => sum + s.base_salary, 0);
   const totalPaid = staffStatuses.reduce((sum, s) => sum + (s.amount_paid || 0), 0);
-  const totalPending = Math.max(0, totalCommitment - totalPaid);
+  const totalDeductions = payments.reduce((sum, p) => sum + (p.deductions || 0), 0);
+  const totalBonus = payments.reduce((sum, p) => sum + (p.bonus || 0), 0);
+
+  // Pending dues: calculated per staff member.
+  // When an employee's salary is disbursed with deductions (e.g. absent days / penalties),
+  // those deductions are valid reductions, NOT unpaid debt or pending dues.
+  const totalPending = staffStatuses.reduce((sum, s) => {
+    if (!s.is_paid || !s.payment) {
+      return sum + s.base_salary;
+    }
+    // If paid, pending due is only any remaining un-disbursed base salary portion
+    const remainingUnpaidBase = Math.max(0, s.base_salary - (s.payment.amount || 0));
+    return sum + remainingUnpaidBase;
+  }, 0);
 
   let overallStatus: 'fully_paid' | 'partially_paid' | 'unpaid' = 'unpaid';
-  if (totalActive > 0 && paidCount === totalActive) {
+  if (totalActive > 0 && paidCount === totalActive && totalPending === 0) {
     overallStatus = 'fully_paid';
   } else if (paidCount > 0) {
     overallStatus = 'partially_paid';
@@ -527,6 +540,8 @@ export function getMonthlyPayrollSummary(
     total_commitment: totalCommitment,
     total_paid: totalPaid,
     total_pending: totalPending,
+    total_deductions: totalDeductions,
+    total_bonus: totalBonus,
     overall_status: overallStatus,
     staff_statuses: staffStatuses,
     today_status: todayStatus,

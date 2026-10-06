@@ -104,6 +104,8 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
     total_commitment: 0,
     total_paid: 0,
     total_pending: 0,
+    total_deductions: 0,
+    total_bonus: 0,
     overall_status: "unpaid",
     staff_statuses: [],
     today_status: {
@@ -598,6 +600,11 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
               </div>
               <div className="text-[10px] text-neutral-500 mt-0.5">
                 {monthlyStatus.paid_count} staff paid
+                {monthlyStatus.total_deductions > 0 && (
+                  <span className="text-amber-400/90 ml-1">
+                    (-{formatCurrency(monthlyStatus.total_deductions, currencySymbol)} ded.)
+                  </span>
+                )}
               </div>
             </motion.div>
 
@@ -607,10 +614,22 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
               transition={{ duration: 0.15 }}
               className="p-3.5 rounded-xl bg-neutral-950 border border-neutral-800 text-center"
             >
-              <div className="text-[11px] font-medium text-rose-400">
+              <div
+                className={`text-[11px] font-medium ${
+                  monthlyStatus.total_pending > 0
+                    ? "text-rose-400"
+                    : "text-emerald-400"
+                }`}
+              >
                 Pending Dues
               </div>
-              <div className="text-base font-bold text-rose-400 font-mono tabular-nums mt-1">
+              <div
+                className={`text-base font-bold font-mono tabular-nums mt-1 ${
+                  monthlyStatus.total_pending > 0
+                    ? "text-rose-400"
+                    : "text-emerald-400"
+                }`}
+              >
                 {formatCurrency(monthlyStatus.total_pending, currencySymbol)}
               </div>
               <div className="text-[10px] text-neutral-500 mt-0.5">

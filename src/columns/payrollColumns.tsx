@@ -121,6 +121,20 @@ export function getPayrollRosterColumns(
                   </span>
                 )}
               </div>
+              {(item.payment.deductions > 0 || item.payment.bonus > 0) && (
+                <div className="flex items-center gap-2 text-[10px] font-mono mt-0.5">
+                  {item.payment.deductions > 0 && (
+                    <span className="text-amber-400">
+                      {isNepali ? "कट्टी" : "Ded."}: -{formatCurrency(item.payment.deductions, currencySymbol)}
+                    </span>
+                  )}
+                  {item.payment.bonus > 0 && (
+                    <span className="text-emerald-400">
+                      {isNepali ? "बोनस" : "Bonus"}: +{formatCurrency(item.payment.bonus, currencySymbol)}
+                    </span>
+                  )}
+                </div>
+              )}
               {item.payment.reference && (
                 <div className="text-[10px] font-mono text-neutral-500">
                   Ref: {item.payment.reference}
