@@ -2,7 +2,7 @@
  * Finance, Payroll & Accounting Constants
  * Expense categories, payment options, and staff designations.
  */
-import { StaffRole } from '../types/index.ts';
+import { StaffRole, SalaryType, StaffStatus } from '../types/index.ts';
 
 export const DEFAULT_EXPENSE_CATEGORIES: string[] = [
   'Utilities (Electricity, Water)',
@@ -76,3 +76,50 @@ export const NEPALI_MONTH_NAMES: string[] = [
   'फागुन (Falgun)',
   'चैत (Chaitra)',
 ];
+
+export interface StaffStatusFilterOption {
+  value: 'all' | StaffStatus;
+  label: string;
+}
+
+export const getStaffStatusFilterOptions = (isNepali: boolean = false): StaffStatusFilterOption[] => [
+  { value: 'all', label: isNepali ? 'सबै अवस्था (All Status)' : 'All Status' },
+  { value: 'active', label: isNepali ? 'सक्रिय (Active Only)' : 'Active Only' },
+  { value: 'inactive', label: isNepali ? 'निष्क्रिय (Inactive Only)' : 'Inactive Only' },
+];
+
+export const STAFF_STATUS_FILTER_OPTIONS: StaffStatusFilterOption[] = getStaffStatusFilterOptions(false);
+
+export interface StaffStatusOption {
+  value: StaffStatus;
+  label: string;
+}
+
+export const getStaffStatusOptions = (isNepali: boolean = false): StaffStatusOption[] => [
+  { value: 'active', label: isNepali ? 'सक्रिय (Active)' : 'Active' },
+  { value: 'inactive', label: isNepali ? 'निष्क्रिय (Inactive)' : 'Inactive' },
+];
+
+export const STAFF_STATUS_OPTIONS: StaffStatusOption[] = getStaffStatusOptions(false);
+
+export interface SalaryTypeOption {
+  value: SalaryType;
+  label: string;
+}
+
+export const getSalaryTypeOptions = (isNepali: boolean = false): SalaryTypeOption[] => [
+  {
+    value: 'monthly',
+    label: isNepali ? 'मासिक निश्चित (Monthly Fixed)' : 'Monthly Fixed',
+  },
+  {
+    value: 'hourly',
+    label: isNepali ? 'प्रति घण्टा (Hourly Rate)' : 'Hourly Rate',
+  },
+  {
+    value: 'daily',
+    label: isNepali ? 'दैनिक (Daily Rate)' : 'Daily Rate',
+  },
+];
+
+export const SALARY_TYPE_OPTIONS: SalaryTypeOption[] = getSalaryTypeOptions(false);

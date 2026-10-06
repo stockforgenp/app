@@ -3,6 +3,8 @@
  * Complete English (en) <-> Nepali (np) translations for StockForge
  */
 
+import { STORAGE_KEYS } from "../../constants/index.ts";
+
 export type SupportedLanguage = "en" | "np";
 
 export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
@@ -806,7 +808,7 @@ export function toNepaliDigits(input: string | number): string {
   );
 }
 
-export const LANGUAGE_STORAGE_KEY = "stockforge_language";
+export const LANGUAGE_STORAGE_KEY = STORAGE_KEYS.LANGUAGE;
 
 let activeLanguage: SupportedLanguage = (() => {
   try {

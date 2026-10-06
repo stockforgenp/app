@@ -12,7 +12,6 @@ import {
   Users,
   FileSpreadsheet,
   FileText,
-  CheckCircle2,
 } from "lucide-react";
 import {
   Staff,

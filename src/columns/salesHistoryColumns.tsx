@@ -1,7 +1,6 @@
 /**
  * Table Column Definitions: Sales History
  */
-import React from 'react';
 import { Eye, Printer, Copy } from 'lucide-react';
 import { Column } from '../components/common/DataTable.tsx';
 import { Sale } from '../types/index.ts';

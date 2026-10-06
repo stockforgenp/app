@@ -30,7 +30,7 @@ import {
 import { Product, CartItem } from "../types/index.ts";
 import { getAllProducts } from "../lib/services/productService.ts";
 import { processSale } from "../lib/services/salesService.ts";
-import { calculateProportionalDiscounts } from "../lib/utils/discountUtils.ts";
+import { calculateProportionalDiscounts } from "../helpers/index.ts";
 import {
   formatCurrency,
   fromMinorUnits,
@@ -903,9 +903,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
   );
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-150">
+    <div className="p-8 flex flex-col gap-6 animate-in fade-in duration-150 h-full min-h-0">
       {/* View Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-neutral-100">
             {t("pos_title")}
@@ -939,11 +939,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
       </div>
 
       {/* Main Grid: Left Catalog Picker / Right Active Sale Cart */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
         {/* Left Column: Product Selection & Catalog (5 cols) */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
+        <div className="lg:col-span-5 h-full min-h-0 flex flex-col">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex flex-col h-full min-h-0 gap-3">
+            <div className="flex items-center justify-between shrink-0">
               <div>
                 <div className="text-xs font-semibold text-neutral-200">
                   Catalog & Multi-Product Picker
@@ -973,7 +973,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
             </div>
 
             {/* Quick Filter Tabs & Search */}
-            <div className="space-y-2">
+            <div className="space-y-2 shrink-0">
               <div className="flex items-center gap-1 bg-neutral-950 p-1 rounded-lg border border-neutral-800 text-[11px]">
                 <button
                   type="button"
@@ -1053,7 +1053,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
             {/* Quick Multi-Add Sticky Bar if items are selected */}
             {batchSelectedCount > 0 && (
-              <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-between gap-2 text-xs">
+              <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-between gap-2 text-xs shrink-0">
                 <div>
                   <span className="font-semibold text-emerald-300">
                     {batchSelectedCount} selected
@@ -1077,7 +1077,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
             )}
 
             {/* Product List */}
-            <div className="space-y-1.5 max-h-[460px] overflow-y-auto pr-1">
+            <div className="space-y-1.5 flex-1 min-h-0 overflow-y-auto pr-1">
               {availableProducts.length === 0 ? (
                 <div className="text-center py-8 text-neutral-500 text-xs">
                   No products found.
@@ -1226,7 +1226,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
             {/* In-Catalog Multi-Select Action Bar (when Batch Items are selected) */}
             {batchSelectedCount > 0 && (
-              <div className="pt-2 border-t border-neutral-800 space-y-2">
+              <div className="pt-2 border-t border-neutral-800 space-y-2 shrink-0">
                 <button
                   type="button"
                   onClick={submitBatchFromQuantities}
@@ -1244,10 +1244,10 @@ export const SalesView: React.FC<SalesViewProps> = ({
         </div>
 
         {/* Right Column: Active Sale Line Items & Summary (7 cols) */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden flex flex-col">
+        <div className="lg:col-span-7 h-full min-h-0 flex flex-col">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden flex flex-col h-full min-h-0">
             {/* Cart Header */}
-            <div className="px-5 py-3.5 border-b border-neutral-800 bg-neutral-950/60 flex items-center justify-between flex-wrap gap-2">
+            <div className="px-5 py-3.5 border-b border-neutral-800 bg-neutral-950/60 flex items-center justify-between flex-wrap gap-2 shrink-0">
               <div className="flex items-center gap-2">
                 <Receipt className="w-4 h-4 text-emerald-400" />
                 <span className="text-xs font-semibold text-neutral-200">
@@ -1278,7 +1278,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
             </div>
 
             {/* Quick Multi-SKU / Barcode Scanner Input */}
-            <div className="p-3 bg-neutral-950/80 border-b border-neutral-800/80">
+            <div className="p-3 bg-neutral-950/80 border-b border-neutral-800/80 shrink-0">
               <form
                 onSubmit={handleQuickSkuSubmit}
                 className="flex items-center gap-2"
@@ -1307,22 +1307,22 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
             {/* Cart Table */}
             {cart.length === 0 ? (
-              <div className="p-12 text-center text-xs text-neutral-400">
+              <div className="p-12 text-center text-xs text-neutral-400 flex-1 min-h-0 flex flex-col items-center justify-center">
                 <Receipt className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
                 Your sale cart is empty. Check multiple items on the catalog, or
                 click{" "}
                 <button
                   onClick={() => setIsMultiProductModalOpen(true)}
-                  className="text-emerald-400 hover:underline font-semibold"
+                  className="text-emerald-400 hover:underline font-semibold cursor-pointer"
                 >
                   Add Multiple Products
                 </button>{" "}
                 to select several products at once.
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 min-h-[140px]">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800">
+                  <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 sticky top-0 z-10">
                     <tr>
                       <th className="py-2 px-4">Item</th>
                       <th className="py-2 px-2 text-center w-28">Qty</th>
@@ -1532,7 +1532,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
             )}
 
             {/* Customer Information (Search, Autocomplete & Auto-Creation) */}
-            <div className="p-4 bg-neutral-950/70 border-t border-neutral-800">
+            <div className="p-4 bg-neutral-950/70 border-t border-neutral-800 shrink-0">
               <CustomerInputSection
                 value={customerData}
                 onChange={setCustomerData}
@@ -1540,7 +1540,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
             </div>
 
             {/* Calculations Breakdown */}
-            <div className="p-5 bg-neutral-950 border-t border-neutral-800 space-y-3">
+            <div className="p-5 bg-neutral-950 border-t border-neutral-800 space-y-3 shrink-0">
               {/* Whole Bill Discount (Proportional) Input Card */}
               {cart.length > 0 && (
                 <div className="p-3 rounded-lg bg-neutral-900 border border-neutral-800 space-y-2">

@@ -1,7 +1,6 @@
 /**
  * Table Column Definitions: Purchase History
  */
-import React from 'react';
 import { Eye, Printer, Copy } from 'lucide-react';
 import { Column } from '../components/common/DataTable.tsx';
 import { Purchase } from '../types/index.ts';

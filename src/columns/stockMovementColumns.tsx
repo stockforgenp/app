@@ -1,4 +1,3 @@
-import React from "react";
 import { Building2 } from "lucide-react";
 import { StockMovement } from "../types/index.ts";
 import { Column } from "../components/common/DataTable.tsx";

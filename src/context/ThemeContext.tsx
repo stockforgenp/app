@@ -5,6 +5,7 @@
  */
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { run } from '../lib/db/sqliteEngine.ts';
+import { STORAGE_KEYS } from '../constants/index.ts';
 
 export type AppTheme = 'light' | 'dark';
 
@@ -17,7 +18,7 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const THEME_STORAGE_KEY = 'stockforge_theme';
+const THEME_STORAGE_KEY = STORAGE_KEYS.THEME;
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<AppTheme>(() => {

@@ -15,11 +15,9 @@ import {
   Receipt,
   UserCheck,
 } from "lucide-react";
-import { Customer, Sale, CreateCustomerInput } from "../types/index.ts";
+import { Customer, Sale } from "../types/index.ts";
 import {
   getAllCustomers,
-  createCustomer,
-  updateCustomer,
   deleteCustomer,
   getCustomerSales,
 } from "../lib/services/customerService.ts";

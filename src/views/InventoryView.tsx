@@ -21,8 +21,6 @@ import {
   Trash2,
   ArrowUpDown,
   History,
-  AlertCircle,
-  Package,
   Receipt,
   ShoppingCart,
   SlidersHorizontal,
@@ -60,6 +58,12 @@ import { useToast } from "../context/ToastContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 import { useLanguage } from "../context/LanguageContext.tsx";
 import { MODIFIER_LABEL } from "../lib/hooks/useGlobalShortcuts.ts";
+import {
+  getStockStatusOptions,
+  StockStatusFilter,
+  ProductSortField,
+  SortOrder,
+} from "../constants/index.ts";
 
 export interface InventoryViewProps {
   currencySymbol: string;
@@ -103,17 +107,14 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [stockStatusFilter, setStockStatusFilter] = useState<
-    "all" | "in_stock" | "low_stock" | "out_of_stock"
-  >("all");
+  const [stockStatusFilter, setStockStatusFilter] =
+    useState<StockStatusFilter>("all");
   const [movementTypeFilter, setMovementTypeFilter] = useState<string>("ALL");
 
   // Multi-selection & Sorting
   const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
-  const [sortBy, setSortBy] = useState<
-    "name" | "stock" | "cost" | "selling" | "valuation" | "date"
-  >("name");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortBy, setSortBy] = useState<ProductSortField>("name");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 
   // Modals
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -672,25 +673,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           <div className="md:col-span-5">
             <Select
               value={stockStatusFilter}
-              onChange={(e) => setStockStatusFilter(e.target.value as any)}
-              options={[
-                {
-                  value: "all",
-                  label: isNepali ? "सबै मौज्दात अवस्था" : "All Stock Levels",
-                },
-                {
-                  value: "in_stock",
-                  label: isNepali ? "मौज्दातमा उपलब्ध (> 0)" : "In Stock (> 0)",
-                },
-                {
-                  value: "low_stock",
-                  label: `⚠️ ${isNepali ? "कम मौज्दात मात्र (Low Stock)" : "Low Stock (≤ threshold)"}`,
-                },
-                {
-                  value: "out_of_stock",
-                  label: `❌ ${isNepali ? "रित्तिएको मौज्दात (Out of Stock)" : "Out of Stock (0)"}`,
-                },
-              ]}
+              onChange={(e) =>
+                setStockStatusFilter(e.target.value as StockStatusFilter)
+              }
+              options={getStockStatusOptions(isNepali)}
             />
           </div>
         </div>

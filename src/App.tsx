@@ -20,6 +20,10 @@ import { getSettings } from "./lib/services/settingsService.ts";
 import { Product, AppSettings } from "./types/index.ts";
 import { ToastProvider } from "./context/ToastContext.tsx";
 import { Sidebar, NavTab } from "./components/layout/Sidebar.tsx";
+import {
+  NAV_TABS,
+  DEFAULT_APP_SETTINGS,
+} from "./constants/index.ts";
 import { Header } from "./components/layout/Header.tsx";
 import { DashboardView } from "./views/DashboardView.tsx";
 import { SalesView } from "./views/SalesView.tsx";
@@ -57,32 +61,11 @@ export default function App() {
 
   // Derive active tab from URL path
   const currentTab: NavTab = useMemo(() => {
-    const path = location.pathname.replace(/^\//, "").split("/")[0];
-    const validTabs: NavTab[] = [
-      "dashboard",
-      "sales",
-      "purchases",
-      "purchase-history",
-      "inventory",
-      "movements",
-      "vendors",
-      "customers",
-      "history",
-      "expenses",
-      "staff",
-      "payroll",
-      "analytics",
-      "settings",
-      "support",
-    ];
-    return validTabs.includes(path as NavTab) ? (path as NavTab) : "dashboard";
+    const path = location.pathname.replace(/^\//, "").split("/")[0] as NavTab;
+    return NAV_TABS.includes(path) ? path : "dashboard";
   }, [location.pathname]);
 
-  const [settings, setSettings] = useState<AppSettings>({
-    currency_symbol: "Rs.",
-    low_stock_threshold: 10,
-    allow_negative_stock: false,
-  });
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
 
   // Automatically adapt Rs. <-> Nepali rupee symbol रु. based on active language
   const effectiveCurrencySymbol = useMemo(() => {
@@ -300,7 +283,7 @@ export default function App() {
           />
 
           {/* Active View Container with React Router Routes */}
-          <main className="flex-1 overflow-y-auto">
+          <main className="flex-1 min-h-0 overflow-y-auto">
             <AnimatePresence mode="wait">
               <motion.div
                 key={location.pathname}

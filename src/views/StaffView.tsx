@@ -36,6 +36,7 @@ import { NewStaffForm } from "../components/forms/NewStaffForm.tsx";
 import { useToast } from "../context/ToastContext.tsx";
 import { useLanguage } from "../context/LanguageContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
+import { getStaffStatusFilterOptions } from "../constants/index.ts";
 
 interface StaffViewProps {
   currencySymbol: string;
@@ -304,11 +305,7 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
             onChange={(e) => setStaffStatusFilter(e.target.value as any)}
             containerClassName="w-32"
             sizeVariant="sm"
-            options={[
-              { value: "all", label: "All Status" },
-              { value: "active", label: "Active Only" },
-              { value: "inactive", label: "Inactive Only" },
-            ]}
+            options={getStaffStatusFilterOptions(isNepali)}
           />
 
           {/* Role Filter */}

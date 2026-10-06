@@ -26,7 +26,6 @@ export interface CustomerColumnsOptions {
   onEdit: (customer: Customer) => void;
   onDelete: (customer: Customer) => void;
   onViewSales?: (customer: Customer) => void;
-  onNewSale?: (customer: Customer) => void;
   onCopyPan: (pan: string) => void;
   onCopyPhone?: (phone: string) => void;
 }
@@ -42,7 +41,6 @@ export function getCustomerColumns(
     onEdit,
     onDelete,
     onViewSales,
-    onNewSale,
     onCopyPan,
     onCopyPhone,
   } = options;

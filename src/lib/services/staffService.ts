@@ -10,7 +10,6 @@ import {
   UpdateStaffInput,
   RecordSalaryInput,
   StaffSummary,
-  StaffRole,
   StaffMonthlyPayrollStatus,
   MonthlyPayrollSummary,
   TodayPayrollStatus,
@@ -18,10 +17,19 @@ import {
 import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
 import { getTodayISODate } from '../utils/format.ts';
 
+import {
+  DEFAULT_STAFF_ROLES,
+  SALARY_PAYMENT_METHODS,
+  MONTH_NAMES,
+  NEPALI_MONTH_NAMES,
+} from '../../constants/finance.ts';
+
 export {
   DEFAULT_STAFF_ROLES,
   SALARY_PAYMENT_METHODS,
-} from '../../constants/finance.ts';
+  MONTH_NAMES,
+  NEPALI_MONTH_NAMES,
+};
 
 /**
  * Retrieve all staff members with aggregated payment stats
@@ -396,21 +404,6 @@ export function getStaffSummary(): StaffSummary {
     payments_count_this_month: currentMonthPayments?.count ?? 0,
   };
 }
-
-export const MONTH_NAMES = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
 
 /**
  * Get detailed payroll status for a specific month/year.

@@ -426,8 +426,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               ? `खर्च विवरण सम्पादन #${editingExpense.id}`
               : `Edit Expense #${editingExpense.id}`
             : isNepali
-            ? "नयाँ खर्च रेकर्ड गर्नुहोस्"
-            : "Record New Expense"
+              ? "नयाँ खर्च रेकर्ड गर्नुहोस्"
+              : "Record New Expense"
         }
         subtitle={
           isNepali

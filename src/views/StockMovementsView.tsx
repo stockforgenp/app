@@ -25,6 +25,10 @@ import { getStockMovementColumns } from "../columns/index.ts";
 import { DatePreset } from "../lib/utils/dateFilters.ts";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 import { useLanguage } from "../context/LanguageContext.tsx";
+import {
+  getMovementTypeOptions,
+  MovementTypeFilter,
+} from "../constants/index.ts";
 
 interface StockMovementsViewProps {
   currencySymbol: string;
@@ -43,7 +47,8 @@ export const StockMovementsView: React.FC<StockMovementsViewProps> = () => {
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [movementTypeFilter, setMovementTypeFilter] = useState<string>("ALL");
+  const [movementTypeFilter, setMovementTypeFilter] =
+    useState<MovementTypeFilter>("ALL");
 
   const loadVendors = () => {
     try {
@@ -262,19 +267,10 @@ export const StockMovementsView: React.FC<StockMovementsViewProps> = () => {
           <div className="md:col-span-3">
             <Select
               value={movementTypeFilter}
-              onChange={(e) => setMovementTypeFilter(e.target.value)}
-              options={[
-                {
-                  value: "ALL",
-                  label: isNepali
-                    ? "सबै चलान प्रकार (All)"
-                    : "All Movement Types",
-                },
-                { value: "RESTOCK", label: "RESTOCK (Manual / Delivery)" },
-                { value: "PURCHASE", label: "PURCHASE (Supplier Order)" },
-                { value: "SALE", label: "SALE (Customer Order)" },
-                { value: "ADJUSTMENT", label: "ADJUSTMENT (Count Recount)" },
-              ]}
+              onChange={(e) =>
+                setMovementTypeFilter(e.target.value as MovementTypeFilter)
+              }
+              options={getMovementTypeOptions(isNepali)}
             />
           </div>
         </div>

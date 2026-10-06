@@ -514,7 +514,6 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
   };
 
   // Real-time calculation of overall state
-  const totalRowsCount = rows.length;
   const invalidRowsCount = Object.keys(rowErrors).length;
   const validRows = rows.filter((r) => {
     const errs = validateRow(

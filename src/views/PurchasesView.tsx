@@ -50,7 +50,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
   onOpenCreateProduct,
 }) => {
   const { showToast } = useToast();
-  const { isNepali, formatNumberByLang } = useLanguage();
+  const { isNepali } = useLanguage();
 
   // Products catalog for purchase selection
   const [products, setProducts] = useState<Product[]>([]);
@@ -422,9 +422,9 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-150 p-8">
+    <div className="p-8 flex flex-col gap-6 animate-in fade-in duration-150 h-full min-h-0">
       {/* Top Header & Tab Toggle */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-800 pb-4 shrink-0">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-neutral-100 flex items-center gap-2">
             <Truck className="w-5 h-5 text-emerald-400" />
@@ -467,11 +467,11 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
       </div>
 
       {/* ================= NEW PURCHASE (INFLOW POS) ================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
         {/* Left Column: Product Selection & Catalog (5 cols) */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3.5">
-            <div className="flex items-center justify-between">
+        <div className="lg:col-span-5 h-full min-h-0 flex flex-col">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex flex-col h-full min-h-0 gap-3.5">
+            <div className="flex items-center justify-between shrink-0">
               <span className="text-xs font-semibold text-neutral-200">
                 {isNepali
                   ? "उत्पादन क्याटलग (सामान छान्नुहोस्)"
@@ -490,7 +490,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
             </div>
 
             {/* Search Bar */}
-            <div>
+            <div className="shrink-0">
               <Input
                 type="text"
                 placeholder={
@@ -508,7 +508,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
             </div>
 
             {/* Filter Pills */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setStockFilter("all")}
@@ -534,7 +534,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
             </div>
 
             {/* Product List */}
-            <div className="max-h-[500px] overflow-y-auto space-y-2 pr-1 divide-y divide-neutral-800/40">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1 divide-y divide-neutral-800/40">
               {availableProducts.length === 0 ? (
                 <div className="p-8 text-center text-xs text-neutral-500">
                   <Package className="w-7 h-7 text-neutral-600 mx-auto mb-2" />
@@ -593,10 +593,10 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         </div>
 
         {/* Right Column: Active Purchase Line Items & Summary (7 cols) */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden flex flex-col">
+        <div className="lg:col-span-7 h-full min-h-0 flex flex-col">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden flex flex-col h-full min-h-0">
             {/* Header */}
-            <div className="px-5 py-3.5 border-b border-neutral-800 bg-neutral-950/60 flex items-center justify-between flex-wrap gap-2">
+            <div className="px-5 py-3.5 border-b border-neutral-800 bg-neutral-950/60 flex items-center justify-between flex-wrap gap-2 shrink-0">
               <div className="flex items-center gap-2">
                 <Receipt className="w-4 h-4 text-emerald-400" />
                 <span className="text-xs font-semibold text-neutral-200">
@@ -635,7 +635,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
             </div>
 
             {/* Barcode scanner input */}
-            <div className="p-3 bg-neutral-950/80 border-b border-neutral-800/80">
+            <div className="p-3 bg-neutral-950/80 border-b border-neutral-800/80 shrink-0">
               <form
                 onSubmit={handleQuickSkuSubmit}
                 className="flex items-center gap-2"
@@ -664,16 +664,16 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
 
             {/* Cart Table */}
             {cart.length === 0 ? (
-              <div className="p-12 text-center text-xs text-neutral-400">
+              <div className="p-12 text-center text-xs text-neutral-400 flex-1 min-h-0 flex flex-col items-center justify-center">
                 <Truck className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
                 {isNepali
                   ? "खरिद कार्ट खाली छ। बाँयातर्फबाट सामान छान्नुहोस् वा स्क्यान गर्नुहोस्।"
                   : "Purchase cart is empty. Click products from catalog or scan SKUs above."}
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 min-h-[140px]">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800">
+                  <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 sticky top-0 z-10">
                     <tr>
                       <th className="py-2.5 px-4">
                         {isNepali ? "सामान" : "Item"}
@@ -782,7 +782,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
             )}
 
             {/* Vendor & Invoice Inputs */}
-            <div className="p-4 bg-neutral-950/70 border-t border-neutral-800 space-y-3">
+            <div className="p-4 bg-neutral-950/70 border-t border-neutral-800 space-y-3 shrink-0">
               <VendorInputSection value={vendorData} onChange={setVendorData} />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -835,7 +835,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
             </div>
 
             {/* Calculations Breakdown */}
-            <div className="p-5 bg-neutral-950 border-t border-neutral-800 space-y-2.5">
+            <div className="p-5 bg-neutral-950 border-t border-neutral-800 space-y-2.5 shrink-0">
               <div className="flex items-center justify-between text-xs text-neutral-400">
                 <span>
                   {isNepali ? "उप-जम्मा (Gross Subtotal)" : "Subtotal (Gross)"}
@@ -924,7 +924,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
 
           {/* Completed Purchase Banner */}
           {completedPurchaseInfo && (
-            <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-between">
+            <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-between shrink-0 mt-3">
               <div className="flex items-center gap-3">
                 <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
                 <div>

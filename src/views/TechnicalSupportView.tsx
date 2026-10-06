@@ -23,7 +23,7 @@ import { useAuth } from "../context/AuthContext.tsx";
 import { SUPPORT_CONTACTS } from "../constants/index.ts";
 
 export const TechnicalSupportView: React.FC = () => {
-  const { t, isNepali } = useLanguage();
+  const { isNepali } = useLanguage();
   const { currentShop } = useAuth();
 
   const handleWhatsApp = () => {

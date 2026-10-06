@@ -3,10 +3,12 @@
  * Works seamlessly across browser viewports and desktop webviews (Tauri/WebView2).
  */
 
-const DB_NAME = 'StockForge_OfflineDB';
-const DB_VERSION = 1;
-const STORE_NAME = 'sqlite_binary';
-const KEY_NAME = 'current_database_file';
+import { DB_CONFIG } from '../../constants/index.ts';
+
+const DB_NAME = DB_CONFIG.NAME;
+const DB_VERSION = DB_CONFIG.VERSION;
+const STORE_NAME = DB_CONFIG.STORE_NAME;
+const KEY_NAME = DB_CONFIG.KEY_NAME;
 
 function openStorageDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {

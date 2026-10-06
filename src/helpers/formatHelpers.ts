@@ -142,3 +142,9 @@ export function formatDateTime(isoString: string): string {
     return isoString;
   }
 }
+
+export function getTodayISODate(): string {
+  const now = new Date();
+  return now.toISOString().split('T')[0];
+}
+

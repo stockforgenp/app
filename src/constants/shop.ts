@@ -35,3 +35,9 @@ export const CURRENCY_OPTIONS: CurrencyOption[] = [
 export const DEFAULT_CURRENCY = 'Rs.';
 export const DEFAULT_NEPALI_CURRENCY = 'रु.';
 export const DEFAULT_LOW_STOCK_THRESHOLD = 10;
+
+export const DEFAULT_APP_SETTINGS = {
+  currency_symbol: DEFAULT_CURRENCY,
+  low_stock_threshold: DEFAULT_LOW_STOCK_THRESHOLD,
+  allow_negative_stock: false,
+};

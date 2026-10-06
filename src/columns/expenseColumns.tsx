@@ -1,7 +1,6 @@
 /**
  * Table Column Definitions: Expenses
  */
-import React from 'react';
 import { Edit2, Trash2, Printer, Copy } from 'lucide-react';
 import { Column } from '../components/common/DataTable.tsx';
 import { Expense } from '../types/index.ts';

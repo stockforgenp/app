@@ -12,7 +12,11 @@ import {
   Briefcase,
   DollarSign,
 } from "lucide-react";
-import { DEFAULT_STAFF_ROLES } from "@/src/constants";
+import {
+  DEFAULT_STAFF_ROLES,
+  getStaffStatusOptions,
+  getSalaryTypeOptions,
+} from "@/src/constants";
 import { useToast } from "@/src/context/ToastContext.tsx";
 import { useLanguage } from "@/src/context/LanguageContext.tsx";
 import { fromMinorUnits, toMinorUnits } from "@/src/helpers";
@@ -257,16 +261,7 @@ export const NewStaffForm: React.FC<NewStaffFormProps> = ({
             label={isNepali ? "रोजगार स्थिति" : "Employment Status"}
             value={formStatus}
             onChange={(e) => setFormStatus(e.target.value as StaffStatus)}
-            options={[
-              {
-                value: "active",
-                label: isNepali ? "सक्रिय (Active)" : "Active",
-              },
-              {
-                value: "inactive",
-                label: isNepali ? "निष्क्रिय (Inactive)" : "Inactive",
-              },
-            ]}
+            options={getStaffStatusOptions(isNepali)}
           />
         )}
       </div>
@@ -282,24 +277,7 @@ export const NewStaffForm: React.FC<NewStaffFormProps> = ({
           }
           value={formSalaryType}
           onChange={(e) => setFormSalaryType(e.target.value as SalaryType)}
-          options={[
-            {
-              value: "monthly",
-              label: isNepali
-                ? "मासिक निश्चित (Monthly Fixed)"
-                : "Monthly Fixed",
-            },
-            {
-              value: "hourly",
-              label: isNepali ? "प्रति घण्टा (Hourly Rate)" : "Hourly Rate",
-            },
-            {
-              value: "commission",
-              label: isNepali
-                ? "कमिशनमा आधारित (Commission)"
-                : "Commission Based",
-            },
-          ]}
+          options={getSalaryTypeOptions(isNepali)}
         />
 
         {/* Base Salary Rate */}
@@ -380,16 +358,7 @@ export const NewStaffForm: React.FC<NewStaffFormProps> = ({
             label={isNepali ? "रोजगार स्थिति" : "Status"}
             value={formStatus}
             onChange={(e) => setFormStatus(e.target.value as StaffStatus)}
-            options={[
-              {
-                value: "active",
-                label: isNepali ? "सक्रिय (Active)" : "Active",
-              },
-              {
-                value: "inactive",
-                label: isNepali ? "निष्क्रिय (Inactive)" : "Inactive",
-              },
-            ]}
+            options={getStaffStatusOptions(isNepali)}
           />
         )}
       </div>

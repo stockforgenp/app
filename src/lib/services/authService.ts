@@ -5,8 +5,9 @@
  */
 import { Shop, RegisterShopInput, LoginInput } from '../../types/index.ts';
 import { query, queryOne, run } from '../db/sqliteEngine.ts';
+import { STORAGE_KEYS } from '../../constants/index.ts';
 
-const ACTIVE_SHOP_STORAGE_KEY = 'stockforge_active_shop_id';
+const ACTIVE_SHOP_STORAGE_KEY = STORAGE_KEYS.ACTIVE_SHOP_ID;
 
 /**
  * Computes SHA-256 cryptographic hash using browser Web Crypto API
