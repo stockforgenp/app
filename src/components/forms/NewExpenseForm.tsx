@@ -61,14 +61,14 @@ export const NewExpenseForm: React.FC<NewExpenseFormProps> = ({
 
   // Form Fields
   const [formCategory, setFormCategory] = useState<string>(
-    DEFAULT_EXPENSE_CATEGORIES[0]
+    DEFAULT_EXPENSE_CATEGORIES[0],
   );
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState("");
   const [formAmount, setFormAmount] = useState("");
   const [formDate, setFormDate] = useState(getTodayISODate());
   const [formPaymentMethod, setFormPaymentMethod] = useState<string>(
-    DEFAULT_PAYMENT_METHODS[0]
+    DEFAULT_PAYMENT_METHODS[0],
   );
   const [formNote, setFormNote] = useState("");
   const [formReceiptRef, setFormReceiptRef] = useState("");
@@ -78,7 +78,7 @@ export const NewExpenseForm: React.FC<NewExpenseFormProps> = ({
   useEffect(() => {
     if (editingExpense) {
       const isStandard = DEFAULT_EXPENSE_CATEGORIES.includes(
-        editingExpense.category
+        editingExpense.category,
       );
       if (isStandard) {
         setFormCategory(editingExpense.category);
@@ -93,10 +93,10 @@ export const NewExpenseForm: React.FC<NewExpenseFormProps> = ({
       setFormDate(
         editingExpense.date
           ? editingExpense.date.split("T")[0]
-          : getTodayISODate()
+          : getTodayISODate(),
       );
       setFormPaymentMethod(
-        editingExpense.payment_method || DEFAULT_PAYMENT_METHODS[0]
+        editingExpense.payment_method || DEFAULT_PAYMENT_METHODS[0],
       );
       setFormNote(editingExpense.note || "");
       setFormReceiptRef(editingExpense.receipt_reference || "");
@@ -124,7 +124,7 @@ export const NewExpenseForm: React.FC<NewExpenseFormProps> = ({
       setFormError(
         isNepali
           ? "कृपया खर्चको वर्ग छान्नुहोस् वा लेख्नुहोस्।"
-          : "Please select or specify an expense category."
+          : "Please select or specify an expense category.",
       );
       return;
     }
@@ -134,7 +134,7 @@ export const NewExpenseForm: React.FC<NewExpenseFormProps> = ({
       setFormError(
         isNepali
           ? "कृपया ० भन्दा बढी मान्य रकम प्रविष्ट गर्नुहोस्।"
-          : "Please enter a valid expense amount greater than 0."
+          : "Please enter a valid expense amount greater than 0.",
       );
       return;
     }
@@ -143,7 +143,7 @@ export const NewExpenseForm: React.FC<NewExpenseFormProps> = ({
       setFormError(
         isNepali
           ? "कृपया मान्य मिति चयन गर्नुहोस्।"
-          : "Please select a valid date."
+          : "Please select a valid date.",
       );
       return;
     }
@@ -165,7 +165,7 @@ export const NewExpenseForm: React.FC<NewExpenseFormProps> = ({
           isNepali
             ? `खर्च विवरण #${editingExpense.id} अद्यावधिक गरियो`
             : `Expense #${editingExpense.id} updated successfully.`,
-          "success"
+          "success",
         );
       } else {
         const createInput: CreateExpenseInput = {
@@ -178,8 +178,10 @@ export const NewExpenseForm: React.FC<NewExpenseFormProps> = ({
         };
         createExpense(createInput);
         showToast(
-          isNepali ? "नयाँ खर्च रेकर्ड गरियो" : "Expense recorded successfully.",
-          "success"
+          isNepali
+            ? "नयाँ खर्च रेकर्ड गरियो"
+            : "Expense recorded successfully.",
+          "success",
         );
       }
 
@@ -309,9 +311,7 @@ export const NewExpenseForm: React.FC<NewExpenseFormProps> = ({
             <>
               <FileSpreadsheet className="w-3.5 h-3.5 text-neutral-400" />
               <span>
-                {isNepali
-                  ? "रसिद / बिल नम्बर"
-                  : "Receipt / Bill Reference #"}
+                {isNepali ? "रसिद / बिल नम्बर" : "Receipt / Bill Reference #"}
               </span>
             </>
           }
@@ -361,8 +361,8 @@ export const NewExpenseForm: React.FC<NewExpenseFormProps> = ({
               ? "परिवर्तनहरू बचत गर्नुहोस्"
               : "Save Changes"
             : isNepali
-            ? "खर्च सुरक्षित गर्नुहोस्"
-            : "Record Expense"}
+              ? "खर्च सुरक्षित गर्नुहोस्"
+              : "Record Expense"}
         </button>
       </div>
     </form>
