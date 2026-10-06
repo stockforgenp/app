@@ -1,12 +1,20 @@
-import React from 'react';
-import { Calendar, RotateCcw } from 'lucide-react';
-import { DatePreset, DATE_PRESETS, calculateDateRange } from '../../lib/utils/dateFilters.ts';
-import { Input } from './Input.tsx';
-import { useLanguage } from '../../context/LanguageContext.tsx';
+import React from "react";
+import { Calendar, RotateCcw } from "lucide-react";
+import {
+  DatePreset,
+  DATE_PRESETS,
+  calculateDateRange,
+} from "../../lib/utils/dateFilters.ts";
+import { Input } from "./Input.tsx";
+import { useLanguage } from "../../context/LanguageContext.tsx";
 
 export interface DateFilterBarProps {
   preset: DatePreset;
-  onPresetChange: (preset: DatePreset, startDate: string, endDate: string) => void;
+  onPresetChange: (
+    preset: DatePreset,
+    startDate: string,
+    endDate: string,
+  ) => void;
   startDate: string;
   endDate: string;
   onStartDateChange: (date: string) => void;
@@ -15,7 +23,7 @@ export interface DateFilterBarProps {
   hasActiveFilters?: boolean;
   className?: string;
   showCustomInputs?: boolean;
-  sizeVariant?: 'sm' | 'md';
+  sizeVariant?: "sm" | "md";
 }
 
 export const DateFilterBar: React.FC<DateFilterBarProps> = ({
@@ -27,22 +35,22 @@ export const DateFilterBar: React.FC<DateFilterBarProps> = ({
   onEndDateChange,
   onClear,
   hasActiveFilters = false,
-  className = '',
+  className = "",
   showCustomInputs = true,
-  sizeVariant = 'sm',
+  sizeVariant = "sm",
 }) => {
   const { isNepali } = useLanguage();
 
   const handleSelectPreset = (p: DatePreset) => {
-    if (p === 'custom') {
-      onPresetChange('custom', startDate, endDate);
+    if (p === "custom") {
+      onPresetChange("custom", startDate, endDate);
     } else {
       const range = calculateDateRange(p);
       onPresetChange(p, range.startDate, range.endDate);
     }
   };
 
-  const isCustom = preset === 'custom';
+  const isCustom = preset === "custom";
 
   return (
     <div
@@ -50,14 +58,11 @@ export const DateFilterBar: React.FC<DateFilterBarProps> = ({
     >
       {/* Preset Pill Buttons */}
       <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-        <span className="text-neutral-500 dark:text-neutral-400 text-[11px] font-medium mr-1 flex items-center gap-1 shrink-0">
-          <Calendar className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400 shrink-0" />
-          <span>{isNepali ? 'मिति:' : 'Date:'}</span>
-        </span>
         <div className="flex items-center bg-neutral-950 p-0.5 rounded-lg border border-neutral-800 shrink-0">
           {DATE_PRESETS.map((item) => {
             const isSelected = preset === item.id;
-            const label = isNepali && item.nepaliLabel ? item.nepaliLabel : item.label;
+            const label =
+              isNepali && item.nepaliLabel ? item.nepaliLabel : item.label;
 
             return (
               <button
@@ -66,8 +71,8 @@ export const DateFilterBar: React.FC<DateFilterBarProps> = ({
                 onClick={() => handleSelectPreset(item.id)}
                 className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap ${
                   isSelected
-                    ? 'bg-neutral-800 text-neutral-100 font-semibold shadow-xs'
-                    : 'text-neutral-400 hover:text-neutral-200'
+                    ? "bg-neutral-800 text-neutral-100 font-semibold shadow-xs"
+                    : "text-neutral-400 hover:text-neutral-200"
                 }`}
               >
                 {label}
@@ -81,8 +86,8 @@ export const DateFilterBar: React.FC<DateFilterBarProps> = ({
       <div className="flex items-center gap-2 justify-end shrink-0">
         {showCustomInputs && (
           <div
-            className={`flex items-center gap-1.5 bg-neutral-950 px-2.5 py-1 rounded-lg border text-neutral-300 transition-colors ${
-              isCustom ? 'border-emerald-500/50' : 'border-neutral-800'
+            className={`flex items-center gap-2 bg-neutral-950 rounded-lg border text-neutral-300 transition-colors ${
+              isCustom ? "border-emerald-500/50" : "border-neutral-800"
             }`}
           >
             <Input
@@ -90,24 +95,24 @@ export const DateFilterBar: React.FC<DateFilterBarProps> = ({
               value={startDate}
               onChange={(e) => {
                 onStartDateChange(e.target.value);
-                onPresetChange('custom', e.target.value, endDate);
+                onPresetChange("custom", e.target.value, endDate);
               }}
               sizeVariant={sizeVariant}
               containerClassName="w-auto"
-              className="bg-transparent border-0 p-0 text-neutral-200 focus:outline-none text-xs"
+              className="bg-transparent border-0 p-0 text-neutral-200 focus:outline-none text-xs min-w-28"
               title="Start Date"
             />
-            <span className="text-neutral-500 text-xs">{isNepali ? 'देखि' : 'to'}</span>
+            <span className="border-l border-neutral-800 w-0.5 h-4" />
             <Input
               type="date"
               value={endDate}
               onChange={(e) => {
                 onEndDateChange(e.target.value);
-                onPresetChange('custom', startDate, e.target.value);
+                onPresetChange("custom", startDate, e.target.value);
               }}
               sizeVariant={sizeVariant}
               containerClassName="w-auto"
-              className="bg-transparent border-0 p-0 text-neutral-200 focus:outline-none text-xs"
+              className="bg-transparent border-0 p-0 text-neutral-200 focus:outline-none text-xs min-w-28"
               title="End Date"
             />
           </div>
@@ -121,7 +126,7 @@ export const DateFilterBar: React.FC<DateFilterBarProps> = ({
             title="Reset date and other active filters"
           >
             <RotateCcw className="w-3 h-3 text-neutral-400 dark:text-neutral-400 shrink-0" />
-            <span>{isNepali ? 'रिसेट' : 'Clear'}</span>
+            <span>{isNepali ? "रिसेट" : "Clear"}</span>
           </button>
         )}
       </div>

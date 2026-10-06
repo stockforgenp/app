@@ -232,6 +232,19 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
             ? "खरिद बिल नं, आपूर्तिकर्ताको नाम, PAN वा सप्लायर इनभ्वाइस खोज्नुहोस्..."
             : "Search by purchase bill #, vendor name, PAN/VAT, or supplier invoice..."
         }
+        extraActionsSlot={
+          <Link
+            to="/purchases"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          >
+            <Truck className="w-4 h-4" />
+            <span>
+              {isNepali
+                ? "नयाँ खरिद दाखिला (New Purchase)"
+                : "New Purchase Order"}
+            </span>
+          </Link>
+        }
         dateFilterConfig={{
           preset: historyDatePreset,
           onPresetChange: (preset, start, end) => {

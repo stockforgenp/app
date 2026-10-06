@@ -13,11 +13,7 @@ import {
   DollarSign,
   Printer,
 } from "lucide-react";
-import {
-  Vendor,
-  Product,
-  Purchase,
-} from "../types/index.ts";
+import { Vendor, Product, Purchase } from "../types/index.ts";
 import {
   getAllVendors,
   deleteVendor,
@@ -290,9 +286,9 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
         extraActionsSlot={
           <button
             onClick={handleOpenCreate}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition-colors shadow-sm cursor-pointer shrink-0"
+            className="flex items-center justify-center gap-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium transition-colors shadow-sm cursor-pointer shrink-0"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             <span>
               {isNepali ? "नयाँ आपूर्तिकर्ता थप्नुहोस्" : "Add Vendor"}
             </span>

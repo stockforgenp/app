@@ -14,11 +14,7 @@ import { useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   CreditCard,
-  Search,
-  Printer,
-  Trash2,
   AlertCircle,
-  Copy,
   Receipt,
   CheckCircle2,
   Clock,
@@ -44,15 +40,17 @@ import {
 } from "../lib/services/staffService.ts";
 import {
   formatCurrency,
-  formatDate,
   getTodayISODate,
 } from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { PrintSalarySlipModal } from "../components/common/PrintSalarySlipModal.tsx";
-import { ActionMenu } from "../components/common/ActionMenu.tsx";
+import { DataTable, Column } from "../components/common/DataTable.tsx";
+import {
+  getPayrollRosterColumns,
+  getSalaryDisbursementColumns,
+} from "../columns/index.ts";
 import { Select } from "../components/common/Select.tsx";
-import { Input } from "../components/common/Input.tsx";
 import { useToast } from "../context/ToastContext.tsx";
 import { useLanguage } from "../context/LanguageContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
@@ -81,6 +79,7 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
   const [rosterStatusFilter, setRosterStatusFilter] = useState<
     "all" | "unpaid" | "paid"
   >("all");
+  const [rosterSearch, setRosterSearch] = useState("");
 
   // Ledger state & filters
   const [staffList, setStaffList] = useState<Staff[]>([]);
@@ -219,17 +218,69 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
     }
   };
 
+  // Copy Reference handler
+  const handleCopyReference = useCallback(
+    (ref: string) => {
+      navigator.clipboard.writeText(ref);
+      showToast(`Reference ${ref} copied`, "info");
+    },
+    [showToast],
+  );
+
+  // Column definitions for Tab 1 (Roster) and Tab 2 (Ledger)
+  const rosterColumns = useMemo<Column<StaffMonthlyPayrollStatus>[]>(
+    () =>
+      getPayrollRosterColumns({
+        currencySymbol,
+        isNepali,
+        todayDate: monthlyStatus.today_status.date,
+        periodLabel: monthlyStatus.period_label,
+        onPaySalary: handleOpenPaySalary,
+        onPrintSlip: (payment) => setPrintingPayment(payment),
+        onCopyReference: handleCopyReference,
+        onDeletePayment: (payment) => setPaymentToDelete(payment),
+      }),
+    [
+      currencySymbol,
+      isNepali,
+      monthlyStatus.today_status.date,
+      monthlyStatus.period_label,
+      handleCopyReference,
+    ],
+  );
+
+  const ledgerColumns = useMemo<Column<SalaryPayment>[]>(
+    () =>
+      getSalaryDisbursementColumns({
+        currencySymbol,
+        isNepali,
+        onPrintSlip: (payment) => setPrintingPayment(payment),
+        onCopyReference: handleCopyReference,
+        onDeletePayment: (payment) => setPaymentToDelete(payment),
+      }),
+    [currencySymbol, isNepali, handleCopyReference],
+  );
+
   // Filtered Roster
   const filteredRoster = useMemo(() => {
     if (!monthlyStatus.staff_statuses) return [];
+    let list = monthlyStatus.staff_statuses;
     if (rosterStatusFilter === "paid") {
-      return monthlyStatus.staff_statuses.filter((s) => s.is_paid);
+      list = list.filter((s) => s.is_paid);
+    } else if (rosterStatusFilter === "unpaid") {
+      list = list.filter((s) => !s.is_paid);
     }
-    if (rosterStatusFilter === "unpaid") {
-      return monthlyStatus.staff_statuses.filter((s) => !s.is_paid);
+    if (rosterSearch.trim()) {
+      const q = rosterSearch.trim().toLowerCase();
+      list = list.filter(
+        (s) =>
+          s.staff_name.toLowerCase().includes(q) ||
+          s.staff_role.toLowerCase().includes(q) ||
+          String(s.staff_id).includes(q),
+      );
     }
-    return monthlyStatus.staff_statuses;
-  }, [monthlyStatus.staff_statuses, rosterStatusFilter]);
+    return list;
+  }, [monthlyStatus.staff_statuses, rosterStatusFilter, rosterSearch]);
 
   // Filtered Payments (Ledger)
   const filteredPayments = useMemo(() => {
@@ -693,217 +744,55 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
 
       {/* VIEW 1: Monthly Staff Status Roster */}
       {activeTab === "roster" && (
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 select-none">
-                <tr>
-                  <th className="py-3 px-5">Employee & Role</th>
-                  <th className="py-3 px-5 text-right font-mono">
-                    Monthly Base Wage
-                  </th>
-                  <th className="py-3 px-5 text-center">
-                    {monthlyStatus.period_label} Status
-                  </th>
-                  <th className="py-3 px-5">Disbursement Details</th>
-                  <th className="py-3 px-5 text-right font-mono">
-                    Disbursed Net
-                  </th>
-                  <th className="py-3 px-5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-800/60">
-                {filteredRoster.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="py-12 text-center text-neutral-400 text-xs"
-                    >
-                      <Users className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
-                      No staff records found in this category.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRoster.map((item) => (
-                    <tr
-                      key={item.staff_id}
-                      className="hover:bg-neutral-800/40 transition-colors"
-                    >
-                      <td className="px-5 py-3.5">
-                        <div className="font-semibold text-neutral-200">
-                          {item.staff_name}
-                        </div>
-                        <div className="text-[11px] text-neutral-400 mt-0.5">
-                          {item.staff_role} ·{" "}
-                          <span className="font-mono">ID #{item.staff_id}</span>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-3.5 text-right font-mono font-medium text-neutral-300 tabular-nums whitespace-nowrap">
-                        {formatCurrency(item.base_salary, currencySymbol)}
-                        <span className="text-[10px] text-neutral-500 font-sans block">
-                          per {item.salary_type}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-3.5 text-center whitespace-nowrap">
-                        {item.is_paid ? (
-                          item.payment?.payment_date ===
-                          monthlyStatus.today_status.date ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                              <span>PAID TODAY</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                              <span>PAID</span>
-                            </span>
-                          )
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
-                            <span>DUE / UNPAID</span>
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="px-5 py-3.5 text-neutral-300">
-                        {item.is_paid && item.payment ? (
-                          <div className="space-y-0.5">
-                            <div className="text-[11px] text-neutral-200 font-medium">
-                              Paid on {formatDate(item.payment.payment_date)}{" "}
-                              via {item.payment.payment_method}
-                              {item.payment.payment_date ===
-                                monthlyStatus.today_status.date && (
-                                <span className="ml-1.5 text-[10px] text-emerald-400 font-semibold uppercase">
-                                  (Today)
-                                </span>
-                              )}
-                            </div>
-                            {item.payment.reference && (
-                              <div className="text-[10px] font-mono text-neutral-500">
-                                Ref: {item.payment.reference}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-[11px] text-neutral-500 italic">
-                            No payment recorded for {monthlyStatus.period_label}
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="px-5 py-3.5 text-right font-mono font-bold tabular-nums whitespace-nowrap">
-                        {item.is_paid ? (
-                          <span className="text-emerald-400">
-                            {formatCurrency(
-                              item.amount_paid || 0,
-                              currencySymbol,
-                            )}
-                          </span>
-                        ) : (
-                          <span className="text-neutral-500">—</span>
-                        )}
-                      </td>
-
-                      <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
-                          {!item.is_paid ? (
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              type="button"
-                              onClick={() => handleOpenPaySalary(item)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer shadow-xs"
-                            >
-                              <CreditCard className="w-3.5 h-3.5" />
-                              <span>Pay Salary</span>
-                            </motion.button>
-                          ) : (
-                            item.payment && (
-                              <>
-                                <motion.button
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                  type="button"
-                                  onClick={() =>
-                                    setPrintingPayment(item.payment!)
-                                  }
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded border border-emerald-500/20 transition-colors cursor-pointer"
-                                  title="Print Voucher"
-                                >
-                                  <Printer className="w-3.5 h-3.5 text-emerald-400" />
-                                  <span>Slip</span>
-                                </motion.button>
-                                <ActionMenu
-                                  align="right"
-                                  items={[
-                                    {
-                                      label: "Print Pay Slip",
-                                      icon: Printer,
-                                      color: "emerald",
-                                      action: () =>
-                                        setPrintingPayment(item.payment!),
-                                    },
-                                    item.payment.reference
-                                      ? {
-                                          label: "Copy Reference",
-                                          icon: Copy,
-                                          color: "sky",
-                                          action: () => {
-                                            navigator.clipboard.writeText(
-                                              item.payment!.reference!,
-                                            );
-                                            showToast(
-                                              `Reference ${item.payment!.reference} copied`,
-                                              "info",
-                                            );
-                                          },
-                                        }
-                                      : null,
-                                    {
-                                      label: "Reverse Payment",
-                                      icon: Trash2,
-                                      color: "rose",
-                                      isDestructive: true,
-                                      divider: true,
-                                      action: () =>
-                                        setPaymentToDelete(item.payment!),
-                                    },
-                                  ]}
-                                />
-                              </>
-                            )
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable<StaffMonthlyPayrollStatus>
+          data={filteredRoster}
+          columns={rosterColumns}
+          searchQuery={rosterSearch}
+          onSearchChange={setRosterSearch}
+          searchPlaceholder={
+            isNepali
+              ? "कर्मचारीको नाम वा पद खोज्नुहोस्..."
+              : "Search staff by name or role..."
+          }
+          extraActionsSlot={
+            <button
+              type="button"
+              onClick={() => handleOpenPaySalary()}
+              className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors shadow-xs cursor-pointer shrink-0"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>{isNepali ? "तलब भुक्तानी" : "Disburse Salary"}</span>
+            </button>
+          }
+          enablePagination={true}
+          pageSize={15}
+          getRowId={(item) => item.staff_id}
+          emptyIcon={Users}
+          emptyTitle={
+            isNepali ? "कुनै कर्मचारी फेला परेन" : "No staff records found"
+          }
+          emptyMessage={
+            isNepali
+              ? "यो वर्गमा कुनै कर्मचारीको विवरण छैन।"
+              : "No staff records found in this category."
+          }
+        />
       )}
 
       {/* VIEW 2: Historical Disbursements Audit Ledger */}
       {activeTab === "ledger" && (
-        <div className="space-y-4">
-          {/* Filter & Search Bar */}
-          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="flex-1 w-full">
-              <Input
-                type="text"
-                icon={Search}
-                sizeVariant="sm"
-                placeholder="Search payments by staff name, period, reference, or note..."
-                value={paymentSearch}
-                onChange={(e) => setPaymentSearch(e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+        <DataTable<SalaryPayment>
+          data={filteredPayments}
+          columns={ledgerColumns}
+          searchQuery={paymentSearch}
+          onSearchChange={setPaymentSearch}
+          searchPlaceholder={
+            isNepali
+              ? "कर्मचारीको नाम, महिना, रेफरेन्स खोज्नुहोस्..."
+              : "Search payments by staff name, period, reference, or note..."
+          }
+          filtersSlot={
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               {/* Staff Filter */}
               <Select
                 value={selectedStaffFilter}
@@ -917,7 +806,10 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                 containerClassName="w-48"
                 sizeVariant="sm"
                 options={[
-                  { value: "all", label: "All Employees" },
+                  {
+                    value: "all",
+                    label: isNepali ? "सबै कर्मचारीहरू" : "All Employees",
+                  },
                   ...staffList.map((s) => ({
                     value: s.id,
                     label: `${s.name} (${s.role})`,
@@ -932,7 +824,10 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                 containerClassName="w-36"
                 sizeVariant="sm"
                 options={[
-                  { value: "all", label: "All Methods" },
+                  {
+                    value: "all",
+                    label: isNepali ? "सबै विधिहरू" : "All Methods",
+                  },
                   ...SALARY_PAYMENT_METHODS.map((m) => ({
                     value: m,
                     label: m,
@@ -952,162 +847,45 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                   }}
                   className="text-xs text-neutral-400 hover:text-neutral-200 px-2 py-1 transition-colors cursor-pointer"
                 >
-                  Reset
+                  {isNepali ? "रिसेट" : "Reset"}
                 </button>
               )}
             </div>
-          </div>
-
-          {/* Disbursements Table */}
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 select-none">
-                  <tr>
-                    <th className="py-3 px-5 font-mono">Disbursement #</th>
-                    <th className="py-3 px-5">Date & Period</th>
-                    <th className="py-3 px-5">Employee & Role</th>
-                    <th className="py-3 px-5">Method & Ref</th>
-                    <th className="py-3 px-5 text-right font-mono">
-                      Base Salary
-                    </th>
-                    <th className="py-3 px-5 text-right font-mono">
-                      Adj (+ / -)
-                    </th>
-                    <th className="py-3 px-5 text-right font-mono">Net Paid</th>
-                    <th className="py-3 px-5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-800/60">
-                  {filteredPayments.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={8}
-                        className="py-12 text-center text-neutral-400 text-xs"
-                      >
-                        <Receipt className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
-                        No salary disbursement records found.
-                        <div className="mt-2">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenPaySalary()}
-                            className="px-3 py-1.5 text-xs text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg border border-emerald-500/20 transition-colors cursor-pointer"
-                          >
-                            + Disburse Salary
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredPayments.map((p) => (
-                      <tr
-                        key={p.id}
-                        className="hover:bg-neutral-800/40 transition-colors group"
-                      >
-                        <td className="px-5 py-3.5 font-mono font-bold text-neutral-300">
-                          #{p.id}
-                        </td>
-
-                        <td className="px-5 py-3.5">
-                          <div className="font-semibold text-neutral-200">
-                            {p.payment_period}
-                          </div>
-                          <div className="text-[11px] font-mono text-neutral-500 mt-0.5">
-                            {formatDate(p.payment_date)}
-                          </div>
-                        </td>
-
-                        <td className="px-5 py-3.5">
-                          <div className="font-semibold text-neutral-200">
-                            {p.staff_name}
-                          </div>
-                          <div className="text-[11px] text-neutral-400 mt-0.5">
-                            {p.staff_role}
-                          </div>
-                        </td>
-
-                        <td className="px-5 py-3.5 text-neutral-300">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-800 text-neutral-300 border border-neutral-700/60">
-                            {p.payment_method}
-                          </span>
-                          {p.reference && (
-                            <span className="block text-[10px] text-neutral-500 font-mono mt-0.5">
-                              Ref: {p.reference}
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="px-5 py-3.5 text-right font-mono text-neutral-400 tabular-nums whitespace-nowrap">
-                          {formatCurrency(p.amount, currencySymbol)}
-                        </td>
-
-                        <td className="px-5 py-3.5 text-right font-mono text-[11px] tabular-nums whitespace-nowrap">
-                          {p.bonus > 0 && (
-                            <span className="text-emerald-400 block font-medium">
-                              +{formatCurrency(p.bonus, currencySymbol)}
-                            </span>
-                          )}
-                          {p.deductions > 0 && (
-                            <span className="text-rose-400 block font-medium">
-                              -{formatCurrency(p.deductions, currencySymbol)}
-                            </span>
-                          )}
-                          {p.bonus === 0 && p.deductions === 0 && (
-                            <span className="text-neutral-600">—</span>
-                          )}
-                        </td>
-
-                        <td className="px-5 py-3.5 text-right font-mono font-bold text-emerald-400 tabular-nums whitespace-nowrap">
-                          {formatCurrency(p.net_paid, currencySymbol)}
-                        </td>
-
-                        <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-2">
-                            <ActionMenu
-                              align="right"
-                              items={[
-                                {
-                                  label: "Print Pay Slip",
-                                  icon: Printer,
-                                  color: "emerald",
-                                  action: () => setPrintingPayment(p),
-                                },
-                                p.reference
-                                  ? {
-                                      label: "Copy Reference",
-                                      icon: Copy,
-                                      color: "sky",
-                                      action: () => {
-                                        navigator.clipboard.writeText(
-                                          p.reference!,
-                                        );
-                                        showToast(
-                                          `Reference ${p.reference} copied`,
-                                          "info",
-                                        );
-                                      },
-                                    }
-                                  : null,
-                                {
-                                  label: "Reverse Payment",
-                                  icon: Trash2,
-                                  color: "rose",
-                                  isDestructive: true,
-                                  divider: true,
-                                  action: () => setPaymentToDelete(p),
-                                },
-                              ]}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+          }
+          extraActionsSlot={
+            <button
+              type="button"
+              onClick={() => handleOpenPaySalary()}
+              className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors shadow-xs cursor-pointer shrink-0"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>{isNepali ? "तलब भुक्तानी" : "Disburse Salary"}</span>
+            </button>
+          }
+          enablePagination={true}
+          pageSize={15}
+          getRowId={(p) => p.id}
+          emptyIcon={Receipt}
+          emptyTitle={
+            isNepali
+              ? "कुनै भुक्तानी फेला परेन"
+              : "No salary disbursement records found"
+          }
+          emptyMessage={
+            isNepali
+              ? "कुनै भुक्तानी रेकर्डहरू फेला परेनन्।"
+              : "No salary disbursement records found matching your filters."
+          }
+          emptyAction={
+            <button
+              type="button"
+              onClick={() => handleOpenPaySalary()}
+              className="px-3 py-1.5 text-xs text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg border border-emerald-500/20 transition-colors cursor-pointer"
+            >
+              + {isNepali ? "तलब भुक्तानी गर्नुहोस्" : "Disburse Salary"}
+            </button>
+          }
+        />
       )}
 
       {/* Modal: Record Salary Disbursement */}

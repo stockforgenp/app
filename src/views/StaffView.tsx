@@ -8,16 +8,9 @@ import { motion } from "framer-motion";
 import {
   Users,
   UserPlus,
-  Calendar,
-  CreditCard,
-  Edit2,
-  Trash2,
-  Search,
-  Phone,
-  Mail,
+  Briefcase,
   UserCheck,
   UserX,
-  Briefcase,
 } from "lucide-react";
 import { Staff, StaffSummary } from "../types/index.ts";
 import {
@@ -26,13 +19,13 @@ import {
   deleteStaff,
   getStaffSummary,
 } from "../lib/services/staffService.ts";
-import { formatCurrency, formatDate } from "../lib/utils/format.ts";
+import { formatCurrency } from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
-import { ActionMenu } from "../components/common/ActionMenu.tsx";
 import { Select } from "../components/common/Select.tsx";
-import { Input } from "../components/common/Input.tsx";
 import { NewStaffForm } from "../components/forms/NewStaffForm.tsx";
+import { DataTable, Column } from "../components/common/DataTable.tsx";
+import { getStaffColumns } from "../columns/index.ts";
 import { useToast } from "../context/ToastContext.tsx";
 import { useLanguage } from "../context/LanguageContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
@@ -144,39 +137,23 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
     return Array.from(roles);
   }, [staffList]);
 
+  const staffColumns = useMemo<Column<Staff>[]>(
+    () =>
+      getStaffColumns({
+        currencySymbol,
+        isNepali,
+        onDisburseSalary: (staff) => navigate(`/payroll?staffId=${staff.id}`),
+        onEdit: handleOpenEditStaff,
+        onViewDisbursements: (staff) =>
+          navigate(`/payroll?staffId=${staff.id}`),
+        onToggleStatus: handleToggleStaffStatus,
+        onDelete: (staff) => setStaffToDelete(staff),
+      }),
+    [currencySymbol, isNepali, navigate],
+  );
+
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-150">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-neutral-100">
-              Staff Management
-            </h1>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Team Directory
-            </span>
-          </div>
-          <p className="text-xs text-neutral-400 mt-1">
-            Employee profiles, job roles, salary structures, contact
-            information, and employment status
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            type="button"
-            onClick={handleOpenAddStaff}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors shadow-xs cursor-pointer"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>Add Employee</span>
-          </motion.button>
-        </div>
-      </div>
-
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Staff */}
@@ -285,214 +262,92 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
         </motion.div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex-1 w-full">
-          <Input
-            type="text"
-            icon={Search}
-            sizeVariant="sm"
-            placeholder="Search staff by name, role, phone, or email..."
-            value={staffSearch}
-            onChange={(e) => setStaffSearch(e.target.value)}
-          />
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
-          {/* Status Filter */}
-          <Select
-            value={staffStatusFilter}
-            onChange={(e) => setStaffStatusFilter(e.target.value as any)}
-            containerClassName="w-32"
-            sizeVariant="sm"
-            options={getStaffStatusFilterOptions(isNepali)}
-          />
-
-          {/* Role Filter */}
-          <Select
-            value={selectedRoleFilter}
-            onChange={(e) => setSelectedRoleFilter(e.target.value)}
-            containerClassName="w-40"
-            sizeVariant="sm"
-            options={[
-              { value: "all", label: "All Designations" },
-              ...uniqueRoles.map((r) => ({ value: r, label: r })),
-            ]}
-          />
-
-          {(staffStatusFilter !== "all" ||
-            selectedRoleFilter !== "all" ||
-            staffSearch) && (
-            <button
-              type="button"
-              onClick={() => {
-                setStaffStatusFilter("all");
-                setSelectedRoleFilter("all");
-                setStaffSearch("");
-              }}
-              className="text-xs text-neutral-400 hover:text-neutral-200 px-2 py-1 transition-colors cursor-pointer"
-            >
-              Reset
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Staff Directory Table */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 select-none">
-              <tr>
-                <th className="py-3 px-5">Employee</th>
-                <th className="py-3 px-5">Designation</th>
-                <th className="py-3 px-5 text-right font-mono">
-                  Salary Structure
-                </th>
-                <th className="py-3 px-5">Contact</th>
-                <th className="py-3 px-5 text-center">Status</th>
-                <th className="py-3 px-5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-800/60">
-              {filteredStaffList.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="py-12 text-center text-neutral-400 text-xs"
-                  >
-                    <Users className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
-                    No employees found matching the search criteria.
-                    <div className="mt-2">
-                      <button
-                        type="button"
-                        onClick={handleOpenAddStaff}
-                        className="px-3 py-1.5 text-xs text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg border border-emerald-500/20 transition-colors cursor-pointer"
-                      >
-                        + Add First Employee
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredStaffList.map((staff) => (
-                  <tr
-                    key={staff.id}
-                    className="hover:bg-neutral-800/40 transition-colors group"
-                  >
-                    <td className="px-5 py-3.5">
-                      <div className="font-semibold text-neutral-100 flex items-center gap-2">
-                        <span>{staff.name}</span>
-                        {staff.status === "active" && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                        )}
-                      </div>
-                      <div className="text-[11px] text-neutral-500 font-mono mt-0.5">
-                        ID: #{staff.id}
-                        {staff.join_date &&
-                          ` · Joined: ${formatDate(staff.join_date)}`}
-                      </div>
-                    </td>
+      <DataTable<Staff>
+        data={filteredStaffList}
+        columns={staffColumns}
+        searchQuery={staffSearch}
+        onSearchChange={setStaffSearch}
+        searchPlaceholder={
+          isNepali
+            ? "नाम, पद, फोन वा इमेल खोज्नुहोस्..."
+            : "Search staff by name, role, phone, or email..."
+        }
+        filtersSlot={
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Status Filter */}
+            <Select
+              value={staffStatusFilter}
+              onChange={(e) => setStaffStatusFilter(e.target.value as any)}
+              containerClassName="w-32"
+              sizeVariant="sm"
+              options={getStaffStatusFilterOptions(isNepali)}
+            />
 
-                    <td className="px-5 py-3.5">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-800 text-neutral-200 border border-neutral-700/60">
-                        {staff.role}
-                      </span>
-                    </td>
+            {/* Role Filter */}
+            <Select
+              value={selectedRoleFilter}
+              onChange={(e) => setSelectedRoleFilter(e.target.value)}
+              containerClassName="w-40"
+              sizeVariant="sm"
+              options={[
+                {
+                  value: "all",
+                  label: isNepali ? "सबै पदहरू" : "All Designations",
+                },
+                ...uniqueRoles.map((r) => ({ value: r, label: r })),
+              ]}
+            />
 
-                    <td className="px-5 py-3.5 text-right font-mono font-medium text-neutral-200 tabular-nums whitespace-nowrap">
-                      {formatCurrency(staff.base_salary, currencySymbol)}
-                      <span className="text-[10px] text-neutral-500 font-sans block">
-                        per {staff.salary_type}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-3.5 text-neutral-300">
-                      {staff.phone ? (
-                        <div className="flex items-center gap-1 font-mono text-[11px]">
-                          <Phone className="w-3 h-3 text-neutral-500 shrink-0" />
-                          <span>{staff.phone}</span>
-                        </div>
-                      ) : null}
-                      {staff.email ? (
-                        <div className="flex items-center gap-1 text-[11px] text-neutral-400 mt-0.5 truncate max-w-[170px]">
-                          <Mail className="w-3 h-3 text-neutral-500 shrink-0" />
-                          <span>{staff.email}</span>
-                        </div>
-                      ) : null}
-                      {!staff.phone && !staff.email && (
-                        <span className="text-neutral-600 italic">
-                          No contact info
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="px-5 py-3.5 text-center whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                          staff.status === "active"
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                            : "bg-neutral-800 text-neutral-400 border border-neutral-700"
-                        }`}
-                      >
-                        {staff.status === "active" ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2">
-                        <ActionMenu
-                          align="right"
-                          items={[
-                            {
-                              label: "Disburse Salary",
-                              icon: CreditCard,
-                              color: "emerald",
-                              action: () =>
-                                navigate(`/payroll?staffId=${staff.id}`),
-                            },
-                            {
-                              label: "Edit Employee",
-                              icon: Edit2,
-                              color: "sky",
-                              action: () => handleOpenEditStaff(staff),
-                            },
-                            {
-                              label: "View Disbursements",
-                              icon: Calendar,
-                              color: "indigo",
-                              action: () =>
-                                navigate(`/payroll?staffId=${staff.id}`),
-                            },
-                            {
-                              label:
-                                staff.status === "active"
-                                  ? "Mark as Inactive"
-                                  : "Mark as Active",
-                              icon:
-                                staff.status === "active" ? UserX : UserCheck,
-                              color: "amber",
-                              action: () => handleToggleStaffStatus(staff),
-                            },
-                            {
-                              label: "Delete Employee",
-                              icon: Trash2,
-                              color: "rose",
-                              isDestructive: true,
-                              divider: true,
-                              action: () => setStaffToDelete(staff),
-                            },
-                          ]}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            {(staffStatusFilter !== "all" ||
+              selectedRoleFilter !== "all" ||
+              staffSearch) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStaffStatusFilter("all");
+                  setSelectedRoleFilter("all");
+                  setStaffSearch("");
+                }}
+                className="text-xs text-neutral-400 hover:text-neutral-200 px-2 py-1 transition-colors cursor-pointer"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        }
+        extraActionsSlot={
+          <button
+            type="button"
+            onClick={handleOpenAddStaff}
+            className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors shadow-xs cursor-pointer shrink-0"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>{isNepali ? "कर्मचारी थप्नुहोस्" : "Add Employee"}</span>
+          </button>
+        }
+        emptyIcon={Users}
+        emptyTitle={
+          isNepali ? "कुनै कर्मचारी फेला परेन" : "No employees found"
+        }
+        emptyMessage={
+          isNepali
+            ? "खोज मापदण्डसँग मेल खाने कुनै कर्मचारी छैन।"
+            : "No employees found matching the search criteria."
+        }
+        emptyAction={
+          <button
+            type="button"
+            onClick={handleOpenAddStaff}
+            className="px-3 py-1.5 text-xs text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg border border-emerald-500/20 transition-colors cursor-pointer"
+          >
+            {isNepali ? "+ पहिलो कर्मचारी थप्नुहोस्" : "+ Add First Employee"}
+          </button>
+        }
+        enablePagination={true}
+        pageSize={10}
+        pageSizeOptions={[10, 25, 50, 100]}
+      />
 
       {/* Modal: Add / Edit Staff Member */}
       <Modal
