@@ -1,6 +1,6 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { RotateCcw, Download, ShieldAlert, Home } from 'lucide-react';
-import { exportDatabase } from '../../lib/db/sqliteEngine.ts';
+import { exportBinaryFile } from '../../lib/services/backupService.ts';
 
 interface Props {
   children: ReactNode;
@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private handleDownloadEmergencyBackup = () => {
     try {
-      const binary = exportDatabase();
+      const binary = exportBinaryFile();
       const blob = new Blob([binary.buffer as ArrayBuffer], { type: 'application/x-sqlite3' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

@@ -532,3 +532,11 @@ export function getMonthlyPayrollSummary(
     today_status: todayStatus,
   };
 }
+
+/**
+ * Total count of staff members registered in the database.
+ */
+export function getStaffCount(): number {
+  const row = queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM staff`);
+  return row?.count ?? 0;
+}

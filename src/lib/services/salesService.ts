@@ -415,3 +415,11 @@ export function getSaleWithItems(saleId: number): { sale: Sale; items: SaleItem[
 
   return { sale, items };
 }
+
+/**
+ * Total count of sales records in the database.
+ */
+export function getSalesCount(): number {
+  const row = queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM sales`);
+  return row?.count ?? 0;
+}

@@ -20,6 +20,55 @@ export function getProductById(id: number): Product | null {
 }
 
 /**
+ * Total number of catalog products.
+ */
+export function getProductCount(): number {
+  const row = queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM products`);
+  return row?.count ?? 0;
+}
+
+/**
+ * Total sum of inventory units currently in stock across all products.
+ */
+export function getTotalInventoryUnits(): number {
+  const row = queryOne<{ total: number }>(
+    `SELECT COALESCE(SUM(current_stock), 0) as total FROM products`
+  );
+  return row?.total ?? 0;
+}
+
+/**
+ * Total valuation of all available inventory in minor currency units (current_stock * cost_price).
+ */
+export function getTotalInventoryValuation(): number {
+  const row = queryOne<{ valuation: number }>(
+    `SELECT COALESCE(SUM(current_stock * cost_price), 0) as valuation FROM products WHERE current_stock > 0`
+  );
+  return row?.valuation ?? 0;
+}
+
+/**
+ * Retrieve products at or below the minimum stock alert threshold.
+ */
+export function getLowStockProducts(threshold: number = 10): Product[] {
+  return query<Product>(
+    `SELECT * FROM products WHERE current_stock <= ? ORDER BY current_stock ASC`,
+    [threshold]
+  );
+}
+
+/**
+ * Fast scalar count of products at or below the minimum stock alert threshold.
+ */
+export function getLowStockCount(threshold: number = 10): number {
+  const row = queryOne<{ count: number }>(
+    `SELECT COUNT(*) as count FROM products WHERE current_stock <= ?`,
+    [threshold]
+  );
+  return row?.count ?? 0;
+}
+
+/**
  * Auto-generate a unique, retail-standard SKU code for a product if one is not provided.
  * Standard format: <PREFIX>-<0000> (e.g. 'CC-0009', 'BIS-0010', 'SKU-0011')
  */

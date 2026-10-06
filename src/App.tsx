@@ -14,9 +14,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   getDatabase,
   subscribeToDbChanges,
-  queryOne,
 } from "./lib/db/sqliteEngine.ts";
 import { getSettings } from "./lib/services/settingsService.ts";
+import { getLowStockCount } from "./lib/services/productService.ts";
 import { Product, AppSettings } from "./types/index.ts";
 import { ToastProvider } from "./context/ToastContext.tsx";
 import { Sidebar, NavTab } from "./components/layout/Sidebar.tsx";
@@ -182,11 +182,8 @@ export default function App() {
   const updateLowStockBadge = useCallback(() => {
     if (!dbReady) return;
     try {
-      const res = queryOne<{ count: number }>(
-        `SELECT COUNT(*) as count FROM products WHERE current_stock <= ?`,
-        [settings.low_stock_threshold],
-      );
-      setLowStockCount(res?.count ?? 0);
+      const count = getLowStockCount(settings.low_stock_threshold);
+      setLowStockCount(count);
     } catch {
       // Ignore if DB is reloading
     }

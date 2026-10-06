@@ -28,15 +28,16 @@ import {
   AlertTriangle,
   Info,
 } from "lucide-react";
+import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 import {
-  exportDatabase,
-  exportDatabaseToSql,
-  importDatabase,
-  importDatabaseFromSql,
-  resetDatabase,
-  queryOne,
-  subscribeToDbChanges,
-} from "../lib/db/sqliteEngine.ts";
+  getDatabaseStats,
+  exportSqlDump,
+  exportBinaryFile,
+  importSqlDump,
+  importBinaryFile,
+  resetDatabaseRecords,
+  type DatabaseStats,
+} from "../lib/services/backupService.ts";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { Input } from "../components/common/Input.tsx";
 import { useToast } from "../context/ToastContext.tsx";
@@ -48,14 +49,6 @@ interface PendingRestore {
   size: number;
   sqlData?: string;
   binaryData?: Uint8Array;
-}
-
-interface DatabaseStats {
-  products: number;
-  sales: number;
-  purchases: number;
-  expenses: number;
-  staff: number;
 }
 
 interface BackupRestoreViewProps {
@@ -85,29 +78,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
 
   const loadStats = useCallback(() => {
     try {
-      const pCount =
-        queryOne<{ count: number }>("SELECT COUNT(*) as count FROM products")
-          ?.count || 0;
-      const sCount =
-        queryOne<{ count: number }>("SELECT COUNT(*) as count FROM sales")
-          ?.count || 0;
-      const puCount =
-        queryOne<{ count: number }>("SELECT COUNT(*) as count FROM purchases")
-          ?.count || 0;
-      const eCount =
-        queryOne<{ count: number }>("SELECT COUNT(*) as count FROM expenses")
-          ?.count || 0;
-      const stCount =
-        queryOne<{ count: number }>("SELECT COUNT(*) as count FROM staff")
-          ?.count || 0;
-
-      setStats({
-        products: pCount,
-        sales: sCount,
-        purchases: puCount,
-        expenses: eCount,
-        staff: stCount,
-      });
+      setStats(getDatabaseStats());
     } catch (err) {
       console.error("Failed to load database stats:", err);
     }
@@ -123,7 +94,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
 
   const handleExportSqlBackup = () => {
     try {
-      const sqlContent = exportDatabaseToSql();
+      const sqlContent = exportSqlDump();
       const blob = new Blob([sqlContent], {
         type: "application/sql;charset=utf-8",
       });
@@ -149,7 +120,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
 
   const handleExportBinaryBackup = () => {
     try {
-      const binary = exportDatabase();
+      const binary = exportBinaryFile();
       const blob = new Blob([binary.buffer as ArrayBuffer], {
         type: "application/x-sqlite3",
       });
@@ -239,7 +210,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
     setIsRestoring(true);
     try {
       if (pendingRestore.type === "sql" && pendingRestore.sqlData) {
-        await importDatabaseFromSql(pendingRestore.sqlData);
+        await importSqlDump(pendingRestore.sqlData);
         showToast(
           isNepali
             ? `डाटाबेस एसक्यूएल फाइलबाट सफलतापूर्वक पुनर्स्थापित भयो (${pendingRestore.name})`
@@ -247,7 +218,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
           "success",
         );
       } else if (pendingRestore.binaryData) {
-        await importDatabase(pendingRestore.binaryData);
+        await importBinaryFile(pendingRestore.binaryData);
         showToast(
           isNepali
             ? `डाटाबेस सफलतापूर्वक पुनर्स्थापित भयो (${pendingRestore.name})`
@@ -267,7 +238,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
 
   const handleConfirmReset = async () => {
     try {
-      await resetDatabase();
+      await resetDatabaseRecords();
       showToast(
         isNepali
           ? "डाटाबेस प्रारम्भिक अवस्थामा रिसेट भयो"

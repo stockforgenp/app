@@ -238,3 +238,11 @@ export function getAllCategories(): string[] {
   }
   return Array.from(catSet);
 }
+
+/**
+ * Total count of expense records in the database.
+ */
+export function getExpensesCount(): number {
+  const row = queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM expenses`);
+  return row?.count ?? 0;
+}

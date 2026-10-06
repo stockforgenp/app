@@ -12,7 +12,10 @@ import {
   setI18nLanguage,
   interpolateParams,
 } from '../lib/i18n/translations.ts';
-import { run, queryOne } from '../lib/db/sqliteEngine.ts';
+import {
+  getSavedLanguage,
+  syncLanguageAndCurrency,
+} from '../lib/services/settingsService.ts';
 
 interface LanguageContextType {
   language: SupportedLanguage;
@@ -32,25 +35,6 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 const LANGUAGE_STORAGE_KEY = 'stockforge_language';
-
-function isRsVariant(s?: string | null): boolean {
-  if (!s) return true;
-  const clean = s.trim().toLowerCase();
-  return (
-    clean === 'rs.' ||
-    clean === 'rs' ||
-    clean === 'nrs.' ||
-    clean === 'nrs' ||
-    clean === 'inr' ||
-    clean === 'npr'
-  );
-}
-
-function isNepaliRupeeVariant(s?: string | null): boolean {
-  if (!s) return false;
-  const clean = s.trim();
-  return clean === 'रु.' || clean === 'रु' || clean === 'रू.' || clean === 'रू';
-}
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<SupportedLanguage>(() => {
@@ -72,26 +56,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   // Sync with SQLite on initial mount once DB is available
   useEffect(() => {
     try {
-      const row = queryOne<{ value: string }>('SELECT value FROM app_settings WHERE key = ?', ['language']);
-      if (row?.value === 'en' || row?.value === 'np') {
-        setLanguageState(row.value);
-        setI18nLanguage(row.value);
-        localStorage.setItem(LANGUAGE_STORAGE_KEY, row.value);
-
-        // Ensure currency symbol in SQLite is synchronized with the loaded language
-        const curRow = queryOne<{ value: string }>('SELECT value FROM app_settings WHERE key = ?', ['currency_symbol']);
-        const cur = curRow?.value;
-        if (row.value === 'np' && isRsVariant(cur)) {
-          run(
-            'INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-            ['currency_symbol', 'रु.']
-          );
-        } else if (row.value === 'en' && isNepaliRupeeVariant(cur)) {
-          run(
-            'INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-            ['currency_symbol', 'Rs.']
-          );
-        }
+      const savedLang = getSavedLanguage();
+      if (savedLang === 'en' || savedLang === 'np') {
+        setLanguageState(savedLang);
+        setI18nLanguage(savedLang);
+        localStorage.setItem(LANGUAGE_STORAGE_KEY, savedLang);
+        syncLanguageAndCurrency(savedLang);
       }
     } catch {
       // DB might not be ready yet on first tick
@@ -103,29 +73,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setI18nLanguage(newLang);
     try {
       localStorage.setItem(LANGUAGE_STORAGE_KEY, newLang);
-      run(
-        'INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-        ['language', newLang]
-      );
-
-      // When language changes, also change currency symbol between Rs. and Nepali rupee symbol रु.
-      const curRow = queryOne<{ value: string }>(
-        "SELECT value FROM app_settings WHERE key = 'currency_symbol'"
-      );
-      const cur = curRow?.value;
-      if (newLang === 'np') {
-        if (isRsVariant(cur)) {
-          run(
-            "INSERT INTO app_settings (key, value) VALUES ('currency_symbol', 'रु.') ON CONFLICT(key) DO UPDATE SET value = 'रु.'"
-          );
-        }
-      } else if (newLang === 'en') {
-        if (isNepaliRupeeVariant(cur) || !cur) {
-          run(
-            "INSERT INTO app_settings (key, value) VALUES ('currency_symbol', 'Rs.') ON CONFLICT(key) DO UPDATE SET value = 'Rs.'"
-          );
-        }
-      }
+      syncLanguageAndCurrency(newLang);
     } catch {
       // Ignore persistence errors if DB initializing
     }

@@ -4,7 +4,7 @@
  * Persists user preference across browser sessions and SQLite settings.
  */
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { run } from '../lib/db/sqliteEngine.ts';
+import { saveThemeSetting } from '../lib/services/settingsService.ts';
 import { STORAGE_KEYS } from '../constants/index.ts';
 
 export type AppTheme = 'light' | 'dark';
@@ -55,10 +55,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       try {
         localStorage.setItem(THEME_STORAGE_KEY, newTheme);
         // Sync to app_settings table if DB ready
-        run(
-          'INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-          ['theme', newTheme]
-        );
+        saveThemeSetting(newTheme);
       } catch {
         // Safe catch if db not initialized yet
       }

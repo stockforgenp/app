@@ -332,3 +332,11 @@ export function getVendorPurchases(vendorId: number): Purchase[] {
     [vendorId],
   );
 }
+
+/**
+ * Total count of registered vendors in the database.
+ */
+export function getVendorCount(): number {
+  const row = queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM vendors`);
+  return row?.count ?? 0;
+}

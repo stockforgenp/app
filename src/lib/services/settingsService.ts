@@ -2,7 +2,7 @@
  * Settings Service
  */
 import { AppSettings } from '../../types/index.ts';
-import { query, run } from '../db/sqliteEngine.ts';
+import { query, queryOne, run } from '../db/sqliteEngine.ts';
 
 const DEFAULT_SETTINGS: AppSettings = {
   currency_symbol: 'Rs.',
@@ -116,4 +116,97 @@ export function updateSettings(newSettings: Partial<AppSettings>): AppSettings {
   }
 
   return getSettings();
+}
+
+/**
+ * Retrieve a specific setting string value directly from app_settings by key.
+ */
+export function getAppSetting(key: string): string | null {
+  try {
+    const row = queryOne<{ value: string }>(
+      'SELECT value FROM app_settings WHERE key = ?',
+      [key]
+    );
+    return row?.value ?? null;
+  } catch (err) {
+    console.error(`Failed to get app setting ${key}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Set or update a specific setting string value in app_settings.
+ */
+export function setAppSetting(key: string, value: string): void {
+  try {
+    run(
+      'INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?',
+      [key, value, value]
+    );
+  } catch (err) {
+    console.error(`Failed to set app setting ${key}:`, err);
+  }
+}
+
+function isRsVariant(s?: string | null): boolean {
+  if (!s) return true;
+  const clean = s.trim().toLowerCase();
+  return (
+    clean === 'rs.' ||
+    clean === 'rs' ||
+    clean === 'nrs' ||
+    clean === 'nrs.' ||
+    clean === 'rupees'
+  );
+}
+
+function isNepaliRupeeVariant(s?: string | null): boolean {
+  if (!s) return false;
+  const clean = s.trim();
+  return clean === 'रु.' || clean === 'रु' || clean === 'रू.' || clean === 'रू';
+}
+
+/**
+ * Persist active language and synchronize the currency symbol between Rs. and रु.
+ */
+export function syncLanguageAndCurrency(newLang: 'en' | 'np'): void {
+  try {
+    setAppSetting('language', newLang);
+
+    const cur = getAppSetting('currency_symbol');
+    if (newLang === 'np') {
+      if (isRsVariant(cur)) {
+        setAppSetting('currency_symbol', 'रु.');
+      }
+    } else if (newLang === 'en') {
+      if (isNepaliRupeeVariant(cur) || !cur) {
+        setAppSetting('currency_symbol', 'Rs.');
+      }
+    }
+  } catch (err) {
+    console.error('Failed to sync language and currency settings:', err);
+  }
+}
+
+/**
+ * Get saved language ('en' | 'np') from app_settings.
+ */
+export function getSavedLanguage(): 'en' | 'np' | null {
+  const val = getAppSetting('language');
+  return val === 'en' || val === 'np' ? val : null;
+}
+
+/**
+ * Get saved theme ('light' | 'dark') from app_settings.
+ */
+export function getSavedTheme(): 'light' | 'dark' | null {
+  const val = getAppSetting('theme');
+  return val === 'light' || val === 'dark' ? val : null;
+}
+
+/**
+ * Save theme preference into app_settings.
+ */
+export function saveThemeSetting(theme: 'light' | 'dark'): void {
+  setAppSetting('theme', theme);
 }

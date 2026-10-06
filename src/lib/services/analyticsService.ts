@@ -9,6 +9,12 @@
 import { DailySalesData, FinancialSummary, Product, ProductAnalytics } from '../../types/index.ts';
 import { query, queryOne } from '../db/sqliteEngine.ts';
 import { getSettings } from './settingsService.ts';
+import {
+  getProductCount,
+  getTotalInventoryUnits,
+  getTotalInventoryValuation,
+  getLowStockProducts,
+} from './productService.ts';
 
 export type DateFilterPreset = 'today' | 'yesterday' | '7days' | '30days' | 'week' | 'month' | 'year' | 'custom' | 'all';
 
@@ -147,27 +153,15 @@ export function getDashboardOverview(preset: DateFilterPreset = 'today') {
   const range = getDateRangeFromPreset(preset);
   const summary = getFinancialSummary(range.startDate, range.endDate);
 
-  const productCountRes = queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM products`);
-  const totalProducts = productCountRes?.count ?? 0;
-
-  const stockUnitsRes = queryOne<{ total: number }>(
-    `SELECT COALESCE(SUM(current_stock), 0) as total FROM products`
-  );
-  const totalInventoryUnits = stockUnitsRes?.total ?? 0;
+  const totalProducts = getProductCount();
+  const totalInventoryUnits = getTotalInventoryUnits();
 
   const settings = getSettings();
   const lowStockThreshold = settings.low_stock_threshold;
-
-  const lowStockProducts = query<Product>(
-    `SELECT * FROM products WHERE current_stock <= ? ORDER BY current_stock ASC`,
-    [lowStockThreshold]
-  );
+  const lowStockProducts = getLowStockProducts(lowStockThreshold);
 
   // Total valuation of current inventory (current stock * cost price)
-  const valuationRes = queryOne<{ valuation: number }>(
-    `SELECT COALESCE(SUM(current_stock * cost_price), 0) as valuation FROM products WHERE current_stock > 0`
-  );
-  const totalInventoryValuation = valuationRes?.valuation ?? 0;
+  const totalInventoryValuation = getTotalInventoryValuation();
 
   return {
     ...summary,

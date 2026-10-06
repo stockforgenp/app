@@ -402,3 +402,11 @@ export function getPurchaseWithItems(
 
   return { purchase, items };
 }
+
+/**
+ * Total count of purchase records in the database.
+ */
+export function getPurchasesCount(): number {
+  const row = queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM purchases`);
+  return row?.count ?? 0;
+}

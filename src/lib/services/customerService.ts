@@ -286,3 +286,11 @@ export function getCustomerSales(customerId: number): Sale[] {
     [customerId]
   );
 }
+
+/**
+ * Total count of registered customers in the database.
+ */
+export function getCustomerCount(): number {
+  const row = queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM customers`);
+  return row?.count ?? 0;
+}
