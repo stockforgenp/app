@@ -27,6 +27,7 @@ import {
   History,
   FileText,
   Headphones,
+  Database,
 } from 'lucide-react';
 import { NavTab } from '../layout/Sidebar.tsx';
 import { Input } from './Input.tsx';
@@ -264,12 +265,26 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       {
         id: 'nav-settings',
         title: 'Application Settings',
-        subtitle: 'Currency symbols, stock rules, and database tools',
+        subtitle: 'Currency symbols, stock rules, and invoice formats',
         icon: Settings,
         shortcut: `${MODIFIER_LABEL}+,`,
         category: 'Screens',
         action: () => {
           onNavigate('settings');
+          onClose();
+        },
+      },
+      {
+        id: 'nav-backup',
+        title: isNepali ? 'ब्याकअप र पुनर्स्थापना' : 'Backup & Restore',
+        subtitle: isNepali
+          ? 'डेटाबेस SQL/SQLite निर्यात, आयात तथा सुरक्षित भण्डारण'
+          : 'Database SQL/SQLite export, import, restore & maintenance',
+        icon: Database,
+        shortcut: `${MODIFIER_LABEL}+Shift+D`,
+        category: 'Screens',
+        action: () => {
+          onNavigate('backup');
           onClose();
         },
       },

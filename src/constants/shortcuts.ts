@@ -126,9 +126,17 @@ export const SHORTCUT_REGISTRY: ShortcutDefinition[] = [
     id: 'nav-settings',
     category: 'Navigation',
     label: 'App Settings',
-    description: 'Manage base currency, low stock alert rules, and backups',
+    description: 'Manage store information, currency, and tax configurations',
     keys: ['ctrl+,', 'cmd+,', 'alt+,'],
     displayKeys: `${MODIFIER_LABEL}+,`,
+  },
+  {
+    id: 'nav-backup',
+    category: 'Navigation',
+    label: 'Backup & Restore',
+    description: 'Export and restore SQLite / SQL dumps and database state',
+    keys: ['ctrl+shift+d', 'cmd+shift+d', 'alt+shift+d'],
+    displayKeys: `${MODIFIER_LABEL}+Shift+D`,
   },
   {
     id: 'nav-support',

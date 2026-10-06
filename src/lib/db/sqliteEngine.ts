@@ -470,6 +470,106 @@ export function exportDatabase(): Uint8Array {
 }
 
 /**
+ * Export the current SQLite database as a clean SQL script dump
+ */
+export function exportDatabaseToSql(): string {
+  if (!dbInstance) {
+    throw new Error('Database not initialized');
+  }
+
+  const lines: string[] = [
+    '--',
+    '-- StockForge SQLite Database Dump',
+    `-- Exported At: ${new Date().toISOString()}`,
+    '--',
+    'PRAGMA foreign_keys = OFF;',
+    'BEGIN TRANSACTION;',
+    '',
+  ];
+
+  // 1. Get all views first to drop them before tables
+  const viewsRes = dbInstance.exec(
+    "SELECT name, sql FROM sqlite_master WHERE type = 'view' AND name NOT LIKE 'sqlite_%' ORDER BY name;"
+  );
+  if (viewsRes.length > 0 && viewsRes[0].values) {
+    for (const [name] of viewsRes[0].values) {
+      const viewName = String(name);
+      lines.push(`DROP VIEW IF EXISTS "${viewName.replace(/"/g, '""')}";`);
+    }
+    lines.push('');
+  }
+
+  // 2. Get all tables (excluding sqlite internal tables)
+  const tablesRes = dbInstance.exec(
+    "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name;"
+  );
+
+  if (tablesRes.length > 0 && tablesRes[0].values) {
+    for (const [name, sql] of tablesRes[0].values) {
+      const tableName = String(name);
+      const tableSql = String(sql);
+
+      lines.push(`-- Table: ${tableName}`);
+      lines.push(`DROP TABLE IF EXISTS "${tableName.replace(/"/g, '""')}";`);
+      lines.push(`${tableSql};`);
+
+      // Dump rows
+      const rowsRes = dbInstance.exec(`SELECT * FROM "${tableName.replace(/"/g, '""')}";`);
+      if (rowsRes.length > 0 && rowsRes[0].values.length > 0) {
+        const columns = rowsRes[0].columns;
+        const colList = columns.map(c => `"${c.replace(/"/g, '""')}"`).join(', ');
+
+        for (const row of rowsRes[0].values) {
+          const valList = row.map(val => {
+            if (val === null || val === undefined) return 'NULL';
+            if (typeof val === 'number') return Number.isFinite(val) ? String(val) : 'NULL';
+            if (typeof val === 'boolean') return val ? '1' : '0';
+            if (val instanceof Uint8Array) {
+              const hex = Array.from(val).map(b => b.toString(16).padStart(2, '0')).join('');
+              return `X'${hex}'`;
+            }
+            return `'${String(val).replace(/'/g, "''")}'`;
+          }).join(', ');
+
+          lines.push(`INSERT INTO "${tableName.replace(/"/g, '""')}" (${colList}) VALUES (${valList});`);
+        }
+      }
+      lines.push('');
+    }
+  }
+
+  // 3. Recreate views
+  if (viewsRes.length > 0 && viewsRes[0].values) {
+    for (const [name, sql] of viewsRes[0].values) {
+      const viewName = String(name);
+      const viewSql = String(sql);
+      lines.push(`-- View: ${viewName}`);
+      lines.push(`${viewSql};`);
+      lines.push('');
+    }
+  }
+
+  // 4. Recreate indices (excluding auto-generated primary key indices)
+  const indicesRes = dbInstance.exec(
+    "SELECT name, sql FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%' AND sql IS NOT NULL ORDER BY name;"
+  );
+  if (indicesRes.length > 0 && indicesRes[0].values) {
+    for (const [, sql] of indicesRes[0].values) {
+      if (sql) {
+        lines.push(`${String(sql)};`);
+      }
+    }
+    lines.push('');
+  }
+
+  lines.push('COMMIT;');
+  lines.push('PRAGMA foreign_keys = ON;');
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+/**
  * Import a binary SQLite database and replace the current state
  */
 export async function importDatabase(binaryData: Uint8Array): Promise<void> {
@@ -484,6 +584,49 @@ export async function importDatabase(binaryData: Uint8Array): Promise<void> {
   const test = newDb.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='products'");
   if (test.length === 0 || test[0].values.length === 0) {
     throw new Error('Invalid database: products table missing.');
+  }
+
+  if (dbInstance) {
+    dbInstance.close();
+  }
+  dbInstance = newDb;
+  await persistCurrentDatabase();
+  notifyDbChanged();
+}
+
+/**
+ * Import a SQL script and replace the current database state
+ */
+export async function importDatabaseFromSql(sqlContent: string): Promise<void> {
+  const trimmed = sqlContent.trim();
+  if (!trimmed) {
+    throw new Error('The SQL backup file is empty.');
+  }
+
+  const SQL = await initSqlJs({
+    locateFile: () => sqlWasmUrl,
+  });
+
+  const newDb = new SQL.Database();
+  newDb.run('PRAGMA foreign_keys = OFF;');
+
+  // If the SQL script does not define tables (only inserts/data), initialize core schema first
+  const hasCreateTable = /create\s+table/i.test(trimmed);
+  if (!hasCreateTable) {
+    newDb.run(SCHEMA_SQL);
+  }
+
+  // Execute the user SQL script
+  newDb.run(trimmed);
+  newDb.run('PRAGMA foreign_keys = ON;');
+
+  // Apply migrations if needed to ensure any new columns exist
+  migrateDatabaseIfNeeded(newDb);
+
+  // Quick sanity check to ensure core tables like products exist
+  const test = newDb.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='products'");
+  if (test.length === 0 || test[0].values.length === 0) {
+    throw new Error('Invalid SQL database backup: products table is missing.');
   }
 
   if (dbInstance) {

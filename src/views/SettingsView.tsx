@@ -14,8 +14,7 @@ import { Link } from "react-router-dom";
 import {
   Settings,
   HardDrive,
-  Download,
-  Upload,
+  Database,
   RotateCcw,
   CheckCircle2,
   XCircle,
@@ -34,13 +33,7 @@ import {
   getSettings,
   updateSettings,
 } from "../lib/services/settingsService.ts";
-import {
-  exportDatabase,
-  importDatabase,
-  resetDatabase,
-} from "../lib/db/sqliteEngine.ts";
 import { runBusinessLogicTests } from "../lib/services/testService.ts";
-import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { Select } from "../components/common/Select.tsx";
 import { Input } from "../components/common/Input.tsx";
 import { useToast } from "../context/ToastContext.tsx";
@@ -84,12 +77,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     settings.receipt_footer ||
       "Thank you for shopping with us! Please come again.",
   );
-
-  // Dialogs
-  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
-  const [pendingRestoreData, setPendingRestoreData] =
-    useState<Uint8Array | null>(null);
-  const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = useState(false);
 
   // Tests
   const [testResults, setTestResults] = useState<TestResultItem[] | null>(null);
@@ -144,73 +131,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setSettings(updated);
     onSettingsUpdated(updated);
     showToast("Settings & bill receipt header updated successfully", "success");
-  };
-
-  const handleExportBackup = () => {
-    try {
-      const binary = exportDatabase();
-      const blob = new Blob([binary.buffer as ArrayBuffer], {
-        type: "application/x-sqlite3",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      a.href = url;
-      a.download = `stockforge_backup_${timestamp}.sqlite`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showToast("Database backup downloaded successfully", "success");
-    } catch (err: unknown) {
-      showToast((err as Error).message, "error", "Export Failed");
-    }
-  };
-
-  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const buffer = reader.result as ArrayBuffer;
-        setPendingRestoreData(new Uint8Array(buffer));
-        setIsRestoreConfirmOpen(true);
-      } catch (err: unknown) {
-        showToast((err as Error).message, "error");
-      }
-    };
-    reader.readAsArrayBuffer(file);
-    // Reset input
-    e.target.value = "";
-  };
-
-  const handleConfirmRestore = async () => {
-    if (!pendingRestoreData) return;
-    try {
-      await importDatabase(pendingRestoreData);
-      showToast("Database successfully restored from backup file", "success");
-      const s = getSettings();
-      setSettings(s);
-      onSettingsUpdated(s);
-    } catch (err: unknown) {
-      showToast((err as Error).message, "error", "Restore Failed");
-    } finally {
-      setPendingRestoreData(null);
-    }
-  };
-
-  const handleConfirmReset = async () => {
-    try {
-      await resetDatabase();
-      showToast("Database reset to initial sample state", "success");
-      const s = getSettings();
-      setSettings(s);
-      onSettingsUpdated(s);
-    } catch (err: unknown) {
-      showToast((err as Error).message, "error");
-    }
   };
 
   const handleRunTests = async () => {
@@ -739,90 +659,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </form>
       </div>
 
-      {/* Database Backup & Restore Card */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 space-y-6">
-        <div className="flex items-center gap-2 text-sm font-semibold text-neutral-100 pb-3 border-b border-neutral-800">
-          <HardDrive className="w-4 h-4 text-emerald-400" />
-          <span>Local SQLite Database Backup & Recovery</span>
-        </div>
-
-        <p className="text-xs text-neutral-400 leading-relaxed">
-          All data is stored directly inside an offline SQLite database. You can
-          export a snapshot file at any time or restore an existing backup file.
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Export Button */}
-          <div className="p-4 rounded-xl bg-neutral-950 border border-neutral-800 flex flex-col justify-between space-y-4">
-            <div>
-              <div className="text-xs font-semibold text-neutral-200 flex items-center gap-2">
-                <Download className="w-4 h-4 text-emerald-400" />
-                <span>Backup SQLite File</span>
-              </div>
-              <div className="text-[11px] text-neutral-500 mt-1">
-                Downloads an immutable binary{" "}
-                <code className="text-neutral-400">.sqlite</code> database file
-                locally.
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleExportBackup}
-              className="w-full py-2 px-3 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Download .sqlite File</span>
-            </button>
+      {/* Quick Link Banner to Dedicated Backup & Restore Menu */}
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start sm:items-center gap-3">
+          <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
+            <Database className="w-5 h-5" />
           </div>
-
-          {/* Restore Button */}
-          <div className="p-4 rounded-xl bg-neutral-950 border border-neutral-800 flex flex-col justify-between space-y-4">
-            <div>
-              <div className="text-xs font-semibold text-neutral-200 flex items-center gap-2">
-                <Upload className="w-4 h-4 text-sky-400" />
-                <span>Restore Previous Backup</span>
-              </div>
-              <div className="text-[11px] text-neutral-500 mt-1">
-                Upload a <code className="text-neutral-400">.sqlite</code> file
-                to restore tables, products, and sales.
-              </div>
-            </div>
-
-            <label className="w-full py-2 px-3 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer">
-              <Upload className="w-3.5 h-3.5" />
-              <span>Select File to Restore...</span>
-              <Input
-                type="file"
-                accept=".sqlite,.db"
-                onChange={handleFileSelected}
-                className="hidden"
-              />
-            </label>
-          </div>
-        </div>
-
-        {/* Reset Database Option */}
-        <div className="pt-2 border-t border-neutral-800/80 flex items-center justify-between">
           <div>
-            <div className="text-xs font-medium text-neutral-300">
-              Reset / Clear Database
+            <div className="text-xs font-semibold text-neutral-200">
+              {isNepali
+                ? "डाटाबेस ब्याकअप र पुनर्स्थापना नयाँ मेनुमा उपलब्ध छ"
+                : "Database Backup & Recovery is in a dedicated menu"}
             </div>
-            <div className="text-[11px] text-neutral-500">
-              Permanently clears all inventory records, transactions, expenses,
-              and staff data for a clean slate.
+            <div className="text-[11px] text-neutral-400 mt-0.5">
+              {isNepali
+                ? "पूर्ण एसक्यूएल डम्प (.sql), बाइनरी स्न्यापसट (.sqlite), डाटा टेलिमेट्री र पुनर्स्थापना उपकरणहरू अब छुट्टै 'ब्याकअप र पुनर्स्थापना' मेनुमा उपलब्ध छन्।"
+                : "Full SQL script dumps (.sql), binary snapshots (.sqlite), telemetry, and disaster recovery tools now live in the dedicated Backup & Restore menu."}
             </div>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setIsResetConfirmOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-neutral-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset Database</span>
-          </button>
         </div>
+        <Link
+          to="/backup"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer shrink-0 shadow-xs"
+        >
+          <Database className="w-3.5 h-3.5" />
+          <span>{isNepali ? "ब्याकअप मेनु खोल्नुहोस्" : "Open Backup & Restore"}</span>
+        </Link>
       </div>
 
       {/* Section 19: Business Logic & ACID Test Suite */}
@@ -913,31 +775,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         )}
       </div>
-
-      {/* Confirmation Dialog: Restore Backup */}
-      <ConfirmDialog
-        isOpen={isRestoreConfirmOpen}
-        onClose={() => {
-          setIsRestoreConfirmOpen(false);
-          setPendingRestoreData(null);
-        }}
-        onConfirm={handleConfirmRestore}
-        title="Restore SQLite Database?"
-        message="Restoring from a backup file will permanently REPLACE all current products, stock levels, and historical transactions with the uploaded file data. This operation cannot be undone."
-        confirmText="Replace & Restore Data"
-        isDestructive={true}
-      />
-
-      {/* Confirmation Dialog: Reset Database */}
-      <ConfirmDialog
-        isOpen={isResetConfirmOpen}
-        onClose={() => setIsResetConfirmOpen(false)}
-        onConfirm={handleConfirmReset}
-        title="Clear & Reset Database?"
-        message="This will completely wipe all current products, inventory movements, transactions, expenses, and staff records. Are you sure you wish to start with a clean slate?"
-        confirmText="Clear All Data"
-        isDestructive={true}
-      />
     </div>
   );
 };

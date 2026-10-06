@@ -19,6 +19,7 @@ import {
   CreditCard,
   Settings,
   Headphones,
+  Database,
 } from 'lucide-react';
 import { MODIFIER_LABEL } from './shortcuts.ts';
 
@@ -37,6 +38,7 @@ export type NavTab =
   | 'payroll'
   | 'analytics'
   | 'settings'
+  | 'backup'
   | 'support';
 
 export const NAV_TABS: readonly NavTab[] = [
@@ -54,6 +56,7 @@ export const NAV_TABS: readonly NavTab[] = [
   'payroll',
   'analytics',
   'settings',
+  'backup',
   'support',
 ] as const;
 
@@ -198,6 +201,14 @@ export const getNavGroups = (
         label: t('nav_settings'),
         icon: Settings,
         shortcut: `${MODIFIER_LABEL}+,`,
+      },
+      {
+        id: 'backup',
+        label: isNepali
+          ? 'ब्याकअप र पुनर्स्थापना'
+          : t('nav_backup', 'Backup & Restore'),
+        icon: Database,
+        shortcut: `${MODIFIER_LABEL}+Shift+D`,
       },
       {
         id: 'support',

@@ -39,6 +39,7 @@ import { StaffView } from "./views/StaffView.tsx";
 import { PayrollView } from "./views/PayrollView.tsx";
 import { AnalyticsView } from "./views/AnalyticsView.tsx";
 import { SettingsView } from "./views/SettingsView.tsx";
+import { BackupRestoreView } from "./views/BackupRestoreView.tsx";
 import { TechnicalSupportView } from "./views/TechnicalSupportView.tsx";
 import { HardDrive, Loader2 } from "lucide-react";
 import { useGlobalShortcuts } from "./lib/hooks/useGlobalShortcuts.ts";
@@ -437,6 +438,22 @@ export default function App() {
                         }}
                       />
                     }
+                  />
+                  <Route
+                    path="/backup"
+                    element={
+                      <BackupRestoreView
+                        onDatabaseRestored={() => {
+                          const s = getSettings();
+                          setSettings(s);
+                          updateLowStockBadge();
+                        }}
+                      />
+                    }
+                  />
+                  <Route
+                    path="/backup-restore"
+                    element={<Navigate to="/backup" replace />}
                   />
                   <Route path="/support" element={<TechnicalSupportView />} />
                   <Route

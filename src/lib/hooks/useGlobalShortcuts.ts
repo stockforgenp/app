@@ -251,6 +251,17 @@ export function useGlobalShortcuts({
         return;
       }
 
+      // Ctrl+Shift+D / Cmd+Shift+D or Alt+Shift+D: Backup & Restore
+      if (
+        !inInput &&
+        ((isModifier && e.shiftKey && key === "d") ||
+          (isAlt && e.shiftKey && key === "d"))
+      ) {
+        e.preventDefault();
+        onNavigate("backup");
+        return;
+      }
+
       // Alt+H or Ctrl+Shift+H / Cmd+Shift+H: Technical Support
       if (
         !inInput &&
@@ -271,5 +282,6 @@ export function useGlobalShortcuts({
     onCloseModals,
     onOpenCreateProduct,
     onToggleTheme,
+    onToggleLanguage,
   ]);
 }
