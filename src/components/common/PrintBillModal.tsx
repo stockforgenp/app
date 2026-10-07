@@ -143,7 +143,9 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
       });
 
       const taxable = sale.taxable_amount ?? Math.max(0, sale.subtotal - sale.discount);
-      const vat = sale.vat_amount ?? Math.round(taxable * 0.13);
+      const vatRate = sale.vat_rate ?? 13;
+      const vat = sale.vat_amount ?? (vatRate > 0 ? Math.round(taxable * (vatRate / 100)) : 0);
+      const hasVat = vat > 0 || (sale.vat_rate !== undefined && sale.vat_rate > 0);
       const grandTotal = sale.grand_total ?? sale.total;
 
       text += `${lineSeparator}\n`;
@@ -152,7 +154,9 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
         text += `Discount:      -${formatCurrency(sale.discount, currencySymbol)}\n`;
       }
       text += `Taxable Amount: ${formatCurrency(taxable, currencySymbol)}\n`;
-      text += `13% VAT:       +${formatCurrency(vat, currencySymbol)}\n`;
+      if (hasVat) {
+        text += `${vatRate}% VAT:       +${formatCurrency(vat, currencySymbol)}\n`;
+      }
       text += `Total Items:    ${items.length} (${totalUnits} units)\n`;
       text += `${doubleSeparator}\n`;
       text += `*GRAND TOTAL:   ${formatCurrency(grandTotal, currencySymbol)}*\n`;
@@ -380,19 +384,23 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
                 </div>
               )}
 
-              {/* Taxable amount & 13% VAT */}
+              {/* Taxable amount & VAT (if applicable) */}
               <div className="flex justify-between text-gray-600">
                 <span>{isNepali ? 'करयोग्य रकम:' : 'Taxable Amount:'}</span>
                 <span>{formatCurrency(sale.taxable_amount ?? Math.max(0, sale.subtotal - sale.discount), currencySymbol)}</span>
               </div>
-              <div className="flex justify-between text-sky-700 font-medium">
-                <span>{isNepali ? '१३% भ्याट:' : '13% VAT:'}</span>
-                <span>+{formatCurrency(sale.vat_amount ?? Math.round((sale.taxable_amount ?? Math.max(0, sale.subtotal - sale.discount)) * 0.13), currencySymbol)}</span>
-              </div>
+              {((sale.vat_amount !== undefined && sale.vat_amount > 0) || ((sale.vat_rate ?? 0) > 0)) && (
+                <div className="flex justify-between text-sky-700 font-medium">
+                  <span>{isNepali ? `${sale.vat_rate ?? 13}% भ्याट:` : `${sale.vat_rate ?? 13}% VAT:`}</span>
+                  <span>+{formatCurrency(sale.vat_amount ?? Math.round((sale.taxable_amount ?? Math.max(0, sale.subtotal - sale.discount)) * ((sale.vat_rate ?? 13) / 100)), currencySymbol)}</span>
+                </div>
+              )}
 
               <div className="flex justify-between items-baseline pt-1.5 border-t border-gray-300">
                 <span className="text-sm font-black text-gray-900 uppercase tracking-tight">
-                  {isNepali ? 'कुल भुक्तानी रकम:' : 'Grand Total Due:'}
+                  {((sale.vat_amount !== undefined && sale.vat_amount > 0) || ((sale.vat_rate ?? 0) > 0))
+                    ? (isNepali ? 'कुल भुक्तानी रकम (भ्याट सहित):' : 'Grand Total Due (Inc. VAT):')
+                    : (isNepali ? 'कुल भुक्तानी रकम (०% भ्याट):' : 'Grand Total Due (0% VAT):')}
                 </span>
                 <span className="text-base font-black text-gray-900 font-mono">
                   {formatCurrency(sale.grand_total ?? sale.total, currencySymbol)}

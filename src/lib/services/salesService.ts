@@ -23,6 +23,7 @@ export interface ProcessSaleCustomerInfo {
   customerEmail?: string | null;
   customerPanVat?: string | null;
   customerAddress?: string | null;
+  applyVat?: boolean;
   customerInput?: {
     name: string;
     phone?: string;
@@ -107,8 +108,11 @@ export function processSale(
     }
 
     const taxableAmount = Math.max(0, saleSubtotal - saleDiscount);
-    const vatRate = settings.enable_vat !== false ? 13.0 : 0.0;
-    const vatAmount = settings.enable_vat !== false ? Math.round(taxableAmount * 0.13) : 0;
+    const vatEnabled = customerInfo?.applyVat !== undefined
+      ? customerInfo.applyVat
+      : (settings.enable_vat !== false);
+    const vatRate = vatEnabled ? 13.0 : 0.0;
+    const vatAmount = vatEnabled ? Math.round(taxableAmount * 0.13) : 0;
     const grandTotal = taxableAmount + vatAmount;
 
     // Generate sequential bill number

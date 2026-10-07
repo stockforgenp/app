@@ -42,11 +42,13 @@ import { useLanguage } from "../context/LanguageContext.tsx";
 
 interface PurchasesViewProps {
   currencySymbol: string;
+  enableVat?: boolean;
   onOpenCreateProduct?: () => void;
 }
 
 export const PurchasesView: React.FC<PurchasesViewProps> = ({
   currencySymbol,
+  enableVat = true,
   onOpenCreateProduct,
 }) => {
   const { showToast } = useToast();
@@ -74,6 +76,13 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
   });
   const [supplierInvoiceNo, setSupplierInvoiceNo] = useState("");
   const [purchaseNotes, setPurchaseNotes] = useState("");
+
+  // Active VAT calculation toggle for this purchase (defaults to store-level enableVat setting)
+  const [applyVat, setApplyVat] = useState(enableVat !== false);
+
+  useEffect(() => {
+    setApplyVat(enableVat !== false);
+  }, [enableVat]);
 
   // Quick Barcode / SKU Input
   const [quickSkuInput, setQuickSkuInput] = useState("");
@@ -294,18 +303,20 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     }
 
     const taxableAmount = Math.max(0, subtotal - totalDiscount);
-    const vatAmount = Math.round(taxableAmount * 0.13);
+    const vatRate = applyVat ? 13.0 : 0.0;
+    const vatAmount = applyVat ? Math.round(taxableAmount * 0.13) : 0;
     const grandTotal = taxableAmount + vatAmount;
 
     return {
       subtotal,
       totalDiscount,
       taxableAmount,
+      vatRate,
       vatAmount,
       grandTotal,
       totalUnits,
     };
-  }, [cart]);
+  }, [cart, applyVat]);
 
   // Execute Purchase Transaction
   const handleCompletePurchase = () => {
@@ -332,6 +343,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         vendorAddress: vendorData.address.trim() || undefined,
         invoiceNumber: supplierInvoiceNo.trim() || undefined,
         notes: purchaseNotes.trim() || undefined,
+        applyVat: applyVat,
         vendorInput: {
           name: vendorData.name.trim(),
           phone: vendorData.phone.trim() || undefined,
@@ -866,24 +878,51 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                 </span>
               </div>
 
-              <div className="flex items-center justify-between text-xs text-neutral-400">
+              {/* VAT Row with Toggle */}
+              <div className="flex items-center justify-between text-xs text-neutral-400 py-0.5">
                 <span className="flex items-center gap-1.5">
-                  <span className="px-1.5 py-0.2 rounded bg-sky-500/10 text-sky-400 text-[10px] font-medium border border-sky-500/20">
-                    13% VAT
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                      applyVat
+                        ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                        : "bg-neutral-800 text-neutral-400 border-neutral-700"
+                    }`}
+                  >
+                    {applyVat ? "13% VAT" : "0% VAT"}
                   </span>
                   <span>{isNepali ? "मूल्य अभिवृद्धि कर" : "VAT (13%)"}</span>
                 </span>
-                <span className="font-mono text-sky-400">
-                  + {formatCurrency(calculations.vatAmount, currencySymbol)}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`font-mono ${applyVat ? "text-sky-400" : "text-neutral-500"}`}>
+                    {applyVat
+                      ? `+ ${formatCurrency(calculations.vatAmount, currencySymbol)}`
+                      : formatCurrency(0, currencySymbol)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setApplyVat(!applyVat)}
+                    title={
+                      applyVat
+                        ? (isNepali ? "भ्याट हटाउनुहोस्" : "Disable VAT for this purchase")
+                        : (isNepali ? "१३% भ्याट जोड्नुहोस्" : "Apply 13% VAT to this purchase")
+                    }
+                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded transition-all cursor-pointer border ${
+                      applyVat
+                        ? "bg-sky-500/20 text-sky-300 border-sky-500/30 hover:bg-sky-500/30"
+                        : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200 hover:border-neutral-600"
+                    }`}
+                  >
+                    {applyVat ? "ON" : "OFF"}
+                  </button>
+                </div>
               </div>
 
               <div className="pt-2 border-t border-neutral-800 flex items-center justify-between">
                 <div>
                   <div className="text-sm font-bold text-neutral-100">
-                    {isNepali
-                      ? "अन्तिम कुल खरिद रकम"
-                      : "Grand Total (Inc. 13% VAT)"}
+                    {applyVat
+                      ? (isNepali ? "अन्तिम कुल खरिद रकम (१३% भ्याट सहित)" : "Grand Total (Inc. 13% VAT)")
+                      : (isNepali ? "अन्तिम कुल खरिद रकम (०% भ्याट)" : "Grand Total (0% VAT)")}
                   </div>
                   <div className="text-[11px] text-neutral-400">
                     {isNepali

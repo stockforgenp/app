@@ -3,15 +3,14 @@
  * Follows the 3-zone contract: Breadcrumb trail on left, status & actions on right.
  */
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PlusCircle, ShoppingCart, Search, Keyboard, Sun, Moon, Languages } from 'lucide-react';
-import { NavTab } from './Sidebar.tsx';
 import { MODIFIER_LABEL } from '../../lib/hooks/useGlobalShortcuts.ts';
 import { useTheme } from '../../context/ThemeContext.tsx';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 
 interface HeaderProps {
-  currentTab: NavTab;
   onNewSaleClick: () => void;
   onNewProductClick: () => void;
   onOpenCommandPalette?: () => void;
@@ -20,12 +19,13 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  currentTab,
   onNewSaleClick,
   onNewProductClick,
   onOpenCommandPalette,
   onOpenShortcutsHelp,
 }) => {
+  const location = useLocation();
+  const currentTab = location.pathname.replace(/^\//, '').split('/')[0];
   const { toggleTheme, isDark } = useTheme();
   const { t, toggleLanguage, isNepali } = useLanguage();
 

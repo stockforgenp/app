@@ -121,6 +121,18 @@ export async function registerShop(input: RegisterShopInput): Promise<Shop> {
     `INSERT INTO app_settings (key, value) VALUES ('currency_symbol', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
     [currencySymbol]
   );
+  if (input.enable_vat !== undefined) {
+    run(
+      `INSERT INTO app_settings (key, value) VALUES ('enable_vat', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      [input.enable_vat ? 'true' : 'false']
+    );
+  }
+  if (input.store_pan_vat) {
+    run(
+      `INSERT INTO app_settings (key, value) VALUES ('store_pan_vat', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      [input.store_pan_vat.trim()]
+    );
+  }
 
   // Store active session in localStorage
   try {

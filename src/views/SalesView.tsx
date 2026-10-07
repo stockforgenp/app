@@ -51,6 +51,7 @@ import { useLanguage } from "../context/LanguageContext.tsx";
 interface SalesViewProps {
   currencySymbol: string;
   allowNegativeStock: boolean;
+  enableVat?: boolean;
   onSaleCompleted: (saleId: number) => void;
   initialProducts?: Array<{ product: Product; quantity?: number }>;
   onClearInitialProducts?: () => void;
@@ -60,6 +61,7 @@ interface SalesViewProps {
 export const SalesView: React.FC<SalesViewProps> = ({
   currencySymbol,
   allowNegativeStock,
+  enableVat = true,
   onSaleCompleted,
   initialProducts,
   onClearInitialProducts,
@@ -110,6 +112,13 @@ export const SalesView: React.FC<SalesViewProps> = ({
     "fixed" | "percent"
   >("fixed");
 
+  // Active VAT calculation toggle for the sale (defaults to store-level enableVat setting)
+  const [applyVat, setApplyVat] = useState(enableVat !== false);
+
+  useEffect(() => {
+    setApplyVat(enableVat !== false);
+  }, [enableVat]);
+
   // Bulk / Whole Discount Modal
   const [isBulkDiscountModalOpen, setIsBulkDiscountModalOpen] = useState(false);
   const [bulkDiscountTab, setBulkDiscountTab] = useState<
@@ -126,12 +135,6 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const [batchQuantities, setBatchQuantities] = useState<
     Record<number, number>
   >({});
-
-  // Bulk SKU entry in modal
-  const [modalTab, setModalTab] = useState<"checklist" | "bulkSku">(
-    "checklist",
-  );
-  const [bulkSkuInput, setBulkSkuInput] = useState("");
   const [modalSearch, setModalSearch] = useState("");
 
   const quickSkuInputRef = useRef<HTMLInputElement>(null);
@@ -551,61 +554,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
     setIsMultiProductModalOpen(false);
   };
 
-  // Handle parsing multiple SKUs / Barcodes typed or pasted in bulk format
-  // Format examples: "BEV-CC-500, SNK-CHP-050", or with counts "BEV-CC-500*3, SNK-CHP-050*2"
-  const handleBulkSkuSubmit = () => {
-    if (!bulkSkuInput.trim()) {
-      showToast("Please enter at least one SKU or product name", "warning");
-      return;
-    }
 
-    const tokens = bulkSkuInput
-      .split(/[\n,;]+/)
-      .map((t) => t.trim())
-      .filter(Boolean);
-
-    const itemsToAdd: Array<{ product: Product; quantity: number }> = [];
-    const notFound: string[] = [];
-
-    for (const token of tokens) {
-      // Check if quantity multiplier specified (e.g. SKU*5 or SKU:5 or SKU x 5)
-      const match = token.match(/^(.+?)(?:[*x:]\s*(\d+))?$/i);
-      if (!match) continue;
-
-      const code = match[1].trim().toLowerCase();
-      const qty = match[2] ? parseInt(match[2], 10) : 1;
-
-      // Find matching product by SKU, exact ID, or Name
-      const product = products.find(
-        (p) =>
-          (p.sku && p.sku.toLowerCase() === code) ||
-          p.id.toString() === code ||
-          p.name.toLowerCase() === code,
-      );
-
-      if (product) {
-        itemsToAdd.push({
-          product,
-          quantity: isNaN(qty) || qty <= 0 ? 1 : qty,
-        });
-      } else {
-        notFound.push(token);
-      }
-    }
-
-    if (itemsToAdd.length > 0) {
-      handleBatchAddToCart(itemsToAdd);
-      setBulkSkuInput("");
-      setIsMultiProductModalOpen(false);
-    }
-
-    if (notFound.length > 0) {
-      showToast(
-        `Could not match: ${notFound.slice(0, 3).join(", ")}${notFound.length > 3 ? "..." : ""}`,
-        "warning",
-      );
-    }
-  };
 
   const handleUpdateQuantity = (index: number, qtyStr: string) => {
     const rawQty = parseInt(qtyStr, 10);
@@ -733,8 +682,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
     });
 
     const taxableAmount = Math.max(0, subtotal - totalDiscount);
-    const vatRate = 13.0;
-    const vatAmount = Math.round(taxableAmount * 0.13);
+    const vatRate = applyVat ? 13.0 : 0.0;
+    const vatAmount = applyVat ? Math.round(taxableAmount * 0.13) : 0;
     const grandTotal = taxableAmount + vatAmount;
 
     return {
@@ -752,7 +701,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
       hasStockViolation,
       violationMessage,
     };
-  }, [cart, allowNegativeStock, wholeDiscountValue, wholeDiscountType]);
+  }, [cart, allowNegativeStock, wholeDiscountValue, wholeDiscountType, applyVat]);
 
   const handleCompleteSale = () => {
     if (cart.length === 0) {
@@ -780,6 +729,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
         customerEmail: customerData.email.trim() || undefined,
         customerPanVat: customerData.pan_vat.trim() || undefined,
         customerAddress: customerData.address.trim() || undefined,
+        applyVat: applyVat,
         customerInput: {
           name: customerData.name.trim(),
           phone: customerData.phone.trim() || undefined,
@@ -1687,16 +1637,43 @@ export const SalesView: React.FC<SalesViewProps> = ({
                 </span>
               </div>
 
-              <div className="flex items-center justify-between text-xs text-neutral-400">
+              {/* VAT Row with Toggle */}
+              <div className="flex items-center justify-between text-xs text-neutral-400 py-0.5">
                 <span className="flex items-center gap-1.5">
-                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-400 border border-sky-500/20 font-bold">
-                    13% VAT
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                      applyVat
+                        ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                        : "bg-neutral-800 text-neutral-400 border-neutral-700"
+                    }`}
+                  >
+                    {applyVat ? "13% VAT" : "0% VAT"}
                   </span>
                   <span>{isNepali ? "मूल्य अभिवृद्धि कर" : "VAT (13%)"}</span>
                 </span>
-                <span className="font-mono text-sky-400">
-                  + {formatCurrency(calculations.vatAmount, currencySymbol)}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`font-mono ${applyVat ? "text-sky-400" : "text-neutral-500"}`}>
+                    {applyVat
+                      ? `+ ${formatCurrency(calculations.vatAmount, currencySymbol)}`
+                      : formatCurrency(0, currencySymbol)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setApplyVat(!applyVat)}
+                    title={
+                      applyVat
+                        ? (isNepali ? "भ्याट हटाउनुहोस्" : "Disable VAT for this sale")
+                        : (isNepali ? "१३% भ्याट जोड्नुहोस्" : "Apply 13% VAT to this sale")
+                    }
+                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded transition-all cursor-pointer border ${
+                      applyVat
+                        ? "bg-sky-500/20 text-sky-300 border-sky-500/30 hover:bg-sky-500/30"
+                        : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200 hover:border-neutral-600"
+                    }`}
+                  >
+                    {applyVat ? "ON" : "OFF"}
+                  </button>
+                </div>
               </div>
 
               <div className="pt-2 border-t border-neutral-800 flex items-center justify-between">
@@ -1705,9 +1682,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     {isNepali ? "कुल भुक्तानी रकम" : "Grand Total Due"}
                   </div>
                   <div className="text-[11px] text-neutral-400">
-                    {isNepali
-                      ? "१३% भ्याट समावेश"
-                      : "Includes 13% statutory VAT"}
+                    {applyVat
+                      ? (isNepali ? "१३% भ्याट समावेश" : "Includes 13% statutory VAT")
+                      : (isNepali ? "भ्याट विना कुल रकम (०%)" : "Net total (No VAT applied)")}
                   </div>
                 </div>
                 <div className="text-xl font-bold font-mono text-emerald-400 tabular-nums">
@@ -1758,42 +1735,10 @@ export const SalesView: React.FC<SalesViewProps> = ({
         isOpen={isMultiProductModalOpen}
         onClose={() => setIsMultiProductModalOpen(false)}
         title="Add Multiple Products to Sale"
-        subtitle="Select multiple products with quantities or enter bulk SKUs to add simultaneously."
+        subtitle="Select multiple products with quantities to add simultaneously to the sale."
         maxWidth="2xl"
       >
-        <div className="space-y-4">
-          {/* Sub-Tabs: Visual Checklist vs Bulk SKU / Barcode text */}
-          <div className="flex items-center gap-2 border-b border-neutral-800 pb-2">
-            <button
-              onClick={() => setModalTab("checklist")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
-                modalTab === "checklist"
-                  ? "bg-neutral-800 text-neutral-100 font-semibold shadow-xs"
-                  : "text-neutral-400 hover:text-neutral-200"
-              }`}
-            >
-              <div className="flex items-center gap-1.5">
-                <ListChecks className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Multi-Product Checklist</span>
-              </div>
-            </button>
-            <button
-              onClick={() => setModalTab("bulkSku")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
-                modalTab === "bulkSku"
-                  ? "bg-neutral-800 text-neutral-100 font-semibold shadow-xs"
-                  : "text-neutral-400 hover:text-neutral-200"
-              }`}
-            >
-              <div className="flex items-center gap-1.5">
-                <ScanLine className="w-3.5 h-3.5 text-sky-400" />
-                <span>Bulk SKU / Barcode Paste</span>
-              </div>
-            </button>
-          </div>
-
-          {modalTab === "checklist" && (
-            <div className="space-y-3">
+        <div className="space-y-3">
               {/* Modal Search & Quick Actions */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="flex-1">
@@ -2001,52 +1946,6 @@ export const SalesView: React.FC<SalesViewProps> = ({
                 </div>
               </div>
             </div>
-          )}
-
-          {modalTab === "bulkSku" && (
-            <div className="space-y-4">
-              <div className="text-xs text-neutral-400 leading-relaxed">
-                Paste or enter multiple product SKUs, Barcodes, or Product IDs
-                separated by commas or newlines. You can optionally include
-                quantity multipliers like{" "}
-                <code className="text-emerald-400 font-mono">BEV-CC-500*3</code>{" "}
-                or{" "}
-                <code className="text-emerald-400 font-mono">
-                  SNK-CHP-050 x 2
-                </code>
-                .
-              </div>
-
-              <div>
-                <textarea
-                  rows={6}
-                  value={bulkSkuInput}
-                  onChange={(e) => setBulkSkuInput(e.target.value)}
-                  placeholder={`BEV-CC-500*5\nBEV-PEP-500*2\nSNK-CHP-050`}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-3 text-xs font-mono text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-neutral-800">
-                <button
-                  type="button"
-                  onClick={() => setIsMultiProductModalOpen(false)}
-                  className="px-3 py-1.5 text-xs text-neutral-400 hover:text-neutral-200 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleBulkSkuSubmit}
-                  className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <ScanLine className="w-3.5 h-3.5" />
-                  <span>Parse & Add All to Sale</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
       </Modal>
 
       {/* Modal: Bulk / Whole Discount across all items */}

@@ -1,8 +1,8 @@
 import React, { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
+import stockforgeLogo from "@/src-tauri/icons/icon.png";
 import {
-  HardDrive,
   ShieldCheck,
   Keyboard,
   Sun,
@@ -26,7 +26,6 @@ import {
 export type { NavTab, NavItem, NavGroup };
 
 interface SidebarProps {
-  currentTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
   lowStockCount: number;
   onOpenShortcuts?: () => void;
@@ -35,13 +34,14 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  currentTab,
   onSelectTab,
   lowStockCount,
   onOpenShortcuts,
   toggleSidebar,
   setToggleSidebar,
 }) => {
+  const location = useLocation();
+  const activeTab = location.pathname.replace(/^\//, "").split("/")[0] || "dashboard";
   const { toggleTheme, isDark } = useTheme();
   const { t, toggleLanguage, isNepali } = useLanguage();
   const { currentShop, logout } = useAuth();
@@ -60,9 +60,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
     >
       {/* Brand Header */}
       <div className="h-14 px-5 flex items-center justify-between border-b border-neutral-800/80 shrink-0">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-            <HardDrive className="w-4 h-4" />
+        <Link
+          to="/dashboard"
+          onClick={() => onSelectTab("dashboard")}
+          className="flex items-center gap-3 min-w-0 group cursor-pointer"
+          title="StockForge Dashboard"
+        >
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-1 flex items-center justify-center shrink-0 group-hover:border-emerald-500/50 group-hover:bg-emerald-500/15 transition-all">
+            <img
+              src={stockforgeLogo}
+              alt="StockForge Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
           {toggleSidebar && (
             <motion.div
@@ -71,18 +80,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               exit={{ opacity: 0, x: -6 }}
               className="min-w-0 flex-1"
             >
-              <div className="text-sm font-bold tracking-tight text-neutral-100 truncate">
-                {currentShop ? currentShop.name : "StockForge"}
+              <div className="text-sm font-bold tracking-tight text-neutral-100 group-hover:text-emerald-400 transition-colors truncate">
+                StockForge
               </div>
               <div className="text-[10px] text-neutral-400 flex items-center gap-1 font-mono">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse shrink-0" />
-                <span className="truncate">
-                  {currentShop ? currentShop.shop_type : t("app_subtitle")}
-                </span>
+                <span className="truncate">{t("app_subtitle")}</span>
               </div>
             </motion.div>
           )}
-        </div>
+        </Link>
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
@@ -115,7 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
             {group.items.map((item) => {
               const Icon = item.icon;
-              const isActive = currentTab === item.id;
+              const isActive = activeTab === item.id;
               return (
                 <Link
                   key={item.id}

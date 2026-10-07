@@ -102,7 +102,9 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
 
   const totalUnits = items.reduce((acc, it) => acc + it.quantity, 0);
   const billNo = purchase.bill_number || `PUR-${purchase.id.toString().padStart(5, '0')}`;
-  const vatAmount = purchase.vat_amount ?? Math.round((purchase.subtotal - purchase.discount) * 0.13);
+  const vatRate = purchase.vat_rate ?? 13;
+  const vatAmount = purchase.vat_amount ?? (vatRate > 0 ? Math.round((purchase.subtotal - purchase.discount) * (vatRate / 100)) : 0);
+  const hasVat = vatAmount > 0 || ((purchase.vat_rate ?? 0) > 0);
   const grandTotal = purchase.grand_total ?? (purchase.total + vatAmount);
 
   const handlePrint = () => {
@@ -146,7 +148,9 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
         text += `Discount:      -${formatCurrency(purchase.discount, currencySymbol)}\n`;
       }
       text += `Taxable Amount: ${formatCurrency(purchase.total, currencySymbol)}\n`;
-      text += `VAT (13%):      +${formatCurrency(vatAmount, currencySymbol)}\n`;
+      if (hasVat) {
+        text += `VAT (${vatRate}%):      +${formatCurrency(vatAmount, currencySymbol)}\n`;
+      }
       text += `Total Items:    ${items.length} (${totalUnits} units)\n`;
       text += `${doubleSeparator}\n`;
       text += `*GRAND TOTAL:   ${formatCurrency(grandTotal, currencySymbol)}*\n`;
@@ -393,14 +397,18 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
                     <span>{formatCurrency(purchase.total, currencySymbol)}</span>
                   </div>
 
-                  <div className="flex justify-between text-sky-800 font-medium">
-                    <span>{isNepali ? 'मूल्य अभिवृद्धि कर (१३% VAT):' : 'VAT (13%):'}</span>
-                    <span>+{formatCurrency(vatAmount, currencySymbol)}</span>
-                  </div>
+                  {hasVat && (
+                    <div className="flex justify-between text-sky-800 font-medium">
+                      <span>{isNepali ? `मूल्य अभिवृद्धि कर (${vatRate}% VAT):` : `VAT (${vatRate}%):`}</span>
+                      <span>+{formatCurrency(vatAmount, currencySymbol)}</span>
+                    </div>
+                  )}
 
                   <div className="flex justify-between items-baseline pt-1.5 border-t border-gray-300">
                     <span className="text-sm font-black text-gray-900 uppercase tracking-tight">
-                      {isNepali ? 'कुल खरिद रकम (Grand Total):' : 'Grand Total (Inc. 13% VAT):'}
+                      {hasVat
+                        ? (isNepali ? `कुल खरिद रकम (${vatRate}% भ्याट सहित):` : `Grand Total (Inc. ${vatRate}% VAT):`)
+                        : (isNepali ? 'कुल खरिद रकम (०% भ्याट):' : 'Grand Total (0% VAT):')}
                     </span>
                     <span className="text-base font-black text-gray-900 font-mono">
                       {formatCurrency(grandTotal, currencySymbol)}

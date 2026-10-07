@@ -140,8 +140,11 @@ export function processPurchase(
     }
 
     const taxableAmount = Math.max(0, purchaseSubtotal - purchaseDiscount);
-    const vatRate = settings.enable_vat !== false ? 13.0 : 0.0;
-    const vatAmount = settings.enable_vat !== false ? Math.round(taxableAmount * 0.13) : 0;
+    const vatEnabled = vendorInfo?.applyVat !== undefined
+      ? vendorInfo.applyVat
+      : (settings.enable_vat !== false);
+    const vatRate = vatEnabled ? 13.0 : 0.0;
+    const vatAmount = vatEnabled ? Math.round(taxableAmount * 0.13) : 0;
     const grandTotal = taxableAmount + vatAmount;
 
     // 3. Generate sequential Bill Number: PUR-00001

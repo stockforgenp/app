@@ -10,6 +10,7 @@ import {
   MapPin,
   Tag,
   Coins,
+  Percent,
 } from "lucide-react";
 import { SHOP_TYPES, CURRENCY_OPTIONS } from "@/src/constants";
 import { useAuth } from "@/src/context/AuthContext.tsx";
@@ -39,6 +40,7 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onError }) => {
     shop_type: "Grocery & Supermarket",
     address: "",
     currency_symbol: isNepali ? "रु." : "Rs.",
+    enable_vat: true,
   });
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
@@ -73,6 +75,7 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onError }) => {
         address: registerData.address.trim() || undefined,
         currency_symbol:
           registerData.currency_symbol || (isNepali ? "रु." : "Rs."),
+        enable_vat: registerData.enable_vat,
       });
       onSuccess?.();
     } catch (err: unknown) {
@@ -173,6 +176,49 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onError }) => {
           })
         }
       />
+
+      {/* 13% VAT Calculation Toggle */}
+      <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center shrink-0">
+            <Percent className="w-4 h-4 text-sky-400" />
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-neutral-200 flex items-center gap-1.5">
+              <span>{t("auth_enable_vat")}</span>
+              <span
+                className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                  registerData.enable_vat
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                    : "bg-neutral-800 text-neutral-400 border-neutral-700"
+                }`}
+              >
+                {registerData.enable_vat
+                  ? t("auth_enable_vat_on")
+                  : t("auth_enable_vat_off")}
+              </span>
+            </div>
+            <div className="text-[11px] text-neutral-400 line-clamp-1">
+              {t("auth_enable_vat_desc")}
+            </div>
+          </div>
+        </div>
+
+        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+          <input
+            type="checkbox"
+            checked={registerData.enable_vat}
+            onChange={(e) =>
+              setRegisterData({
+                ...registerData,
+                enable_vat: e.target.checked,
+              })
+            }
+            className="sr-only peer"
+          />
+          <div className="w-10 h-5.5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-emerald-600"></div>
+        </label>
+      </div>
 
       {/* Passwords */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">

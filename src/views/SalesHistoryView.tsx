@@ -322,6 +322,45 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
               </table>
             </div>
 
+            {/* Sale Totals & VAT Breakdown */}
+            <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800 space-y-1.5 text-xs">
+              <div className="flex justify-between text-neutral-400">
+                <span>Subtotal:</span>
+                <span className="font-mono text-neutral-200">
+                  {formatCurrency(selectedSaleDetail.sale.subtotal, currencySymbol)}
+                </span>
+              </div>
+              {selectedSaleDetail.sale.discount > 0 && (
+                <div className="flex justify-between text-amber-400 font-medium">
+                  <span>Discount:</span>
+                  <span className="font-mono">
+                    - {formatCurrency(selectedSaleDetail.sale.discount, currencySymbol)}
+                  </span>
+                </div>
+              )}
+              {selectedSaleDetail.sale.vat_amount !== undefined &&
+                selectedSaleDetail.sale.vat_amount !== null &&
+                selectedSaleDetail.sale.vat_amount > 0 && (
+                  <div className="flex justify-between text-sky-400 font-medium">
+                    <span>
+                      VAT ({selectedSaleDetail.sale.vat_rate ?? 13}%):
+                    </span>
+                    <span className="font-mono">
+                      + {formatCurrency(selectedSaleDetail.sale.vat_amount, currencySymbol)}
+                    </span>
+                  </div>
+                )}
+              <div className="flex justify-between text-sm font-bold text-emerald-400 pt-1.5 border-t border-neutral-800">
+                <span>Grand Total:</span>
+                <span className="font-mono">
+                  {formatCurrency(
+                    selectedSaleDetail.sale.grand_total || selectedSaleDetail.sale.total,
+                    currencySymbol
+                  )}
+                </span>
+              </div>
+            </div>
+
             <div className="text-[11px] text-neutral-500 font-mono">
               Note: Cost price snapshot was recorded at the exact moment of sale
               #{selectedSaleDetail.sale.id} and remains immutable regardless of

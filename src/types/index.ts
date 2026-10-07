@@ -175,6 +175,7 @@ export interface ProcessPurchaseVendorInfo {
   vendorAddress?: string | null;
   invoiceNumber?: string | null;
   notes?: string | null;
+  applyVat?: boolean;
   vendorInput?: {
     name: string;
     pan_vat?: string;
@@ -219,6 +220,8 @@ export interface RegisterShopInput {
   shop_type: string;
   address?: string;
   currency_symbol?: string;
+  enable_vat?: boolean;
+  store_pan_vat?: string;
   seedTestData?: boolean;
 }
 

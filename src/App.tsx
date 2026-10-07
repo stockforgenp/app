@@ -11,19 +11,13 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  getDatabase,
-  subscribeToDbChanges,
-} from "./lib/db/sqliteEngine.ts";
+import { getDatabase, subscribeToDbChanges } from "./lib/db/sqliteEngine.ts";
 import { getSettings } from "./lib/services/settingsService.ts";
 import { getLowStockCount } from "./lib/services/productService.ts";
 import { Product, AppSettings } from "./types/index.ts";
 import { ToastProvider } from "./context/ToastContext.tsx";
 import { Sidebar, NavTab } from "./components/layout/Sidebar.tsx";
-import {
-  NAV_TABS,
-  DEFAULT_APP_SETTINGS,
-} from "./constants/index.ts";
+import { DEFAULT_APP_SETTINGS } from "./constants/index.ts";
 import { Header } from "./components/layout/Header.tsx";
 import { DashboardView } from "./views/DashboardView.tsx";
 import { SalesView } from "./views/SalesView.tsx";
@@ -49,6 +43,7 @@ import { useTheme } from "./context/ThemeContext.tsx";
 import { useLanguage } from "./context/LanguageContext.tsx";
 import { useAuth } from "./context/AuthContext.tsx";
 import { AuthView } from "./views/AuthView.tsx";
+import stockforgeLogo from "@/src-tauri/icons/icon.png";
 
 export default function App() {
   const { toggleTheme } = useTheme();
@@ -59,12 +54,6 @@ export default function App() {
 
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
-
-  // Derive active tab from URL path
-  const currentTab: NavTab = useMemo(() => {
-    const path = location.pathname.replace(/^\//, "").split("/")[0] as NavTab;
-    return NAV_TABS.includes(path) ? path : "dashboard";
-  }, [location.pathname]);
 
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
 
@@ -211,9 +200,13 @@ export default function App() {
   if (dbError) {
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-neutral-900 border border-neutral-800 rounded-xl p-6 text-center space-y-4">
-          <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-400 mx-auto flex items-center justify-center">
-            <HardDrive className="w-6 h-6" />
+        <div className="max-w-md w-full bg-neutral-900 border border-neutral-800 rounded-2xl p-6 text-center space-y-4 shadow-xl">
+          <div className="w-16 h-16 rounded-2xl bg-neutral-950 border border-rose-500/30 p-2.5 mx-auto flex items-center justify-center">
+            <img
+              src={stockforgeLogo}
+              alt="StockForge"
+              className="w-full h-full object-contain grayscale opacity-60"
+            />
           </div>
           <h2 className="text-base font-bold text-neutral-100">
             Database Initialization Error
@@ -232,12 +225,49 @@ export default function App() {
 
   if (!dbReady || isAuthLoading) {
     return (
-      <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center p-6">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
-          <div className="text-xs font-mono text-neutral-400">
-            Loading SQLite Offline Engine...
+      <div className="min-h-screen w-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center p-6 selection:bg-emerald-500/30 relative overflow-hidden select-none">
+        {/* Subtle background ambient glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col items-center text-center relative z-10 max-w-sm">
+          {/* Logo with pulsing halo ring */}
+          <div className="relative mb-5">
+            <div className="absolute -inset-2.5 bg-emerald-500/20 rounded-3xl blur-md animate-pulse" />
+            <div className="w-20 h-20 rounded-2xl bg-neutral-900 border border-neutral-800/80 p-3.5 flex items-center justify-center shadow-2xl relative">
+              <img
+                src={stockforgeLogo}
+                alt="StockForge Logo"
+                className="w-full h-full object-contain drop-shadow-md"
+              />
+            </div>
           </div>
+
+          {/* StockForge Brand Text */}
+          <h1 className="text-2xl font-black tracking-tight text-neutral-100">
+            StockForge
+          </h1>
+
+          {/* Brand Motto */}
+          <p className="text-xs text-neutral-400 font-medium mt-1 mb-6 max-w-xs leading-relaxed">
+            {language === "np"
+              ? "अफलाइन डेस्कटप इन्भेन्टरी तथा बिक्री व्यवस्थापन प्रणाली"
+              : "Offline Desktop Inventory & Sales Management"}
+          </p>
+
+          {/* Loading status indicator */}
+          <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-neutral-900/90 border border-neutral-800 text-neutral-300 text-xs shadow-xs">
+            <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin shrink-0" />
+            <span className="font-mono text-[11px] text-neutral-400">
+              {language === "np"
+                ? "SQLite अफलाइन इन्जिन लोड हुँदैछ..."
+                : "Loading SQLite Offline Engine..."}
+            </span>
+          </div>
+        </div>
+
+        {/* Bottom subtle metadata */}
+        <div className="absolute bottom-6 text-[10px] text-neutral-600 font-mono">
+          ACID Safe · Local-First SQLite Database
         </div>
       </div>
     );
@@ -256,7 +286,6 @@ export default function App() {
       <div className="flex h-screen w-screen overflow-hidden bg-neutral-950 text-neutral-100 font-sans">
         {/* Left Sidebar */}
         <Sidebar
-          currentTab={currentTab}
           onSelectTab={handleNavigate}
           toggleSidebar={toggleSidebar}
           setToggleSidebar={() => setToggleSidebar((prev) => !prev)}
@@ -268,7 +297,6 @@ export default function App() {
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-neutral-950">
           {/* Header */}
           <Header
-            currentTab={currentTab}
             currencySymbol={effectiveCurrencySymbol}
             onNewSaleClick={() => handleNavigate("sales")}
             onNewProductClick={() => {
@@ -316,6 +344,7 @@ export default function App() {
                       <SalesView
                         currencySymbol={effectiveCurrencySymbol}
                         allowNegativeStock={settings.allow_negative_stock}
+                        enableVat={settings.enable_vat !== false}
                         initialProducts={initialSaleProducts}
                         onClearInitialProducts={() =>
                           setInitialSaleProducts([])
@@ -332,6 +361,7 @@ export default function App() {
                     element={
                       <PurchasesView
                         currencySymbol={effectiveCurrencySymbol}
+                        enableVat={settings.enable_vat !== false}
                         onOpenCreateProduct={() => {
                           handleClearActiveModals();
                           setInitialOpenCreateProduct(true);

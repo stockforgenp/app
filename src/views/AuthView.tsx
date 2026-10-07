@@ -23,6 +23,7 @@ import {
 import { useAuth } from "../context/AuthContext.tsx";
 import { useLanguage } from "../context/LanguageContext.tsx";
 import { useTheme } from "../context/ThemeContext.tsx";
+import stockforgeLogo from "@/src-tauri/icons/icon.png";
 import { Modal } from "../components/common/Modal.tsx";
 import { AuthTechnicalSupport } from "../components/auth/AuthTechnicalSupport.tsx";
 import { LoginForm } from "../components/forms/LoginForm.tsx";
@@ -50,8 +51,12 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
       {/* Top Header bar */}
       <header className="h-14 px-6 border-b border-neutral-800/80 flex items-center justify-between shrink-0 bg-neutral-900/90 backdrop-blur-md sticky top-0 z-20">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-xs">
-            <Store className="w-4 h-4" />
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-1 flex items-center justify-center shadow-xs">
+            <img
+              src={stockforgeLogo}
+              alt="StockForge"
+              className="w-full h-full object-contain"
+            />
           </div>
           <div>
             <span className="text-sm font-black tracking-tight text-neutral-100">
@@ -115,6 +120,13 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
         >
           {/* Brand Card Title */}
           <div className="text-center mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-neutral-900 border border-neutral-800 p-3 mx-auto mb-3.5 flex items-center justify-center shadow-lg">
+              <img
+                src={stockforgeLogo}
+                alt="StockForge Logo"
+                className="w-full h-full object-contain"
+              />
+            </div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium mb-3">
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>{t("auth_badge_offline")}</span>

@@ -13,9 +13,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Settings,
-  HardDrive,
   Database,
-  RotateCcw,
   CheckCircle2,
   XCircle,
   FlaskConical,
@@ -563,16 +561,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="flex items-start justify-between p-4 rounded-xl bg-neutral-950 border border-neutral-800">
               <div className="pr-4">
                 <div className="text-xs font-semibold text-neutral-200">
-                  Enable 13% VAT Calculation
+                  {isNepali
+                    ? "१३% भ्याट गणना सक्रिय गर्नुहोस्"
+                    : "Enable 13% VAT Calculation"}
                 </div>
                 <div className="text-[11px] text-neutral-400 mt-0.5">
-                  Default:{" "}
-                  <span className="font-semibold text-emerald-400">
-                    ON (13%)
-                  </span>
-                  . When enabled, sales and purchase invoices calculate standard
-                  13% Value Added Tax on taxable amounts. If turned off,
-                  transactions are billed without VAT (0%).
+                  {isNepali ? (
+                    <>
+                      डिफल्ट:{" "}
+                      <span className="font-semibold text-emerald-400">
+                        {enableVat ? "चालू (१३%)" : "बन्द (०%)"}
+                      </span>
+                      । सक्रिय हुँदा, बिक्री तथा खरिद बिलहरूमा १३% मूल्य
+                      अभिवृद्धि कर (VAT) गणना हुन्छ। बन्द गर्दा, सबै कारोबारहरू
+                      भ्याट विना (०%) जारी हुन्छन्।
+                    </>
+                  ) : (
+                    <>
+                      Default:{" "}
+                      <span className="font-semibold text-emerald-400">
+                        {enableVat ? "ON (13%)" : "OFF (0%)"}
+                      </span>
+                      . When enabled, sales and purchase invoices calculate
+                      standard 13% Value Added Tax on taxable amounts. If turned
+                      off, transactions are billed without VAT (0%).
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -580,7 +594,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <Input
                   type="checkbox"
                   checked={enableVat}
-                  onChange={(e) => setEnableVat(e.target.checked)}
+                  onChange={(e) => {
+                    const nextVal = e.target.checked;
+                    setEnableVat(nextVal);
+                    const updated = updateSettings({ enable_vat: nextVal });
+                    setSettings(updated);
+                    onSettingsUpdated(updated);
+                    showToast(
+                      nextVal
+                        ? isNepali
+                          ? "१३% भ्याट गणना सक्रिय गरियो"
+                          : "13% VAT calculation enabled for store"
+                        : isNepali
+                          ? "भ्याट गणना निष्क्रिय गरियो (०%)"
+                          : "VAT calculation disabled for store (0%)",
+                      "info",
+                    );
+                  }}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
@@ -683,7 +713,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer shrink-0 shadow-xs"
         >
           <Database className="w-3.5 h-3.5" />
-          <span>{isNepali ? "ब्याकअप मेनु खोल्नुहोस्" : "Open Backup & Restore"}</span>
+          <span>
+            {isNepali ? "ब्याकअप मेनु खोल्नुहोस्" : "Open Backup & Restore"}
+          </span>
         </Link>
       </div>
 

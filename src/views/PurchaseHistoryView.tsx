@@ -391,9 +391,12 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
                   </div>
                 )}
               {inspectPurchaseDetail.purchase.vat_amount !== null &&
-                inspectPurchaseDetail.purchase.vat_amount !== undefined && (
+                inspectPurchaseDetail.purchase.vat_amount !== undefined &&
+                inspectPurchaseDetail.purchase.vat_amount > 0 && (
                   <div className="flex justify-between text-amber-400 font-medium">
-                    <span>VAT (13%):</span>
+                    <span>
+                      VAT ({inspectPurchaseDetail.purchase.vat_rate ?? 13}%):
+                    </span>
                     <span>
                       +
                       {formatCurrency(
