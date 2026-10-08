@@ -49,6 +49,17 @@ let tokenExpiresAt: number = 0;
 let cachedUserProfile: GoogleUserProfile | null = null;
 
 /**
+ * Check if Google Identity Services SDK is already loaded on window.
+ */
+export function isGoogleIdentityServicesLoaded(): boolean {
+  if (typeof window === "undefined") return false;
+  const win = window as unknown as {
+    google?: { accounts?: { oauth2?: unknown } };
+  };
+  return Boolean(win.google?.accounts?.oauth2);
+}
+
+/**
  * Load Google Identity Services SDK script dynamically if not already loaded.
  */
 export function loadGoogleIdentityServices(): Promise<void> {
@@ -57,11 +68,7 @@ export function loadGoogleIdentityServices(): Promise<void> {
       return reject(new Error("Window environment is not available"));
     }
 
-    // Check if GIS is already loaded on window
-    const win = window as unknown as {
-      google?: { accounts?: { oauth2?: unknown } };
-    };
-    if (win.google?.accounts?.oauth2) {
+    if (isGoogleIdentityServicesLoaded()) {
       return resolve();
     }
 
@@ -82,6 +89,11 @@ export function loadGoogleIdentityServices(): Promise<void> {
       reject(new Error("Failed to load Google Identity Services SDK"));
     document.head.appendChild(script);
   });
+}
+
+// Eagerly pre-warm GIS in browser environments
+if (typeof window !== "undefined") {
+  loadGoogleIdentityServices().catch(() => {});
 }
 
 /**
@@ -164,10 +176,117 @@ export function saveGoogleSyncConfig(config: Partial<GoogleSyncConfig>): void {
 /**
  * Reset / disconnect Google authentication and linked sheet.
  */
+/**
+ * Reset / disconnect Google authentication and linked sheet.
+ */
 export function clearGoogleAuthSession(): void {
   cachedAccessToken = null;
   tokenExpiresAt = 0;
   cachedUserProfile = null;
+  try {
+    sessionStorage.removeItem("sf_google_access_token");
+    sessionStorage.removeItem("sf_google_token_expiry");
+  } catch {}
+  saveGoogleSyncConfig({
+    userEmail: "",
+    userName: "",
+  });
+}
+
+/**
+ * Intelligently extract access token from raw token or redirected URL/hash string.
+ */
+export function extractAccessToken(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+  if (!trimmed.includes("=") && !trimmed.includes("&") && !trimmed.includes("#")) {
+    return trimmed;
+  }
+  try {
+    const hashPart = trimmed.includes("#")
+      ? trimmed.split("#")[1]
+      : trimmed.includes("?")
+        ? trimmed.split("?")[1]
+        : trimmed;
+    const params = new URLSearchParams(hashPart);
+    const token = params.get("access_token");
+    if (token) return token.trim();
+  } catch {}
+
+  const match = trimmed.match(/access_token=([^&]+)/);
+  if (match && match[1]) {
+    return decodeURIComponent(match[1]).trim();
+  }
+
+  return trimmed;
+}
+
+/**
+ * Build direct OAuth 2.0 authorization URL for opening in the system browser.
+ */
+export function getGoogleOAuthDirectUrl(clientId: string): string {
+  const redirectUri =
+    typeof window !== "undefined" && window.location.origin.startsWith("http")
+      ? window.location.origin
+      : "http://localhost:3000";
+
+  const scopes = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/userinfo.profile",
+    "https://www.googleapis.com/auth/userinfo.email",
+  ].join(" ");
+
+  return (
+    `https://accounts.google.com/o/oauth2/v2/auth?` +
+    `client_id=${encodeURIComponent(clientId.trim())}&` +
+    `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+    `response_type=token&` +
+    `scope=${encodeURIComponent(scopes)}&` +
+    `prompt=consent`
+  );
+}
+
+/**
+ * Automatically inspect window.location.hash for Google OAuth redirect callback.
+ * If #access_token=... is present, store it, copy to clipboard, and return profile.
+ */
+export function checkUrlHashForGoogleAuth(): string | null {
+  if (typeof window === "undefined" || !window.location.hash) return null;
+  try {
+    const hash = window.location.hash.replace(/^#/, "");
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get("access_token");
+    const expiresIn = Number(params.get("expires_in") || 3600);
+    if (accessToken) {
+      setManualAccessToken(accessToken, expiresIn);
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search,
+      );
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(accessToken).catch(() => {});
+      }
+      fetchGoogleUserProfile(accessToken)
+        .then((profile) => {
+          if (profile) {
+            saveGoogleSyncConfig({
+              userEmail: profile.email,
+              userName: profile.name,
+            });
+          }
+        })
+        .catch(() => {});
+      return accessToken;
+    }
+  } catch {}
+  return null;
+}
+
+// Check for redirect token on module load
+if (typeof window !== "undefined") {
+  checkUrlHashForGoogleAuth();
 }
 
 /**
@@ -177,18 +296,33 @@ export function getActiveAccessToken(): string | null {
   if (cachedAccessToken && Date.now() < tokenExpiresAt - 60000) {
     return cachedAccessToken;
   }
+  // Try sessionStorage fallback
+  try {
+    const stored = sessionStorage.getItem("sf_google_access_token");
+    const expiry = Number(sessionStorage.getItem("sf_google_token_expiry") || 0);
+    if (stored && expiry > Date.now() + 60000) {
+      cachedAccessToken = stored;
+      tokenExpiresAt = expiry;
+      return cachedAccessToken;
+    }
+  } catch {}
   return null;
 }
 
 /**
- * Set an access token manually (e.g. for testing or direct token input).
+ * Set an access token manually (e.g. for testing, fallback, or direct token input).
  */
 export function setManualAccessToken(
   token: string,
   expiresInSeconds: number = 3600,
 ): void {
-  cachedAccessToken = token.trim();
+  const cleanToken = extractAccessToken(token);
+  cachedAccessToken = cleanToken;
   tokenExpiresAt = Date.now() + expiresInSeconds * 1000;
+  try {
+    sessionStorage.setItem("sf_google_access_token", cleanToken);
+    sessionStorage.setItem("sf_google_token_expiry", String(tokenExpiresAt));
+  } catch {}
 }
 
 /**
@@ -202,7 +336,15 @@ export async function authenticateWithGoogle(
     return existing;
   }
 
-  await loadGoogleIdentityServices();
+  const trimmedClientId = clientId.trim();
+  if (!trimmedClientId) {
+    throw new Error("Google OAuth Client ID is required.");
+  }
+
+  // If GIS script hasn't loaded yet, await it now
+  if (!isGoogleIdentityServicesLoaded()) {
+    await loadGoogleIdentityServices();
+  }
 
   const win = window as unknown as {
     google?: {
@@ -226,13 +368,15 @@ export async function authenticateWithGoogle(
   };
 
   if (!win.google?.accounts?.oauth2) {
-    throw new Error("Google Identity Services SDK is not initialized.");
+    throw new Error(
+      "Google Identity Services SDK is not loaded. Please verify your internet connection.",
+    );
   }
 
   return new Promise((resolve, reject) => {
     try {
       const tokenClient = win.google!.accounts.oauth2.initTokenClient({
-        client_id: clientId.trim(),
+        client_id: trimmedClientId,
         scope: [
           "https://www.googleapis.com/auth/spreadsheets",
           "https://www.googleapis.com/auth/drive.file",
@@ -241,19 +385,20 @@ export async function authenticateWithGoogle(
         ].join(" "),
         callback: (resp) => {
           if (resp.error) {
+            const errStr =
+              typeof resp.error === "string"
+                ? resp.error
+                : JSON.stringify(resp.error);
             reject(
               new Error(
-                typeof resp.error === "string"
-                  ? resp.error
-                  : "Google sign-in was cancelled or encountered an error.",
+                `Google sign-in error: ${errStr || "Authorization was cancelled."}`,
               ),
             );
             return;
           }
           if (resp.access_token) {
-            cachedAccessToken = resp.access_token;
-            const ttl = resp.expires_in ? resp.expires_in * 1000 : 3600 * 1000;
-            tokenExpiresAt = Date.now() + ttl;
+            const ttl = resp.expires_in ? resp.expires_in : 3600;
+            setManualAccessToken(resp.access_token, ttl);
 
             // Fetch user info in background
             fetchGoogleUserProfile(resp.access_token)
@@ -275,16 +420,31 @@ export async function authenticateWithGoogle(
             );
           }
         },
-        error_callback: (err) => {
-          reject(
-            new Error(
-              String(err) || "Google authorization dialog failed to open.",
-            ),
-          );
+        error_callback: (err: unknown) => {
+          let errorMsg = "Google authorization dialog failed to open.";
+          if (typeof err === "string") {
+            errorMsg = err;
+          } else if (err && typeof err === "object") {
+            const e = err as { message?: string; type?: string };
+            if (
+              e.type === "popup_failed_to_open" ||
+              e.message?.toLowerCase().includes("popup")
+            ) {
+              errorMsg =
+                "Sign-in popup was blocked by your browser. Please allow popups for StockForge in your browser address bar/settings, or connect using an Access Token in Cloud Settings.";
+            } else if (e.type === "popup_closed") {
+              errorMsg =
+                "Google sign-in popup was closed before authorization was completed.";
+            } else if (e.message) {
+              errorMsg = e.message;
+            }
+          }
+          reject(new Error(errorMsg));
         },
       });
 
-      tokenClient.requestAccessToken({ prompt: "consent" });
+      // Synchronously request access token inside the current user gesture
+      tokenClient.requestAccessToken({ prompt: "" });
     } catch (err) {
       reject(err);
     }

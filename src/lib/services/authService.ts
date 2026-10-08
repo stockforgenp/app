@@ -22,7 +22,11 @@ export async function hashPassword(password: string): Promise<string> {
 
 export function getShopById(id: number): Shop | null {
   return queryOne<Shop>(
-    `SELECT id, name, email, phone, shop_type, address, currency_symbol, is_active, created_at, updated_at
+    `SELECT id, name, email, phone, shop_type, address, currency_symbol, is_active,
+            subscription_status, subscription_plan, subscribed_date,
+            COALESCE(subscription_duration_days, 365) as subscription_duration_days,
+            subscription_expiry_date,
+            created_at, updated_at
      FROM shops WHERE id = ?`,
     [id]
   );
@@ -30,7 +34,11 @@ export function getShopById(id: number): Shop | null {
 
 export function getAllShops(): Shop[] {
   return query<Shop>(
-    `SELECT id, name, email, phone, shop_type, address, currency_symbol, is_active, created_at, updated_at
+    `SELECT id, name, email, phone, shop_type, address, currency_symbol, is_active,
+            subscription_status, subscription_plan, subscribed_date,
+            COALESCE(subscription_duration_days, 365) as subscription_duration_days,
+            subscription_expiry_date,
+            created_at, updated_at
      FROM shops ORDER BY created_at DESC`
   );
 }
@@ -76,13 +84,20 @@ export async function registerShop(input: RegisterShopInput): Promise<Shop> {
   }
 
   const passwordHash = await hashPassword(password);
-  const now = new Date().toISOString();
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const subscribedDate = nowIso.split('T')[0];
+  const durationDays = 365;
+  const expDateObj = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
+  const expiryDate = expDateObj.toISOString().split('T')[0];
 
-  // Create shop in SQLite
+  // Create shop in SQLite with 365-day active subscription
   run(
-    `INSERT INTO shops (name, email, password_hash, phone, shop_type, address, currency_symbol, is_active, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-    [name, email, passwordHash, phone, shopType, address, currencySymbol, now, now]
+    `INSERT INTO shops (name, email, password_hash, phone, shop_type, address, currency_symbol, is_active,
+                        subscription_status, subscription_plan, subscribed_date, subscription_duration_days, subscription_expiry_date,
+                        created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'active', 'Standard', ?, ?, ?, ?, ?)`,
+    [name, email, passwordHash, phone, shopType, address, currencySymbol, subscribedDate, durationDays, expiryDate, nowIso, nowIso]
   );
 
   const idRes = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
@@ -295,4 +310,72 @@ export function switchShop(shopId: number): Shop | null {
   );
 
   return shop;
+}
+
+/**
+ * Checks if a shop's subscription has expired
+ */
+export function isSubscriptionExpired(shop: Shop | null | undefined): boolean {
+  if (!shop) return false;
+  if (shop.subscription_status === 'expired') return true;
+  if (shop.subscription_expiry_date) {
+    const expTime = new Date(shop.subscription_expiry_date).getTime();
+    if (!isNaN(expTime) && expTime < Date.now()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Calculates remaining days in active subscription (0 if expired)
+ */
+export function getSubscriptionDaysRemaining(shop: Shop | null | undefined): number {
+  if (!shop || !shop.subscription_expiry_date) return 0;
+  const expTime = new Date(shop.subscription_expiry_date + 'T23:59:59').getTime();
+  const validExp = isNaN(expTime) ? new Date(shop.subscription_expiry_date).getTime() : expTime;
+  if (isNaN(validExp)) return 0;
+  const diffMs = validExp - Date.now();
+  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  return days > 0 ? days : 0;
+}
+
+/**
+ * Updates subscription details for a shop
+ */
+export function updateShopSubscription(
+  shopId: number,
+  details: {
+    subscription_status?: Shop['subscription_status'];
+    subscription_plan?: string;
+    subscribed_date?: string;
+    subscription_duration_days?: number;
+    subscription_duration_months?: number;
+    subscription_expiry_date?: string;
+  }
+): Shop | null {
+  const current = getShopById(shopId);
+  if (!current) return null;
+
+  const status = details.subscription_status ?? current.subscription_status ?? 'active';
+  const plan = details.subscription_plan ?? current.subscription_plan ?? 'Standard';
+  const subDate = details.subscribed_date ?? current.subscribed_date ?? new Date().toISOString().split('T')[0];
+  const duration = details.subscription_duration_days ??
+    (details.subscription_duration_months ? details.subscription_duration_months * 30 : (current.subscription_duration_days ?? 365));
+  const expiryDate = details.subscription_expiry_date ?? current.subscription_expiry_date ?? '';
+  const nowIso = new Date().toISOString();
+
+  run(
+    `UPDATE shops
+     SET subscription_status = ?,
+         subscription_plan = ?,
+         subscribed_date = ?,
+         subscription_duration_days = ?,
+         subscription_expiry_date = ?,
+         updated_at = ?
+     WHERE id = ?`,
+    [status, plan, subDate, duration, expiryDate, nowIso, shopId]
+  );
+
+  return getShopById(shopId);
 }

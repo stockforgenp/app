@@ -88,6 +88,47 @@ function migrateDatabaseIfNeeded(db: Database) {
       }
     }
 
+    // Ensure shops table subscription columns exist
+    const shopsTableInfo = db.exec("PRAGMA table_info(shops);");
+    if (shopsTableInfo.length > 0 && shopsTableInfo[0].values) {
+      const colNames = shopsTableInfo[0].values.map((col: unknown[]) => col[1] as string);
+      if (!colNames.includes('subscription_status')) {
+        db.run("ALTER TABLE shops ADD COLUMN subscription_status TEXT NOT NULL DEFAULT 'active';");
+        changed = true;
+      }
+      if (!colNames.includes('subscription_plan')) {
+        db.run("ALTER TABLE shops ADD COLUMN subscription_plan TEXT NOT NULL DEFAULT 'Standard';");
+        changed = true;
+      }
+      if (!colNames.includes('subscribed_date')) {
+        db.run("ALTER TABLE shops ADD COLUMN subscribed_date TEXT;");
+        changed = true;
+      }
+      if (!colNames.includes('subscription_duration_days')) {
+        db.run("ALTER TABLE shops ADD COLUMN subscription_duration_days INTEGER DEFAULT 365;");
+        changed = true;
+        if (colNames.includes('subscription_duration_months')) {
+          try {
+            db.run("UPDATE shops SET subscription_duration_days = COALESCE(subscription_duration_months * 30, 365) WHERE subscription_duration_days IS NULL;");
+          } catch {}
+        }
+      }
+      if (!colNames.includes('subscription_expiry_date')) {
+        db.run("ALTER TABLE shops ADD COLUMN subscription_expiry_date TEXT;");
+        changed = true;
+      }
+
+      try {
+        db.run(`
+          UPDATE shops
+          SET subscribed_date = COALESCE(subscribed_date, substr(created_at, 1, 10)),
+              subscription_duration_days = COALESCE(subscription_duration_days, 365),
+              subscription_expiry_date = COALESCE(subscription_expiry_date, date(substr(created_at, 1, 10), '+365 days'))
+          WHERE subscription_expiry_date IS NULL;
+        `);
+      } catch {}
+    }
+
     // Ensure stock_movements vendor_id and vendor_name columns exist
     const movementTableInfo = db.exec("PRAGMA table_info(stock_movements);");
     if (movementTableInfo.length > 0 && movementTableInfo[0].values) {

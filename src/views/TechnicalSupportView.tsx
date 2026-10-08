@@ -122,11 +122,11 @@ export const TechnicalSupportView: React.FC = () => {
             <span>WhatsApp</span>
           </button>
           <a
-            href="tel:+9779801234567"
+            href={`tel:${SUPPORT_CONTACTS.phoneRaw}`}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg transition-colors cursor-pointer"
           >
             <Phone className="w-3.5 h-3.5 text-emerald-400" />
-            <span>+977 980-1234567</span>
+            <span>{SUPPORT_CONTACTS.phone}</span>
           </a>
           <button
             type="button"

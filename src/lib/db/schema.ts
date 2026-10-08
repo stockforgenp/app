@@ -15,6 +15,11 @@ CREATE TABLE IF NOT EXISTS shops (
   address TEXT,
   currency_symbol TEXT DEFAULT 'Rs.',
   is_active INTEGER DEFAULT 1,
+  subscription_status TEXT NOT NULL DEFAULT 'active',
+  subscription_plan TEXT NOT NULL DEFAULT 'Standard',
+  subscribed_date TEXT,
+  subscription_duration_days INTEGER DEFAULT 365,
+  subscription_expiry_date TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

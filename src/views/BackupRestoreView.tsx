@@ -61,6 +61,10 @@ import {
   executeRestoreFromGoogleSheet,
   clearGoogleAuthSession,
   getActiveAccessToken,
+  setManualAccessToken,
+  loadGoogleIdentityServices,
+  getGoogleOAuthDirectUrl,
+  checkUrlHashForGoogleAuth,
   type GoogleRestorePreview,
   type GoogleSyncConfig,
 } from "../lib/services/googleSheetsService.ts";
@@ -116,6 +120,8 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
   // Google Config Modal Form Fields
   const [inputClientId, setInputClientId] = useState(googleConfig.clientId);
   const [inputSheetId, setInputSheetId] = useState(googleConfig.sheetId);
+  const [inputManualToken, setInputManualToken] = useState("");
+  const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
 
   const loadStats = useCallback(() => {
     try {
@@ -134,8 +140,18 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
   }, [loadStats]);
 
   useEffect(() => {
+    const token = checkUrlHashForGoogleAuth();
+    if (token) {
+      showToast(
+        isNepali
+          ? "गुगल खाता सफलतापूर्वक जोडिएको छ!"
+          : "Google account connected successfully!",
+        "success"
+      );
+    }
     setGoogleConfig(getGoogleSyncConfig());
-  }, []);
+    loadGoogleIdentityServices().catch(() => {});
+  }, [isNepali, showToast]);
 
   // -------------------------------------------------------------
   // LOCAL FILE BACKUP & RESTORE
@@ -380,11 +396,26 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
       );
     } catch (err: unknown) {
       console.error("Google Backup Error:", err);
-      showToast(
-        (err as Error).message || "Google Sheets backup failed.",
-        "error",
-        "Google Backup Failed"
-      );
+      const errMsg = (err as Error).message || "";
+      if (
+        errMsg.toLowerCase().includes("popup") ||
+        errMsg.toLowerCase().includes("blocked")
+      ) {
+        setIsGoogleConfigModalOpen(true);
+        showToast(
+          isNepali
+            ? "macOS मा पपअप रोकियो। कृपया '१. ब्राउजरमा खोल्नुहोस्' वा टोकन प्रयोग गर्नुहोस्।"
+            : "Pop-up blocked on macOS. Please use '1. Sign In in Browser' or paste your token below.",
+          "warning",
+          "macOS Pop-up Blocked"
+        );
+      } else {
+        showToast(
+          errMsg || "Google Sheets backup failed.",
+          "error",
+          "Google Backup Failed"
+        );
+      }
     } finally {
       setIsGoogleBackingUp(false);
       setGoogleStatusMessage("");
@@ -435,11 +466,26 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
       setIsGoogleRestoreConfirmOpen(true);
     } catch (err: unknown) {
       console.error("Google Restore Error:", err);
-      showToast(
-        (err as Error).message || "Failed to inspect Google Sheet backup.",
-        "error",
-        "Google Restore Error"
-      );
+      const errMsg = (err as Error).message || "";
+      if (
+        errMsg.toLowerCase().includes("popup") ||
+        errMsg.toLowerCase().includes("blocked")
+      ) {
+        setIsGoogleConfigModalOpen(true);
+        showToast(
+          isNepali
+            ? "macOS मा पपअप रोकियो। कृपया '१. ब्राउजरमा खोल्नुहोस्' वा टोकन प्रयोग गर्नुहोस्।"
+            : "Pop-up blocked on macOS. Please use '1. Sign In in Browser' or paste your token below.",
+          "warning",
+          "macOS Pop-up Blocked"
+        );
+      } else {
+        showToast(
+          errMsg || "Failed to inspect Google Sheet backup.",
+          "error",
+          "Google Restore Error"
+        );
+      }
     } finally {
       setIsGoogleRestoring(false);
       setGoogleStatusMessage("");
@@ -481,10 +527,112 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
   };
 
   /**
+   * Directly connect / test Google Account authentication
+   */
+  const handleConnectGoogleAccount = async () => {
+    if (!inputClientId.trim()) {
+      showToast(
+        isNepali
+          ? "कृपया पहिले गुगल क्लाइन्ट आईडी (Client ID) प्रविष्ट गर्नुहोस्।"
+          : "Please enter your Google OAuth Client ID first.",
+        "warning"
+      );
+      return;
+    }
+
+    setIsConnectingGoogle(true);
+    try {
+      saveGoogleSyncConfig({ clientId: inputClientId.trim() });
+      await authenticateWithGoogle(inputClientId.trim());
+      const updated = getGoogleSyncConfig();
+      setGoogleConfig(updated);
+      showToast(
+        isNepali
+          ? "गुगल खाता सफलतापूर्वक प्रमाणीकरण भयो!"
+          : "Google account successfully authenticated!",
+        "success",
+        updated.userEmail || "Connected"
+      );
+    } catch (err: unknown) {
+      showToast((err as Error).message, "error", "Google Sign-In Failed");
+    } finally {
+      setIsConnectingGoogle(false);
+    }
+  };
+
+  /**
+   * Open official Google OAuth consent in default browser (Safari / Chrome)
+   */
+  const handleOpenDirectGoogleAuth = () => {
+    if (!inputClientId.trim()) {
+      showToast(
+        isNepali
+          ? "कृपया पहिले गुगल क्लाइन्ट आईडी (Client ID) प्रविष्ट गर्नुहोस्।"
+          : "Please enter your Google OAuth Client ID first.",
+        "warning"
+      );
+      return;
+    }
+    saveGoogleSyncConfig({ clientId: inputClientId.trim() });
+    const authUrl = getGoogleOAuthDirectUrl(inputClientId.trim());
+    window.open(authUrl, "_blank");
+    showToast(
+      isNepali
+        ? "गुगल लगइन पृष्ठ ब्राउजरमा खोलिएको छ। लगइन पछि टोकन प्रतिलिपि गर्नुहोस्।"
+        : "Google sign-in page opened in browser. After login, copy your token or URL.",
+      "info",
+      "Browser Opened"
+    );
+  };
+
+  /**
+   * Read token directly from system clipboard
+   */
+  const handlePasteTokenFromClipboard = async () => {
+    try {
+      if (!navigator.clipboard?.readText) {
+        showToast(
+          isNepali
+            ? "क्लिपबोर्ड पहुँच उपलब्ध छैन। कृपया सिधै पेस्ट गर्नुहोस्।"
+            : "Clipboard access not available. Please paste manually into the box.",
+          "info"
+        );
+        return;
+      }
+      const clipText = await navigator.clipboard.readText();
+      if (!clipText.trim()) {
+        showToast(
+          isNepali ? "क्लिपबोर्ड खाली छ।" : "Clipboard is empty.",
+          "warning"
+        );
+        return;
+      }
+      setInputManualToken(clipText.trim());
+      setManualAccessToken(clipText.trim(), 3600);
+      showToast(
+        isNepali
+          ? "टोकन क्लिपबोर्डबाट सुरक्षित गरियो!"
+          : "Access token pasted from clipboard and saved!",
+        "success"
+      );
+    } catch {
+      showToast(
+        isNepali
+          ? "क्लिपबोर्ड पढ्न सकिएन। कृपया तलको बाकसमा सिधै पेस्ट गर्नुहोस्।"
+          : "Could not read clipboard. Please paste directly into the box.",
+        "warning"
+      );
+    }
+  };
+
+  /**
    * Save Google Cloud Sync Settings
    */
   const handleSaveGoogleSettings = (e: React.FormEvent) => {
     e.preventDefault();
+    if (inputManualToken.trim()) {
+      setManualAccessToken(inputManualToken.trim(), 3600);
+    }
     saveGoogleSyncConfig({
       clientId: inputClientId.trim(),
       sheetId: inputSheetId.trim(),
@@ -1003,6 +1151,140 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
                 ? "Google Cloud Console मा सिर्जना गरिएको Web Application Client ID।"
                 : "Standard OAuth 2.0 Web Application Client ID from Google Cloud Console."}
             </p>
+          </div>
+
+          {/* Quick Connect / Status Widget */}
+          {googleConfig.userEmail ? (
+            <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <div>
+                  <span className="block text-[11px] text-emerald-400/80">
+                    {isNepali ? "जोडिएको गुगल खाता" : "Connected Google Account"}
+                  </span>
+                  <strong className="text-neutral-100">{googleConfig.userEmail}</strong>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleDisconnectGoogle}
+                className="px-2.5 py-1 text-[11px] bg-neutral-900 hover:bg-neutral-800 text-rose-300 border border-neutral-700 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <LogOut className="w-3 h-3" />
+                <span>{isNepali ? "विच्छेद" : "Disconnect"}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="p-3.5 rounded-xl bg-neutral-950 border border-neutral-800 space-y-3">
+              <div className="flex items-center justify-between text-neutral-400">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="text-[11px] font-semibold text-neutral-200">
+                    {isNepali
+                      ? "गुगल खाता जोडिएको छैन (macOS सिफारिस विकल्प)"
+                      : "Google Account Not Connected (macOS Recommended)"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons: System Browser vs In-app Popup */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleOpenDirectGoogleAuth}
+                  disabled={!inputClientId.trim()}
+                  className="px-3.5 py-2.5 text-xs font-bold bg-emerald-400 hover:bg-emerald-300 text-neutral-950 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-md"
+                  title="Opens official Google login in Safari / Chrome"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>
+                    {isNepali
+                      ? "१. ब्राउजरमा खोल्नुहोस् (Safari/Chrome)"
+                      : "1. Sign In in Browser (Safari/Chrome)"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleConnectGoogleAccount}
+                  disabled={isConnectingGoogle || !inputClientId.trim()}
+                  className="px-3 py-2 text-xs font-semibold bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-700 rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="Try Google Identity Services in-app pop-up"
+                >
+                  {isConnectingGoogle ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Cloud className="w-3.5 h-3.5" />
+                  )}
+                  <span>{isNepali ? "पपअप मार्फत प्रयास" : "Try In-App Pop-up"}</span>
+                </button>
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-neutral-900/80 border border-neutral-800 text-[11px] text-neutral-400 space-y-1">
+                <p className="text-neutral-300 font-medium">
+                  {isNepali
+                    ? "macOS डेस्कटप प्रयोगकर्ताहरूका लागि निर्देशन:"
+                    : "Instructions for macOS Desktop App:"}
+                </p>
+                <ol className="list-decimal pl-4 space-y-0.5 text-neutral-400 text-[10px]">
+                  <li>
+                    {isNepali
+                      ? "माथिको '१. ब्राउजरमा खोल्नुहोस्' थिची गुगलमा लगइन गर्नुहोस्।"
+                      : "Click '1. Sign In in Browser' above to log in via Safari or Chrome."}
+                  </li>
+                  <li>
+                    {isNepali
+                      ? "लगइनपछि रिडिरेक्ट भएको पृष्ठबाट एक्सेस टोकन (access_token) कपी गर्नुहोस् वा स्वतः क्लिपबोर्डमा आउनेछ।"
+                      : "Once redirected, your token will be copied to your clipboard (or copy from the URL bar)."}
+                  </li>
+                  <li>
+                    {isNepali
+                      ? "तलको 'क्लिपबोर्डबाट पेस्ट गर्नुहोस्' थिचेर सुरक्षित गर्नुहोस्।"
+                      : "Click 'Paste from Clipboard' below and click Save Settings."}
+                  </li>
+                </ol>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-neutral-300">
+                {isNepali
+                  ? "गुगल एक्सेस टोकन (Access Token / Clipboard)"
+                  : "Google Access Token (Direct / Clipboard)"}
+              </label>
+              <button
+                type="button"
+                onClick={handlePasteTokenFromClipboard}
+                className="text-[11px] text-emerald-400 hover:text-emerald-300 font-medium underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>{isNepali ? "क्लिपबोर्डबाट पेस्ट गर्नुहोस्" : "Paste from Clipboard"}</span>
+              </button>
+            </div>
+            <Input
+              type="password"
+              placeholder="Paste raw token (ya29...) or entire redirect URL"
+              value={inputManualToken}
+              onChange={(e) => setInputManualToken(e.target.value)}
+              className="w-full font-mono text-xs"
+            />
+            <div className="flex items-center justify-between text-[11px] text-neutral-500 mt-1">
+              <span>
+                {isNepali
+                  ? "ब्राउजरमा लगइन भएपछि पूरा URL वा टोकन यहाँ पेस्ट गर्न सकिन्छ।"
+                  : "Paste raw token or full redirected URL from your browser address bar."}
+              </span>
+              <a
+                href="https://developers.google.com/oauthplayground"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sky-400 hover:text-sky-300 underline shrink-0 ml-2"
+                title="Google OAuth Playground for manual testing"
+              >
+                OAuth Playground
+              </a>
+            </div>
           </div>
 
           <div>

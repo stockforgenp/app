@@ -43,12 +43,14 @@ import { useTheme } from "./context/ThemeContext.tsx";
 import { useLanguage } from "./context/LanguageContext.tsx";
 import { useAuth } from "./context/AuthContext.tsx";
 import { AuthView } from "./views/AuthView.tsx";
+import { SubscriptionExpiredView } from "./views/SubscriptionExpiredView.tsx";
+import { isSubscriptionExpired } from "./lib/services/authService.ts";
 import stockforgeLogo from "@/src-tauri/icons/icon.png";
 
 export default function App() {
   const { toggleTheme } = useTheme();
   const { toggleLanguage, language } = useLanguage();
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { isAuthenticated, isLoading: isAuthLoading, currentShop } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -277,6 +279,14 @@ export default function App() {
     return (
       <ToastProvider>
         <AuthView onSuccess={() => navigate("/dashboard")} />
+      </ToastProvider>
+    );
+  }
+
+  if (isSubscriptionExpired(currentShop)) {
+    return (
+      <ToastProvider>
+        <SubscriptionExpiredView />
       </ToastProvider>
     );
   }

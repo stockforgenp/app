@@ -12,10 +12,12 @@ import {
   Languages,
   Store,
   LogOut,
+  Clock,
 } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext.tsx";
 import { useLanguage } from "../../context/LanguageContext.tsx";
 import { useAuth } from "../../context/AuthContext.tsx";
+import { getSubscriptionDaysRemaining } from "../../lib/services/authService.ts";
 import {
   getNavGroups,
   NavTab,
@@ -41,10 +43,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setToggleSidebar,
 }) => {
   const location = useLocation();
-  const activeTab = location.pathname.replace(/^\//, "").split("/")[0] || "dashboard";
+  const activeTab =
+    location.pathname.replace(/^\//, "").split("/")[0] || "dashboard";
   const { toggleTheme, isDark } = useTheme();
   const { t, toggleLanguage, isNepali } = useLanguage();
   const { currentShop, logout } = useAuth();
+
+  const daysRemaining = useMemo(
+    () => getSubscriptionDaysRemaining(currentShop),
+    [currentShop],
+  );
 
   const navGroups = useMemo(
     () => getNavGroups(t, lowStockCount, isNepali),
@@ -269,9 +277,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {/* Shop Account & Logout */}
+      {/* Shop Account & Subscription Expiry Countdown */}
       {currentShop && (
-        <div className="px-3 py-2 border-t border-neutral-800/80 bg-neutral-950/90 shrink-0">
+        <div className="px-3 py-2 border-t border-neutral-800/80 bg-neutral-950/90 shrink-0 space-y-2">
+          {/* Shop identity pill */}
           <div className="flex items-center justify-between gap-2 p-1.5 rounded-lg bg-neutral-900 border border-neutral-800/60">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-7 h-7 rounded-md bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
@@ -303,6 +312,109 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             )}
           </div>
+
+          {/* Subscription Expiry Countdown Badge & Progress */}
+          <Link
+            to="/support"
+            onClick={() => onSelectTab("support" as NavTab)}
+            className={`block rounded-lg p-2 border transition-all cursor-pointer group ${
+              daysRemaining <= 7
+                ? "bg-rose-950/25 border-rose-500/40 hover:bg-rose-950/40 hover:border-rose-500/60"
+                : daysRemaining <= 30
+                  ? "bg-amber-950/20 border-amber-500/30 hover:bg-amber-950/30 hover:border-amber-500/50"
+                  : "bg-neutral-900/80 border-neutral-800/70 hover:bg-neutral-900 hover:border-neutral-700"
+            }`}
+            title={
+              isNepali
+                ? `योजना: ${currentShop.subscription_plan || "Standard"} (${daysRemaining} दिन बाँकी, म्याद: ${currentShop.subscription_expiry_date || "N/A"})`
+                : `Subscription: ${currentShop.subscription_plan || "Standard"} (${daysRemaining} days remaining, expires: ${currentShop.subscription_expiry_date || "N/A"})`
+            }
+          >
+            {toggleSidebar ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="font-medium text-neutral-300 flex items-center gap-1.5 truncate">
+                    <Clock
+                      className={`w-3.5 h-3.5 shrink-0 ${
+                        daysRemaining <= 7
+                          ? "text-rose-400 animate-pulse"
+                          : daysRemaining <= 30
+                            ? "text-amber-400"
+                            : "text-emerald-400"
+                      }`}
+                    />
+                    <span className="truncate">
+                      {currentShop.subscription_plan || "Standard"}
+                    </span>
+                  </span>
+                  <span
+                    className={`font-mono font-bold px-1.5 py-0.5 rounded text-[9px] shrink-0 ${
+                      daysRemaining <= 7
+                        ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                        : daysRemaining <= 30
+                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                          : "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+                    }`}
+                  >
+                    {daysRemaining <= 0
+                      ? isNepali
+                        ? "समाप्त"
+                        : "Expired"
+                      : isNepali
+                        ? `${daysRemaining} दिन बाँकी`
+                        : `${daysRemaining}d left`}
+                  </span>
+                </div>
+
+                {/* Progress bar towards expiry */}
+                <div className="w-full bg-neutral-950 rounded-full h-1 overflow-hidden border border-neutral-800/60">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      daysRemaining <= 7
+                        ? "bg-rose-500"
+                        : daysRemaining <= 30
+                          ? "bg-amber-500"
+                          : "bg-emerald-500"
+                    }`}
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        Math.max(
+                          4,
+                          (daysRemaining /
+                            (currentShop.subscription_duration_days || 365)) *
+                            100,
+                        ),
+                      )}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-0.5">
+                <Clock
+                  className={`w-3.5 h-3.5 ${
+                    daysRemaining <= 7
+                      ? "text-rose-400 animate-pulse"
+                      : daysRemaining <= 30
+                        ? "text-amber-400"
+                        : "text-emerald-400"
+                  }`}
+                />
+                <span
+                  className={`text-[8px] font-mono font-bold mt-0.5 leading-none ${
+                    daysRemaining <= 7
+                      ? "text-rose-400"
+                      : daysRemaining <= 30
+                        ? "text-amber-400"
+                        : "text-emerald-400"
+                  }`}
+                >
+                  {daysRemaining}d
+                </span>
+              </div>
+            )}
+          </Link>
         </div>
       )}
 

@@ -203,6 +203,8 @@ export interface AppSettings {
   google_sheet_last_backup?: string;
 }
 
+export type SubscriptionStatus = 'active' | 'expired' | 'trial' | 'grace_period';
+
 export interface Shop {
   id: number;
   name: string;
@@ -212,6 +214,12 @@ export interface Shop {
   address: string;
   currency_symbol: string;
   is_active: boolean | number;
+  subscription_status?: SubscriptionStatus;
+  subscription_plan?: string;
+  subscribed_date?: string;
+  subscription_duration_days?: number;
+  subscription_duration_months?: number;
+  subscription_expiry_date?: string;
   created_at: string;
   updated_at: string;
 }

@@ -235,6 +235,45 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
+          {/* Subscription Details */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-1">
+            <div className="p-3 bg-neutral-950 border border-neutral-800/80 rounded-lg">
+              <span className="text-[10px] text-neutral-500 uppercase tracking-wider block mb-1">
+                {isNepali ? "सदस्यता योजना" : "Subscription Plan"}
+              </span>
+              <span className="text-xs font-bold text-emerald-400 block truncate">
+                {currentShop.subscription_plan || "Standard"}
+              </span>
+            </div>
+
+            <div className="p-3 bg-neutral-950 border border-neutral-800/80 rounded-lg">
+              <span className="text-[10px] text-neutral-500 uppercase tracking-wider block mb-1">
+                {isNepali ? "सुरु मिति" : "Subscribed Date"}
+              </span>
+              <span className="text-xs font-mono text-neutral-300 block truncate">
+                {currentShop.subscribed_date || "—"}
+              </span>
+            </div>
+
+            <div className="p-3 bg-neutral-950 border border-neutral-800/80 rounded-lg">
+              <span className="text-[10px] text-neutral-500 uppercase tracking-wider block mb-1">
+                {isNepali ? "समयावधि" : "Duration"}
+              </span>
+              <span className="text-xs text-neutral-300 block truncate">
+                {currentShop.subscription_duration_days || 365} {isNepali ? "दिन" : "Days"}
+              </span>
+            </div>
+
+            <div className="p-3 bg-neutral-950 border border-neutral-800/80 rounded-lg">
+              <span className="text-[10px] text-neutral-500 uppercase tracking-wider block mb-1">
+                {isNepali ? "म्याद सकिने मिति" : "Expiry Date"}
+              </span>
+              <span className="text-xs font-mono font-semibold text-neutral-100 block truncate">
+                {currentShop.subscription_expiry_date || "—"}
+              </span>
+            </div>
+          </div>
+
           {allShops.length > 1 && (
             <div className="pt-2 border-t border-neutral-800/60 flex items-center justify-between text-xs">
               <span className="text-neutral-400">

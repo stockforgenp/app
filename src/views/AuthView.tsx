@@ -1,9 +1,7 @@
 /**
- * Authentication View: Shop Terminal Login & Registration
+ * Authentication View: Shop Terminal Login
  * Features:
- * - Dual mode: Direct Terminal Login <-> New Shop Registration
- * - Direct login with email or phone + password
- * - New retail shop creation with shop type, currency, and optional test seed data
+ * - Direct terminal login with email or phone + password
  * - Instant 1-click Demo Shop access
  * - Quick-select previously registered shops from SQLite
  * - Bilingual (English <-> Nepali) support with full dark/light theme awareness
@@ -11,39 +9,29 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Store,
-  LogIn,
-  UserPlus,
   Sun,
   Moon,
   Languages,
   ShieldCheck,
   Headphones,
 } from "lucide-react";
-import { useAuth } from "../context/AuthContext.tsx";
 import { useLanguage } from "../context/LanguageContext.tsx";
 import { useTheme } from "../context/ThemeContext.tsx";
 import stockforgeLogo from "@/src-tauri/icons/icon.png";
 import { Modal } from "../components/common/Modal.tsx";
 import { AuthTechnicalSupport } from "../components/auth/AuthTechnicalSupport.tsx";
 import { LoginForm } from "../components/forms/LoginForm.tsx";
-import { RegisterForm } from "../components/forms/RegisterForm.tsx";
+import { SUPPORT_CONTACTS } from "../constants/support.ts";
 
 interface AuthViewProps {
   onSuccess?: () => void;
 }
 
 export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
-  const { hasAnyShops } = useAuth();
   const { t, isNepali, toggleLanguage } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
 
-  const [mode, setMode] = useState<"login" | "register">(
-    hasAnyShops ? "login" : "register",
-  );
-
   const [error, setError] = useState<string | null>(null);
-
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
 
   return (
@@ -115,9 +103,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
 
       {/* Main Container */}
       <div className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8">
-        <div
-          className={`w-full ${mode === "register" ? "max-w-xl" : "max-w-md"} transition-all duration-200`}
-        >
+        <div className="w-full max-w-md transition-all duration-200">
           {/* Brand Card Title */}
           <div className="text-center mb-6">
             <div className="w-16 h-16 rounded-2xl bg-neutral-900 border border-neutral-800 p-3 mx-auto mb-3.5 flex items-center justify-center shadow-lg">
@@ -132,54 +118,15 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
               <span>{t("auth_badge_offline")}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-100 tracking-tight">
-              {mode === "register"
-                ? t("auth_register_title")
-                : t("auth_login_title")}
+              {t("auth_login_title")}
             </h1>
             <p className="text-xs sm:text-sm text-neutral-400 mt-1.5 max-w-sm mx-auto">
-              {mode === "register"
-                ? t("auth_register_desc")
-                : t("auth_login_desc")}
+              {t("auth_login_desc")}
             </p>
           </div>
 
           {/* Form Card */}
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl  p-6 sm:p-8 relative overflow-hidden">
-            {/* Mode Tabs (Login vs Register) */}
-            <div className="grid grid-cols-2 p-1 bg-neutral-950 border border-neutral-800 rounded-xl mb-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("login");
-                  setError(null);
-                }}
-                className={`py-2 px-3 text-xs font-semibold rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                  mode === "login"
-                    ? "bg-neutral-800 text-neutral-100 shadow-xs"
-                    : "text-neutral-400 hover:text-neutral-200"
-                }`}
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>{t("auth_tab_login")}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("register");
-                  setError(null);
-                }}
-                className={`py-2 px-3 text-xs font-semibold rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                  mode === "register"
-                    ? "bg-emerald-600 text-white shadow-xs"
-                    : "text-neutral-400 hover:text-neutral-200"
-                }`}
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>{t("auth_tab_register")}</span>
-              </button>
-            </div>
-
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 sm:p-8 relative overflow-hidden">
             {/* Error Banner */}
             <AnimatePresence>
               {error && (
@@ -204,53 +151,12 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
               )}
             </AnimatePresence>
 
-            {/* ================= REGISTER FORM ================= */}
-            {mode === "register" ? (
-              <RegisterForm
-                onSuccess={onSuccess}
-                onError={(e) => setError(e)}
-              />
-            ) : (
-              /* ================= LOGIN FORM ================= */
-              <LoginForm
-                onSuccess={onSuccess}
-                onSupport={() => setIsSupportModalOpen(true)}
-                onError={(e) => setError(e)}
-              />
-            )}
-
-            {/* Bottom prompt */}
-            <div className="mt-6 text-center text-xs text-neutral-400">
-              {mode === "register" ? (
-                <span>
-                  {t("auth_already_registered")}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode("login");
-                      setError(null);
-                    }}
-                    className="text-emerald-400 hover:text-emerald-300 font-bold underline underline-offset-2 ml-1 cursor-pointer"
-                  >
-                    {t("auth_link_login")}
-                  </button>
-                </span>
-              ) : (
-                <span>
-                  {t("auth_need_register")}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode("register");
-                      setError(null);
-                    }}
-                    className="text-emerald-400 hover:text-emerald-300 font-bold underline underline-offset-2 ml-1 cursor-pointer"
-                  >
-                    {t("auth_link_register")}
-                  </button>
-                </span>
-              )}
-            </div>
+            {/* ================= LOGIN FORM ONLY ================= */}
+            <LoginForm
+              onSuccess={onSuccess}
+              onSupport={() => setIsSupportModalOpen(true)}
+              onError={(e) => setError(e)}
+            />
           </div>
 
           {/* Footer note */}
@@ -264,7 +170,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-emerald-400 text-[10px] transition-colors cursor-pointer"
               >
                 <Headphones className="w-3 h-3 text-emerald-400" />
-                <span>{t("auth_support_footer_line")} (+977 980-1234567)</span>
+                <span>{t("auth_support_footer_line")} ({SUPPORT_CONTACTS.phone})</span>
               </button>
             </div>
           </div>
