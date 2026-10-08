@@ -197,6 +197,10 @@ export interface AppSettings {
   store_pan_vat?: string;
   enable_vat?: boolean;
   receipt_footer?: string;
+  google_client_id?: string;
+  google_sheet_backup_id?: string;
+  google_sheet_backup_url?: string;
+  google_sheet_last_backup?: string;
 }
 
 export interface Shop {
