@@ -87,6 +87,7 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
   const [supplierInvoiceNo, setSupplierInvoiceNo] = useState("");
   const [purchaseNotes, setPurchaseNotes] = useState("");
   const [applyVat, setApplyVat] = useState(true);
+  const [paidAmountInput, setPaidAmountInput] = useState("");
 
   // Lines State
   const [lines, setLines] = useState<EditablePurchaseLine[]>([]);
@@ -98,6 +99,7 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
     if (!isOpen || !purchaseId) {
       setPurchaseRecord(null);
       setLines([]);
+      setPaidAmountInput("");
       return;
     }
 
@@ -124,6 +126,11 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
             ? details.purchase.vat_rate > 0
             : (details.purchase.vat_amount || 0) > 0,
         );
+        const initialPaid =
+          details.purchase.paid_amount !== undefined && details.purchase.paid_amount !== null
+            ? details.purchase.paid_amount
+            : (details.purchase.grand_total || details.purchase.total);
+        setPaidAmountInput(fromMinorUnits(initialPaid).toString());
 
         setLines(
           details.items.map((it) => {
@@ -275,6 +282,11 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
         discount: l.discount,
       }));
 
+      const parsedPaid =
+        paidAmountInput.trim() === ""
+          ? 0
+          : toMinorUnits(parseFloat(paidAmountInput) || 0);
+
       updatePurchase(purchaseId, itemsInput, {
         vendorId: purchaseRecord?.vendor_id ?? null,
         vendorName: vendorName.trim() || null,
@@ -285,6 +297,7 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
         invoiceNumber: supplierInvoiceNo.trim() || null,
         notes: purchaseNotes.trim() || null,
         applyVat,
+        paidAmount: parsedPaid,
         createdAt: parseDateTimeLocalToIso(purchaseDateTime),
       });
 
@@ -671,6 +684,39 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
                   {formatCurrency(calculations.grandTotal, currencySymbol)}
                 </span>
               </div>
+
+              {/* Paid Amount Input & Due Amount */}
+              <div className="pt-2 border-t border-neutral-800 flex items-center justify-end gap-3">
+                <span className="text-xs text-neutral-300 font-semibold">
+                  {isNepali ? "भुक्तानी रकम (Paid)" : "Paid Amount"}:
+                </span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={paidAmountInput}
+                  onChange={(e) => setPaidAmountInput(e.target.value)}
+                  className="w-28 text-right px-2 py-1 text-xs font-mono font-bold bg-neutral-900 border border-neutral-700 rounded text-emerald-400 focus:outline-none focus:border-emerald-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPaidAmountInput(fromMinorUnits(calculations.grandTotal).toString())}
+                  className="text-[10px] px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 cursor-pointer"
+                >
+                  {isNepali ? "पूरा चुक्ता" : "Full Paid"}
+                </button>
+              </div>
+
+              {(() => {
+                const pVal = paidAmountInput.trim() === "" ? 0 : toMinorUnits(parseFloat(paidAmountInput) || 0);
+                const currentDue = Math.max(0, calculations.grandTotal - pVal);
+                return currentDue > 0 ? (
+                  <div className="flex justify-end gap-6 text-xs font-bold text-rose-400 pt-1">
+                    <span>{isNepali ? "यस खरिदको बाँकी" : "Purchase Due"}:</span>
+                    <span className="font-mono">{formatCurrency(currentDue, currencySymbol)}</span>
+                  </div>
+                ) : null;
+              })()}
             </div>
           </div>
 

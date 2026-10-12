@@ -59,6 +59,10 @@ export interface Sale {
   vat_amount?: number;
   grand_total?: number;
   total: number;
+  paid_amount?: number;
+  due_amount?: number;
+  previous_due?: number;
+  total_due?: number;
   cost_total?: number;
   gross_profit?: number;
   item_count?: number;
@@ -104,6 +108,7 @@ export interface ProcessSaleCustomerInfo {
   customerPanVat?: string | null;
   customerAddress?: string | null;
   applyVat?: boolean;
+  paidAmount?: number;
   createdAt?: string | null;
   customerInput?: {
     name: string;
@@ -132,6 +137,10 @@ export interface Purchase {
   vat_amount?: number;
   grand_total?: number;
   total: number;
+  paid_amount?: number;
+  due_amount?: number;
+  previous_due?: number;
+  total_due?: number;
   notes?: string | null;
   item_count?: number;
   total_units?: number;
@@ -178,6 +187,7 @@ export interface ProcessPurchaseVendorInfo {
   invoiceNumber?: string | null;
   notes?: string | null;
   applyVat?: boolean;
+  paidAmount?: number;
   createdAt?: string | null;
   vendorInput?: {
     name: string;
@@ -457,6 +467,7 @@ export interface Vendor {
   updated_at: string;
   product_count?: number;
   total_purchased?: number;
+  total_due?: number;
 }
 
 export interface CreateVendorInput {
@@ -480,6 +491,7 @@ export interface Customer {
   updated_at: string;
   sales_count?: number;
   total_spent?: number;
+  total_due?: number;
 }
 
 export interface CreateCustomerInput {

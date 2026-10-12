@@ -81,6 +81,7 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [applyVat, setApplyVat] = useState(true);
+  const [paidAmountInput, setPaidAmountInput] = useState('');
 
   // Items State
   const [lines, setLines] = useState<EditableSaleLine[]>([]);
@@ -92,6 +93,7 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
     if (!isOpen || !saleId) {
       setSaleRecord(null);
       setLines([]);
+      setPaidAmountInput('');
       return;
     }
 
@@ -114,6 +116,11 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
             ? details.sale.vat_rate > 0
             : (details.sale.vat_amount || 0) > 0
         );
+        const initialPaid =
+          details.sale.paid_amount !== undefined && details.sale.paid_amount !== null
+            ? details.sale.paid_amount
+            : (details.sale.grand_total ?? details.sale.total);
+        setPaidAmountInput(fromMinorUnits(initialPaid).toString());
 
         setLines(
           details.items.map((it) => {
@@ -256,6 +263,11 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
         discount: l.discount,
       }));
 
+      const parsedPaid =
+        paidAmountInput.trim() === ''
+          ? 0
+          : toMinorUnits(parseFloat(paidAmountInput) || 0);
+
       updateSale(saleId, itemsInput, {
         customerId: saleRecord?.customer_id ?? null,
         customerName: customerName.trim() || null,
@@ -264,6 +276,7 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
         customerEmail: customerEmail.trim() || null,
         customerAddress: customerAddress.trim() || null,
         applyVat,
+        paidAmount: parsedPaid,
         createdAt: parseDateTimeLocalToIso(saleDateTime),
       });
 
@@ -601,6 +614,39 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
                   {formatCurrency(calculations.grandTotal, currencySymbol)}
                 </span>
               </div>
+
+              {/* Paid Amount Input & Due Amount */}
+              <div className="pt-2 border-t border-neutral-800 flex items-center justify-end gap-3">
+                <span className="text-xs text-neutral-300 font-semibold">
+                  {isNepali ? 'भुक्तानी रकम (Paid)' : 'Paid Amount'}:
+                </span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={paidAmountInput}
+                  onChange={(e) => setPaidAmountInput(e.target.value)}
+                  className="w-28 text-right px-2 py-1 text-xs font-mono font-bold bg-neutral-900 border border-neutral-700 rounded text-emerald-400 focus:outline-none focus:border-emerald-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPaidAmountInput(fromMinorUnits(calculations.grandTotal).toString())}
+                  className="text-[10px] px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 cursor-pointer"
+                >
+                  {isNepali ? 'पूरा चुक्ता' : 'Full Paid'}
+                </button>
+              </div>
+
+              {(() => {
+                const pVal = paidAmountInput.trim() === '' ? 0 : toMinorUnits(parseFloat(paidAmountInput) || 0);
+                const currentDue = Math.max(0, calculations.grandTotal - pVal);
+                return currentDue > 0 ? (
+                  <div className="flex justify-end gap-6 text-xs font-bold text-rose-400 pt-1">
+                    <span>{isNepali ? 'यस बिलको बाँकी' : 'Bill Due'}:</span>
+                    <span className="font-mono">{formatCurrency(currentDue, currencySymbol)}</span>
+                  </div>
+                ) : null;
+              })()}
             </div>
           </div>
 

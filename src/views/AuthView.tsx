@@ -8,13 +8,7 @@
  */
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Sun,
-  Moon,
-  Languages,
-  ShieldCheck,
-  Headphones,
-} from "lucide-react";
+import { Sun, Moon, Languages, ShieldCheck, Headphones } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext.tsx";
 import { useTheme } from "../context/ThemeContext.tsx";
 import stockforgeLogo from "@/src-tauri/icons/icon.png";
@@ -170,7 +164,9 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-emerald-400 text-[10px] transition-colors cursor-pointer"
               >
                 <Headphones className="w-3 h-3 text-emerald-400" />
-                <span>{t("auth_support_footer_line")} ({SUPPORT_CONTACTS.phone})</span>
+                <span>
+                  {t("auth_support_footer_line")} ({SUPPORT_CONTACTS.phone})
+                </span>
               </button>
             </div>
           </div>

@@ -14,8 +14,12 @@ import {
 
 export type { ProcessPurchaseItemInput, ProcessPurchaseVendorInfo };
 import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
-import { getProductById } from './productService.ts';
-import { findOrCreateVendor, getVendorById, updateVendor } from './vendorService.ts';
+import {
+  findOrCreateVendor,
+  getVendorById,
+  updateVendor,
+  getVendorPreviousDueForPurchase,
+} from './vendorService.ts';
 import { getSettings } from './settingsService.ts';
 
 export function processPurchase(
@@ -154,18 +158,24 @@ export function processPurchase(
 
     // 3. Generate sequential Bill Number: PUR-00001
     const countRes = queryOne<{ next_id: number }>(
-      'SELECT COALESCE(MAX(id), 0) + 1 as next_id FROM purchases'
-    );
+       'SELECT COALESCE(MAX(id), 0) + 1 as next_id FROM purchases'
+     );
     const nextId = countRes?.next_id ?? 1;
     const billNumber = `PUR-${String(nextId).padStart(5, '0')}`;
 
-    // 4. Insert into purchases table
+    // 4. Calculate paid amount and due amount
+    const paidAmount = vendorInfo?.paidAmount !== undefined
+      ? Math.max(0, Math.floor(vendorInfo.paidAmount))
+      : grandTotal;
+    const dueAmount = grandTotal - paidAmount;
+
+    // 5. Insert into purchases table
     run(
       `INSERT INTO purchases (
         bill_number, invoice_number, vendor_id, vendor_name, vendor_phone,
         vendor_email, vendor_pan_vat, vendor_address, subtotal, discount,
-        taxable_amount, vat_rate, vat_amount, grand_total, total, notes, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        taxable_amount, vat_rate, vat_amount, grand_total, total, paid_amount, due_amount, notes, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         billNumber,
         vendorInfo?.invoiceNumber?.trim() || null,
@@ -181,7 +191,9 @@ export function processPurchase(
         vatRate,
         vatAmount,
         grandTotal,
-        taxableAmount,
+        grandTotal,
+        paidAmount,
+        dueAmount,
         vendorInfo?.notes?.trim() || null,
         transactionCreatedAt,
       ]
@@ -306,6 +318,8 @@ export function getPurchases(options?: {
       p.vat_amount,
       p.grand_total,
       p.total,
+      COALESCE(p.paid_amount, p.grand_total, p.total) as paid_amount,
+      COALESCE(p.due_amount, 0) as due_amount,
       p.notes,
       p.created_at,
       COUNT(pi.id) as item_count,
@@ -379,6 +393,8 @@ export function getPurchaseWithItems(
        p.vat_amount,
        p.grand_total,
        p.total,
+       COALESCE(p.paid_amount, p.grand_total, p.total) as paid_amount,
+       COALESCE(p.due_amount, 0) as due_amount,
        p.notes,
        p.created_at
      FROM purchases p
@@ -387,6 +403,15 @@ export function getPurchaseWithItems(
   );
 
   if (!purchase) return null;
+
+  const previousDue = getVendorPreviousDueForPurchase(purchase.id, purchase.vendor_id);
+  const totalDue = previousDue + (purchase.due_amount || 0);
+
+  const enrichedPurchase: Purchase = {
+    ...purchase,
+    previous_due: previousDue,
+    total_due: totalDue,
+  };
 
   const items = query<PurchaseItem>(
     `SELECT 
@@ -408,7 +433,7 @@ export function getPurchaseWithItems(
     [purchaseId]
   );
 
-  return { purchase, items };
+  return { purchase: enrichedPurchase, items };
 }
 
 /**
@@ -542,7 +567,15 @@ export function updatePurchase(
     const vatAmount = vatEnabled ? Math.round(taxableAmount * 0.13) : 0;
     const grandTotal = taxableAmount + vatAmount;
 
-    // 3. Update purchases record
+    // 3. Calculate paid amount and due amount
+    const paidAmount = vendorInfo?.paidAmount !== undefined
+      ? Math.max(0, Math.floor(vendorInfo.paidAmount))
+      : (existing.purchase.paid_amount !== undefined && existing.purchase.paid_amount !== null
+          ? existing.purchase.paid_amount
+          : grandTotal);
+    const dueAmount = grandTotal - paidAmount;
+
+    // 4. Update purchases record
     run(
       `UPDATE purchases SET
         invoice_number = ?,
@@ -559,6 +592,8 @@ export function updatePurchase(
         vat_amount = ?,
         grand_total = ?,
         total = ?,
+        paid_amount = ?,
+        due_amount = ?,
         notes = ?,
         created_at = ?
       WHERE id = ?`,
@@ -576,7 +611,9 @@ export function updatePurchase(
         vatRate,
         vatAmount,
         grandTotal,
-        taxableAmount,
+        grandTotal,
+        paidAmount,
+        dueAmount,
         (vendorInfo?.notes?.trim()) || existing.purchase.notes || null,
         transactionCreatedAt,
         purchaseId,

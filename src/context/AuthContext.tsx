@@ -3,8 +3,15 @@
  * Provides reactive shop session state, login, registration,
  * and shop switching across the entire application.
  */
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Shop, RegisterShopInput, LoginInput } from '../types/index.ts';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
+import { Shop, RegisterShopInput, LoginInput } from "../types/index.ts";
 import {
   getCurrentShop,
   loginShop,
@@ -13,8 +20,8 @@ import {
   getAllShops,
   switchShop as switchShopService,
   getShopsCount,
-} from '../lib/services/authService.ts';
-import { getDatabase, subscribeToDbChanges } from '../lib/db/sqliteEngine.ts';
+} from "../lib/services/authService.ts";
+import { getDatabase, subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 
 interface AuthContextType {
   currentShop: Shop | null;
@@ -24,7 +31,7 @@ interface AuthContextType {
   hasAnyShops: boolean;
   login: (input: LoginInput) => Promise<Shop>;
   register: (input: RegisterShopInput) => Promise<Shop>;
-  logout: () => void;
+  logout: () => Promise<void> | void;
   switchShop: (shopId: number) => Promise<Shop>;
   refreshShops: () => void;
 }
@@ -55,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
       })
       .catch((err) => {
-        console.error('Failed to load database in AuthProvider:', err);
+        console.error("Failed to load database in AuthProvider:", err);
         setIsLoading(false);
       });
 
@@ -66,35 +73,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, [refreshShops]);
 
-  const login = useCallback(async (input: LoginInput): Promise<Shop> => {
-    const shop = await loginShop(input);
-    setCurrentShop(shop);
-    refreshShops();
-    return shop;
-  }, [refreshShops]);
+  const login = useCallback(
+    async (input: LoginInput): Promise<Shop> => {
+      const shop = await loginShop(input);
+      setCurrentShop(shop);
+      refreshShops();
+      return shop;
+    },
+    [refreshShops],
+  );
 
-  const register = useCallback(async (input: RegisterShopInput): Promise<Shop> => {
-    const shop = await registerShopService(input);
-    setCurrentShop(shop);
-    refreshShops();
-    return shop;
-  }, [refreshShops]);
+  const register = useCallback(
+    async (input: RegisterShopInput): Promise<Shop> => {
+      const shop = await registerShopService(input);
+      setCurrentShop(shop);
+      refreshShops();
+      return shop;
+    },
+    [refreshShops],
+  );
 
-  const logout = useCallback(() => {
-    logoutShop();
+  const logout = useCallback(async () => {
+    await logoutShop();
     setCurrentShop(null);
     refreshShops();
   }, [refreshShops]);
 
-  const switchShop = useCallback(async (shopId: number): Promise<Shop> => {
-    const shop = switchShopService(shopId);
-    if (!shop) {
-      throw new Error('Shop not found');
-    }
-    setCurrentShop(shop);
-    refreshShops();
-    return shop;
-  }, [refreshShops]);
+  const switchShop = useCallback(
+    async (shopId: number): Promise<Shop> => {
+      const shop = switchShopService(shopId);
+      if (!shop) {
+        throw new Error("Shop not found");
+      }
+      setCurrentShop(shop);
+      refreshShops();
+      return shop;
+    },
+    [refreshShops],
+  );
 
   return (
     <AuthContext.Provider
@@ -119,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

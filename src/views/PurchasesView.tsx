@@ -24,6 +24,7 @@ import {
 import { Product, PurchaseCartItem } from "../types/index.ts";
 import { getAllProducts } from "../lib/services/productService.ts";
 import { processPurchase } from "../lib/services/purchaseService.ts";
+import { getVendorTotalDue } from "../lib/services/vendorService.ts";
 import {
   VendorInputSection,
   VendorInputData,
@@ -96,6 +97,10 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     setApplyVat(enableVat !== false);
   }, [enableVat]);
 
+  // Partial Payment & Dues State
+  const [paidAmountInput, setPaidAmountInput] = useState("");
+  const [isCustomPaid, setIsCustomPaid] = useState(false);
+
   // Quick Barcode / SKU Input
   const [quickSkuInput, setQuickSkuInput] = useState("");
   const quickSkuInputRef = useRef<HTMLInputElement>(null);
@@ -127,6 +132,10 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     total: number;
     vatAmount?: number;
     grandTotal?: number;
+    paidAmount?: number;
+    dueAmount?: number;
+    previousDue?: number;
+    totalDue?: number;
     vendorName?: string | null;
     vendorPanVat?: string | null;
   } | null>(null);
@@ -232,6 +241,8 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     setCart([]);
     setSupplierInvoiceNo("");
     setPurchaseNotes("");
+    setPaidAmountInput("");
+    setIsCustomPaid(false);
     setVendorData({
       vendorId: null,
       name: "",
@@ -331,6 +342,33 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     };
   }, [cart, applyVat]);
 
+  // Vendor Previous Due & Current Purchase Due calculation
+  const vendorPreviousDue = useMemo(() => {
+    if (!vendorData.vendorId) return 0;
+    try {
+      return getVendorTotalDue(vendorData.vendorId);
+    } catch {
+      return 0;
+    }
+  }, [vendorData.vendorId]);
+
+  const effectivePaidAmount = useMemo(() => {
+    if (!isCustomPaid) {
+      return calculations.grandTotal;
+    }
+    const parsed = parseFloat(paidAmountInput);
+    if (isNaN(parsed) || parsed < 0) return 0;
+    return toMinorUnits(parsed);
+  }, [isCustomPaid, paidAmountInput, calculations.grandTotal]);
+
+  const currentBillDue = useMemo(() => {
+    return Math.max(0, calculations.grandTotal - effectivePaidAmount);
+  }, [calculations.grandTotal, effectivePaidAmount]);
+
+  const totalVendorDue = useMemo(() => {
+    return vendorPreviousDue + currentBillDue;
+  }, [vendorPreviousDue, currentBillDue]);
+
   // Execute Purchase Transaction
   const handleCompletePurchase = () => {
     if (cart.length === 0) {
@@ -354,6 +392,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         vendorEmail: vendorData.email.trim() || undefined,
         vendorPanVat: vendorData.pan_vat.trim() || undefined,
         vendorAddress: vendorData.address.trim() || undefined,
+        paidAmount: effectivePaidAmount,
         invoiceNumber: supplierInvoiceNo.trim() || undefined,
         notes: purchaseNotes.trim() || undefined,
         applyVat: applyVat,
@@ -381,6 +420,10 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         total: purchase.total,
         vatAmount: purchase.vat_amount,
         grandTotal: purchase.grand_total,
+        paidAmount: purchase.paid_amount ?? effectivePaidAmount,
+        dueAmount: purchase.due_amount ?? currentBillDue,
+        previousDue: vendorPreviousDue,
+        totalDue: totalVendorDue,
         vendorName: purchase.vendor_name,
         vendorPanVat: purchase.vendor_pan_vat,
       });
@@ -408,7 +451,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [cart, calculations, vendorData, supplierInvoiceNo, purchaseDateTime, purchaseNotes, applyVat]);
+  }, [cart, calculations, vendorData, supplierInvoiceNo, purchaseDateTime, purchaseNotes, applyVat, effectivePaidAmount]);
 
   // Batch selections in modal
   const submitBatchFromQuantities = () => {
@@ -990,6 +1033,77 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                 </div>
               </div>
 
+              {/* Payment & Dues Card */}
+              {cart.length > 0 && (
+                <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-neutral-200">
+                      {isNepali ? "भुक्तानी रकम (Paid Amount)" : "Paid Amount"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomPaid(false);
+                        setPaidAmountInput("");
+                      }}
+                      className={`text-[10px] px-2 py-0.5 rounded font-medium transition-colors cursor-pointer border ${
+                        !isCustomPaid
+                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                          : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
+                      }`}
+                    >
+                      {isNepali ? "पूरा भुक्तानी" : "Paid in Full"}
+                    </button>
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      placeholder={`Enter paid amount (${currencySymbol})...`}
+                      value={isCustomPaid ? paidAmountInput : fromMinorUnits(calculations.grandTotal)}
+                      onChange={(e) => {
+                        setIsCustomPaid(true);
+                        setPaidAmountInput(e.target.value);
+                      }}
+                      className="w-full px-3 py-1.5 text-xs font-mono font-bold text-emerald-400 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500 pr-12"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-500 pointer-events-none">
+                      {currencySymbol}
+                    </span>
+                  </div>
+
+                  {/* Due Breakdown */}
+                  <div className="space-y-1.5 pt-2 border-t border-neutral-800 text-xs">
+                    <div className="flex items-center justify-between text-neutral-300">
+                      <span>{isNepali ? "यस खरिदको बाँकी" : "Current Purchase Due"}:</span>
+                      <span className={`font-mono font-bold ${currentBillDue > 0 ? "text-rose-400" : "text-neutral-400"}`}>
+                        {formatCurrency(currentBillDue, currencySymbol)}
+                      </span>
+                    </div>
+
+                    {vendorPreviousDue > 0 && (
+                      <div className="flex items-center justify-between text-amber-400">
+                        <span>{isNepali ? "साविकको बाँकी (Previous Due)" : "Previous Due / Balance"}:</span>
+                        <span className="font-mono font-bold">
+                          {formatCurrency(vendorPreviousDue, currencySymbol)}
+                        </span>
+                      </div>
+                    )}
+
+                    {(vendorPreviousDue > 0 || currentBillDue > 0) && (
+                      <div className="flex items-center justify-between text-neutral-100 font-bold pt-1.5 border-t border-neutral-800/80">
+                        <span className="text-xs">{isNepali ? "कुल तिर्न बाँकी" : "Total Payable Due"}:</span>
+                        <span className="font-mono text-sm text-rose-400">
+                          {formatCurrency(totalVendorDue, currencySymbol)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="pt-2">
                 <button
                   type="button"
@@ -1054,6 +1168,57 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                       completedPurchaseInfo.vatAmount || 0,
                       currencySymbol,
                     )}
+                    {completedPurchaseInfo.paidAmount !== undefined && (
+                      <span>
+                        {" "}
+                        · Paid:{" "}
+                        <span className="font-mono text-emerald-300 font-medium">
+                          {formatCurrency(
+                            completedPurchaseInfo.paidAmount,
+                            currencySymbol,
+                          )}
+                        </span>
+                      </span>
+                    )}
+                    {completedPurchaseInfo.dueAmount !== undefined &&
+                      completedPurchaseInfo.dueAmount > 0 && (
+                        <span>
+                          {" "}
+                          · Bill Due:{" "}
+                          <span className="font-mono text-amber-400 font-medium">
+                            {formatCurrency(
+                              completedPurchaseInfo.dueAmount,
+                              currencySymbol,
+                            )}
+                          </span>
+                        </span>
+                      )}
+                    {completedPurchaseInfo.previousDue !== undefined &&
+                      completedPurchaseInfo.previousDue > 0 && (
+                        <span>
+                          {" "}
+                          · Prev Due:{" "}
+                          <span className="font-mono text-amber-300">
+                            {formatCurrency(
+                              completedPurchaseInfo.previousDue,
+                              currencySymbol,
+                            )}
+                          </span>
+                        </span>
+                      )}
+                    {completedPurchaseInfo.totalDue !== undefined &&
+                      completedPurchaseInfo.totalDue > 0 && (
+                        <span>
+                          {" "}
+                          · Total Due:{" "}
+                          <span className="font-mono text-rose-400 font-semibold">
+                            {formatCurrency(
+                              completedPurchaseInfo.totalDue,
+                              currencySymbol,
+                            )}
+                          </span>
+                        </span>
+                      )}
                   </div>
                 </div>
               </div>

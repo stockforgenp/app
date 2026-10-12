@@ -77,6 +77,8 @@ CREATE TABLE IF NOT EXISTS sales (
   vat_amount INTEGER NOT NULL DEFAULT 0,
   grand_total INTEGER,
   total INTEGER NOT NULL,
+  paid_amount INTEGER DEFAULT NULL,
+  due_amount INTEGER DEFAULT 0,
   created_at TEXT NOT NULL
 );
 
@@ -108,6 +110,8 @@ CREATE TABLE IF NOT EXISTS purchases (
   vat_amount INTEGER NOT NULL DEFAULT 0,
   grand_total INTEGER,
   total INTEGER NOT NULL,
+  paid_amount INTEGER DEFAULT NULL,
+  due_amount INTEGER DEFAULT 0,
   notes TEXT,
   created_at TEXT NOT NULL
 );

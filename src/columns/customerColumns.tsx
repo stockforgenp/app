@@ -180,6 +180,25 @@ export function getCustomerColumns(
       sortKey: (c: Customer) => c.total_spent || 0,
     },
     {
+      id: "total_due",
+      header: isNepali ? "बाँकी बक्यौता" : "Outstanding Due",
+      align: "right",
+      accessor: (c: Customer) => {
+        const due = c.total_due || 0;
+        return due > 0 ? (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 tabular-nums">
+            {formatCurrency(due, currencySymbol)}
+          </span>
+        ) : (
+          <span className="text-neutral-500 font-mono text-xs">
+            {formatCurrency(0, currencySymbol)}
+          </span>
+        );
+      },
+      sortable: true,
+      sortKey: (c: Customer) => c.total_due || 0,
+    },
+    {
       id: "actions",
       header: isNepali ? "कार्य" : "Actions",
       align: "center",

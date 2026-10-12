@@ -31,7 +31,8 @@ export function getAllVendors(search?: string): Vendor[] {
           LEFT JOIN products p ON sm.product_id = p.id
           WHERE sm.vendor_id = v.id AND sm.type = 'RESTOCK' AND sm.reference_id IS NULL AND (sm.note IS NULL OR sm.note NOT LIKE 'Purchase%')
         ), 0)
-      ) as total_purchased
+      ) as total_purchased,
+      (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM purchases WHERE vendor_id = v.id) as total_due
     FROM vendors v
   `;
 
@@ -66,7 +67,8 @@ export function getVendorById(id: number): Vendor | null {
            LEFT JOIN products p ON sm.product_id = p.id
           WHERE sm.vendor_id = v.id AND sm.type = 'RESTOCK' AND sm.reference_id IS NULL AND (sm.note IS NULL OR sm.note NOT LIKE 'Purchase%')
         ), 0)
-       ) as total_purchased
+       ) as total_purchased,
+       (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM purchases WHERE vendor_id = v.id) as total_due
      FROM vendors v 
      WHERE v.id = ?`,
     [id],
@@ -93,7 +95,8 @@ export function searchVendors(
 
   if (!term) {
     return query<Vendor>(
-      `SELECT v.*, ${productCountSubquery} 
+      `SELECT v.*, ${productCountSubquery},
+         (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM purchases WHERE vendor_id = v.id) as total_due
        FROM vendors v 
        ORDER BY v.name ASC 
        LIMIT ?`,
@@ -103,7 +106,8 @@ export function searchVendors(
 
   const s = `%${term}%`;
   return query<Vendor>(
-    `SELECT v.*, ${productCountSubquery} 
+    `SELECT v.*, ${productCountSubquery},
+       (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM purchases WHERE vendor_id = v.id) as total_due
      FROM vendors v 
      WHERE v.name LIKE ? OR v.pan_vat LIKE ? OR v.phone LIKE ? OR v.email LIKE ?
      ORDER BY 
@@ -117,6 +121,33 @@ export function searchVendors(
      LIMIT ?`,
     [s, s, s, s, term, term, term, limit],
   );
+}
+
+/**
+ * Returns total outstanding due for a vendor across all purchases.
+ */
+export function getVendorTotalDue(vendorId?: number | null): number {
+  if (!vendorId) return 0;
+  const row = queryOne<{ total_due: number }>(
+    `SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) as total_due FROM purchases WHERE vendor_id = ?`,
+    [vendorId]
+  );
+  return row?.total_due ?? 0;
+}
+
+/**
+ * Returns vendor due balance strictly PRIOR to a given purchase ID.
+ */
+export function getVendorPreviousDueForPurchase(
+  purchaseId: number,
+  vendorId?: number | null
+): number {
+  if (!vendorId) return 0;
+  const row = queryOne<{ prev_due: number }>(
+    `SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) as prev_due FROM purchases WHERE vendor_id = ? AND id < ?`,
+    [vendorId, purchaseId]
+  );
+  return row?.prev_due ?? 0;
 }
 
 export function createVendor(data: CreateVendorInput): Vendor {

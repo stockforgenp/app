@@ -31,6 +31,7 @@ import {
 import { Product, CartItem } from "../types/index.ts";
 import { getAllProducts } from "../lib/services/productService.ts";
 import { processSale } from "../lib/services/salesService.ts";
+import { getCustomerTotalDue } from "../lib/services/customerService.ts";
 import { calculateProportionalDiscounts } from "../helpers/index.ts";
 import {
   formatCurrency,
@@ -106,10 +107,18 @@ export const SalesView: React.FC<SalesViewProps> = ({
     vatAmount?: number;
     grandTotal?: number;
     total: number;
+    paidAmount?: number;
+    dueAmount?: number;
+    previousDue?: number;
+    totalDue?: number;
     customerName?: string | null;
     customerPhone?: string | null;
     customerPanVat?: string | null;
   } | null>(null);
+
+  // Partial Payment & Dues State
+  const [paidAmountInput, setPaidAmountInput] = useState("");
+  const [isCustomPaid, setIsCustomPaid] = useState(false);
 
   // Bill Printing modal
   const [printSaleId, setPrintSaleId] = useState<number | null>(null);
@@ -379,57 +388,6 @@ export const SalesView: React.FC<SalesViewProps> = ({
     });
   };
 
-  // Quick Barcode / Multi-SKU submit handler
-  const handleQuickSkuSubmit = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!quickSkuInput.trim()) return;
-
-    const tokens = quickSkuInput
-      .split(/[\n,;]+/)
-      .map((t) => t.trim())
-      .filter(Boolean);
-
-    const itemsToAdd: Array<{ product: Product; quantity: number }> = [];
-    const notFound: string[] = [];
-
-    for (const token of tokens) {
-      const match = token.match(/^(.+?)(?:[*x:]\s*(\d+))?$/i);
-      if (!match) continue;
-
-      const code = match[1].trim().toLowerCase();
-      const qty = match[2] ? parseInt(match[2], 10) : 1;
-
-      const product = products.find(
-        (p) =>
-          (p.sku && p.sku.toLowerCase() === code) ||
-          p.id.toString() === code ||
-          p.name.toLowerCase() === code ||
-          p.name.toLowerCase().startsWith(code),
-      );
-
-      if (product) {
-        itemsToAdd.push({
-          product,
-          quantity: isNaN(qty) || qty <= 0 ? 1 : qty,
-        });
-      } else {
-        notFound.push(token);
-      }
-    }
-
-    if (itemsToAdd.length > 0) {
-      handleBatchAddToCart(itemsToAdd);
-      setQuickSkuInput("");
-    }
-
-    if (notFound.length > 0) {
-      showToast(
-        `Could not match: ${notFound.slice(0, 3).join(", ")}${notFound.length > 3 ? "..." : ""}`,
-        "warning",
-      );
-    }
-  };
-
   // Bulk or Proportional Whole discount across all current cart items
   const handleApplyBulkDiscount = () => {
     const val = parseFloat(bulkDiscountValue);
@@ -566,8 +524,6 @@ export const SalesView: React.FC<SalesViewProps> = ({
     setIsMultiProductModalOpen(false);
   };
 
-
-
   const handleUpdateQuantity = (index: number, qtyStr: string) => {
     const rawQty = parseInt(qtyStr, 10);
     const updated = [...cart];
@@ -620,6 +576,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
       isNew: false,
     });
     setSaleDateTime(formatForDateTimeLocal());
+    setPaidAmountInput("");
+    setIsCustomPaid(false);
   };
 
   // Calculations with Proportional Whole Discount Division
@@ -714,7 +672,33 @@ export const SalesView: React.FC<SalesViewProps> = ({
       hasStockViolation,
       violationMessage,
     };
-  }, [cart, allowNegativeStock, wholeDiscountValue, wholeDiscountType, applyVat]);
+  }, [
+    cart,
+    allowNegativeStock,
+    wholeDiscountValue,
+    wholeDiscountType,
+    applyVat,
+  ]);
+
+  // Customer outstanding previous due and current bill due calculations
+  const customerPreviousDue = useMemo(() => {
+    return getCustomerTotalDue(customerData.customerId, customerData.phone);
+  }, [customerData.customerId, customerData.phone]);
+
+  const effectivePaidAmount = useMemo(() => {
+    if (!isCustomPaid) {
+      return calculations.grandTotal;
+    }
+    const val = parseFloat(paidAmountInput);
+    if (isNaN(val) || val < 0) return 0;
+    return toMinorUnits(val);
+  }, [isCustomPaid, paidAmountInput, calculations.grandTotal]);
+
+  const currentBillDue = Math.max(
+    0,
+    calculations.grandTotal - effectivePaidAmount,
+  );
+  const totalCustomerDue = customerPreviousDue + currentBillDue;
 
   const handleCompleteSale = () => {
     if (cart.length === 0) {
@@ -743,6 +727,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
         customerPanVat: customerData.pan_vat.trim() || undefined,
         customerAddress: customerData.address.trim() || undefined,
         applyVat: applyVat,
+        paidAmount: effectivePaidAmount,
         createdAt: parseDateTimeLocalToIso(saleDateTime),
         customerInput: {
           name: customerData.name.trim(),
@@ -798,6 +783,10 @@ export const SalesView: React.FC<SalesViewProps> = ({
         vatAmount: sale.vat_amount,
         grandTotal: sale.grand_total,
         total: sale.grand_total ?? sale.total,
+        paidAmount: sale.paid_amount ?? effectivePaidAmount,
+        dueAmount: sale.due_amount ?? currentBillDue,
+        previousDue: customerPreviousDue,
+        totalDue: totalCustomerDue,
         customerName: sale.customer_name,
         customerPhone: sale.customer_phone,
         customerPanVat: sale.customer_pan_vat,
@@ -808,6 +797,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
       setIsPrintModalOpen(true);
 
       setCart([]);
+      setPaidAmountInput("");
+      setIsCustomPaid(false);
       setCustomerData({
         customerId: null,
         name: "",
@@ -869,40 +860,6 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
   return (
     <div className="p-8 flex flex-col gap-6 animate-in fade-in duration-150 h-full min-h-0">
-      {/* View Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-neutral-100">
-            {t("pos_title")}
-          </h1>
-          <p className="text-xs text-neutral-400 mt-1">{t("pos_subtitle")}</p>
-        </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-          {/* Quick Multiple Products Button */}
-          <button
-            onClick={() => {
-              setBatchQuantities({});
-              setIsMultiProductModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors cursor-pointer"
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>{t("pos_add_multiple")}</span>
-          </button>
-
-          {cart.length > 0 && (
-            <button
-              onClick={handleClearCart}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-neutral-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>{t("pos_clear_cart")}</span>
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Main Grid: Left Catalog Picker / Right Active Sale Cart */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
         {/* Left Column: Product Selection & Catalog (5 cols) */}
@@ -1224,50 +1181,44 @@ export const SalesView: React.FC<SalesViewProps> = ({
                 </span>
               </div>
 
-              {cart.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setBulkDiscountValue("");
-                      setIsBulkDiscountModalOpen(true);
-                    }}
-                    className="flex items-center gap-1 px-2.5 py-1 text-[11px] text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-md transition-colors cursor-pointer"
-                    title="Apply discount to all items in cart"
-                  >
-                    <Percent className="w-3 h-3" />
-                    <span>Bulk Discount</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Quick Multi-SKU / Barcode Scanner Input */}
-            <div className="p-3 bg-neutral-950/80 border-b border-neutral-800/80 shrink-0">
-              <form
-                onSubmit={handleQuickSkuSubmit}
-                className="flex items-center gap-2"
-              >
-                <div className="flex-1">
-                  <Input
-                    ref={quickSkuInputRef}
-                    type="text"
-                    placeholder={`Fast add multiple items: Enter/scan SKUs or names (e.g. BEV-CC-500*2) [${MODIFIER_LABEL}+B]...`}
-                    value={quickSkuInput}
-                    onChange={(e) => setQuickSkuInput(e.target.value)}
-                    icon={ScanLine}
-                    iconPosition="left"
-                    className="py-1.5 text-xs font-mono"
-                  />
-                </div>
+              <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                {/* Quick Multiple Products Button */}
+                {cart.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBulkDiscountValue("");
+                        setIsBulkDiscountModalOpen(true);
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1 text-[11px] text-amber-900 hover:text-amber-800 bg-amber-300/10 hover:bg-amber-300/20 border border-amber-500/30 rounded-md transition-colors cursor-pointer"
+                      title="Apply discount to all items in cart"
+                    >
+                      <Percent className="w-3 h-3" />
+                      <span>Bulk Discount</span>
+                    </button>
+                  </div>
+                )}
                 <button
-                  type="submit"
-                  disabled={!quickSkuInput.trim()}
-                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0"
+                  onClick={() => {
+                    setBatchQuantities({});
+                    setIsMultiProductModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors cursor-pointer"
                 >
-                  Add to Sale
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>{t("pos_add_multiple")}</span>
                 </button>
-              </form>
+
+                {cart.length > 0 && (
+                  <button
+                    onClick={handleClearCart}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-neutral-400 border-rose-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Cart Table */}
@@ -1509,7 +1460,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   <Calendar className="w-4 h-4 text-emerald-400 shrink-0" />
                   <div>
                     <div className="text-xs font-medium text-neutral-200 flex items-center gap-1.5">
-                      <span>{isNepali ? "कारोबार मिति र समय" : "Sale Date & Time"}</span>
+                      <span>
+                        {isNepali ? "कारोबार मिति र समय" : "Sale Date & Time"}
+                      </span>
                       {isCustomSaleDate && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-medium">
                           {isNepali ? "कस्टम मिति" : "Backdated"}
@@ -1536,7 +1489,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
                       type="button"
                       onClick={() => setSaleDateTime(formatForDateTimeLocal())}
                       className="px-2 py-1 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer shrink-0"
-                      title={isNepali ? "अहिलेको मितिमा फर्काउनुहोस्" : "Reset to current date & time"}
+                      title={
+                        isNepali
+                          ? "अहिलेको मितिमा फर्काउनुहोस्"
+                          : "Reset to current date & time"
+                      }
                     >
                       {isNepali ? "अहिले (Now)" : "Now"}
                     </button>
@@ -1708,7 +1665,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   <span>{isNepali ? "मूल्य अभिवृद्धि कर" : "VAT (13%)"}</span>
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className={`font-mono ${applyVat ? "text-sky-400" : "text-neutral-500"}`}>
+                  <span
+                    className={`font-mono ${applyVat ? "text-sky-400" : "text-neutral-500"}`}
+                  >
                     {applyVat
                       ? `+ ${formatCurrency(calculations.vatAmount, currencySymbol)}`
                       : formatCurrency(0, currencySymbol)}
@@ -1718,8 +1677,12 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     onClick={() => setApplyVat(!applyVat)}
                     title={
                       applyVat
-                        ? (isNepali ? "भ्याट हटाउनुहोस्" : "Disable VAT for this sale")
-                        : (isNepali ? "१३% भ्याट जोड्नुहोस्" : "Apply 13% VAT to this sale")
+                        ? isNepali
+                          ? "भ्याट हटाउनुहोस्"
+                          : "Disable VAT for this sale"
+                        : isNepali
+                          ? "१३% भ्याट जोड्नुहोस्"
+                          : "Apply 13% VAT to this sale"
                     }
                     className={`text-[10px] font-semibold px-1.5 py-0.5 rounded transition-all cursor-pointer border ${
                       applyVat
@@ -1735,18 +1698,111 @@ export const SalesView: React.FC<SalesViewProps> = ({
               <div className="pt-2 border-t border-neutral-800 flex items-center justify-between">
                 <div>
                   <div className="text-sm font-bold text-neutral-100">
-                    {isNepali ? "कुल भुक्तानी रकम" : "Grand Total Due"}
+                    {isNepali ? "कुल भुक्तानी रकम" : "Grand Total"}
                   </div>
                   <div className="text-[11px] text-neutral-400">
                     {applyVat
-                      ? (isNepali ? "१३% भ्याट समावेश" : "Includes 13% statutory VAT")
-                      : (isNepali ? "भ्याट विना कुल रकम (०%)" : "Net total (No VAT applied)")}
+                      ? isNepali
+                        ? "१३% भ्याट समावेश"
+                        : "Includes 13% statutory VAT"
+                      : isNepali
+                        ? "भ्याट विना कुल रकम (०%)"
+                        : "Net total (No VAT applied)"}
                   </div>
                 </div>
                 <div className="text-xl font-bold font-mono text-emerald-400 tabular-nums">
                   {formatCurrency(calculations.grandTotal, currencySymbol)}
                 </div>
               </div>
+
+              {/* Payment & Dues Card */}
+              {cart.length > 0 && (
+                <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-neutral-200">
+                      {isNepali ? "प्राप्त रकम (Paid Amount)" : "Paid Amount"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomPaid(false);
+                        setPaidAmountInput("");
+                      }}
+                      className={`text-[10px] px-2 py-0.5 rounded font-medium transition-colors cursor-pointer border ${
+                        !isCustomPaid
+                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                          : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
+                      }`}
+                    >
+                      {isNepali ? "पूरा चुक्ता" : "Paid in Full"}
+                    </button>
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      placeholder={`Enter paid amount (${currencySymbol})...`}
+                      value={
+                        isCustomPaid
+                          ? paidAmountInput
+                          : fromMinorUnits(calculations.grandTotal)
+                      }
+                      onChange={(e) => {
+                        setIsCustomPaid(true);
+                        setPaidAmountInput(e.target.value);
+                      }}
+                      className="w-full px-3 py-1.5 text-xs font-mono font-bold text-emerald-400 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500 pr-12"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-500 pointer-events-none">
+                      {currencySymbol}
+                    </span>
+                  </div>
+
+                  {/* Due Breakdown */}
+                  <div className="space-y-1.5 pt-2 border-t border-neutral-800 text-xs">
+                    <div className="flex items-center justify-between text-neutral-300">
+                      <span>
+                        {isNepali ? "यस बिलको बाँकी" : "Current Bill Due"}:
+                      </span>
+                      <span
+                        className={`font-mono font-bold ${currentBillDue > 0 ? "text-rose-400" : "text-neutral-400"}`}
+                      >
+                        {formatCurrency(currentBillDue, currencySymbol)}
+                      </span>
+                    </div>
+
+                    {customerPreviousDue > 0 && (
+                      <div className="flex items-center justify-between text-amber-400">
+                        <span>
+                          {isNepali
+                            ? "साविकको बाँकी (Previous Due)"
+                            : "Previous Due / Balance"}
+                          :
+                        </span>
+                        <span className="font-mono font-bold">
+                          {formatCurrency(customerPreviousDue, currencySymbol)}
+                        </span>
+                      </div>
+                    )}
+
+                    {(customerPreviousDue > 0 || currentBillDue > 0) && (
+                      <div className="flex items-center justify-between text-neutral-100 font-bold pt-1.5 border-t border-neutral-800/80">
+                        <span className="text-xs">
+                          {isNepali
+                            ? "कुल बाँकी बक्यौता"
+                            : "Total Outstanding Due"}
+                          :
+                        </span>
+                        <span className="font-mono text-sm text-rose-400">
+                          {formatCurrency(totalCustomerDue, currencySymbol)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {calculations.hasStockViolation && (
                 <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
@@ -1795,213 +1851,206 @@ export const SalesView: React.FC<SalesViewProps> = ({
         maxWidth="2xl"
       >
         <div className="space-y-3">
-              {/* Modal Search & Quick Actions */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div className="flex-1">
-                  <Input
-                    type="text"
-                    placeholder="Search products by title or SKU..."
-                    value={modalSearch}
-                    onChange={(e) => setModalSearch(e.target.value)}
-                    icon={Search}
-                    clearable
-                    onClear={() => setModalSearch("")}
-                    className="py-1.5 text-xs"
-                  />
-                </div>
+          {/* Modal Search & Quick Actions */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="flex-1">
+              <Input
+                type="text"
+                placeholder="Search products by title or SKU..."
+                value={modalSearch}
+                onChange={(e) => setModalSearch(e.target.value)}
+                icon={Search}
+                clearable
+                onClear={() => setModalSearch("")}
+                className="py-1.5 text-xs"
+              />
+            </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={selectAllFilteredInModal}
-                    className="px-2.5 py-1.5 text-[11px] font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors cursor-pointer"
-                  >
-                    Select All ({modalFilteredProducts.length})
-                  </button>
-                  {batchSelectedCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={clearBatchSelections}
-                      className="px-2.5 py-1.5 text-[11px] text-neutral-400 hover:text-neutral-200 transition-colors"
-                    >
-                      Deselect All
-                    </button>
-                  )}
-                </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={selectAllFilteredInModal}
+                className="px-2.5 py-1.5 text-[11px] font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors cursor-pointer"
+              >
+                Select All ({modalFilteredProducts.length})
+              </button>
+              {batchSelectedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={clearBatchSelections}
+                  className="px-2.5 py-1.5 text-[11px] text-neutral-400 hover:text-neutral-200 transition-colors"
+                >
+                  Deselect All
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Scrollable Products List with Checkboxes & Quantities */}
+          <div className="border border-neutral-800 rounded-lg max-h-[360px] overflow-y-auto divide-y divide-neutral-800/60 bg-neutral-950/40">
+            {modalFilteredProducts.length === 0 ? (
+              <div className="p-8 text-center text-xs text-neutral-500">
+                No products matching search criteria.
               </div>
+            ) : (
+              modalFilteredProducts.map((p) => {
+                const isOutOfStock = p.current_stock <= 0;
+                const isSelected = batchQuantities[p.id] !== undefined;
+                const currentQty = batchQuantities[p.id] || 1;
 
-              {/* Scrollable Products List with Checkboxes & Quantities */}
-              <div className="border border-neutral-800 rounded-lg max-h-[360px] overflow-y-auto divide-y divide-neutral-800/60 bg-neutral-950/40">
-                {modalFilteredProducts.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-neutral-500">
-                    No products matching search criteria.
-                  </div>
-                ) : (
-                  modalFilteredProducts.map((p) => {
-                    const isOutOfStock = p.current_stock <= 0;
-                    const isSelected = batchQuantities[p.id] !== undefined;
-                    const currentQty = batchQuantities[p.id] || 1;
+                return (
+                  <div
+                    key={p.id}
+                    className={`p-3 flex items-center justify-between transition-colors ${
+                      isSelected
+                        ? "bg-emerald-950/20"
+                        : "hover:bg-neutral-900/60"
+                    } ${isOutOfStock && !allowNegativeStock ? "opacity-50" : ""}`}
+                  >
+                    {/* Checkbox & Product Details */}
+                    <div
+                      className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer select-none"
+                      onClick={() => {
+                        if (isOutOfStock && !allowNegativeStock) return;
+                        toggleBatchItem(p.id);
+                      }}
+                    >
+                      {isSelected ? (
+                        <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0" />
+                      ) : (
+                        <Square className="w-4 h-4 text-neutral-600 shrink-0" />
+                      )}
 
-                    return (
-                      <div
-                        key={p.id}
-                        className={`p-3 flex items-center justify-between transition-colors ${
-                          isSelected
-                            ? "bg-emerald-950/20"
-                            : "hover:bg-neutral-900/60"
-                        } ${isOutOfStock && !allowNegativeStock ? "opacity-50" : ""}`}
-                      >
-                        {/* Checkbox & Product Details */}
-                        <div
-                          className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer select-none"
-                          onClick={() => {
-                            if (isOutOfStock && !allowNegativeStock) return;
-                            toggleBatchItem(p.id);
-                          }}
-                        >
-                          {isSelected ? (
-                            <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0" />
-                          ) : (
-                            <Square className="w-4 h-4 text-neutral-600 shrink-0" />
-                          )}
-
-                          <div className="min-w-0 flex-1 pr-3">
-                            <div className="text-xs font-semibold text-neutral-200 truncate">
-                              {p.name}
-                            </div>
-                            <div className="text-[11px] text-neutral-400 font-mono mt-0.5 flex items-center gap-2">
-                              <span>SKU: {p.sku || "None"}</span>
-                              <span>·</span>
-                              <span className="px-1 py-0.2 rounded bg-neutral-900 text-neutral-400 border border-neutral-800">
-                                {p.unit || "pcs"}
-                              </span>
-                              <span>·</span>
-                              <span>
-                                Price:{" "}
-                                {formatCurrency(
-                                  p.selling_price,
-                                  currencySymbol,
-                                )}
-                              </span>
-                              <span>·</span>
-                              <span
-                                className={
-                                  p.current_stock <= 5
-                                    ? "text-amber-400 font-semibold"
-                                    : "text-neutral-400"
-                                }
-                              >
-                                Stock: {p.current_stock} {p.unit || "pcs"}
-                              </span>
-                            </div>
-                          </div>
+                      <div className="min-w-0 flex-1 pr-3">
+                        <div className="text-xs font-semibold text-neutral-200 truncate">
+                          {p.name}
                         </div>
-
-                        {/* Quantity Stepper (Active when selected) */}
-                        <div className="flex items-center gap-2 shrink-0">
-                          {isSelected ? (
-                            <div className="flex items-center gap-1 bg-neutral-900 border border-neutral-700 rounded p-1">
-                              <button
-                                type="button"
-                                disabled={currentQty <= 1}
-                                onClick={() =>
-                                  updateBatchQty(p.id, currentQty - 1)
-                                }
-                                className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
-                              >
-                                <Minus className="w-3.5 h-3.5" />
-                              </button>
-                              <Input
-                                type="number"
-                                min="1"
-                                max={
-                                  !allowNegativeStock
-                                    ? Math.max(1, p.current_stock)
-                                    : undefined
-                                }
-                                value={currentQty}
-                                onChange={(e) => {
-                                  const val = parseInt(e.target.value, 10);
-                                  updateBatchQty(p.id, isNaN(val) ? 1 : val);
-                                }}
-                                containerClassName="w-10"
-                                className="border-0 p-0 text-center text-xs font-mono font-bold text-neutral-100 bg-transparent focus:outline-none"
-                              />
-                              <button
-                                type="button"
-                                disabled={
-                                  !allowNegativeStock &&
-                                  currentQty >= p.current_stock
-                                }
-                                onClick={() =>
-                                  updateBatchQty(p.id, currentQty + 1)
-                                }
-                                title={
-                                  !allowNegativeStock &&
-                                  currentQty >= p.current_stock
-                                    ? `Max stock reached (${p.current_stock})`
-                                    : "Increase quantity"
-                                }
-                                className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
-                              >
-                                <Plus className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={isOutOfStock && !allowNegativeStock}
-                              onClick={() => toggleBatchItem(p.id)}
-                              className="px-2.5 py-1 text-xs text-neutral-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded border border-neutral-800 hover:border-emerald-500/30 transition-colors"
-                            >
-                              Select
-                            </button>
-                          )}
+                        <div className="text-[11px] text-neutral-400 font-mono mt-0.5 flex items-center gap-2">
+                          <span>SKU: {p.sku || "None"}</span>
+                          <span>·</span>
+                          <span className="px-1 py-0.2 rounded bg-neutral-900 text-neutral-400 border border-neutral-800">
+                            {p.unit || "pcs"}
+                          </span>
+                          <span>·</span>
+                          <span>
+                            Price:{" "}
+                            {formatCurrency(p.selling_price, currencySymbol)}
+                          </span>
+                          <span>·</span>
+                          <span
+                            className={
+                              p.current_stock <= 5
+                                ? "text-amber-400 font-semibold"
+                                : "text-neutral-400"
+                            }
+                          >
+                            Stock: {p.current_stock} {p.unit || "pcs"}
+                          </span>
                         </div>
                       </div>
-                    );
-                  })
-                )}
-              </div>
+                    </div>
 
-              {/* Bottom Summary & Confirmation */}
-              <div className="p-3 bg-neutral-950 rounded-lg border border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                <div>
-                  <span className="text-neutral-400">Selected: </span>
-                  <span className="font-semibold text-neutral-200">
-                    {batchSelectedCount} products ({batchTotalUnits} units)
-                  </span>
-                  <span className="mx-2 text-neutral-600">·</span>
-                  <span className="text-neutral-400">Est. Subtotal: </span>
-                  <span className="font-mono font-bold text-emerald-400">
-                    {formatCurrency(batchTotalEst, currencySymbol)}
-                  </span>
-                </div>
+                    {/* Quantity Stepper (Active when selected) */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isSelected ? (
+                        <div className="flex items-center gap-1 bg-neutral-900 border border-neutral-700 rounded p-1">
+                          <button
+                            type="button"
+                            disabled={currentQty <= 1}
+                            onClick={() => updateBatchQty(p.id, currentQty - 1)}
+                            className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <Input
+                            type="number"
+                            min="1"
+                            max={
+                              !allowNegativeStock
+                                ? Math.max(1, p.current_stock)
+                                : undefined
+                            }
+                            value={currentQty}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              updateBatchQty(p.id, isNaN(val) ? 1 : val);
+                            }}
+                            containerClassName="w-10"
+                            className="border-0 p-0 text-center text-xs font-mono font-bold text-neutral-100 bg-transparent focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            disabled={
+                              !allowNegativeStock &&
+                              currentQty >= p.current_stock
+                            }
+                            onClick={() => updateBatchQty(p.id, currentQty + 1)}
+                            title={
+                              !allowNegativeStock &&
+                              currentQty >= p.current_stock
+                                ? `Max stock reached (${p.current_stock})`
+                                : "Increase quantity"
+                            }
+                            className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={isOutOfStock && !allowNegativeStock}
+                          onClick={() => toggleBatchItem(p.id)}
+                          className="px-2.5 py-1 text-xs text-neutral-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded border border-neutral-800 hover:border-emerald-500/30 transition-colors"
+                        >
+                          Select
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
 
-                <div className="flex items-center gap-2 justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setIsMultiProductModalOpen(false)}
-                    className="px-3 py-1.5 text-xs text-neutral-400 hover:text-neutral-200 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={batchSelectedCount === 0}
-                    onClick={submitBatchFromQuantities}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                      batchSelectedCount === 0
-                        ? "bg-neutral-800 text-neutral-500 cursor-not-allowed"
-                        : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
-                    }`}
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add {batchSelectedCount} Products to Sale</span>
-                  </button>
-                </div>
-              </div>
+          {/* Bottom Summary & Confirmation */}
+          <div className="p-3 bg-neutral-950 rounded-lg border border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div>
+              <span className="text-neutral-400">Selected: </span>
+              <span className="font-semibold text-neutral-200">
+                {batchSelectedCount} products ({batchTotalUnits} units)
+              </span>
+              <span className="mx-2 text-neutral-600">·</span>
+              <span className="text-neutral-400">Est. Subtotal: </span>
+              <span className="font-mono font-bold text-emerald-400">
+                {formatCurrency(batchTotalEst, currencySymbol)}
+              </span>
             </div>
+
+            <div className="flex items-center gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setIsMultiProductModalOpen(false)}
+                className="px-3 py-1.5 text-xs text-neutral-400 hover:text-neutral-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={batchSelectedCount === 0}
+                onClick={submitBatchFromQuantities}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  batchSelectedCount === 0
+                    ? "bg-neutral-800 text-neutral-500 cursor-not-allowed"
+                    : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
+                }`}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add {batchSelectedCount} Products to Sale</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </Modal>
 
       {/* Modal: Bulk / Whole Discount across all items */}
@@ -2248,6 +2297,57 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     {formatCurrency(completedSaleInfo.discount, currencySymbol)}
                   </span>
                 )}
+                {completedSaleInfo.paidAmount !== undefined && (
+                  <span>
+                    {" "}
+                    · Paid:{" "}
+                    <span className="font-mono text-emerald-300 font-medium">
+                      {formatCurrency(
+                        completedSaleInfo.paidAmount,
+                        currencySymbol,
+                      )}
+                    </span>
+                  </span>
+                )}
+                {completedSaleInfo.dueAmount !== undefined &&
+                  completedSaleInfo.dueAmount > 0 && (
+                    <span>
+                      {" "}
+                      · Bill Due:{" "}
+                      <span className="font-mono text-amber-400 font-medium">
+                        {formatCurrency(
+                          completedSaleInfo.dueAmount,
+                          currencySymbol,
+                        )}
+                      </span>
+                    </span>
+                  )}
+                {completedSaleInfo.previousDue !== undefined &&
+                  completedSaleInfo.previousDue > 0 && (
+                    <span>
+                      {" "}
+                      · Prev Due:{" "}
+                      <span className="font-mono text-amber-300">
+                        {formatCurrency(
+                          completedSaleInfo.previousDue,
+                          currencySymbol,
+                        )}
+                      </span>
+                    </span>
+                  )}
+                {completedSaleInfo.totalDue !== undefined &&
+                  completedSaleInfo.totalDue > 0 && (
+                    <span>
+                      {" "}
+                      · Total Due:{" "}
+                      <span className="font-mono text-rose-400 font-semibold">
+                        {formatCurrency(
+                          completedSaleInfo.totalDue,
+                          currencySymbol,
+                        )}
+                      </span>
+                    </span>
+                  )}
               </div>
             </div>
           </div>

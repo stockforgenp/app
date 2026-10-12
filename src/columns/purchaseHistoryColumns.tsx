@@ -117,10 +117,43 @@ export function getPurchaseHistoryColumns(
       header: isNepali ? 'कुल रकम' : 'Grand Total',
       align: 'right',
       accessor: (row: Purchase) => (
-        <span className="font-mono font-bold text-emerald-400">
+        <span className="font-mono font-bold text-neutral-100">
           {formatCurrency(row.grand_total || row.total, currencySymbol)}
         </span>
       ),
+    },
+    {
+      id: 'paid_amount',
+      header: isNepali ? 'भुक्तानी रकम' : 'Paid',
+      align: 'right',
+      accessor: (row: Purchase) => {
+        const paid =
+          row.paid_amount !== undefined && row.paid_amount !== null
+            ? row.paid_amount
+            : (row.grand_total || row.total);
+        return (
+          <span className="font-mono text-emerald-400 font-medium">
+            {formatCurrency(paid, currencySymbol)}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'due_amount',
+      header: isNepali ? 'बाँकी बक्यौता' : 'Due',
+      align: 'right',
+      accessor: (row: Purchase) => {
+        const due = row.due_amount ?? 0;
+        return due > 0 ? (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 tabular-nums">
+            {formatCurrency(due, currencySymbol)}
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium text-emerald-500/80 bg-emerald-500/10 border border-emerald-500/20">
+            {isNepali ? 'भुक्तान' : 'Paid'}
+          </span>
+        );
+      },
     },
     {
       id: 'actions',

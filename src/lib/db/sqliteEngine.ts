@@ -192,8 +192,16 @@ function migrateDatabaseIfNeeded(db: Database) {
         db.run('ALTER TABLE sales ADD COLUMN grand_total INTEGER;');
         changed = true;
       }
+      if (!colNames.includes('paid_amount')) {
+        db.run('ALTER TABLE sales ADD COLUMN paid_amount INTEGER DEFAULT NULL;');
+        changed = true;
+      }
+      if (!colNames.includes('due_amount')) {
+        db.run('ALTER TABLE sales ADD COLUMN due_amount INTEGER DEFAULT 0;');
+        changed = true;
+      }
 
-      // Backfill existing rows if bill_number or grand_total is missing
+      // Backfill existing rows if bill_number or grand_total or paid_amount is missing
       try {
         db.run(`
           UPDATE sales 
@@ -207,6 +215,12 @@ function migrateDatabaseIfNeeded(db: Database) {
               vat_amount = COALESCE(vat_amount, round((subtotal - discount) * 0.13)),
               grand_total = COALESCE(grand_total, total)
           WHERE grand_total IS NULL;
+        `);
+        db.run(`
+          UPDATE sales
+          SET paid_amount = COALESCE(paid_amount, grand_total, total),
+              due_amount = COALESCE(due_amount, 0)
+          WHERE paid_amount IS NULL;
         `);
       } catch {
         // Ignore backfill errors if tables empty
@@ -304,6 +318,8 @@ function migrateDatabaseIfNeeded(db: Database) {
           vat_amount INTEGER NOT NULL DEFAULT 0,
           grand_total INTEGER,
           total INTEGER NOT NULL,
+          paid_amount INTEGER DEFAULT NULL,
+          due_amount INTEGER DEFAULT 0,
           notes TEXT,
           created_at TEXT NOT NULL
         );
@@ -312,6 +328,27 @@ function migrateDatabaseIfNeeded(db: Database) {
         CREATE INDEX IF NOT EXISTS idx_purchases_created_at ON purchases(created_at);
       `);
       changed = true;
+    } else {
+      const pCols = db.exec('PRAGMA table_info(purchases);');
+      const pColNames = pCols[0]?.values.map((v) => v[1] as string) || [];
+      if (!pColNames.includes('paid_amount')) {
+        db.run('ALTER TABLE purchases ADD COLUMN paid_amount INTEGER DEFAULT NULL;');
+        changed = true;
+      }
+      if (!pColNames.includes('due_amount')) {
+        db.run('ALTER TABLE purchases ADD COLUMN due_amount INTEGER DEFAULT 0;');
+        changed = true;
+      }
+      try {
+        db.run(`
+          UPDATE purchases
+          SET paid_amount = COALESCE(paid_amount, grand_total, total),
+              due_amount = COALESCE(due_amount, 0)
+          WHERE paid_amount IS NULL;
+        `);
+      } catch {
+        // Ignore backfill errors
+      }
     }
 
     // Ensure purchase_items table exists

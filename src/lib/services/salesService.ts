@@ -7,7 +7,12 @@ import { Sale, SaleItem, LowStockAlertItem, Product, CreateCustomerInput } from 
 import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
 import { getProductById } from './productService.ts';
 import { getSettings } from './settingsService.ts';
-import { findOrCreateCustomer, getCustomerById, updateCustomer } from './customerService.ts';
+import {
+  findOrCreateCustomer,
+  getCustomerById,
+  updateCustomer,
+  getCustomerPreviousDueForSale,
+} from './customerService.ts';
 
 export interface ProcessSaleItemInput {
   productId: number;
@@ -24,6 +29,7 @@ export interface ProcessSaleCustomerInfo {
   customerPanVat?: string | null;
   customerAddress?: string | null;
   applyVat?: boolean;
+  paidAmount?: number;
   createdAt?: string | null;
   customerInput?: {
     name: string;
@@ -206,14 +212,20 @@ export function processSale(
       }
     }
 
-    // 1. Insert Sales Record (including customer reference and details)
+    // 1. Calculate paid amount and due amount
+    const paidAmount = customerInfo?.paidAmount !== undefined
+      ? Math.max(0, Math.floor(customerInfo.paidAmount))
+      : grandTotal;
+    const dueAmount = grandTotal - paidAmount;
+
+    // 2. Insert Sales Record (including customer reference and details)
     run(
       `INSERT INTO sales (
         bill_number, customer_id, customer_name, customer_phone,
         customer_email, customer_pan_vat, customer_address,
         subtotal, discount, taxable_amount, vat_rate, vat_amount,
-        grand_total, total, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        grand_total, total, paid_amount, due_amount, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         billNumber,
         resolvedCustomerId,
@@ -229,6 +241,8 @@ export function processSale(
         vatAmount,
         grandTotal,
         grandTotal,
+        paidAmount,
+        dueAmount,
         transactionCreatedAt,
       ]
     );
@@ -324,6 +338,8 @@ export function getSales(options?: {
       s.vat_amount,
       s.grand_total,
       s.total,
+      COALESCE(s.paid_amount, s.grand_total, s.total) as paid_amount,
+      COALESCE(s.due_amount, 0) as due_amount,
       s.created_at,
       COUNT(si.id) as item_count,
       SUM(si.quantity * si.cost_price) as cost_total,
@@ -393,6 +409,8 @@ export function getSaleWithItems(saleId: number): { sale: Sale; items: SaleItem[
        s.vat_amount,
        s.grand_total,
        s.total,
+       COALESCE(s.paid_amount, s.grand_total, s.total) as paid_amount,
+       COALESCE(s.due_amount, 0) as due_amount,
        s.created_at,
        COUNT(si.id) as item_count,
        SUM(si.quantity * si.cost_price) as cost_total,
@@ -405,6 +423,19 @@ export function getSaleWithItems(saleId: number): { sale: Sale; items: SaleItem[
   );
 
   if (!sale) return null;
+
+  const previousDue = getCustomerPreviousDueForSale(
+    sale.id,
+    sale.customer_id,
+    sale.customer_phone
+  );
+  const totalDue = previousDue + (sale.due_amount || 0);
+
+  const enrichedSale: Sale = {
+    ...sale,
+    previous_due: previousDue,
+    total_due: totalDue,
+  };
 
   const items = query<SaleItem>(
     `SELECT 
@@ -421,7 +452,7 @@ export function getSaleWithItems(saleId: number): { sale: Sale; items: SaleItem[
     [saleId]
   );
 
-  return { sale, items };
+  return { sale: enrichedSale, items };
 }
 
 /**
@@ -576,7 +607,15 @@ export function updateSale(
       }
     }
 
-    // 4. Update sales record
+    // 4. Calculate paid amount and due amount
+    const paidAmount = customerInfo?.paidAmount !== undefined
+      ? Math.max(0, Math.floor(customerInfo.paidAmount))
+      : (existing.sale.paid_amount !== undefined && existing.sale.paid_amount !== null
+          ? existing.sale.paid_amount
+          : grandTotal);
+    const dueAmount = grandTotal - paidAmount;
+
+    // 5. Update sales record
     run(
       `UPDATE sales SET
         customer_id = ?,
@@ -592,6 +631,8 @@ export function updateSale(
         vat_amount = ?,
         grand_total = ?,
         total = ?,
+        paid_amount = ?,
+        due_amount = ?,
         created_at = ?
       WHERE id = ?`,
       [
@@ -608,6 +649,8 @@ export function updateSale(
         vatAmount,
         grandTotal,
         grandTotal,
+        paidAmount,
+        dueAmount,
         transactionCreatedAt,
         saleId,
       ]

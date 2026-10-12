@@ -10,7 +10,8 @@ export function getAllCustomers(search?: string): Customer[] {
     SELECT 
       c.*,
       (SELECT COUNT(*) FROM sales WHERE customer_id = c.id) as sales_count,
-      (SELECT COALESCE(SUM(COALESCE(grand_total, total)), 0) FROM sales WHERE customer_id = c.id) as total_spent
+      (SELECT COALESCE(SUM(COALESCE(grand_total, total)), 0) FROM sales WHERE customer_id = c.id) as total_spent,
+      (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM sales WHERE customer_id = c.id) as total_due
     FROM customers c
   `;
 
@@ -30,7 +31,8 @@ export function getCustomerById(id: number): Customer | null {
     `SELECT 
        c.*,
        (SELECT COUNT(*) FROM sales WHERE customer_id = c.id) as sales_count,
-       (SELECT COALESCE(SUM(COALESCE(grand_total, total)), 0) FROM sales WHERE customer_id = c.id) as total_spent
+       (SELECT COALESCE(SUM(COALESCE(grand_total, total)), 0) FROM sales WHERE customer_id = c.id) as total_spent,
+       (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM sales WHERE customer_id = c.id) as total_due
      FROM customers c 
      WHERE c.id = ?`,
     [id]
@@ -44,7 +46,9 @@ export function searchCustomers(searchTerm: string, limit: number = 20): Custome
   const term = searchTerm.trim();
   if (!term) {
     return query<Customer>(
-      `SELECT c.*, (SELECT COUNT(*) FROM sales WHERE customer_id = c.id) as sales_count 
+      `SELECT c.*, 
+         (SELECT COUNT(*) FROM sales WHERE customer_id = c.id) as sales_count,
+         (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM sales WHERE customer_id = c.id) as total_due
        FROM customers c 
        ORDER BY c.name ASC 
        LIMIT ?`,
@@ -54,7 +58,9 @@ export function searchCustomers(searchTerm: string, limit: number = 20): Custome
 
   const s = `%${term}%`;
   return query<Customer>(
-    `SELECT c.*, (SELECT COUNT(*) FROM sales WHERE customer_id = c.id) as sales_count 
+    `SELECT c.*, 
+       (SELECT COUNT(*) FROM sales WHERE customer_id = c.id) as sales_count,
+       (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM sales WHERE customer_id = c.id) as total_due
      FROM customers c 
      WHERE c.name LIKE ? OR c.phone LIKE ? OR c.pan_vat LIKE ? OR c.email LIKE ?
      ORDER BY 
@@ -70,6 +76,52 @@ export function searchCustomers(searchTerm: string, limit: number = 20): Custome
      LIMIT ?`,
     [s, s, s, s, term, term, term, term, term, limit]
   );
+}
+
+/**
+ * Returns total outstanding due for a customer across all sales.
+ */
+export function getCustomerTotalDue(customerId?: number | null, phone?: string | null): number {
+  if (customerId) {
+    const row = queryOne<{ total_due: number }>(
+      `SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) as total_due FROM sales WHERE customer_id = ?`,
+      [customerId]
+    );
+    return row?.total_due ?? 0;
+  }
+  if (phone && phone.trim()) {
+    const row = queryOne<{ total_due: number }>(
+      `SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) as total_due FROM sales WHERE customer_phone = ?`,
+      [phone.trim()]
+    );
+    return row?.total_due ?? 0;
+  }
+  return 0;
+}
+
+/**
+ * Returns customer due balance strictly PRIOR to a given sale ID.
+ */
+export function getCustomerPreviousDueForSale(
+  saleId: number,
+  customerId?: number | null,
+  phone?: string | null
+): number {
+  if (customerId) {
+    const row = queryOne<{ prev_due: number }>(
+      `SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) as prev_due FROM sales WHERE customer_id = ? AND id < ?`,
+      [customerId, saleId]
+    );
+    return row?.prev_due ?? 0;
+  }
+  if (phone && phone.trim()) {
+    const row = queryOne<{ prev_due: number }>(
+      `SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) as prev_due FROM sales WHERE customer_phone = ? AND id < ?`,
+      [phone.trim(), saleId]
+    );
+    return row?.prev_due ?? 0;
+  }
+  return 0;
 }
 
 export function createCustomer(data: CreateCustomerInput): Customer {

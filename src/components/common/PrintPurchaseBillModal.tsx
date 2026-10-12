@@ -192,9 +192,31 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
       if (hasVat) {
         text += `VAT (${vatRate}%):      +${formatCurrency(vatAmount, currencySymbol)}\n`;
       }
+      const paidAmount =
+        purchase.paid_amount !== undefined && purchase.paid_amount !== null
+          ? purchase.paid_amount
+          : (purchase.grand_total || purchase.total);
+      const currentDue =
+        purchase.due_amount !== undefined
+          ? purchase.due_amount
+          : Math.max(0, grandTotal - paidAmount);
+      const previousDue = purchase.previous_due ?? 0;
+      const totalDue =
+        purchase.total_due !== undefined ? purchase.total_due : previousDue + currentDue;
+
       text += `Total Items:    ${displayItems.length} (${totalUnits} units)\n`;
       text += `${doubleSeparator}\n`;
       text += `*GRAND TOTAL:   ${formatCurrency(grandTotal, currencySymbol)}*\n`;
+      text += `Paid Amount:    ${formatCurrency(paidAmount, currencySymbol)}\n`;
+      if (currentDue > 0) {
+        text += `Current Due:    ${formatCurrency(currentDue, currencySymbol)}\n`;
+      }
+      if (previousDue > 0) {
+        text += `Previous Due:   ${formatCurrency(previousDue, currencySymbol)}\n`;
+      }
+      if (previousDue > 0 || currentDue > 0) {
+        text += `*TOTAL DUE:     ${formatCurrency(totalDue, currencySymbol)}*\n`;
+      }
       text += `${doubleSeparator}\n`;
 
       navigator.clipboard.writeText(text);
@@ -548,6 +570,48 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
                       {formatCurrency(grandTotal, currencySymbol)}
                     </span>
                   </div>
+
+                  {/* Payment & Dues Breakdown */}
+                  {(() => {
+                    const paidAmount =
+                      purchase.paid_amount !== undefined && purchase.paid_amount !== null
+                        ? purchase.paid_amount
+                        : (purchase.grand_total || purchase.total);
+                    const currentDue =
+                      purchase.due_amount !== undefined
+                        ? purchase.due_amount
+                        : Math.max(0, grandTotal - paidAmount);
+                    const previousDue = purchase.previous_due ?? 0;
+                    const totalDue =
+                      purchase.total_due !== undefined ? purchase.total_due : previousDue + currentDue;
+
+                    return (
+                      <div className="pt-2 border-t border-dashed border-gray-300 space-y-1">
+                        <div className="flex justify-between text-gray-700">
+                          <span className="font-semibold">{isNepali ? 'भुक्तान गरिएको रकम (Paid Amount):' : 'Paid Amount:'}</span>
+                          <span className="font-mono font-bold text-gray-900">{formatCurrency(paidAmount, currencySymbol)}</span>
+                        </div>
+                        {currentDue > 0 && (
+                          <div className="flex justify-between text-rose-700 font-semibold">
+                            <span>{isNepali ? 'यस खरिदको बाँकी (Current Purchase Due):' : 'Current Purchase Due:'}</span>
+                            <span className="font-mono font-bold">{formatCurrency(currentDue, currencySymbol)}</span>
+                          </div>
+                        )}
+                        {previousDue > 0 && (
+                          <div className="flex justify-between text-amber-800">
+                            <span>{isNepali ? 'साविकको बाँकी (Previous Due):' : 'Previous Due / Balance:'}</span>
+                            <span className="font-mono font-bold">{formatCurrency(previousDue, currencySymbol)}</span>
+                          </div>
+                        )}
+                        {(previousDue > 0 || currentDue > 0) && (
+                          <div className="flex justify-between items-baseline pt-1 border-t border-gray-300 font-bold text-gray-900">
+                            <span className="uppercase text-[11px]">{isNepali ? 'कुल बाँकी भुक्तानी (Total Payable Due):' : 'Total Payable Due:'}</span>
+                            <span className="text-sm font-black font-mono text-rose-700">{formatCurrency(totalDue, currencySymbol)}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Barcode */}

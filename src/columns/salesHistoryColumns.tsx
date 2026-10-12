@@ -121,9 +121,44 @@ export function getSalesHistoryColumns(
       sortable: true,
       accessor: (s: Sale) => (
         <span className="font-mono font-bold text-neutral-100 tabular-nums">
-          {formatCurrency(s.total, currencySymbol)}
+          {formatCurrency(s.grand_total ?? s.total, currencySymbol)}
         </span>
       ),
+    },
+    {
+      id: 'paid_amount',
+      header: t('hist_col_paid', 'Paid'),
+      align: 'right',
+      sortable: true,
+      accessor: (s: Sale) => {
+        const paid =
+          s.paid_amount !== undefined && s.paid_amount !== null
+            ? s.paid_amount
+            : (s.grand_total ?? s.total);
+        return (
+          <span className="font-mono text-emerald-400 tabular-nums font-medium">
+            {formatCurrency(paid, currencySymbol)}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'due_amount',
+      header: t('hist_col_due', 'Due'),
+      align: 'right',
+      sortable: true,
+      accessor: (s: Sale) => {
+        const due = s.due_amount ?? 0;
+        return due > 0 ? (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 tabular-nums">
+            {formatCurrency(due, currencySymbol)}
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium text-emerald-500/80 bg-emerald-500/10 border border-emerald-500/20">
+            Paid
+          </span>
+        );
+      },
     },
     {
       id: 'gross_profit',
