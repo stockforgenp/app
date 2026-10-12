@@ -19,6 +19,7 @@ import {
   Printer,
   Package,
   FileText,
+  Calendar,
 } from "lucide-react";
 import { Product, PurchaseCartItem } from "../types/index.ts";
 import { getAllProducts } from "../lib/services/productService.ts";
@@ -34,6 +35,8 @@ import {
   formatCurrency,
   toMinorUnits,
   fromMinorUnits,
+  formatForDateTimeLocal,
+  parseDateTimeLocalToIso,
 } from "../lib/utils/format.ts";
 import { useToast } from "../context/ToastContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
@@ -76,6 +79,15 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
   });
   const [supplierInvoiceNo, setSupplierInvoiceNo] = useState("");
   const [purchaseNotes, setPurchaseNotes] = useState("");
+  const [purchaseDateTime, setPurchaseDateTime] = useState<string>(() =>
+    formatForDateTimeLocal(),
+  );
+
+  const isCustomPurchaseDate = useMemo(() => {
+    if (!purchaseDateTime) return false;
+    const todayYmd = formatForDateTimeLocal().split("T")[0];
+    return purchaseDateTime.split("T")[0] !== todayYmd;
+  }, [purchaseDateTime]);
 
   // Active VAT calculation toggle for this purchase (defaults to store-level enableVat setting)
   const [applyVat, setApplyVat] = useState(enableVat !== false);
@@ -229,6 +241,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
       address: "",
       isNew: false,
     });
+    setPurchaseDateTime(formatForDateTimeLocal());
   };
 
   // Bulk Discount
@@ -344,6 +357,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         invoiceNumber: supplierInvoiceNo.trim() || undefined,
         notes: purchaseNotes.trim() || undefined,
         applyVat: applyVat,
+        createdAt: parseDateTimeLocalToIso(purchaseDateTime),
         vendorInput: {
           name: vendorData.name.trim(),
           phone: vendorData.phone.trim() || undefined,
@@ -394,7 +408,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [cart, calculations, vendorData, supplierInvoiceNo]);
+  }, [cart, calculations, vendorData, supplierInvoiceNo, purchaseDateTime, purchaseNotes, applyVat]);
 
   // Batch selections in modal
   const submitBatchFromQuantities = () => {
@@ -796,6 +810,47 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
             {/* Vendor & Invoice Inputs */}
             <div className="p-4 bg-neutral-950/70 border-t border-neutral-800 space-y-3 shrink-0">
               <VendorInputSection value={vendorData} onChange={setVendorData} />
+
+              {/* Purchase Date & Time */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-lg bg-neutral-900/90 border border-neutral-800">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div>
+                    <div className="text-xs font-medium text-neutral-200 flex items-center gap-1.5">
+                      <span>{isNepali ? "खरिद मिति र समय" : "Purchase Date & Time"}</span>
+                      {isCustomPurchaseDate && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-medium">
+                          {isNepali ? "कस्टम मिति" : "Backdated"}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-neutral-400">
+                      {isNepali
+                        ? "पहिले खरिद गरेको सामान आज दर्ता गर्दा मिति मिलाउनुहोस्"
+                        : "Default is today. Change if entering an earlier purchase."}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="datetime-local"
+                    value={purchaseDateTime}
+                    onChange={(e) => setPurchaseDateTime(e.target.value)}
+                    className="px-2.5 py-1 text-xs font-mono text-neutral-200 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                  {isCustomPurchaseDate && (
+                    <button
+                      type="button"
+                      onClick={() => setPurchaseDateTime(formatForDateTimeLocal())}
+                      className="px-2 py-1 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer shrink-0"
+                      title={isNepali ? "अहिलेको मितिमा फर्काउनुहोस्" : "Reset to current date & time"}
+                    >
+                      {isNepali ? "अहिले (Now)" : "Now"}
+                    </button>
+                  )}
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 <div>

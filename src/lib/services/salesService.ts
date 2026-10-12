@@ -24,6 +24,7 @@ export interface ProcessSaleCustomerInfo {
   customerPanVat?: string | null;
   customerAddress?: string | null;
   applyVat?: boolean;
+  createdAt?: string | null;
   customerInput?: {
     name: string;
     phone?: string;
@@ -43,6 +44,9 @@ export function processSale(
 
   const settings = getSettings();
   const now = new Date().toISOString();
+  const transactionCreatedAt = customerInfo?.createdAt
+    ? new Date(customerInfo.createdAt).toISOString()
+    : now;
 
   // Everything executes inside an atomic ACID transaction
   return transaction(() => {
@@ -225,7 +229,7 @@ export function processSale(
         vatAmount,
         grandTotal,
         grandTotal,
-        now,
+        transactionCreatedAt,
       ]
     );
 
@@ -263,7 +267,7 @@ export function processSale(
       run(
         `INSERT INTO stock_movements (product_id, type, quantity, reference_id, note, created_at)
          VALUES (?, 'SALE', ?, ?, ?, ?)`,
-        [item.productId, -item.quantity, saleId, `Completed Sale #${saleId}`, now]
+        [item.productId, -item.quantity, saleId, `Completed Sale #${saleId}`, transactionCreatedAt]
       );
 
       // Check if product's stock levels fall to or below its specific 'minimum alert threshold'
@@ -427,3 +431,227 @@ export function getSalesCount(): number {
   const row = queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM sales`);
   return row?.count ?? 0;
 }
+
+/**
+ * Updates an existing sale, safely adjusting product inventory, recalculating line items and totals atomically.
+ */
+export function updateSale(
+  saleId: number,
+  items: ProcessSaleItemInput[],
+  customerInfo?: ProcessSaleCustomerInfo
+): Sale {
+  if (!items || items.length === 0) {
+    throw new Error('Sale must contain at least one item');
+  }
+
+  const existing = getSaleWithItems(saleId);
+  if (!existing) {
+    throw new Error(`Sale with ID ${saleId} was not found`);
+  }
+
+  const settings = getSettings();
+  const now = new Date().toISOString();
+  const transactionCreatedAt = customerInfo?.createdAt
+    ? new Date(customerInfo.createdAt).toISOString()
+    : existing.sale.created_at;
+
+  return transaction(() => {
+    // 1. Revert previous inventory deductions
+    for (const oldItem of existing.items) {
+      run(
+        `UPDATE products SET current_stock = current_stock + ? WHERE id = ?`,
+        [oldItem.quantity, oldItem.product_id]
+      );
+    }
+
+    // 2. Validate new items and calculate totals
+    let saleSubtotal = 0;
+    let saleDiscount = 0;
+    let saleTotal = 0;
+
+    const verifiedItems: Array<{
+      product: Product;
+      productId: number;
+      productName: string;
+      quantity: number;
+      costPrice: number;
+      actualSellingPrice: number;
+      discount: number;
+      itemGross: number;
+      itemTotal: number;
+      currentStock: number;
+    }> = [];
+
+    for (const item of items) {
+      const qty = Math.floor(item.quantity);
+      if (qty <= 0) {
+        throw new Error(`Quantity for product #${item.productId} must be greater than 0`);
+      }
+
+      const product = getProductById(item.productId);
+      if (!product) {
+        throw new Error(`Product with ID ${item.productId} was not found`);
+      }
+
+      // Check stock limit if negative stock is disallowed
+      if (!settings.allow_negative_stock && product.current_stock < qty) {
+        throw new Error(
+          `Insufficient stock for "${product.name}". Available: ${product.current_stock}, Requested: ${qty}`
+        );
+      }
+
+      const sellingPrice = Math.max(0, Math.floor(item.actualSellingPrice));
+      const discount = Math.max(0, Math.floor(item.discount));
+      const gross = qty * sellingPrice;
+      const netTotal = Math.max(0, gross - discount);
+
+      saleSubtotal += gross;
+      saleDiscount += discount;
+      saleTotal += netTotal;
+
+      verifiedItems.push({
+        product,
+        productId: product.id,
+        productName: product.name,
+        quantity: qty,
+        costPrice: product.cost_price,
+        actualSellingPrice: sellingPrice,
+        discount,
+        itemGross: gross,
+        itemTotal: netTotal,
+        currentStock: product.current_stock,
+      });
+    }
+
+    const taxableAmount = Math.max(0, saleSubtotal - saleDiscount);
+    const vatEnabled = customerInfo?.applyVat !== undefined
+      ? customerInfo.applyVat
+      : (existing.sale.vat_rate ? existing.sale.vat_rate > 0 : (settings.enable_vat !== false));
+    const vatRate = vatEnabled ? 13.0 : 0.0;
+    const vatAmount = vatEnabled ? Math.round(taxableAmount * 0.13) : 0;
+    const grandTotal = taxableAmount + vatAmount;
+
+    // 3. Customer resolution
+    let resolvedCustomerId = customerInfo?.customerId !== undefined ? customerInfo.customerId : existing.sale.customer_id;
+    let resolvedCustomerName = customerInfo?.customerName !== undefined ? customerInfo.customerName?.trim() || null : existing.sale.customer_name;
+    let resolvedCustomerPhone = customerInfo?.customerPhone !== undefined ? customerInfo.customerPhone?.trim() || null : existing.sale.customer_phone;
+    let resolvedCustomerEmail = customerInfo?.customerEmail !== undefined ? customerInfo.customerEmail?.trim() || null : existing.sale.customer_email;
+    let resolvedCustomerPanVat = customerInfo?.customerPanVat !== undefined ? customerInfo.customerPanVat?.trim() || null : existing.sale.customer_pan_vat;
+    let resolvedCustomerAddress = customerInfo?.customerAddress !== undefined ? customerInfo.customerAddress?.trim() || null : existing.sale.customer_address;
+
+    if (customerInfo?.customerInput) {
+      if (customerInfo.customerInput.name) resolvedCustomerName = customerInfo.customerInput.name.trim();
+      if (customerInfo.customerInput.phone) resolvedCustomerPhone = customerInfo.customerInput.phone.trim();
+      if (customerInfo.customerInput.email) resolvedCustomerEmail = customerInfo.customerInput.email.trim();
+      if (customerInfo.customerInput.pan_vat) resolvedCustomerPanVat = customerInfo.customerInput.pan_vat.trim();
+      if (customerInfo.customerInput.address) resolvedCustomerAddress = customerInfo.customerInput.address.trim();
+    }
+
+    if (resolvedCustomerId) {
+      const existingCustomer = getCustomerById(resolvedCustomerId);
+      if (existingCustomer) {
+        const updates: Partial<CreateCustomerInput> = {};
+        if (resolvedCustomerPanVat && resolvedCustomerPanVat !== (existingCustomer.pan_vat || '')) updates.pan_vat = resolvedCustomerPanVat;
+        if (resolvedCustomerEmail && resolvedCustomerEmail !== (existingCustomer.email || '')) updates.email = resolvedCustomerEmail;
+        if (resolvedCustomerAddress && resolvedCustomerAddress !== (existingCustomer.address || '')) updates.address = resolvedCustomerAddress;
+        if (resolvedCustomerPhone && resolvedCustomerPhone !== (existingCustomer.phone || '')) updates.phone = resolvedCustomerPhone;
+        if (resolvedCustomerName && resolvedCustomerName !== existingCustomer.name) updates.name = resolvedCustomerName;
+        if (Object.keys(updates).length > 0) updateCustomer(resolvedCustomerId, updates);
+      }
+    } else if (resolvedCustomerName || resolvedCustomerPhone || resolvedCustomerPanVat) {
+      const c = findOrCreateCustomer({
+        name: resolvedCustomerName || (resolvedCustomerPhone ? `Customer (${resolvedCustomerPhone})` : 'Walk-in Customer'),
+        phone: resolvedCustomerPhone || undefined,
+        email: resolvedCustomerEmail || undefined,
+        pan_vat: resolvedCustomerPanVat || undefined,
+        address: resolvedCustomerAddress || undefined,
+      });
+      if (c) {
+        resolvedCustomerId = c.id;
+        resolvedCustomerName = c.name;
+        resolvedCustomerPhone = c.phone || resolvedCustomerPhone;
+        resolvedCustomerEmail = c.email || resolvedCustomerEmail;
+        resolvedCustomerPanVat = c.pan_vat || resolvedCustomerPanVat;
+        resolvedCustomerAddress = c.address || resolvedCustomerAddress;
+      }
+    }
+
+    // 4. Update sales record
+    run(
+      `UPDATE sales SET
+        customer_id = ?,
+        customer_name = ?,
+        customer_phone = ?,
+        customer_email = ?,
+        customer_pan_vat = ?,
+        customer_address = ?,
+        subtotal = ?,
+        discount = ?,
+        taxable_amount = ?,
+        vat_rate = ?,
+        vat_amount = ?,
+        grand_total = ?,
+        total = ?,
+        created_at = ?
+      WHERE id = ?`,
+      [
+        resolvedCustomerId ?? null,
+        resolvedCustomerName ?? null,
+        resolvedCustomerPhone ?? null,
+        resolvedCustomerEmail ?? null,
+        resolvedCustomerPanVat ?? null,
+        resolvedCustomerAddress ?? null,
+        saleSubtotal,
+        saleDiscount,
+        taxableAmount,
+        vatRate,
+        vatAmount,
+        grandTotal,
+        grandTotal,
+        transactionCreatedAt,
+        saleId,
+      ]
+    );
+
+    // 5. Replace sale_items
+    run(`DELETE FROM sale_items WHERE sale_id = ?`, [saleId]);
+    for (const item of verifiedItems) {
+      run(
+        `INSERT INTO sale_items (sale_id, product_id, quantity, cost_price, selling_price, discount, total)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          saleId,
+          item.productId,
+          item.quantity,
+          item.costPrice,
+          item.actualSellingPrice,
+          item.discount,
+          item.itemTotal,
+        ]
+      );
+
+      // Reduce product stock for new quantity
+      run(
+        `UPDATE products SET current_stock = current_stock - ?, updated_at = ? WHERE id = ?`,
+        [item.quantity, now, item.productId]
+      );
+    }
+
+    // 6. Replace stock_movements for this sale
+    run(`DELETE FROM stock_movements WHERE reference_id = ? AND type = 'SALE'`, [saleId]);
+    for (const item of verifiedItems) {
+      run(
+        `INSERT INTO stock_movements (product_id, type, quantity, reference_id, note, created_at)
+         VALUES (?, 'SALE', ?, ?, ?, ?)`,
+        [item.productId, -item.quantity, saleId, `Updated Sale #${existing.sale.bill_number || saleId}`, transactionCreatedAt]
+      );
+    }
+
+    const updatedSale = getSaleWithItems(saleId);
+    if (!updatedSale) {
+      throw new Error('Failed to retrieve updated sale record');
+    }
+    return updatedSale.sale;
+  });
+}
+

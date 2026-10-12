@@ -1,7 +1,7 @@
 /**
  * Table Column Definitions: Sales History
  */
-import { Eye, Printer, Copy } from 'lucide-react';
+import { Eye, Printer, Copy, Edit3 } from 'lucide-react';
 import { Column } from '../components/common/DataTable.tsx';
 import { Sale } from '../types/index.ts';
 import { formatCurrency, formatDateTime } from '../helpers/formatHelpers.ts';
@@ -13,6 +13,7 @@ export interface SalesHistoryColumnsOptions {
   onInspectSale?: (saleId: number) => void;
   onPrintThermalBill?: (saleId: number) => void;
   onCopySaleId?: (saleId: number) => void;
+  onEditSale?: (saleId: number) => void;
   onInspect?: (sale: Sale) => void;
   onPrint?: (sale: Sale) => void;
 }
@@ -26,6 +27,7 @@ export function getSalesHistoryColumns(
     onInspectSale,
     onPrintThermalBill,
     onCopySaleId,
+    onEditSale,
     onInspect,
     onPrint,
   } = options;
@@ -150,6 +152,14 @@ export function getSalesHistoryColumns(
                     icon: Eye,
                     color: 'sky',
                     action: () => (onInspectSale ? onInspectSale(s.id) : onInspect?.(s)),
+                  }
+                : null,
+              onEditSale
+                ? {
+                    label: 'Edit Sale',
+                    icon: Edit3,
+                    color: 'amber',
+                    action: () => onEditSale(s.id),
                   }
                 : null,
               onPrintThermalBill || onPrint

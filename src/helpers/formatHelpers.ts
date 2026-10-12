@@ -148,3 +148,31 @@ export function getTodayISODate(): string {
   return now.toISOString().split('T')[0];
 }
 
+/**
+ * Formats a Date or ISO string into local 'YYYY-MM-DDTHH:mm' for datetime-local input
+ */
+export function formatForDateTimeLocal(date: Date | string = new Date()): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  if (isNaN(d.getTime())) {
+    const now = new Date();
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  }
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+/**
+ * Converts a datetime-local string (YYYY-MM-DDTHH:mm) into a standard ISO-8601 string
+ */
+export function parseDateTimeLocalToIso(val?: string): string {
+  if (!val) return new Date().toISOString();
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return new Date().toISOString();
+  return d.toISOString();
+}
+

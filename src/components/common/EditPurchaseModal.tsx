@@ -1,0 +1,706 @@
+/**
+ * Edit Purchase Transaction Modal
+ * Allows correcting mistakes in a completed purchase:
+ * - Edit purchase date & time
+ * - Edit vendor details, supplier invoice number, and notes
+ * - Modify item quantities, inflow cost prices, retail selling prices, and discounts
+ * - Add or remove products
+ * - Safely synchronizes inventory stock balance and updates SQLite atomically
+ */
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  Calendar,
+  Trash2,
+  Plus,
+  Minus,
+  Search,
+  Percent,
+  CheckCircle,
+  AlertTriangle,
+  Receipt,
+  Truck,
+  Phone,
+  FileText,
+  Tag,
+  Clock,
+  RotateCcw,
+} from "lucide-react";
+import { Modal } from "./Modal.tsx";
+import { Product, Purchase, PurchaseItem } from "../../types/index.ts";
+import {
+  getPurchaseWithItems,
+  updatePurchase,
+  ProcessPurchaseItemInput,
+} from "../../lib/services/purchaseService.ts";
+import { getAllProducts } from "../../lib/services/productService.ts";
+import {
+  formatCurrency,
+  fromMinorUnits,
+  toMinorUnits,
+  formatForDateTimeLocal,
+  parseDateTimeLocalToIso,
+} from "../../lib/utils/format.ts";
+import { useToast } from "../../context/ToastContext.tsx";
+import { useLanguage } from "../../context/LanguageContext.tsx";
+
+interface EditPurchaseModalProps {
+  isOpen: boolean;
+  purchaseId: number | null;
+  currencySymbol: string;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
+interface EditablePurchaseLine {
+  productId: number;
+  productName: string;
+  productSku?: string | null;
+  unit?: string | null;
+  quantity: number;
+  costPrice: number; // in minor units
+  sellingPrice?: number; // in minor units
+  discount: number; // in minor units
+  currentStock: number;
+}
+
+export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
+  isOpen,
+  purchaseId,
+  currencySymbol,
+  onClose,
+  onSuccess,
+}) => {
+  const { showToast } = useToast();
+  const { isNepali } = useLanguage();
+
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [purchaseRecord, setPurchaseRecord] = useState<Purchase | null>(null);
+
+  // Form State
+  const [purchaseDateTime, setPurchaseDateTime] = useState<string>("");
+  const [vendorName, setVendorName] = useState("");
+  const [vendorPhone, setVendorPhone] = useState("");
+  const [vendorPanVat, setVendorPanVat] = useState("");
+  const [vendorEmail, setVendorEmail] = useState("");
+  const [vendorAddress, setVendorAddress] = useState("");
+  const [supplierInvoiceNo, setSupplierInvoiceNo] = useState("");
+  const [purchaseNotes, setPurchaseNotes] = useState("");
+  const [applyVat, setApplyVat] = useState(true);
+
+  // Lines State
+  const [lines, setLines] = useState<EditablePurchaseLine[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [productSearch, setProductSearch] = useState("");
+  const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !purchaseId) {
+      setPurchaseRecord(null);
+      setLines([]);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const details = getPurchaseWithItems(purchaseId);
+      const productsList = getAllProducts();
+      setAllProducts(productsList);
+
+      if (details) {
+        setPurchaseRecord(details.purchase);
+        setPurchaseDateTime(
+          formatForDateTimeLocal(details.purchase.created_at),
+        );
+        setVendorName(details.purchase.vendor_name || "");
+        setVendorPhone(details.purchase.vendor_phone || "");
+        setVendorPanVat(details.purchase.vendor_pan_vat || "");
+        setVendorEmail(details.purchase.vendor_email || "");
+        setVendorAddress(details.purchase.vendor_address || "");
+        setSupplierInvoiceNo(details.purchase.invoice_number || "");
+        setPurchaseNotes(details.purchase.notes || "");
+        setApplyVat(
+          details.purchase.vat_rate !== undefined
+            ? details.purchase.vat_rate > 0
+            : (details.purchase.vat_amount || 0) > 0,
+        );
+
+        setLines(
+          details.items.map((it) => {
+            const p = productsList.find((prod) => prod.id === it.product_id);
+            return {
+              productId: it.product_id,
+              productName: it.product_name || `Product #${it.product_id}`,
+              productSku: it.product_sku,
+              unit: it.product_unit || "pcs",
+              quantity: it.quantity,
+              costPrice: it.cost_price,
+              sellingPrice: it.selling_price || (p ? p.selling_price : 0),
+              discount: it.discount,
+              currentStock: p ? p.current_stock : 0,
+            };
+          }),
+        );
+      }
+    } catch (e: any) {
+      showToast(e.message || "Failed to load purchase details", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [isOpen, purchaseId]);
+
+  // Available products for adding to purchase
+  const filteredAvailableProducts = useMemo(() => {
+    if (!productSearch.trim()) return allProducts.slice(0, 15);
+    const term = productSearch.toLowerCase();
+    return allProducts
+      .filter(
+        (p) =>
+          p.name.toLowerCase().includes(term) ||
+          (p.sku && p.sku.toLowerCase().includes(term)),
+      )
+      .slice(0, 15);
+  }, [allProducts, productSearch]);
+
+  const handleAddProduct = (product: Product) => {
+    const existingIndex = lines.findIndex((l) => l.productId === product.id);
+    if (existingIndex >= 0) {
+      const updated = [...lines];
+      updated[existingIndex].quantity += 1;
+      setLines(updated);
+    } else {
+      setLines((prev) => [
+        ...prev,
+        {
+          productId: product.id,
+          productName: product.name,
+          productSku: product.sku,
+          unit: product.unit || "pcs",
+          quantity: 1,
+          costPrice: product.cost_price,
+          sellingPrice: product.selling_price,
+          discount: 0,
+          currentStock: product.current_stock,
+        },
+      ]);
+    }
+    setProductSearch("");
+    setIsAddProductOpen(false);
+  };
+
+  const handleUpdateQuantity = (index: number, qty: number) => {
+    if (qty <= 0) return;
+    const updated = [...lines];
+    updated[index].quantity = qty;
+    setLines(updated);
+  };
+
+  const handleUpdateCostPrice = (index: number, val: string) => {
+    const minor = toMinorUnits(val);
+    const updated = [...lines];
+    updated[index].costPrice = minor;
+    setLines(updated);
+  };
+
+  const handleUpdateSellingPrice = (index: number, val: string) => {
+    const minor = toMinorUnits(val);
+    const updated = [...lines];
+    updated[index].sellingPrice = minor;
+    setLines(updated);
+  };
+
+  const handleUpdateDiscount = (index: number, val: string) => {
+    const minor = toMinorUnits(val);
+    const updated = [...lines];
+    updated[index].discount = minor;
+    setLines(updated);
+  };
+
+  const handleRemoveLine = (index: number) => {
+    if (lines.length <= 1) {
+      showToast(
+        isNepali
+          ? "कम्तिमा एउटा सामान हुनैपर्छ"
+          : "Purchase must have at least one line item",
+        "warning",
+      );
+      return;
+    }
+    setLines(lines.filter((_, i) => i !== index));
+  };
+
+  // Recalculations
+  const calculations = useMemo(() => {
+    let subtotal = 0;
+    let totalDiscount = 0;
+    let totalUnits = 0;
+
+    lines.forEach((it) => {
+      const gross = it.quantity * it.costPrice;
+      subtotal += gross;
+      totalDiscount += it.discount;
+      totalUnits += it.quantity;
+    });
+
+    const taxable = Math.max(0, subtotal - totalDiscount);
+    const vatRate = applyVat ? 13.0 : 0.0;
+    const vatAmount = applyVat ? Math.round(taxable * 0.13) : 0;
+    const grandTotal = taxable + vatAmount;
+
+    return {
+      subtotal,
+      totalDiscount,
+      totalUnits,
+      taxable,
+      vatRate,
+      vatAmount,
+      grandTotal,
+    };
+  }, [lines, applyVat]);
+
+  const handleSave = () => {
+    if (!purchaseId) return;
+    if (lines.length === 0) {
+      showToast("Purchase must contain at least one item", "warning");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const itemsInput: ProcessPurchaseItemInput[] = lines.map((l) => ({
+        productId: l.productId,
+        quantity: l.quantity,
+        costPrice: l.costPrice,
+        sellingPrice: l.sellingPrice,
+        discount: l.discount,
+      }));
+
+      updatePurchase(purchaseId, itemsInput, {
+        vendorId: purchaseRecord?.vendor_id ?? null,
+        vendorName: vendorName.trim() || null,
+        vendorPhone: vendorPhone.trim() || null,
+        vendorPanVat: vendorPanVat.trim() || null,
+        vendorEmail: vendorEmail.trim() || null,
+        vendorAddress: vendorAddress.trim() || null,
+        invoiceNumber: supplierInvoiceNo.trim() || null,
+        notes: purchaseNotes.trim() || null,
+        applyVat,
+        createdAt: parseDateTimeLocalToIso(purchaseDateTime),
+      });
+
+      showToast(
+        isNepali
+          ? `खरिद बिल #${purchaseRecord?.bill_number || purchaseId} सफलतापुर्वक सच्याइयो!`
+          : `Purchase #${purchaseRecord?.bill_number || purchaseId} updated successfully!`,
+        "success",
+      );
+
+      if (onSuccess) onSuccess();
+      onClose();
+    } catch (err: any) {
+      showToast(err.message || "Failed to update purchase", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        isNepali
+          ? `खरिद बिल #${purchaseRecord?.bill_number || purchaseId} सच्याउनुहोस्`
+          : `Edit Purchase Order #${purchaseRecord?.bill_number || purchaseId}`
+      }
+      subtitle={
+        isNepali
+          ? "खरिद परिमाण, लागत मूल्य, सप्लायर विवरण वा मितिमा भएको त्रुटि सच्याउनुहोस्"
+          : "Correct mistakes in quantities, cost prices, vendor info, invoice number, or purchase date"
+      }
+      maxWidth="4xl"
+    >
+      {loading ? (
+        <div className="p-8 text-center text-xs text-neutral-400">
+          Loading purchase data...
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {/* Top Row: Date & Time + Vendor Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-neutral-900/80 border border-neutral-800">
+            {/* Purchase Date & Time */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-neutral-300 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                <span>
+                  {isNepali ? "खरिद मिति र समय" : "Purchase Date & Time"}
+                </span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="datetime-local"
+                  value={purchaseDateTime}
+                  onChange={(e) => setPurchaseDateTime(e.target.value)}
+                  className="flex-1 px-3 py-1.5 text-xs font-mono text-neutral-100 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPurchaseDateTime(formatForDateTimeLocal())}
+                  className="px-2.5 py-1.5 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer shrink-0"
+                  title="Reset to current time"
+                >
+                  {isNepali ? "अहिले (Now)" : "Now"}
+                </button>
+              </div>
+              <p className="text-[10px] text-neutral-400">
+                {isNepali
+                  ? "पहिले खरिद गरेको सामानको मिति मिलाउनुहोस्"
+                  : "Adjust if the purchase was made on an earlier date"}
+              </p>
+
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <div>
+                  <label className="text-[11px] text-neutral-400 block mb-0.5">
+                    {isNepali ? "सप्लायर बीजक नं" : "Supplier Invoice #"}
+                  </label>
+                  <input
+                    type="text"
+                    value={supplierInvoiceNo}
+                    onChange={(e) => setSupplierInvoiceNo(e.target.value)}
+                    placeholder="INV-9988"
+                    className="w-full px-2.5 py-1 text-xs font-mono text-neutral-100 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-neutral-400 block mb-0.5">
+                    {isNepali ? "टिप्पणी / कैफियत" : "Purchase Notes"}
+                  </label>
+                  <input
+                    type="text"
+                    value={purchaseNotes}
+                    onChange={(e) => setPurchaseNotes(e.target.value)}
+                    placeholder="e.g. Delivery truck"
+                    className="w-full px-2.5 py-1 text-xs text-neutral-100 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Vendor Details */}
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] text-neutral-400 block mb-0.5">
+                    {isNepali
+                      ? "सप्लायर / विक्रेताको नाम"
+                      : "Vendor / Supplier"}
+                  </label>
+                  <input
+                    type="text"
+                    value={vendorName}
+                    onChange={(e) => setVendorName(e.target.value)}
+                    placeholder="Supplier / Vendor"
+                    className="w-full px-2.5 py-1 text-xs text-neutral-100 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-neutral-400 block mb-0.5">
+                    {isNepali ? "फोन नम्बर" : "Phone"}
+                  </label>
+                  <input
+                    type="text"
+                    value={vendorPhone}
+                    onChange={(e) => setVendorPhone(e.target.value)}
+                    placeholder="98XXXXXXXX"
+                    className="w-full px-2.5 py-1 text-xs font-mono text-neutral-100 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] text-neutral-400 block mb-0.5">
+                    PAN / VAT
+                  </label>
+                  <input
+                    type="text"
+                    value={vendorPanVat}
+                    onChange={(e) => setVendorPanVat(e.target.value)}
+                    placeholder="PAN / VAT #"
+                    className="w-full px-2.5 py-1 text-xs font-mono text-neutral-100 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-neutral-400 block mb-0.5">
+                    {isNepali ? "ठेगाना" : "Address"}
+                  </label>
+                  <input
+                    type="text"
+                    value={vendorAddress}
+                    onChange={(e) => setVendorAddress(e.target.value)}
+                    placeholder="Birgunj / Kathmandu"
+                    className="w-full px-2.5 py-1 text-xs text-neutral-100 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Line Items Table */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-neutral-200">
+                {isNepali ? "खरिद गरिएका सामानहरू" : "Purchase Line Items"} (
+                {lines.length})
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsAddProductOpen((prev) => !prev)}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{isNepali ? "सामान थप्नुहोस्" : "Add Product"}</span>
+              </button>
+            </div>
+
+            {/* Dropdown to add a product to this purchase order */}
+            {isAddProductOpen && (
+              <div className="p-3 bg-neutral-900 border border-neutral-800 rounded-xl space-y-2">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search product to add to purchase..."
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-1.5 text-xs text-neutral-100 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500"
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-40 overflow-y-auto divide-y divide-neutral-800/60">
+                  {filteredAvailableProducts.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => handleAddProduct(p)}
+                      className="w-full px-3 py-2 text-left hover:bg-neutral-800/50 flex items-center justify-between transition-colors text-xs cursor-pointer"
+                    >
+                      <div>
+                        <div className="font-medium text-neutral-200">
+                          {p.name}
+                        </div>
+                        <div className="text-[10px] text-neutral-400 font-mono">
+                          {p.sku || "No SKU"} · In Stock: {p.current_stock}
+                        </div>
+                      </div>
+                      <div className="font-mono text-emerald-400 font-semibold">
+                        Cost: {formatCurrency(p.cost_price, currencySymbol)}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="border border-neutral-800 rounded-xl overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-neutral-950 text-neutral-400 border-b border-neutral-800 font-medium">
+                  <tr>
+                    <th className="py-2.5 px-3">Item</th>
+                    <th className="py-2.5 px-2 text-center w-28">Qty</th>
+                    <th className="py-2.5 px-3 text-right w-28">Cost Price</th>
+                    <th className="py-2.5 px-3 text-right w-28">
+                      Retail Price
+                    </th>
+                    <th className="py-2.5 px-3 text-right w-24">Discount</th>
+                    <th className="py-2.5 px-3 text-right w-28">Net Total</th>
+                    <th className="py-2.5 px-2 text-center w-10"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-800/60 bg-neutral-900/40">
+                  {lines.map((line, idx) => {
+                    const gross = line.quantity * line.costPrice;
+                    const net = Math.max(0, gross - line.discount);
+
+                    return (
+                      <tr key={idx} className="hover:bg-neutral-800/20">
+                        <td className="py-2.5 px-3">
+                          <div className="font-medium text-neutral-200">
+                            {line.productName}
+                          </div>
+                          <div className="text-[10px] text-neutral-400 font-mono">
+                            {line.productSku || "—"} · {line.unit}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleUpdateQuantity(idx, line.quantity - 1)
+                              }
+                              disabled={line.quantity <= 1}
+                              className="p-1 rounded bg-neutral-800 text-neutral-300 hover:text-white disabled:opacity-30 cursor-pointer"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              value={line.quantity}
+                              onChange={(e) =>
+                                handleUpdateQuantity(
+                                  idx,
+                                  parseInt(e.target.value, 10) || 1,
+                                )
+                              }
+                              className="w-12 text-center py-1 text-xs font-mono bg-neutral-950 border border-neutral-800 rounded focus:outline-none focus:border-emerald-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleUpdateQuantity(idx, line.quantity + 1)
+                              }
+                              className="p-1 rounded bg-neutral-800 text-neutral-300 hover:text-white cursor-pointer"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3 text-right">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={fromMinorUnits(line.costPrice)}
+                            onChange={(e) =>
+                              handleUpdateCostPrice(idx, e.target.value)
+                            }
+                            className="w-24 ml-auto text-right px-2 py-1 text-xs font-mono bg-neutral-950 border border-neutral-800 rounded focus:outline-none focus:border-emerald-500"
+                          />
+                        </td>
+                        <td className="py-2.5 px-3 text-right">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={fromMinorUnits(line.sellingPrice || 0)}
+                            onChange={(e) =>
+                              handleUpdateSellingPrice(idx, e.target.value)
+                            }
+                            className="w-24 ml-auto text-right px-2 py-1 text-xs font-mono bg-neutral-950 border border-neutral-800 rounded focus:outline-none focus:border-emerald-500"
+                          />
+                        </td>
+                        <td className="py-2.5 px-3 text-right">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={fromMinorUnits(line.discount)}
+                            onChange={(e) =>
+                              handleUpdateDiscount(idx, e.target.value)
+                            }
+                            className="w-20 ml-auto text-right px-2 py-1 text-xs font-mono text-amber-400 bg-neutral-950 border border-neutral-800 rounded focus:outline-none focus:border-amber-500"
+                          />
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono font-bold text-neutral-100">
+                          {formatCurrency(net, currencySymbol)}
+                        </td>
+                        <td className="py-2.5 px-2 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveLine(idx)}
+                            className="p-1 text-neutral-500 hover:text-rose-400 transition-colors cursor-pointer"
+                            title="Remove item"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Bottom Totals & VAT Toggle */}
+          <div className="p-4 bg-neutral-950 rounded-xl border border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-neutral-300">
+                <input
+                  type="checkbox"
+                  checked={applyVat}
+                  onChange={(e) => setApplyVat(e.target.checked)}
+                  className="rounded border-neutral-700 text-emerald-500 focus:ring-emerald-500 bg-neutral-900 cursor-pointer"
+                />
+                <span>
+                  {isNepali
+                    ? "१३% भ्याट लागू गर्नुहोस् (Apply 13% VAT)"
+                    : "Apply 13% VAT"}
+                </span>
+              </label>
+            </div>
+
+            <div className="space-y-1 text-right text-xs">
+              <div className="flex justify-end gap-6 text-neutral-400">
+                <span>{isNepali ? "उप-जम्मा" : "Subtotal"}:</span>
+                <span className="font-mono text-neutral-200">
+                  {formatCurrency(calculations.subtotal, currencySymbol)}
+                </span>
+              </div>
+              {calculations.totalDiscount > 0 && (
+                <div className="flex justify-end gap-6 text-amber-400">
+                  <span>{isNepali ? "छुट" : "Discount"}:</span>
+                  <span className="font-mono">
+                    -{" "}
+                    {formatCurrency(calculations.totalDiscount, currencySymbol)}
+                  </span>
+                </div>
+              )}
+              {applyVat && (
+                <div className="flex justify-end gap-6 text-neutral-400">
+                  <span>13% VAT:</span>
+                  <span className="font-mono text-neutral-200">
+                    +{formatCurrency(calculations.vatAmount, currencySymbol)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-end gap-6 text-sm font-bold text-neutral-100 pt-1 border-t border-neutral-800">
+                <span>{isNepali ? "कुल रकम" : "Grand Total"}:</span>
+                <span className="font-mono text-emerald-400">
+                  {formatCurrency(calculations.grandTotal, currencySymbol)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="px-4 py-2 text-xs text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer"
+            >
+              {isNepali ? "रद्द गर्नुहोस्" : "Cancel"}
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving || lines.length === 0}
+              className="px-5 py-2 text-xs font-semibold text-neutral-950 bg-emerald-400 hover:bg-emerald-300 disabled:opacity-50 rounded-xl transition-colors cursor-pointer shadow-lg shadow-emerald-500/20"
+            >
+              {saving
+                ? isNepali
+                  ? "सुरक्षित गर्दै..."
+                  : "Saving Changes..."
+                : isNepali
+                  ? "परिवर्तन सुरक्षित गर्नुहोस्"
+                  : "Save Changes"}
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+};

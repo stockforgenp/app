@@ -1,7 +1,4 @@
-/**
- * Table Column Definitions: Purchase History
- */
-import { Eye, Printer, Copy } from 'lucide-react';
+import { Eye, Printer, Copy, Edit3 } from 'lucide-react';
 import { Column } from '../components/common/DataTable.tsx';
 import { Purchase } from '../types/index.ts';
 import { formatCurrency, formatDateTime } from '../helpers/formatHelpers.ts';
@@ -15,6 +12,7 @@ export interface PurchaseHistoryColumnsOptions {
   onInspectPurchase?: (purchase: Purchase) => void;
   onPrint?: (purchase: Purchase) => void;
   onPrintPurchase?: (purchase: Purchase) => void;
+  onEditPurchase?: (purchase: Purchase) => void;
   onCopyBillNumber?: (billNumber: string) => void;
 }
 
@@ -29,6 +27,7 @@ export function getPurchaseHistoryColumns(
     onInspectPurchase,
     onPrint,
     onPrintPurchase,
+    onEditPurchase,
     onCopyBillNumber,
   } = options;
 
@@ -136,6 +135,14 @@ export function getPurchaseHistoryColumns(
                   icon: Eye,
                   color: 'emerald',
                   action: () => handleInspect(row),
+                }
+              : null,
+            onEditPurchase
+              ? {
+                  label: isNepali ? 'खरिद सच्याउनुहोस्' : 'Edit Purchase',
+                  icon: Edit3,
+                  color: 'amber',
+                  action: () => onEditPurchase(row),
                 }
               : null,
             handlePrint

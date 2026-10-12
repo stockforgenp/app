@@ -11,6 +11,8 @@ import {
   Product,
   CreateVendorInput,
 } from '../../types/index.ts';
+
+export type { ProcessPurchaseItemInput, ProcessPurchaseVendorInfo };
 import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
 import { getProductById } from './productService.ts';
 import { findOrCreateVendor, getVendorById, updateVendor } from './vendorService.ts';
@@ -26,6 +28,9 @@ export function processPurchase(
 
   const settings = getSettings();
   const now = new Date().toISOString();
+  const transactionCreatedAt = vendorInfo?.createdAt
+    ? new Date(vendorInfo.createdAt).toISOString()
+    : now;
 
   return transaction(() => {
     // 1. Resolve or auto-create vendor if details were supplied
@@ -178,7 +183,7 @@ export function processPurchase(
         grandTotal,
         taxableAmount,
         vendorInfo?.notes?.trim() || null,
-        now,
+        transactionCreatedAt,
       ]
     );
 
@@ -262,7 +267,7 @@ export function processPurchase(
           `Purchase Order #${billNumber}${
             vendorInfo?.invoiceNumber ? ` (Inv: ${vendorInfo.invoiceNumber})` : ''
           }`,
-          now,
+          transactionCreatedAt,
         ]
       );
     }
@@ -413,3 +418,261 @@ export function getPurchasesCount(): number {
   const row = queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM purchases`);
   return row?.count ?? 0;
 }
+
+/**
+ * Updates an existing purchase, safely adjusting inventory levels and purchase details atomically.
+ */
+export function updatePurchase(
+  purchaseId: number,
+  items: ProcessPurchaseItemInput[],
+  vendorInfo?: ProcessPurchaseVendorInfo
+): Purchase {
+  if (!items || items.length === 0) {
+    throw new Error('Purchase must contain at least one item');
+  }
+
+  const existing = getPurchaseWithItems(purchaseId);
+  if (!existing) {
+    throw new Error(`Purchase with ID ${purchaseId} was not found`);
+  }
+
+  const settings = getSettings();
+  const now = new Date().toISOString();
+  const transactionCreatedAt = vendorInfo?.createdAt
+    ? new Date(vendorInfo.createdAt).toISOString()
+    : existing.purchase.created_at;
+
+  return transaction(() => {
+    // 1. Revert previous inventory inflows
+    for (const oldItem of existing.items) {
+      run(
+        `UPDATE products SET current_stock = current_stock - ? WHERE id = ?`,
+        [oldItem.quantity, oldItem.product_id]
+      );
+    }
+
+    // 2. Vendor resolution
+    let resolvedVendorId: number | null = vendorInfo?.vendorId ?? existing.purchase.vendor_id ?? null;
+    let resolvedVendorName: string | null = (vendorInfo?.vendorName?.trim()) || existing.purchase.vendor_name || null;
+    let resolvedVendorPhone: string | null = (vendorInfo?.vendorPhone?.trim()) || existing.purchase.vendor_phone || null;
+    let resolvedVendorEmail: string | null = (vendorInfo?.vendorEmail?.trim()) || existing.purchase.vendor_email || null;
+    let resolvedVendorPanVat: string | null = (vendorInfo?.vendorPanVat?.trim()) || existing.purchase.vendor_pan_vat || null;
+    let resolvedVendorAddress: string | null = (vendorInfo?.vendorAddress?.trim()) || existing.purchase.vendor_address || null;
+
+    if (resolvedVendorId) {
+      const existingVendor = getVendorById(resolvedVendorId);
+      if (existingVendor) {
+        const updates: Partial<CreateVendorInput> = {};
+        if (resolvedVendorPanVat && resolvedVendorPanVat !== (existingVendor.pan_vat || '')) updates.pan_vat = resolvedVendorPanVat;
+        if (resolvedVendorPhone && resolvedVendorPhone !== (existingVendor.phone || '')) updates.phone = resolvedVendorPhone;
+        if (resolvedVendorEmail && resolvedVendorEmail !== (existingVendor.email || '')) updates.email = resolvedVendorEmail;
+        if (resolvedVendorAddress && resolvedVendorAddress !== (existingVendor.address || '')) updates.address = resolvedVendorAddress;
+        if (resolvedVendorName && resolvedVendorName !== existingVendor.name && resolvedVendorName !== 'Supplier') updates.name = resolvedVendorName;
+        if (Object.keys(updates).length > 0) updateVendor(resolvedVendorId, updates);
+      }
+    } else if (resolvedVendorName || resolvedVendorPhone || resolvedVendorPanVat) {
+      const v = findOrCreateVendor({
+        name: resolvedVendorName || 'Supplier',
+        phone: resolvedVendorPhone || undefined,
+        email: resolvedVendorEmail || undefined,
+        pan_vat: resolvedVendorPanVat || undefined,
+        address: resolvedVendorAddress || undefined,
+      });
+      if (v) {
+        resolvedVendorId = v.id;
+        resolvedVendorName = v.name;
+        resolvedVendorPhone = v.phone || resolvedVendorPhone;
+        resolvedVendorEmail = v.email || resolvedVendorEmail;
+        resolvedVendorPanVat = v.pan_vat || resolvedVendorPanVat;
+        resolvedVendorAddress = v.address || resolvedVendorAddress;
+      }
+    }
+
+    let purchaseSubtotal = 0;
+    let purchaseDiscount = 0;
+
+    const verifiedItems: Array<{
+      product: Product;
+      quantity: number;
+      costPrice: number;
+      sellingPrice?: number;
+      discount: number;
+      lineGross: number;
+      lineNet: number;
+    }> = [];
+
+    for (const it of items) {
+      const qty = Math.floor(it.quantity);
+      if (qty <= 0) {
+        throw new Error(`Quantity for product #${it.productId} must be greater than 0`);
+      }
+
+      const product = getProductById(it.productId);
+      if (!product) {
+        throw new Error(`Product with ID ${it.productId} was not found`);
+      }
+
+      const costPrice = Math.max(0, Math.floor(it.costPrice));
+      const sellingPrice =
+        it.sellingPrice !== undefined ? Math.max(0, Math.floor(it.sellingPrice)) : undefined;
+      const discount = Math.max(0, Math.floor(it.discount || 0));
+
+      const lineGross = qty * costPrice;
+      const lineNet = Math.max(0, lineGross - discount);
+
+      purchaseSubtotal += lineGross;
+      purchaseDiscount += discount;
+
+      verifiedItems.push({
+        product,
+        quantity: qty,
+        costPrice,
+        sellingPrice,
+        discount,
+        lineGross,
+        lineNet,
+      });
+    }
+
+    const taxableAmount = Math.max(0, purchaseSubtotal - purchaseDiscount);
+    const vatEnabled = vendorInfo?.applyVat !== undefined
+      ? vendorInfo.applyVat
+      : (existing.purchase.vat_rate ? existing.purchase.vat_rate > 0 : (settings.enable_vat !== false));
+    const vatRate = vatEnabled ? 13.0 : 0.0;
+    const vatAmount = vatEnabled ? Math.round(taxableAmount * 0.13) : 0;
+    const grandTotal = taxableAmount + vatAmount;
+
+    // 3. Update purchases record
+    run(
+      `UPDATE purchases SET
+        invoice_number = ?,
+        vendor_id = ?,
+        vendor_name = ?,
+        vendor_phone = ?,
+        vendor_email = ?,
+        vendor_pan_vat = ?,
+        vendor_address = ?,
+        subtotal = ?,
+        discount = ?,
+        taxable_amount = ?,
+        vat_rate = ?,
+        vat_amount = ?,
+        grand_total = ?,
+        total = ?,
+        notes = ?,
+        created_at = ?
+      WHERE id = ?`,
+      [
+        (vendorInfo?.invoiceNumber?.trim()) || existing.purchase.invoice_number || null,
+        resolvedVendorId,
+        resolvedVendorName,
+        resolvedVendorPhone,
+        resolvedVendorEmail,
+        resolvedVendorPanVat,
+        resolvedVendorAddress,
+        purchaseSubtotal,
+        purchaseDiscount,
+        taxableAmount,
+        vatRate,
+        vatAmount,
+        grandTotal,
+        taxableAmount,
+        (vendorInfo?.notes?.trim()) || existing.purchase.notes || null,
+        transactionCreatedAt,
+        purchaseId,
+      ]
+    );
+
+    // 4. Replace purchase_items and increase stock
+    run(`DELETE FROM purchase_items WHERE purchase_id = ?`, [purchaseId]);
+    for (const it of verifiedItems) {
+      run(
+        `INSERT INTO purchase_items (
+          purchase_id, product_id, product_name, product_sku,
+          quantity, cost_price, selling_price, discount, total
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          purchaseId,
+          it.product.id,
+          it.product.name,
+          it.product.sku,
+          it.quantity,
+          it.costPrice,
+          it.sellingPrice !== undefined ? it.sellingPrice : null,
+          it.discount,
+          it.lineNet,
+        ]
+      );
+
+      // Inflow Stock into inventory
+      if (it.sellingPrice !== undefined && it.sellingPrice > 0) {
+        run(
+          `UPDATE products 
+           SET current_stock = current_stock + ?,
+               cost_price = ?,
+               selling_price = ?,
+               vendor_id = COALESCE(?, vendor_id),
+               vendor_name = COALESCE(?, vendor_name),
+               updated_at = ?
+           WHERE id = ?`,
+          [
+            it.quantity,
+            it.costPrice,
+            it.sellingPrice,
+            resolvedVendorId,
+            resolvedVendorName,
+            now,
+            it.product.id,
+          ]
+        );
+      } else {
+        run(
+          `UPDATE products 
+           SET current_stock = current_stock + ?,
+               cost_price = ?,
+               vendor_id = COALESCE(?, vendor_id),
+               vendor_name = COALESCE(?, vendor_name),
+               updated_at = ?
+           WHERE id = ?`,
+          [
+            it.quantity,
+            it.costPrice,
+            resolvedVendorId,
+            resolvedVendorName,
+            now,
+            it.product.id,
+          ]
+        );
+      }
+    }
+
+    // 5. Replace stock movements
+    run(`DELETE FROM stock_movements WHERE reference_id = ? AND type = 'RESTOCK'`, [purchaseId]);
+    for (const it of verifiedItems) {
+      run(
+        `INSERT INTO stock_movements (
+          product_id, type, quantity, reference_id,
+          vendor_id, vendor_name, note, created_at
+        ) VALUES (?, 'RESTOCK', ?, ?, ?, ?, ?, ?)`,
+        [
+          it.product.id,
+          it.quantity,
+          purchaseId,
+          resolvedVendorId,
+          resolvedVendorName,
+          `Updated Purchase Order #${existing.purchase.bill_number}${
+            vendorInfo?.invoiceNumber ? ` (Inv: ${vendorInfo.invoiceNumber})` : ''
+          }`,
+          transactionCreatedAt,
+        ]
+      );
+    }
+
+    const updated = getPurchaseWithItems(purchaseId);
+    if (!updated) {
+      throw new Error('Failed to retrieve updated purchase record');
+    }
+    return updated.purchase;
+  });
+}
+

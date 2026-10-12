@@ -103,6 +103,8 @@ export interface ProcessSaleCustomerInfo {
   customerEmail?: string | null;
   customerPanVat?: string | null;
   customerAddress?: string | null;
+  applyVat?: boolean;
+  createdAt?: string | null;
   customerInput?: {
     name: string;
     phone?: string;
@@ -176,6 +178,7 @@ export interface ProcessPurchaseVendorInfo {
   invoiceNumber?: string | null;
   notes?: string | null;
   applyVat?: boolean;
+  createdAt?: string | null;
   vendorInput?: {
     name: string;
     pan_vat?: string;

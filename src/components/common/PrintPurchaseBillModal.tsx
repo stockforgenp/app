@@ -16,11 +16,19 @@ import {
   Receipt,
   FileText,
   Truck,
+  Edit3,
+  RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 import { Purchase, PurchaseItem, AppSettings } from '../../types/index.ts';
 import { getPurchaseWithItems } from '../../lib/services/purchaseService.ts';
 import { getSettings } from '../../lib/services/settingsService.ts';
-import { formatCurrency, formatDateTime } from '../../lib/utils/format.ts';
+import {
+  formatCurrency,
+  formatDateTime,
+  fromMinorUnits,
+  toMinorUnits,
+} from '../../lib/utils/format.ts';
 import { useToast } from '../../context/ToastContext.tsx';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 
@@ -45,6 +53,9 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
   const [settings, setSettings] = useState<AppSettings>(getSettings());
   const [receiptFormat, setReceiptFormat] = useState<'thermal' | 'invoice'>('thermal');
   const [copied, setCopied] = useState(false);
+  const [isEditingPrices, setIsEditingPrices] = useState(false);
+  // Temporary rate overrides: key can be item.id or index, stores unit cost price in minor units
+  const [customUnitPrices, setCustomUnitPrices] = useState<Record<string | number, number>>({});
   const billRef = useRef<HTMLDivElement>(null);
 
   const rawCurrency = propCurrency || settings.currency_symbol || (isNepali ? 'रु.' : 'Rs.');
@@ -80,6 +91,8 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
     if (isOpen) {
       const currentSettings = getSettings();
       setSettings(currentSettings);
+      setIsEditingPrices(false);
+      setCustomUnitPrices({});
 
       if (purchaseData) {
         setDetails(purchaseData);
@@ -90,6 +103,8 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
     } else {
       setDetails(null);
       setCopied(false);
+      setIsEditingPrices(false);
+      setCustomUnitPrices({});
     }
   }, [isOpen, purchaseId, purchaseData]);
 
@@ -100,12 +115,38 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
   const storeAddress = settings.store_address;
   const storePhone = settings.store_phone;
 
-  const totalUnits = items.reduce((acc, it) => acc + it.quantity, 0);
+  // Calculate items with temporary print overrides without touching DB
+  const displayItems = items.map((it, idx) => {
+    const itemKey = it.id || idx;
+    const isOverridden = customUnitPrices[itemKey] !== undefined;
+    const effectiveCostPrice = isOverridden
+      ? customUnitPrices[itemKey]
+      : it.cost_price;
+    const itemGross = it.quantity * effectiveCostPrice;
+    const itemNetTotal = Math.max(0, itemGross - it.discount);
+
+    return {
+      ...it,
+      _originalPrice: it.cost_price,
+      _isOverridden: isOverridden,
+      cost_price: effectiveCostPrice,
+      total: itemNetTotal,
+    };
+  });
+
+  const hasAnyPriceOverride = Object.keys(customUnitPrices).length > 0;
+
+  const totalUnits = displayItems.reduce((acc, it) => acc + it.quantity, 0);
   const billNo = purchase.bill_number || `PUR-${purchase.id.toString().padStart(5, '0')}`;
+
+  // Recalculated financial totals for printing
+  const displaySubtotal = displayItems.reduce((sum, it) => sum + (it.quantity * it.cost_price), 0);
+  const displayDiscount = purchase.discount;
+  const displayTaxableAmount = Math.max(0, displaySubtotal - displayDiscount);
   const vatRate = purchase.vat_rate ?? 13;
-  const vatAmount = purchase.vat_amount ?? (vatRate > 0 ? Math.round((purchase.subtotal - purchase.discount) * (vatRate / 100)) : 0);
+  const vatAmount = vatRate > 0 ? Math.round(displayTaxableAmount * (vatRate / 100)) : 0;
   const hasVat = vatAmount > 0 || ((purchase.vat_rate ?? 0) > 0);
-  const grandTotal = purchase.grand_total ?? (purchase.total + vatAmount);
+  const grandTotal = displayTaxableAmount + (hasVat ? vatAmount : 0);
 
   const handlePrint = () => {
     window.print();
@@ -131,7 +172,7 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
       text += `ITEMS               QTY    RATE     TOTAL\n`;
       text += `${lineSeparator}\n`;
 
-      items.forEach((it) => {
+      displayItems.forEach((it) => {
         const name = (it.product_name || 'Item').padEnd(18).slice(0, 18);
         const qty = it.quantity.toString().padStart(4);
         const rate = formatCurrency(it.cost_price, '', false).padStart(8);
@@ -143,15 +184,15 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
       });
 
       text += `${lineSeparator}\n`;
-      text += `Subtotal:       ${formatCurrency(purchase.subtotal, currencySymbol)}\n`;
-      if (purchase.discount > 0) {
-        text += `Discount:      -${formatCurrency(purchase.discount, currencySymbol)}\n`;
+      text += `Subtotal:       ${formatCurrency(displaySubtotal, currencySymbol)}\n`;
+      if (displayDiscount > 0) {
+        text += `Discount:      -${formatCurrency(displayDiscount, currencySymbol)}\n`;
       }
-      text += `Taxable Amount: ${formatCurrency(purchase.total, currencySymbol)}\n`;
+      text += `Taxable Amount: ${formatCurrency(displayTaxableAmount, currencySymbol)}\n`;
       if (hasVat) {
         text += `VAT (${vatRate}%):      +${formatCurrency(vatAmount, currencySymbol)}\n`;
       }
-      text += `Total Items:    ${items.length} (${totalUnits} units)\n`;
+      text += `Total Items:    ${displayItems.length} (${totalUnits} units)\n`;
       text += `${doubleSeparator}\n`;
       text += `*GRAND TOTAL:   ${formatCurrency(grandTotal, currencySymbol)}*\n`;
       text += `${doubleSeparator}\n`;
@@ -208,6 +249,46 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
+                {/* Price Override Toggle Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsEditingPrices((prev) => !prev)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border transition-colors cursor-pointer ${
+                    isEditingPrices
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-semibold'
+                      : hasAnyPriceOverride
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-semibold'
+                      : 'bg-neutral-800 text-neutral-300 hover:text-white border-neutral-700'
+                  }`}
+                  title={
+                    isNepali
+                      ? 'दाखिला बिलमा मात्र खरिद दर बदल्नुहोस् (डाटाबेसमा परिवर्तन हुँदैन)'
+                      : 'Modify rates for this print slip only (does not change database)'
+                  }
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>
+                    {isNepali
+                      ? (isEditingPrices ? 'मूल्य सम्पादन बन्द' : 'प्रिन्ट दर बदल्नुहोस्')
+                      : (isEditingPrices ? 'Done Editing' : 'Edit Print Rates')}
+                  </span>
+                  {hasAnyPriceOverride && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 ml-0.5 animate-pulse" />
+                  )}
+                </button>
+
+                {hasAnyPriceOverride && (
+                  <button
+                    type="button"
+                    onClick={() => setCustomUnitPrices({})}
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-neutral-400 hover:text-rose-400 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded-lg transition-colors cursor-pointer"
+                    title={isNepali ? 'मूल दरहरू रिसेट गर्नुहोस्' : 'Reset back to original rates'}
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span className="hidden sm:inline">{isNepali ? 'रिसेट' : 'Reset'}</span>
+                  </button>
+                )}
+
                 {/* Format toggle: Thermal Slip vs Standard A4 */}
                 <div className="flex items-center bg-neutral-950 p-0.5 rounded-lg border border-neutral-800 text-xs">
                   <button
@@ -244,6 +325,29 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Informational Banner if price editing is active or overrides exist */}
+            {(isEditingPrices || hasAnyPriceOverride) && (
+              <div className="px-6 py-2 bg-amber-950/40 border-b border-amber-900/50 flex items-center justify-between text-xs text-amber-200">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>
+                    {isNepali
+                      ? '⚠️ प्रिन्ट दर सम्पादन सक्रिय: यो परिवर्तन प्रिन्ट हुने बिलमा मात्र लागु हुन्छ। तपाईंको मौज्दात र वास्तविक डाटाबेस परिवर्तन हुँदैन।'
+                      : '⚠️ Print-only rate mode: These rates only appear on this printed slip. Your inventory, costs, and SQLite database remain 100% unchanged.'}
+                  </span>
+                </div>
+                {hasAnyPriceOverride && (
+                  <button
+                    type="button"
+                    onClick={() => setCustomUnitPrices({})}
+                    className="text-[11px] underline text-amber-300 hover:text-white shrink-0 ml-3"
+                  >
+                    {isNepali ? 'मूल दरमा फर्काउनुहोस्' : 'Restore Originals'}
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Scrollable Printable Bill Preview Area */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-neutral-950/70 flex justify-center items-start">
@@ -344,34 +448,64 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {items.map((it, idx) => (
-                        <tr key={it.id || idx} className="align-top">
-                          <td className="py-1.5 pr-2">
-                            <div className="font-semibold text-gray-900 leading-tight">
-                              {it.product_name}
-                            </div>
-                            {it.product_sku && (
-                              <div className="text-[9px] text-gray-500 font-mono">
-                                SKU: {it.product_sku}
+                      {displayItems.map((it, idx) => {
+                        const itemKey = it.id || idx;
+                        const isCustom = it._isOverridden;
+
+                        return (
+                          <tr key={itemKey} className="align-top">
+                            <td className="py-1.5 pr-2">
+                              <div className="font-semibold text-gray-900 leading-tight flex items-center gap-1">
+                                <span>{it.product_name}</span>
+                                {isCustom && (
+                                  <span
+                                    className="print:hidden text-[9px] font-normal px-1 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-300"
+                                    title="Custom rate for print only"
+                                  >
+                                    {isNepali ? 'परिवर्तित' : 'Custom'}
+                                  </span>
+                                )}
                               </div>
-                            )}
-                            {it.discount > 0 && (
-                              <div className="text-[9px] text-emerald-700">
-                                {isNepali ? 'छुट:' : 'Disc:'} -{formatCurrency(it.discount, currencySymbol)}
+                              {it.discount > 0 && (
+                                <div className="text-[9px] text-emerald-700">
+                                  {isNepali ? 'छुट:' : 'Disc:'} -{formatCurrency(it.discount, currencySymbol)}
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-1.5 px-1 text-center font-bold text-gray-800 whitespace-nowrap">
+                              {it.quantity} {it.product_unit ? <span className="font-normal text-[10px] text-gray-500">{it.product_unit}</span> : ''}
+                            </td>
+                            <td className="py-1.5 px-1 text-right text-gray-600 whitespace-nowrap">
+                              {isEditingPrices ? (
+                                <div className="print:hidden inline-flex items-center gap-1 justify-end">
+                                  <span className="text-[10px] text-gray-400 font-sans">{currencySymbol}</span>
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    min="0"
+                                    value={fromMinorUnits(it.cost_price)}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value);
+                                      const minor = isNaN(val) ? 0 : toMinorUnits(val);
+                                      setCustomUnitPrices((prev) => ({
+                                        ...prev,
+                                        [itemKey]: minor,
+                                      }));
+                                    }}
+                                    className="w-20 px-1.5 py-0.5 text-right font-mono text-[11px] font-bold text-gray-900 bg-amber-50 border border-amber-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                  />
+                                </div>
+                              ) : null}
+                              <div className={isEditingPrices ? 'hidden print:block' : ''}>
+                                {formatCurrency(it.cost_price, currencySymbol, false)}
                               </div>
-                            )}
-                          </td>
-                          <td className="py-1.5 px-1 text-center font-bold text-gray-800 whitespace-nowrap">
-                            {it.quantity} {it.product_unit ? <span className="font-normal text-[10px] text-gray-500">{it.product_unit}</span> : ''}
-                          </td>
-                          <td className="py-1.5 px-1 text-right text-gray-600 whitespace-nowrap">
-                            {formatCurrency(it.cost_price, currencySymbol, false)}
-                          </td>
-                          <td className="py-1.5 pl-1 text-right font-bold text-gray-900 whitespace-nowrap">
-                            {formatCurrency(it.total, currencySymbol, false)}
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="py-1.5 pl-1 text-right font-bold text-gray-900 whitespace-nowrap">
+                              {formatCurrency(it.total, currencySymbol, false)}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -380,21 +514,21 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
                 <div className="py-2.5 border-b border-dashed border-gray-300 space-y-1.5 text-[11px]">
                   <div className="flex justify-between text-gray-600">
                     <span>
-                      {isNepali ? 'उप-जम्मा' : 'Subtotal'} ({items.length} {isNepali ? 'सामान' : 'items'}, {totalUnits} {isNepali ? 'एकाइ' : 'units'}):
+                      {isNepali ? 'उप-जम्मा' : 'Subtotal'} ({displayItems.length} {isNepali ? 'सामान' : 'items'}, {totalUnits} {isNepali ? 'एकाइ' : 'units'}):
                     </span>
-                    <span>{formatCurrency(purchase.subtotal, currencySymbol)}</span>
+                    <span>{formatCurrency(displaySubtotal, currencySymbol)}</span>
                   </div>
 
-                  {purchase.discount > 0 && (
+                  {displayDiscount > 0 && (
                     <div className="flex justify-between text-emerald-700 font-medium">
                       <span>{isNepali ? 'कुल छुट:' : 'Total Discount:'}</span>
-                      <span>-{formatCurrency(purchase.discount, currencySymbol)}</span>
+                      <span>-{formatCurrency(displayDiscount, currencySymbol)}</span>
                     </div>
                   )}
 
                   <div className="flex justify-between text-gray-600">
                     <span>{isNepali ? 'करयोग्य रकम:' : 'Taxable Amount:'}</span>
-                    <span>{formatCurrency(purchase.total, currencySymbol)}</span>
+                    <span>{formatCurrency(displayTaxableAmount, currencySymbol)}</span>
                   </div>
 
                   {hasVat && (

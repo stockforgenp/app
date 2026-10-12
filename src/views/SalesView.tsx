@@ -26,6 +26,7 @@ import {
   Percent,
   Printer,
   X,
+  Calendar,
 } from "lucide-react";
 import { Product, CartItem } from "../types/index.ts";
 import { getAllProducts } from "../lib/services/productService.ts";
@@ -35,6 +36,8 @@ import {
   formatCurrency,
   fromMinorUnits,
   toMinorUnits,
+  formatForDateTimeLocal,
+  parseDateTimeLocalToIso,
 } from "../lib/utils/format.ts";
 import { useToast } from "../context/ToastContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
@@ -85,6 +88,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
     address: "",
     isNew: false,
   });
+  const [saleDateTime, setSaleDateTime] = useState<string>(() =>
+    formatForDateTimeLocal(),
+  );
+
+  const isCustomSaleDate = useMemo(() => {
+    if (!saleDateTime) return false;
+    const todayYmd = formatForDateTimeLocal().split("T")[0];
+    return saleDateTime.split("T")[0] !== todayYmd;
+  }, [saleDateTime]);
   const [completedSaleInfo, setCompletedSaleInfo] = useState<{
     id: number;
     billNumber?: string | null;
@@ -607,6 +619,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
       address: "",
       isNew: false,
     });
+    setSaleDateTime(formatForDateTimeLocal());
   };
 
   // Calculations with Proportional Whole Discount Division
@@ -730,6 +743,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
         customerPanVat: customerData.pan_vat.trim() || undefined,
         customerAddress: customerData.address.trim() || undefined,
         applyVat: applyVat,
+        createdAt: parseDateTimeLocalToIso(saleDateTime),
         customerInput: {
           name: customerData.name.trim(),
           phone: customerData.phone.trim() || undefined,
@@ -803,6 +817,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
         address: "",
         isNew: false,
       });
+      setSaleDateTime(formatForDateTimeLocal());
       loadCatalog();
       onSaleCompleted(sale.id);
     } catch (err: unknown) {
@@ -836,7 +851,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
     window.addEventListener("keydown", handlePosKeyDown);
     return () => window.removeEventListener("keydown", handlePosKeyDown);
-  }, [cart, calculations]);
+  }, [cart, calculations, customerData, saleDateTime, applyVat]);
 
   // Selected batch items summary stats
   const batchSelectedCount = Object.keys(batchQuantities).length;
@@ -1481,12 +1496,53 @@ export const SalesView: React.FC<SalesViewProps> = ({
               </div>
             )}
 
-            {/* Customer Information (Search, Autocomplete & Auto-Creation) */}
-            <div className="p-4 bg-neutral-950/70 border-t border-neutral-800 shrink-0">
+            {/* Customer Information & Transaction Date */}
+            <div className="p-4 bg-neutral-950/70 border-t border-neutral-800 space-y-3 shrink-0">
               <CustomerInputSection
                 value={customerData}
                 onChange={setCustomerData}
               />
+
+              {/* Transaction Date & Time */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-lg bg-neutral-900/90 border border-neutral-800">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div>
+                    <div className="text-xs font-medium text-neutral-200 flex items-center gap-1.5">
+                      <span>{isNepali ? "कारोबार मिति र समय" : "Sale Date & Time"}</span>
+                      {isCustomSaleDate && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-medium">
+                          {isNepali ? "कस्टम मिति" : "Backdated"}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-neutral-400">
+                      {isNepali
+                        ? "पहिलेको कारोबार दर्ता गर्न मिति मिलाउनुहोस्"
+                        : "Default is today. Change if entering a past sale."}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="datetime-local"
+                    value={saleDateTime}
+                    onChange={(e) => setSaleDateTime(e.target.value)}
+                    className="px-2.5 py-1 text-xs font-mono text-neutral-200 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                  {isCustomSaleDate && (
+                    <button
+                      type="button"
+                      onClick={() => setSaleDateTime(formatForDateTimeLocal())}
+                      className="px-2 py-1 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer shrink-0"
+                      title={isNepali ? "अहिलेको मितिमा फर्काउनुहोस्" : "Reset to current date & time"}
+                    >
+                      {isNepali ? "अहिले (Now)" : "Now"}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Calculations Breakdown */}

@@ -6,12 +6,13 @@
  * - Modal to inspect all line items with snapshot cost, actual selling, discounts, and item profit
  */
 import React, { useState, useEffect, useMemo } from "react";
-import { Receipt, User, Phone, Printer } from "lucide-react";
+import { Receipt, User, Phone, Printer, Edit3 } from "lucide-react";
 import { Sale, SaleItem } from "../types/index.ts";
 import { getSales, getSaleWithItems } from "../lib/services/salesService.ts";
 import { formatCurrency, formatDateTime } from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
 import { PrintBillModal } from "../components/common/PrintBillModal.tsx";
+import { EditSaleModal } from "../components/common/EditSaleModal.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
 import { getSalesHistoryColumns } from "../columns/index.ts";
 import { DatePreset } from "../lib/utils/dateFilters.ts";
@@ -27,7 +28,7 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
   currencySymbol,
 }) => {
   const { showToast } = useToast();
-  const { t } = useLanguage();
+  const { t, isNepali } = useLanguage();
   const [sales, setSales] = useState<Sale[]>([]);
   const [search, setSearch] = useState("");
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
@@ -39,6 +40,9 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
     sale: Sale;
     items: SaleItem[];
   } | null>(null);
+
+  // Edit sale modal state
+  const [editSaleId, setEditSaleId] = useState<number | null>(null);
 
   // Bill print modal state
   const [printBillSaleId, setPrintBillSaleId] = useState<number | null>(null);
@@ -85,6 +89,9 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
         onPrintThermalBill: (saleId) => {
           setPrintBillSaleId(saleId);
           setIsPrintModalOpen(true);
+        },
+        onEditSale: (saleId) => {
+          setEditSaleId(saleId);
         },
         onCopySaleId: (saleId) => {
           navigator.clipboard.writeText(`#${saleId}`);
@@ -160,7 +167,7 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
             ? formatDateTime(selectedSaleDetail.sale.created_at)
             : ""
         }`}
-        maxWidth="2xl"
+        maxWidth="3xl"
       >
         {selectedSaleDetail && (
           <div className="space-y-6">
@@ -327,14 +334,21 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
               <div className="flex justify-between text-neutral-400">
                 <span>Subtotal:</span>
                 <span className="font-mono text-neutral-200">
-                  {formatCurrency(selectedSaleDetail.sale.subtotal, currencySymbol)}
+                  {formatCurrency(
+                    selectedSaleDetail.sale.subtotal,
+                    currencySymbol,
+                  )}
                 </span>
               </div>
               {selectedSaleDetail.sale.discount > 0 && (
                 <div className="flex justify-between text-amber-400 font-medium">
                   <span>Discount:</span>
                   <span className="font-mono">
-                    - {formatCurrency(selectedSaleDetail.sale.discount, currencySymbol)}
+                    -{" "}
+                    {formatCurrency(
+                      selectedSaleDetail.sale.discount,
+                      currencySymbol,
+                    )}
                   </span>
                 </div>
               )}
@@ -346,7 +360,11 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                       VAT ({selectedSaleDetail.sale.vat_rate ?? 13}%):
                     </span>
                     <span className="font-mono">
-                      + {formatCurrency(selectedSaleDetail.sale.vat_amount, currencySymbol)}
+                      +{" "}
+                      {formatCurrency(
+                        selectedSaleDetail.sale.vat_amount,
+                        currencySymbol,
+                      )}
                     </span>
                   </div>
                 )}
@@ -354,8 +372,9 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                 <span>Grand Total:</span>
                 <span className="font-mono">
                   {formatCurrency(
-                    selectedSaleDetail.sale.grand_total || selectedSaleDetail.sale.total,
-                    currencySymbol
+                    selectedSaleDetail.sale.grand_total ||
+                      selectedSaleDetail.sale.total,
+                    currencySymbol,
                   )}
                 </span>
               </div>
@@ -368,17 +387,32 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
             </div>
 
             <div className="pt-2 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => {
-                  setPrintBillSaleId(selectedSaleDetail.sale.id);
-                  setIsPrintModalOpen(true);
-                }}
-                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer"
-              >
-                <Printer className="w-4 h-4" />
-                <span>Print Bill</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrintBillSaleId(selectedSaleDetail.sale.id);
+                    setIsPrintModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Print Bill</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const id = selectedSaleDetail.sale.id;
+                    setSelectedSaleDetail(null);
+                    setEditSaleId(id);
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-neutral-200 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Edit3 className="w-4 h-4 text-amber-400" />
+                  <span>{isNepali ? "कारोबार सच्याउनुहोस्" : "Edit Sale"}</span>
+                </button>
+              </div>
 
               <button
                 onClick={() => setSelectedSaleDetail(null)}
@@ -390,6 +424,15 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
           </div>
         )}
       </Modal>
+
+      {/* Edit Sale Modal */}
+      <EditSaleModal
+        isOpen={!!editSaleId}
+        saleId={editSaleId}
+        currencySymbol={currencySymbol}
+        onClose={() => setEditSaleId(null)}
+        onSuccess={() => loadSales()}
+      />
 
       {/* Bill Printing Modal */}
       <PrintBillModal

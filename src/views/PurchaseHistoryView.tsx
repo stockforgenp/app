@@ -12,6 +12,7 @@ import {
   Package,
   Printer,
   Truck,
+  Edit3,
 } from "lucide-react";
 import { Purchase, PurchaseItem } from "../types/index.ts";
 import {
@@ -19,6 +20,7 @@ import {
   getPurchaseWithItems,
 } from "../lib/services/purchaseService.ts";
 import { PrintPurchaseBillModal } from "../components/common/PrintPurchaseBillModal.tsx";
+import { EditPurchaseModal } from "../components/common/EditPurchaseModal.tsx";
 import { Modal } from "../components/common/Modal.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
 import { getPurchaseHistoryColumns } from "../columns/index.ts";
@@ -50,6 +52,7 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
     purchase: Purchase;
     items: PurchaseItem[];
   } | null>(null);
+  const [editPurchaseId, setEditPurchaseId] = useState<number | null>(null);
   const [printPurchaseId, setPrintPurchaseId] = useState<number | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
@@ -118,6 +121,9 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
         onPrintPurchase: (row) => {
           setPrintPurchaseId(row.id);
           setIsPrintModalOpen(true);
+        },
+        onEditPurchase: (row) => {
+          setEditPurchaseId(row.id);
         },
         onCopyBillNumber: (billNumber) => {
           navigator.clipboard.writeText(billNumber);
@@ -420,17 +426,33 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
 
             {/* Modal Actions */}
             <div className="flex items-center justify-between w-full pt-3 border-t border-neutral-800">
-              <button
-                type="button"
-                onClick={() => {
-                  setPrintPurchaseId(inspectPurchaseDetail.purchase.id);
-                  setIsPrintModalOpen(true);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer"
-              >
-                <Printer className="w-4 h-4" />
-                <span>Print Bill</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrintPurchaseId(inspectPurchaseDetail.purchase.id);
+                    setIsPrintModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Print Bill</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const id = inspectPurchaseDetail.purchase.id;
+                    setInspectPurchaseDetail(null);
+                    setEditPurchaseId(id);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Edit3 className="w-4 h-4 text-amber-400" />
+                  <span>{isNepali ? 'खरिद सच्याउनुहोस्' : 'Edit Purchase'}</span>
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setInspectPurchaseDetail(null)}
@@ -442,6 +464,15 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
           </div>
         </Modal>
       )}
+
+      {/* Edit Purchase Modal */}
+      <EditPurchaseModal
+        isOpen={!!editPurchaseId}
+        purchaseId={editPurchaseId}
+        currencySymbol={currencySymbol}
+        onClose={() => setEditPurchaseId(null)}
+        onSuccess={() => loadHistory()}
+      />
 
       {/* Print Bill Modal */}
       {printPurchaseId && (
