@@ -38,10 +38,7 @@ import {
   MONTH_NAMES,
   SALARY_PAYMENT_METHODS,
 } from "../lib/services/staffService.ts";
-import {
-  formatCurrency,
-  getTodayISODate,
-} from "../lib/utils/format.ts";
+import { formatCurrency, getTodayISODate } from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { PrintSalarySlipModal } from "../components/common/PrintSalarySlipModal.tsx";
@@ -297,37 +294,6 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-150">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-neutral-100">
-              Payroll Management
-            </h1>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Wage Ledger
-            </span>
-          </div>
-          <p className="text-xs text-neutral-400 mt-1">
-            Track current month wage disbursement status, employee dues, and
-            print salary vouchers
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            type="button"
-            onClick={() => handleOpenPaySalary()}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors shadow-xs cursor-pointer"
-          >
-            <CreditCard className="w-4 h-4" />
-            <span>Disburse Salary</span>
-          </motion.button>
-        </div>
-      </div>
-
       {/* Hero Status & Period Navigator Card */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -602,7 +568,12 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
                 {monthlyStatus.paid_count} staff paid
                 {monthlyStatus.total_deductions > 0 && (
                   <span className="text-amber-400/90 ml-1">
-                    (-{formatCurrency(monthlyStatus.total_deductions, currencySymbol)} ded.)
+                    (-
+                    {formatCurrency(
+                      monthlyStatus.total_deductions,
+                      currencySymbol,
+                    )}{" "}
+                    ded.)
                   </span>
                 )}
               </div>

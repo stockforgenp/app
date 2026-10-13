@@ -180,7 +180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <kbd
                         className={`text-[9px] font-mono px-1.5 py-0.5 rounded border transition-opacity ${
                           isActive
-                            ? "bg-neutral-900/80 text-neutral-300 border-neutral-700/80"
+                            ? "bg-neutral-00/80 text-neutral-300 border-neutral-700/80"
                             : "bg-neutral-900 text-neutral-500 border-neutral-800 opacity-60 group-hover:opacity-100"
                         }`}
                       >

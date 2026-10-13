@@ -446,12 +446,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
           distributed[idx]?.effectiveNet || itemsForDiscount[idx].gross,
       })),
     };
-  }, [
-    isBulkDiscountModalOpen,
-    cart,
-    bulkDiscountValue,
-    bulkDiscountType,
-  ]);
+  }, [isBulkDiscountModalOpen, cart, bulkDiscountValue, bulkDiscountType]);
 
   const selectAllFilteredInModal = () => {
     setBatchQuantities((prev) => {
@@ -1148,7 +1143,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
                           ? "bg-amber-500/20 text-amber-300 border-amber-500/40 font-semibold"
                           : "text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30"
                       }`}
-                      title={isNepali ? "सम्पूर्ण बिल छुट" : "Whole bill discount"}
+                      title={
+                        isNepali ? "सम्पूर्ण बिल छुट" : "Whole bill discount"
+                      }
                     >
                       <Percent className="w-3 h-3" />
                       <span>
@@ -1164,7 +1161,10 @@ export const SalesView: React.FC<SalesViewProps> = ({
                         type="button"
                         onClick={() => {
                           setWholeDiscountValue("");
-                          showToast(isNepali ? "छुट हटाइयो" : "Discount cleared", "info");
+                          showToast(
+                            isNepali ? "छुट हटाइयो" : "Discount cleared",
+                            "info",
+                          );
                         }}
                         className="text-[10px] text-amber-400 hover:text-amber-300 underline cursor-pointer"
                         title="Clear discount"
@@ -1362,7 +1362,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             </div>
                             {item.allocatedWholeDiscount > 0 && (
                               <div className="text-[10px] font-normal text-amber-400 font-mono">
-                                -{formatCurrency(item.allocatedWholeDiscount, currencySymbol)}
+                                -
+                                {formatCurrency(
+                                  item.allocatedWholeDiscount,
+                                  currencySymbol,
+                                )}
                               </div>
                             )}
                           </td>
@@ -1541,7 +1545,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
               {calculations.totalDiscount > 0 && (
                 <div className="flex items-center justify-between text-xs text-neutral-300 font-semibold">
-                  <span>{isNepali ? "बिल छुट (Whole Bill Discount)" : "Bill Discount"}</span>
+                  <span>
+                    {isNepali
+                      ? "बिल छुट (Whole Bill Discount)"
+                      : "Bill Discount"}
+                  </span>
                   <span className="font-mono text-amber-400">
                     -{" "}
                     {formatCurrency(calculations.totalDiscount, currencySymbol)}
@@ -2078,13 +2086,18 @@ export const SalesView: React.FC<SalesViewProps> = ({
                 onClick={() => {
                   setWholeDiscountValue("");
                   setIsBulkDiscountModalOpen(false);
-                  showToast(isNepali ? "छुट हटाइयो" : "Discount cleared", "info");
+                  showToast(
+                    isNepali ? "छुट हटाइयो" : "Discount cleared",
+                    "info",
+                  );
                 }}
                 className="text-xs text-rose-400 hover:text-rose-300 cursor-pointer"
               >
                 {isNepali ? "छुट हटाउनुहोस्" : "Clear Discount"}
               </button>
-            ) : <div />}
+            ) : (
+              <div />
+            )}
             <div className="flex gap-2">
               <button
                 type="button"

@@ -16,31 +16,35 @@ import { Input, Textarea } from "../common/Input.tsx";
 
 export interface NewVendorFormProps {
   editingVendor: Vendor | null;
+  initialValues?: Partial<CreateVendorInput>;
   onClose: () => void;
   loadVendors?: () => void;
   onSuccess?: () => void;
+  onVendorCreated?: (vendor: Vendor) => void;
 }
 
 export const NewVendorForm: React.FC<NewVendorFormProps> = ({
   editingVendor,
+  initialValues,
   onClose,
   loadVendors,
   onSuccess,
+  onVendorCreated,
 }) => {
   const { showToast } = useToast();
   const { isNepali } = useLanguage();
 
   // Form Fields
   const [formData, setFormData] = useState<CreateVendorInput>({
-    name: "",
-    pan_vat: "",
-    phone: "",
-    email: "",
-    address: "",
-    notes: "",
+    name: editingVendor?.name ?? initialValues?.name ?? "",
+    pan_vat: editingVendor?.pan_vat ?? initialValues?.pan_vat ?? "",
+    phone: editingVendor?.phone ?? initialValues?.phone ?? "",
+    email: editingVendor?.email ?? initialValues?.email ?? "",
+    address: editingVendor?.address ?? initialValues?.address ?? "",
+    notes: editingVendor?.notes ?? initialValues?.notes ?? "",
   });
 
-  // Re-sync form fields whenever editingVendor prop changes
+  // Re-sync form fields whenever editingVendor or initialValues prop changes
   useEffect(() => {
     if (editingVendor) {
       setFormData({
@@ -50,6 +54,15 @@ export const NewVendorForm: React.FC<NewVendorFormProps> = ({
         email: editingVendor.email || "",
         address: editingVendor.address || "",
         notes: editingVendor.notes || "",
+      });
+    } else if (initialValues) {
+      setFormData({
+        name: initialValues.name || "",
+        pan_vat: initialValues.pan_vat || "",
+        phone: initialValues.phone || "",
+        email: initialValues.email || "",
+        address: initialValues.address || "",
+        notes: initialValues.notes || "",
       });
     } else {
       setFormData({
@@ -61,14 +74,14 @@ export const NewVendorForm: React.FC<NewVendorFormProps> = ({
         notes: "",
       });
     }
-  }, [editingVendor]);
+  }, [editingVendor, initialValues]);
 
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
       showToast(
         isNepali ? "आपूर्तिकर्ताको नाम आवश्यक छ" : "Vendor name is required",
-        "warning"
+        "warning",
       );
       return;
     }
@@ -80,16 +93,26 @@ export const NewVendorForm: React.FC<NewVendorFormProps> = ({
           isNepali
             ? `आपूर्तिकर्ता "${formData.name.trim()}" अद्यावधिक गरियो`
             : `Vendor "${formData.name.trim()}" updated successfully`,
-          "success"
+          "success",
         );
+        onVendorCreated?.({
+          ...editingVendor,
+          name: formData.name.trim(),
+          pan_vat: formData.pan_vat?.trim() || null,
+          phone: formData.phone?.trim() || null,
+          email: formData.email?.trim() || null,
+          address: formData.address?.trim() || null,
+          notes: formData.notes?.trim() || null,
+        });
       } else {
-        createVendor(formData);
+        const created = createVendor(formData);
         showToast(
           isNepali
             ? `नयाँ आपूर्तिकर्ता "${formData.name.trim()}" सफलतापूर्वक थपियो`
             : `Vendor "${formData.name.trim()}" created successfully`,
-          "success"
+          "success",
         );
+        onVendorCreated?.(created);
       }
       onClose();
       loadVendors?.();
@@ -98,7 +121,7 @@ export const NewVendorForm: React.FC<NewVendorFormProps> = ({
       showToast(
         (err as Error).message ||
           (isNepali ? "त्रुटि देखा पर्यो" : "Failed to save vendor"),
-        "error"
+        "error",
       );
     }
   };
@@ -124,9 +147,7 @@ export const NewVendorForm: React.FC<NewVendorFormProps> = ({
               : "e.g. Acme Supplies Pvt. Ltd."
           }
           value={formData.name}
-          onChange={(e) =>
-            setFormData({ ...formData, name: e.target.value })
-          }
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
         />
       </div>
 
@@ -157,9 +178,7 @@ export const NewVendorForm: React.FC<NewVendorFormProps> = ({
           type="text"
           placeholder="e.g. 9841234567"
           value={formData.phone}
-          onChange={(e) =>
-            setFormData({ ...formData, phone: e.target.value })
-          }
+          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
         />
       </div>
 
@@ -174,9 +193,7 @@ export const NewVendorForm: React.FC<NewVendorFormProps> = ({
           type="email"
           placeholder="vendor@example.com"
           value={formData.email}
-          onChange={(e) =>
-            setFormData({ ...formData, email: e.target.value })
-          }
+          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
         />
 
         <Input
@@ -188,9 +205,7 @@ export const NewVendorForm: React.FC<NewVendorFormProps> = ({
           }
           type="text"
           placeholder={
-            isNepali
-              ? "जस्तै: नयाँ सडक, काठमाडौँ"
-              : "e.g. New Road, Kathmandu"
+            isNepali ? "जस्तै: नयाँ सडक, काठमाडौँ" : "e.g. New Road, Kathmandu"
           }
           value={formData.address}
           onChange={(e) =>
@@ -215,9 +230,7 @@ export const NewVendorForm: React.FC<NewVendorFormProps> = ({
             : "e.g. Credit terms 15 days, weekly delivery on Sundays"
         }
         value={formData.notes}
-        onChange={(e) =>
-          setFormData({ ...formData, notes: e.target.value })
-        }
+        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
       />
 
       <div className="flex justify-end gap-3 pt-4 border-t border-neutral-800">
@@ -237,8 +250,8 @@ export const NewVendorForm: React.FC<NewVendorFormProps> = ({
               ? "अद्यावधिक गर्नुहोस्"
               : "Save Changes"
             : isNepali
-            ? "आपूर्तिकर्ता थप्नुहोस्"
-            : "Create Vendor"}
+              ? "आपूर्तिकर्ता थप्नुहोस्"
+              : "Create Vendor"}
         </button>
       </div>
     </form>

@@ -1,15 +1,30 @@
 /**
  * Vendor Search, Autocomplete & Creation Input Section
  * Used during purchase / product creation / restock.
- * Searches existing vendors; if found, auto-fills details; if not found, allows
- * inputting new vendor details which are automatically created upon saving.
+ * Searches existing vendors; if found, auto-fills details; provides an "Add Vendor" dialog
+ * and minimal details chip when selected/entered.
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { Building2, Search, Check, Plus, X, ChevronDown, ChevronUp, UserCheck, Sparkles, Phone, Mail, FileText, MapPin } from 'lucide-react';
+import {
+  Building2,
+  Search,
+  Check,
+  Plus,
+  X,
+  UserCheck,
+  Phone,
+  Mail,
+  FileText,
+  MapPin,
+  Edit2,
+  UserPlus,
+} from 'lucide-react';
 import { Vendor } from '../../types/index.ts';
 import { searchVendors } from '../../lib/services/vendorService.ts';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { Input } from './Input.tsx';
+import { Modal } from './Modal.tsx';
+import { NewVendorForm } from '../forms/NewVendorForm.tsx';
 
 export interface VendorInputData {
   vendorId: number | null;
@@ -18,6 +33,7 @@ export interface VendorInputData {
   phone: string;
   email: string;
   address: string;
+  notes?: string;
   isNew: boolean;
 }
 
@@ -36,7 +52,7 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
   const [query, setQuery] = useState(value.name || '');
   const [results, setResults] = useState<Vendor[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [showExtraFields, setShowExtraFields] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Sync external name changes
@@ -69,7 +85,6 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
   const handleSelectVendor = (vendor: Vendor) => {
     setQuery(vendor.name);
     setIsOpen(false);
-    setShowExtraFields(true);
     onChange({
       vendorId: vendor.id,
       name: vendor.name,
@@ -77,6 +92,7 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
       phone: vendor.phone || '',
       email: vendor.email || '',
       address: vendor.address || '',
+      notes: vendor.notes || '',
       isNew: false,
     });
   };
@@ -85,9 +101,13 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
     setQuery(text);
     setIsOpen(true);
 
-    // If query has changed from an existing vendor's name, reset vendorId
+    const trimmed = text.trim();
+    // Check if query exactly matches an existing vendor
     const isExactExisting = results.find(
-      (r) => r.name.toLowerCase() === text.trim().toLowerCase()
+      (r) =>
+        r.name.toLowerCase() === trimmed.toLowerCase() ||
+        (r.pan_vat && r.pan_vat.toLowerCase() === trimmed.toLowerCase()) ||
+        (r.phone && r.phone === trimmed)
     );
 
     if (isExactExisting) {
@@ -98,6 +118,7 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
         phone: isExactExisting.phone || value.phone,
         email: isExactExisting.email || value.email,
         address: isExactExisting.address || value.address,
+        notes: isExactExisting.notes || value.notes,
         isNew: false,
       });
     } else {
@@ -105,7 +126,7 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
         ...value,
         vendorId: null,
         name: text,
-        isNew: text.trim().length > 0,
+        isNew: trimmed.length > 0,
       });
     }
   };
@@ -113,7 +134,6 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
   const handleClear = () => {
     setQuery('');
     setIsOpen(false);
-    setShowExtraFields(false);
     onChange({
       vendorId: null,
       name: '',
@@ -121,15 +141,34 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
       phone: '',
       email: '',
       address: '',
+      notes: '',
       isNew: false,
     });
   };
 
+  const handleVendorCreated = (vendor: Vendor) => {
+    setQuery(vendor.name);
+    setIsDialogOpen(false);
+    setIsOpen(false);
+    onChange({
+      vendorId: vendor.id,
+      name: vendor.name,
+      pan_vat: vendor.pan_vat || '',
+      phone: vendor.phone || '',
+      email: vendor.email || '',
+      address: vendor.address || '',
+      notes: vendor.notes || '',
+      isNew: false,
+    });
+  };
+
+  const hasVendorInfo = Boolean(
+    value.name.trim() || value.phone.trim() || value.pan_vat.trim() || value.email.trim()
+  );
   const isExistingVendor = value.vendorId !== null;
-  const isNewVendorCandidate = !isExistingVendor && value.name.trim().length > 0;
 
   return (
-    <div className="bg-neutral-900/60 border border-neutral-800 rounded-xl p-3.5 space-y-3">
+    <div className="bg-neutral-900/60 border border-neutral-800 rounded-xl p-3.5 space-y-2.5">
       {/* Section Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -139,26 +178,44 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
           <div>
             <label className="text-xs font-semibold text-neutral-200">
               {isNepali ? 'आपूर्तिकर्ता / भेन्डर विवरण' : 'Vendor / Supplier Details'}{' '}
-              {required && <span className="text-rose-400">*</span>}
+              {required ? (
+                <span className="text-rose-400">*</span>
+              ) : (
+                <span className="text-[10px] font-normal text-neutral-400 ml-1.5">
+                  ({isNepali ? 'ऐच्छिक' : 'Optional'})
+                </span>
+              )}
             </label>
             <p className="text-[10px] text-neutral-400">
               {isNepali
-                ? 'खोजी गरेर छान्नुहोस् वा नयाँ आपूर्तिकर्ताको नाम लेख्नुहोस् (स्वतः दर्ता हुनेछ)'
-                : 'Search existing suppliers or type a new name to auto-create'}
+                ? 'नाम, फोन वा PAN बाट खोज्नुहोस् वा नयाँ आपूर्तिकर्ता थप्नुहोस्'
+                : 'Search supplier or add new vendor in dialog'}
             </p>
           </div>
         </div>
 
-        {value.name && (
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={handleClear}
-            className="text-[11px] text-neutral-400 hover:text-rose-400 flex items-center gap-1 transition-colors cursor-pointer"
+            onClick={() => setIsDialogOpen(true)}
+            className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
           >
-            <X className="w-3 h-3" />
-            <span>{isNepali ? 'हटाउनुहोस्' : 'Clear'}</span>
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>{isNepali ? 'नयाँ आपूर्तिकर्ता' : 'Add Vendor'}</span>
           </button>
-        )}
+
+          {hasVendorInfo && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="text-[11px] text-neutral-400 hover:text-rose-400 flex items-center gap-1 transition-colors cursor-pointer px-1.5 py-1"
+              title={isNepali ? 'हटाउनुहोस्' : 'Clear vendor'}
+            >
+              <X className="w-3 h-3" />
+              <span>{isNepali ? 'हटाउनुहोस्' : 'Clear'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Search / Autocomplete Field */}
@@ -180,8 +237,8 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
           }
           placeholder={
             isNepali
-              ? 'आपूर्तिकर्ताको नाम वा PAN नम्बर खोज्नुहोस्...'
-              : 'Search vendor by name or PAN/VAT...'
+              ? 'आपूर्तिकर्ताको नाम, फोन वा PAN खोज्नुहोस्...'
+              : 'Search vendor by name, phone, or PAN/VAT...'
           }
           value={query}
           onFocus={() => setIsOpen(true)}
@@ -206,13 +263,17 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
                       <span className="truncate">{vendor.name}</span>
                     </div>
                     <div className="flex items-center gap-3 mt-0.5 text-[11px] text-neutral-400">
+                      {vendor.phone && (
+                        <span className="font-mono text-neutral-300">{vendor.phone}</span>
+                      )}
                       {vendor.pan_vat && (
-                        <span className="font-mono text-neutral-300">
+                        <span className="font-mono text-neutral-400">
                           PAN: {vendor.pan_vat}
                         </span>
                       )}
-                      {vendor.phone && <span>{vendor.phone}</span>}
-                      {vendor.address && <span className="truncate max-w-[140px]">{vendor.address}</span>}
+                      {vendor.address && (
+                        <span className="truncate max-w-[140px]">{vendor.address}</span>
+                      )}
                     </div>
                   </div>
 
@@ -224,134 +285,156 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
               ))
             ) : null}
 
-            {/* Prompt to add as new vendor if query is entered */}
-            {query.trim().length > 0 && !results.some((r) => r.name.toLowerCase() === query.trim().toLowerCase()) && (
-              <div
-                onClick={() => {
-                  setIsOpen(false);
-                  setShowExtraFields(true);
-                }}
-                className="px-3.5 py-2.5 bg-emerald-950/20 hover:bg-emerald-950/40 text-left flex items-center justify-between text-xs cursor-pointer text-emerald-400"
-              >
-                <div className="flex items-center gap-1.5">
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>
-                    {isNepali
-                      ? `नयाँ आपूर्तिकर्ताको रूपमा थप्नुहोस्: "${query.trim()}"`
-                      : `Add as new supplier: "${query.trim()}"`}
+            {/* Prompt to add as new vendor in Dialog */}
+            {query.trim().length > 0 &&
+              !results.some((r) => r.name.toLowerCase() === query.trim().toLowerCase()) && (
+                <div
+                  onClick={() => {
+                    setIsOpen(false);
+                    setIsDialogOpen(true);
+                  }}
+                  className="px-3.5 py-2.5 bg-emerald-950/20 hover:bg-emerald-950/40 text-left flex items-center justify-between text-xs cursor-pointer text-emerald-400"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>
+                      {isNepali
+                        ? `नयाँ आपूर्तिकर्ता थप्नुहोस्: "${query.trim()}"`
+                        : `Add new supplier dialog: "${query.trim()}"`}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-emerald-300/80 bg-emerald-500/10 px-2 py-0.5 rounded">
+                    {isNepali ? 'डायलॉग' : 'Dialog'}
                   </span>
                 </div>
-                <span className="text-[10px] text-emerald-300/80 bg-emerald-500/10 px-2 py-0.5 rounded">
-                  {isNepali ? 'स्वतः सिर्जना' : 'Auto-Create'}
-                </span>
-              </div>
-            )}
+              )}
           </div>
         )}
       </div>
 
-      {/* Vendor Status Badge */}
-      {isExistingVendor && (
-        <div className="flex items-center justify-between px-3 py-1.5 bg-emerald-950/30 border border-emerald-500/30 rounded-lg text-xs text-emerald-300">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <UserCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="truncate font-medium">
-              {isNepali ? 'दर्ता भएको आपूर्तिकर्ता:' : 'Registered Vendor:'}{' '}
-              <strong className="text-emerald-200">{value.name}</strong>
-              {value.pan_vat && <span className="ml-1.5 font-mono text-[11px] text-emerald-400">({value.pan_vat})</span>}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowExtraFields(!showExtraFields)}
-            className="text-[11px] text-emerald-400 hover:text-emerald-200 flex items-center gap-1 cursor-pointer shrink-0 ml-2"
-          >
-            <span>{showExtraFields ? (isNepali ? 'लुकाउनुहोस्' : 'Hide details') : (isNepali ? 'विवरण थप्नुहोस् / हेर्नुहोस्' : 'Add / View details')}</span>
-            {showExtraFields ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
-        </div>
-      )}
-
-      {isNewVendorCandidate && (
-        <div className="flex items-center justify-between px-3 py-1.5 bg-sky-950/30 border border-sky-500/30 rounded-lg text-xs text-sky-300">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <Sparkles className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-            <span className="truncate">
-              {isNepali
-                ? `नयाँ आपूर्तिकर्ता "${value.name}" सामान बचत गर्दा स्वतः दर्ता हुनेछ`
-                : `New supplier "${value.name}" will be automatically created on save`}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowExtraFields(!showExtraFields)}
-            className="text-[11px] text-sky-400 hover:text-sky-200 flex items-center gap-1 cursor-pointer shrink-0 ml-2"
-          >
-            <span>{showExtraFields ? (isNepali ? 'लुकाउनुहोस्' : 'Hide') : (isNepali ? 'थप विवरण थप्नुहोस्' : 'Add details')}</span>
-            {showExtraFields ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
-        </div>
-      )}
-
-      {/* Extra Details Accordion (PAN, Phone, Email, Address) */}
-      {(showExtraFields || isNewVendorCandidate) && (
-        <div className="pt-2 space-y-2.5 border-t border-neutral-800/80 animate-in fade-in duration-200">
-          {isExistingVendor && (
-            <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 bg-emerald-950/20 px-2.5 py-1.5 rounded-lg border border-emerald-500/20">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span>
-                {isNepali
-                  ? 'नयाँ वा थपिएका विवरणहरू (PAN, फोन, इमेल, ठेगाना) खरिद सुरक्षित गर्दा आपूर्तिकर्ता प्रोफाइलमा स्वतः अद्यावधिक हुनेछन्।'
-                  : 'Added or updated details (PAN/VAT, phone, email, address) will automatically update the vendor profile on purchase.'}
+      {/* Minimal Vendor Details Display */}
+      {hasVendorInfo && (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-neutral-950/80 border border-neutral-800/80 rounded-lg text-xs">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
+            {/* Vendor Name */}
+            <div className="flex items-center gap-1.5 min-w-0 font-medium text-neutral-200">
+              {isExistingVendor ? (
+                <UserCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              ) : (
+                <Building2 className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+              )}
+              <span className="truncate max-w-[150px] font-semibold text-neutral-100">
+                {value.name || (isNepali ? 'अनाम आपूर्तिकर्ता' : 'Vendor')}
               </span>
+              {isExistingVendor ? (
+                <span className="text-[10px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded shrink-0">
+                  {isNepali ? 'दर्ता भएको' : 'Registered'}
+                </span>
+              ) : (
+                <span className="text-[10px] font-medium text-sky-400 bg-sky-500/10 border border-sky-500/20 px-1.5 py-0.2 rounded shrink-0">
+                  {isNepali ? 'नयाँ आपूर्तिकर्ता' : 'New Supplier'}
+                </span>
+              )}
             </div>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <Input
-              label={`PAN / VAT ${isNepali ? 'नम्बर' : 'Number'}`}
-              icon={FileText}
-              type="text"
-              sizeVariant="sm"
-              mono
-              placeholder="e.g. 601234567"
-              value={value.pan_vat}
-              onChange={(e) => onChange({ ...value, pan_vat: e.target.value })}
-            />
 
-            <Input
-              label={isNepali ? 'सम्पर्क फोन' : 'Phone / Mobile'}
-              icon={Phone}
-              type="text"
-              sizeVariant="sm"
-              placeholder="e.g. 9841234567"
-              value={value.phone}
-              onChange={(e) => onChange({ ...value, phone: e.target.value })}
-            />
+            {/* Phone Chip */}
+            {value.phone && (
+              <div className="flex items-center gap-1 text-[11px] text-neutral-300 font-mono">
+                <Phone className="w-3 h-3 text-neutral-500 shrink-0" />
+                <span>{value.phone}</span>
+              </div>
+            )}
+
+            {/* PAN / VAT Chip */}
+            {value.pan_vat && (
+              <div className="flex items-center gap-1 text-[11px] text-neutral-400 font-mono">
+                <FileText className="w-3 h-3 text-neutral-500 shrink-0" />
+                <span>PAN: {value.pan_vat}</span>
+              </div>
+            )}
+
+            {/* Email Chip */}
+            {value.email && (
+              <div className="flex items-center gap-1 text-[11px] text-neutral-400 truncate max-w-[150px]">
+                <Mail className="w-3 h-3 text-neutral-500 shrink-0" />
+                <span className="truncate">{value.email}</span>
+              </div>
+            )}
+
+            {/* Address Chip */}
+            {value.address && (
+              <div className="flex items-center gap-1 text-[11px] text-neutral-400 truncate max-w-[180px]">
+                <MapPin className="w-3 h-3 text-neutral-500 shrink-0" />
+                <span className="truncate">{value.address}</span>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <Input
-              label={isNepali ? 'इमेल ठेगाना' : 'Email Address'}
-              icon={Mail}
-              type="email"
-              sizeVariant="sm"
-              placeholder="supplier@example.com"
-              value={value.email}
-              onChange={(e) => onChange({ ...value, email: e.target.value })}
-            />
-
-            <Input
-              label={isNepali ? 'ठेगाना' : 'Address / City'}
-              icon={MapPin}
-              type="text"
-              sizeVariant="sm"
-              placeholder={isNepali ? 'जस्तै: नयाँ सडक, काठमाडौँ' : 'e.g. New Road, Kathmandu'}
-              value={value.address}
-              onChange={(e) => onChange({ ...value, address: e.target.value })}
-            />
-          </div>
+          {/* Quick Edit in Dialog Button */}
+          <button
+            type="button"
+            onClick={() => setIsDialogOpen(true)}
+            className="text-[11px] text-neutral-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer shrink-0 transition-colors ml-auto"
+            title={isNepali ? 'विवरण सम्पादन गर्नुहोस्' : 'Edit details in dialog'}
+          >
+            <Edit2 className="w-3 h-3" />
+            <span>{isNepali ? 'सम्पादन' : 'Edit'}</span>
+          </button>
         </div>
       )}
+
+      {/* Add / Edit Vendor Modal Dialog */}
+      <Modal
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        title={
+          value.vendorId
+            ? isNepali
+              ? 'आपूर्तिकर्ता विवरण सम्पादन गर्नुहोस्'
+              : 'Edit Vendor Details'
+            : isNepali
+            ? 'नयाँ आपूर्तिकर्ता दर्ता गर्नुहोस्'
+            : 'Add New Vendor'
+        }
+        subtitle={
+          isNepali
+            ? 'नाम, PAN/VAT, फोन, इमेल र ठेगाना प्रविष्ट गर्नुहोस्'
+            : 'Enter vendor name, PAN/VAT, phone, email, and address'
+        }
+        maxWidth="md"
+      >
+        <NewVendorForm
+          editingVendor={
+            value.vendorId
+              ? {
+                  id: value.vendorId,
+                  name: value.name,
+                  pan_vat: value.pan_vat || null,
+                  phone: value.phone || null,
+                  email: value.email || null,
+                  address: value.address || null,
+                  notes: value.notes || null,
+                  created_at: '',
+                  updated_at: '',
+                }
+              : null
+          }
+          initialValues={
+            !value.vendorId
+              ? {
+                  name: /^[0-9+\s\-()]{7,}$/.test(query.trim()) ? value.name : query.trim() || value.name,
+                  phone: /^[0-9+\s\-()]{7,}$/.test(query.trim()) ? query.trim() : value.phone,
+                  pan_vat: value.pan_vat,
+                  email: value.email,
+                  address: value.address,
+                  notes: value.notes,
+                }
+              : undefined
+          }
+          onClose={() => setIsDialogOpen(false)}
+          onVendorCreated={handleVendorCreated}
+        />
+      </Modal>
     </div>
   );
 };

@@ -21,10 +21,7 @@ import {
   getProductById,
   generateProductSku,
 } from "../../lib/services/productService.ts";
-import {
-  fromMinorUnits,
-  toMinorUnits,
-} from "../../lib/utils/format.ts";
+import { fromMinorUnits, toMinorUnits } from "../../lib/utils/format.ts";
 import { COMMON_UNITS } from "../../constants/index.ts";
 import { useLanguage } from "../../context/LanguageContext.tsx";
 import { useToast } from "../../context/ToastContext.tsx";
@@ -98,7 +95,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
     if (!formData.name.trim()) {
       showToast(
         isNepali ? "सामानको नाम आवश्यक छ" : "Product name is required",
-        "warning"
+        "warning",
       );
       return;
     }
@@ -131,7 +128,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
           isNepali
             ? "सामानको विवरण अद्यावधिक गरियो"
             : "Product updated successfully",
-          "success"
+          "success",
         );
         onClose();
         loadProducts?.();
@@ -154,7 +151,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
           isNepali
             ? `सामान "${created.name}" (एकाइ: ${created.unit || "pcs"}) सफलतापूर्वक थपियो`
             : `Product "${created.name}" created successfully`,
-          "success"
+          "success",
         );
         onClose();
         loadProducts?.();
@@ -164,7 +161,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
       showToast(
         (err as Error).message ||
           (isNepali ? "त्रुटि देखा पर्यो" : "Failed to save product"),
-        "error"
+        "error",
       );
     }
   };
@@ -209,9 +206,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
               isNepali ? "उदा. कोकाकोला ५०० मि.लि." : "e.g. Coca Cola 500ml"
             }
             value={formData.name}
-            onChange={(e) =>
-              setFormData({ ...formData, name: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           />
         </div>
 
@@ -246,12 +241,10 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
             type="text"
             placeholder={t(
               "prod_sku_placeholder",
-              "e.g. BEV-CC-500 (or leave blank to auto-generate)"
+              "e.g. BEV-CC-500 (or leave blank to auto-generate)",
             )}
             value={formData.sku}
-            onChange={(e) =>
-              setFormData({ ...formData, sku: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
             className="font-mono"
             clearable
             onClear={() => setFormData((prev) => ({ ...prev, sku: "" }))}
@@ -290,7 +283,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
             options={[
               ...(formData.unit &&
               !COMMON_UNITS.some(
-                (u) => u.value.toLowerCase() === formData.unit.toLowerCase()
+                (u) => u.value.toLowerCase() === formData.unit.toLowerCase(),
               )
                 ? [
                     {
@@ -324,7 +317,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
                 >
                   {u}
                 </button>
-              )
+              ),
             )}
           </div>
         </div>
@@ -405,7 +398,11 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
               <div className="px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs font-mono text-neutral-200">
                 {editingProduct.current_stock} {editingProduct.unit || "pcs"}
                 <span className="text-[10px] text-neutral-500 ml-2">
-                  ({isNepali ? "मौज्दात समायोजनबाट परिवर्तन गर्नुहोस्" : "Adjust via Restock/Adjust"})
+                  (
+                  {isNepali
+                    ? "मौज्दात समायोजनबाट परिवर्तन गर्नुहोस्"
+                    : "Adjust via Restock/Adjust"}
+                  )
                 </span>
               </div>
             </div>
@@ -416,12 +413,12 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
               label={
                 <>
                   <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{`${t("prod_min_alert", "Minimum Alert Threshold")} (${isNepali ? "वैकल्पिक" : "Optional"})`}</span>
+                  <span>{`${t("prod_min_alert", "Minimum Alert Threshold")}`}</span>
                 </>
               }
               helperText={t(
                 "prod_min_alert_hint",
-                "Triggers low-stock warning when below threshold."
+                "Triggers low-stock warning when below threshold.",
               )}
               type="number"
               min="0"

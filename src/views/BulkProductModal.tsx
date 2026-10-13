@@ -3,7 +3,6 @@ import {
   Plus,
   Trash2,
   Copy,
-  ClipboardPaste,
   CheckCircle2,
   AlertCircle,
   Sparkles,
@@ -83,9 +82,6 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
   // Track which rows have been touched or attempted to submit/add
   const [touchedRowIds, setTouchedRowIds] = useState<Set<string>>(new Set());
 
-  // Paste dialog state
-  const [isPasteDialogOpen, setIsPasteDialogOpen] = useState(false);
-  const [pasteText, setPasteText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // References to input elements for auto-focusing on validation failure or new row add
@@ -103,8 +99,6 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
       setRows([createEmptyRow()]);
       setRowErrors({});
       setTouchedRowIds(new Set());
-      setPasteText("");
-      setIsPasteDialogOpen(false);
     }
   }, [isOpen]);
 
@@ -418,100 +412,7 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
     }
   };
 
-  // Parsing pasted spreadsheet / CSV data
-  const handleParsePaste = () => {
-    if (!pasteText.trim()) return;
 
-    const lines = pasteText
-      .trim()
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
-
-    const parsedRows: BulkProductRow[] = [];
-
-    for (const line of lines) {
-      let cols = line.split("\t");
-      if (cols.length === 1 && line.includes(",")) {
-        cols = line.split(",").map((c) => c.replace(/^"(.*)"$/, "$1").trim());
-      } else {
-        cols = cols.map((c) => c.trim());
-      }
-
-      const firstCol = cols[0]?.toLowerCase() || "";
-      if (
-        firstCol === "name" ||
-        firstCol === "product name" ||
-        firstCol === "सामानको नाम" ||
-        firstCol === "item"
-      ) {
-        continue;
-      }
-
-      const name = cols[0] || "";
-      const sku = cols[1] || "";
-      const unit = cols[2] || "pcs";
-      const costPrice = cols[3] || "";
-      const sellingPrice = cols[4] || "";
-      const initialStock = cols[5] || "0";
-      const minStockAlert = cols[6] || "";
-
-      if (name || costPrice || sellingPrice) {
-        parsedRows.push({
-          id: Math.random().toString(36).substring(2, 9),
-          name,
-          sku,
-          unit: unit || "pcs",
-          costPrice,
-          sellingPrice,
-          initialStock: initialStock || "0",
-          minStockAlert,
-        });
-      }
-    }
-
-    if (parsedRows.length > 0) {
-      // Replace existing row if it is empty, else append
-      const isFirstRowBlank =
-        rows.length === 1 &&
-        !rows[0].name.trim() &&
-        !rows[0].costPrice.trim() &&
-        !rows[0].sellingPrice.trim();
-
-      const combined = isFirstRowBlank ? parsedRows : [...rows, ...parsedRows];
-
-      // Run validation on all combined rows
-      const newErrorsMap: Record<string, RowErrors> = {};
-      const newTouched = new Set<string>();
-      combined.forEach((r, idx) => {
-        newTouched.add(r.id);
-        const errs = validateRow(r, idx, combined);
-        if (Object.keys(errs).length > 0) {
-          newErrorsMap[r.id] = errs;
-        }
-      });
-
-      setRows(combined);
-      setTouchedRowIds(newTouched);
-      setRowErrors(newErrorsMap);
-      setIsPasteDialogOpen(false);
-      setPasteText("");
-
-      showToast(
-        isNepali
-          ? `${parsedRows.length} वटा सामान तालिकामा थपियो`
-          : `Imported ${parsedRows.length} rows into table`,
-        "success",
-      );
-    } else {
-      showToast(
-        isNepali
-          ? "कुनै मान्य सामान डाटा फेला परेन"
-          : "No valid product data found in pasted text",
-        "warning",
-      );
-    }
-  };
 
   // Real-time calculation of overall state
   const invalidRowsCount = Object.keys(rowErrors).length;
@@ -654,15 +555,6 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>{t("prod_bulk_add_another", "Add Another Product")}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsPasteDialogOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg transition-colors cursor-pointer"
-              >
-                <ClipboardPaste className="w-3.5 h-3.5 text-sky-400" />
-                <span>{t("prod_bulk_paste", "Paste from Spreadsheet")}</span>
               </button>
             </div>
 
@@ -1163,45 +1055,6 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
           </div>
         </div>
       </Modal>
-
-      {/* Spreadsheet / CSV Paste Sub-Modal */}
-      {isPasteDialogOpen && (
-        <Modal
-          isOpen={isPasteDialogOpen}
-          onClose={() => setIsPasteDialogOpen(false)}
-          title={t("prod_bulk_paste_title", "Paste Spreadsheet / CSV Data")}
-          subtitle={t(
-            "prod_bulk_paste_hint",
-            "Paste tab-separated rows copied from Excel or Google Sheets. Columns: Name | SKU | Unit | Cost Price | Selling Price | Initial Stock | Min Alert",
-          )}
-          maxWidth="2xl"
-        >
-          <div className="space-y-4">
-            <textarea
-              rows={8}
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-              placeholder={`Basmati Rice 25kg\tBR-001\tbag\t2200\t2500\t10\t2\nSunflower Oil 1L\tSO-002\tltr\t190\t220\t24\t5\nWai Wai Noodles\tWW-003\tpkt\t20\t25\t120\t20`}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs font-mono text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20"
-            />
-            <div className="flex items-center justify-between text-[11px] text-neutral-400">
-              <span>
-                {isNepali
-                  ? "एक्सेलबाट सिधै सेलहरू छनौट गरी Copy (Ctrl+C) गर्नुहोस् र यहाँ Paste (Ctrl+V) गर्नुहोस्।"
-                  : "Copy rows in Excel/Sheets (Ctrl+C) and paste here (Ctrl+V)."}
-              </span>
-              <button
-                type="button"
-                onClick={handleParsePaste}
-                disabled={!pasteText.trim()}
-                className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isNepali ? "डेटा तालिकामा भर्नुहोस्" : "Populate Table"}
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
     </>
   );
 };

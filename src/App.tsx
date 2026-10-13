@@ -309,11 +309,6 @@ export default function App() {
           <Header
             currencySymbol={effectiveCurrencySymbol}
             onNewSaleClick={() => handleNavigate("sales")}
-            onNewProductClick={() => {
-              handleClearActiveModals();
-              setInitialOpenCreateProduct(true);
-              handleNavigate("inventory");
-            }}
             onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
             onOpenShortcutsHelp={() => setIsShortcutsHelpOpen(true)}
           />

@@ -4,10 +4,8 @@
  * Restocks, Sales, Manual count adjustments, and Purchase deliveries.
  */
 import React, { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
 import {
   History,
-  Boxes,
   Building2,
   Search,
   SlidersHorizontal,
@@ -134,36 +132,6 @@ export const StockMovementsView: React.FC<StockMovementsViewProps> = () => {
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-150">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-neutral-800">
-        <div>
-          <h1 className="text-xl font-bold text-neutral-100 flex items-center gap-2">
-            <History className="w-5 h-5 text-indigo-400" />
-            <span>
-              {isNepali
-                ? "चलान तथा मौज्दात इतिहास"
-                : "Stock Movement Audit Log"}
-            </span>
-          </h1>
-          <p className="text-xs text-neutral-400 mt-1">
-            {isNepali
-              ? "सामानको खरिद, बिक्री, पुनः मौज्दात र समायोजनको सम्पूर्ण चलान अभिलेख"
-              : "Complete immutable audit trail of all restocks, sales, count recounts, and deliveries"}
-          </p>
-        </div>
-
-        {/* Link back to Products Catalog */}
-        <Link
-          to="/inventory"
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold border border-neutral-700 transition-colors cursor-pointer"
-        >
-          <Boxes className="w-4 h-4 text-emerald-400" />
-          <span>
-            {isNepali ? "सामान सूची (Product Catalog)" : "Product Catalog"}
-          </span>
-        </Link>
-      </div>
-
       {/* KPI Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex items-center justify-between">

@@ -113,7 +113,9 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
   );
   const [bulkDiscountValue, setBulkDiscountValue] = useState("");
   const [wholeDiscountValue, setWholeDiscountValue] = useState("");
-  const [wholeDiscountType, setWholeDiscountType] = useState<"fixed" | "percent">("fixed");
+  const [wholeDiscountType, setWholeDiscountType] = useState<
+    "fixed" | "percent"
+  >("fixed");
 
   // Multi-Product Batch Modal
   const [isMultiProductModalOpen, setIsMultiProductModalOpen] = useState(false);
@@ -529,7 +531,16 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [cart, calculations, vendorData, supplierInvoiceNo, purchaseDateTime, purchaseNotes, applyVat, effectivePaidAmount]);
+  }, [
+    cart,
+    calculations,
+    vendorData,
+    supplierInvoiceNo,
+    purchaseDateTime,
+    purchaseNotes,
+    applyVat,
+    effectivePaidAmount,
+  ]);
 
   // Batch selections in modal
   const submitBatchFromQuantities = () => {
@@ -570,49 +581,6 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
 
   return (
     <div className="p-8 flex flex-col gap-6 animate-in fade-in duration-150 h-full min-h-0">
-      {/* Top Header & Tab Toggle */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-800 pb-4 shrink-0">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-neutral-100 flex items-center gap-2">
-            <Truck className="w-5 h-5 text-emerald-400" />
-            <span>
-              {isNepali
-                ? "सामान खरिद तथा मौज्दात दाखिला (Purchases)"
-                : "Purchases & Stock Inflow"}
-            </span>
-          </h1>
-          <p className="text-xs text-neutral-400 mt-1">
-            {isNepali
-              ? "आपूर्तिकर्ताबाट सामान खरिद, नयाँ दररेट, १३% भ्याट र मौज्दात वृद्धि"
-              : "Purchase multi-item products, record vendor invoices, 13% VAT, and restock inventory"}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Link to Purchase History */}
-          <Link
-            to="/purchase-history"
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-neutral-100 rounded-xl text-xs font-medium transition-colors border border-neutral-800 cursor-pointer shadow-xs"
-          >
-            <Receipt className="w-3.5 h-3.5 text-emerald-400" />
-            <span>
-              {isNepali ? "खरिद बिल इतिहास (Invoices)" : "Purchase History"}
-            </span>
-          </Link>
-
-          {onOpenCreateProduct && (
-            <button
-              type="button"
-              onClick={onOpenCreateProduct}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded-xl text-xs font-medium transition-colors cursor-pointer border border-neutral-700/60"
-            >
-              <Plus className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{isNepali ? "नयाँ उत्पादन" : "New Product"}</span>
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* ================= NEW PURCHASE (INFLOW POS) ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
         {/* Left Column: Product Selection & Catalog (5 cols) */}
@@ -786,7 +754,10 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                       type="button"
                       onClick={() => {
                         setWholeDiscountValue("");
-                        showToast(isNepali ? "छुट हटाइयो" : "Discount cleared", "info");
+                        showToast(
+                          isNepali ? "छुट हटाइयो" : "Discount cleared",
+                          "info",
+                        );
                       }}
                       className="text-[10px] text-amber-400 hover:text-amber-300 underline cursor-pointer"
                       title="Clear discount"
@@ -915,7 +886,11 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                             </div>
                             {item.allocatedWholeDiscount > 0 && (
                               <div className="text-[10px] font-normal text-amber-400 font-mono">
-                                -{formatCurrency(item.allocatedWholeDiscount, currencySymbol)}
+                                -
+                                {formatCurrency(
+                                  item.allocatedWholeDiscount,
+                                  currencySymbol,
+                                )}
                               </div>
                             )}
                           </td>
@@ -948,7 +923,9 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                   <Calendar className="w-4 h-4 text-emerald-400 shrink-0" />
                   <div>
                     <div className="text-xs font-medium text-neutral-200 flex items-center gap-1.5">
-                      <span>{isNepali ? "खरिद मिति र समय" : "Purchase Date & Time"}</span>
+                      <span>
+                        {isNepali ? "खरिद मिति र समय" : "Purchase Date & Time"}
+                      </span>
                       {isCustomPurchaseDate && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-medium">
                           {isNepali ? "कस्टम मिति" : "Backdated"}
@@ -973,9 +950,15 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                   {isCustomPurchaseDate && (
                     <button
                       type="button"
-                      onClick={() => setPurchaseDateTime(formatForDateTimeLocal())}
+                      onClick={() =>
+                        setPurchaseDateTime(formatForDateTimeLocal())
+                      }
                       className="px-2 py-1 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer shrink-0"
-                      title={isNepali ? "अहिलेको मितिमा फर्काउनुहोस्" : "Reset to current date & time"}
+                      title={
+                        isNepali
+                          ? "अहिलेको मितिमा फर्काउनुहोस्"
+                          : "Reset to current date & time"
+                      }
                     >
                       {isNepali ? "अहिले (Now)" : "Now"}
                     </button>
@@ -1046,7 +1029,9 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
               {calculations.totalDiscount > 0 && (
                 <div className="flex items-center justify-between text-xs text-neutral-300 font-semibold">
                   <span>
-                    {isNepali ? "बिल छुट (Whole Bill Discount)" : "Bill Discount"}
+                    {isNepali
+                      ? "बिल छुट (Whole Bill Discount)"
+                      : "Bill Discount"}
                   </span>
                   <span className="font-mono text-amber-400">
                     -{" "}
@@ -1079,7 +1064,9 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                   <span>{isNepali ? "मूल्य अभिवृद्धि कर" : "VAT (13%)"}</span>
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className={`font-mono ${applyVat ? "text-sky-400" : "text-neutral-500"}`}>
+                  <span
+                    className={`font-mono ${applyVat ? "text-sky-400" : "text-neutral-500"}`}
+                  >
                     {applyVat
                       ? `+ ${formatCurrency(calculations.vatAmount, currencySymbol)}`
                       : formatCurrency(0, currencySymbol)}
@@ -1089,8 +1076,12 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                     onClick={() => setApplyVat(!applyVat)}
                     title={
                       applyVat
-                        ? (isNepali ? "भ्याट हटाउनुहोस्" : "Disable VAT for this purchase")
-                        : (isNepali ? "१३% भ्याट जोड्नुहोस्" : "Apply 13% VAT to this purchase")
+                        ? isNepali
+                          ? "भ्याट हटाउनुहोस्"
+                          : "Disable VAT for this purchase"
+                        : isNepali
+                          ? "१३% भ्याट जोड्नुहोस्"
+                          : "Apply 13% VAT to this purchase"
                     }
                     className={`text-[10px] font-semibold px-1.5 py-0.5 rounded transition-all cursor-pointer border ${
                       applyVat
@@ -1107,8 +1098,12 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                 <div>
                   <div className="text-sm font-bold text-neutral-100">
                     {applyVat
-                      ? (isNepali ? "अन्तिम कुल खरिद रकम (१३% भ्याट सहित)" : "Grand Total (Inc. 13% VAT)")
-                      : (isNepali ? "अन्तिम कुल खरिद रकम (०% भ्याट)" : "Grand Total (0% VAT)")}
+                      ? isNepali
+                        ? "अन्तिम कुल खरिद रकम (१३% भ्याट सहित)"
+                        : "Grand Total (Inc. 13% VAT)"
+                      : isNepali
+                        ? "अन्तिम कुल खरिद रकम (०% भ्याट)"
+                        : "Grand Total (0% VAT)"}
                   </div>
                   <div className="text-[11px] text-neutral-400">
                     {isNepali
@@ -1150,7 +1145,11 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                       step="any"
                       min="0"
                       placeholder={`Enter paid amount (${currencySymbol})...`}
-                      value={isCustomPaid ? paidAmountInput : fromMinorUnits(calculations.grandTotal)}
+                      value={
+                        isCustomPaid
+                          ? paidAmountInput
+                          : fromMinorUnits(calculations.grandTotal)
+                      }
                       onChange={(e) => {
                         setIsCustomPaid(true);
                         setPaidAmountInput(e.target.value);
@@ -1165,15 +1164,24 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                   {/* Due Breakdown */}
                   <div className="space-y-1.5 pt-2 border-t border-neutral-800 text-xs">
                     <div className="flex items-center justify-between text-neutral-300">
-                      <span>{isNepali ? "यस खरिदको बाँकी" : "Current Purchase Due"}:</span>
-                      <span className={`font-mono font-bold ${currentBillDue > 0 ? "text-rose-400" : "text-neutral-400"}`}>
+                      <span>
+                        {isNepali ? "यस खरिदको बाँकी" : "Current Purchase Due"}:
+                      </span>
+                      <span
+                        className={`font-mono font-bold ${currentBillDue > 0 ? "text-rose-400" : "text-neutral-400"}`}
+                      >
                         {formatCurrency(currentBillDue, currencySymbol)}
                       </span>
                     </div>
 
                     {vendorPreviousDue > 0 && (
                       <div className="flex items-center justify-between text-amber-400">
-                        <span>{isNepali ? "साविकको बाँकी (Previous Due)" : "Previous Due / Balance"}:</span>
+                        <span>
+                          {isNepali
+                            ? "साविकको बाँकी (Previous Due)"
+                            : "Previous Due / Balance"}
+                          :
+                        </span>
                         <span className="font-mono font-bold">
                           {formatCurrency(vendorPreviousDue, currencySymbol)}
                         </span>
@@ -1182,7 +1190,9 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
 
                     {(vendorPreviousDue > 0 || currentBillDue > 0) && (
                       <div className="flex items-center justify-between text-neutral-100 font-bold pt-1.5 border-t border-neutral-800/80">
-                        <span className="text-xs">{isNepali ? "कुल तिर्न बाँकी" : "Total Payable Due"}:</span>
+                        <span className="text-xs">
+                          {isNepali ? "कुल तिर्न बाँकी" : "Total Payable Due"}:
+                        </span>
                         <span className="font-mono text-sm text-rose-400">
                           {formatCurrency(totalVendorDue, currencySymbol)}
                         </span>
@@ -1343,7 +1353,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
             ? "धेरै सामान एकैसाथ खरिद गर्नुहोस्"
             : "Add Multiple Products to Purchase"
         }
-        maxWidth="2xl"
+        maxWidth="3xl"
       >
         <div className="space-y-4">
           <div>
@@ -1506,7 +1516,9 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
             <div className="space-y-2 pt-2 border-t border-neutral-800">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-neutral-300">
-                  {isNepali ? "समानुपातिक छुट विभाजन" : "Proportional Distribution Breakdown"}
+                  {isNepali
+                    ? "समानुपातिक छुट विभाजन"
+                    : "Proportional Distribution Breakdown"}
                 </span>
                 <span className="text-neutral-400 font-mono">
                   {isNepali ? "जम्मा छुट:" : "Total Discount:"}{" "}
@@ -1566,7 +1578,9 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
               >
                 Clear Discount
               </button>
-            ) : <div />}
+            ) : (
+              <div />
+            )}
             <div className="flex gap-2">
               <button
                 type="button"

@@ -103,19 +103,6 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-150">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-neutral-100">
-          {t("hist_title", "Sales History")}
-        </h1>
-        <p className="text-xs text-neutral-400 mt-1">
-          {t(
-            "hist_subtitle",
-            "Complete immutable transaction log with historical cost price snapshots and profit calculations",
-          )}
-        </p>
-      </div>
-
       {/* Shared DataTable with Search, Date Filter, and Pagination */}
       <DataTable<Sale>
         data={sales}
@@ -198,9 +185,7 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
               </div>
 
               <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800">
-                <div className="text-[11px] text-neutral-400">
-                  Grand Total
-                </div>
+                <div className="text-[11px] text-neutral-400">Grand Total</div>
                 <div className="text-sm font-bold font-mono text-neutral-100 mt-0.5">
                   {formatCurrency(
                     selectedSaleDetail.sale.grand_total ||
@@ -211,25 +196,21 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
               </div>
 
               <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800">
-                <div className="text-[11px] text-neutral-400">
-                  Paid Amount
-                </div>
+                <div className="text-[11px] text-neutral-400">Paid Amount</div>
                 <div className="text-sm font-bold font-mono text-emerald-400 mt-0.5">
                   {formatCurrency(
                     selectedSaleDetail.sale.paid_amount !== undefined &&
                       selectedSaleDetail.sale.paid_amount !== null
                       ? selectedSaleDetail.sale.paid_amount
-                      : (selectedSaleDetail.sale.grand_total ||
-                          selectedSaleDetail.sale.total),
+                      : selectedSaleDetail.sale.grand_total ||
+                          selectedSaleDetail.sale.total,
                     currencySymbol,
                   )}
                 </div>
               </div>
 
               <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800">
-                <div className="text-[11px] text-neutral-400">
-                  Due Amount
-                </div>
+                <div className="text-[11px] text-neutral-400">Due Amount</div>
                 <div
                   className={`text-sm font-bold font-mono mt-0.5 ${
                     (selectedSaleDetail.sale.due_amount ?? 0) > 0
@@ -245,9 +226,7 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
               </div>
 
               <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800">
-                <div className="text-[11px] text-neutral-400">
-                  Gross Profit
-                </div>
+                <div className="text-[11px] text-neutral-400">Gross Profit</div>
                 <div className="text-sm font-bold font-mono text-teal-400 mt-0.5">
                   {formatCurrency(
                     selectedSaleDetail.sale.gross_profit ?? 0,
@@ -308,9 +287,7 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                     <th className="py-2.5 px-3 text-right font-mono">
                       Sale Price
                     </th>
-                    <th className="py-2.5 px-3 text-right font-mono">
-                      Total
-                    </th>
+                    <th className="py-2.5 px-3 text-right font-mono">Total</th>
                     <th className="py-2.5 px-4 text-right font-mono">
                       Item Profit
                     </th>
@@ -417,8 +394,8 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                     selectedSaleDetail.sale.paid_amount !== undefined &&
                       selectedSaleDetail.sale.paid_amount !== null
                       ? selectedSaleDetail.sale.paid_amount
-                      : (selectedSaleDetail.sale.grand_total ||
-                          selectedSaleDetail.sale.total),
+                      : selectedSaleDetail.sale.grand_total ||
+                          selectedSaleDetail.sale.total,
                     currencySymbol,
                   )}
                 </span>
@@ -453,7 +430,8 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                   <span className="font-mono">
                     {formatCurrency(
                       selectedSaleDetail.sale.total_due ??
-                        (selectedSaleDetail.sale.due_amount ?? 0),
+                        selectedSaleDetail.sale.due_amount ??
+                        0,
                       currencySymbol,
                     )}
                   </span>

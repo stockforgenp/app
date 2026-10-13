@@ -166,7 +166,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     prod_deleted_success: "Product deleted",
     prod_bulk_title: "Add Multiple Products (Table Mode)",
     prod_bulk_subtitle:
-      "Rapidly enter products in spreadsheet format or paste from Excel / Google Sheets",
+      "Rapidly enter multiple products in spreadsheet format",
     prod_bulk_add_row: "Add Row",
     prod_bulk_add_5_rows: "Add 5 Rows",
     prod_bulk_paste: "Paste from Spreadsheet",
@@ -565,7 +565,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     prod_deleted_success: "सामान हटाइयो",
     prod_bulk_title: "थोक सामान दर्ता (तालिका ढाँचा)",
     prod_bulk_subtitle:
-      "स्प्रेडसिट ढाँचामा धेरै सामान एकैचोटि थप्नुहोस् वा एक्सेलबाट पेस्ट गर्नुहोस्",
+      "स्प्रेडसिट ढाँचामा धेरै सामान एकैचोटि सजिलैसँग थप्नुहोस्",
     prod_bulk_add_row: "पङ्क्ति थप्नुहोस् (+१)",
     prod_bulk_add_5_rows: "+५ पङ्क्ति थप्नुहोस्",
     prod_bulk_paste: "स्प्रेडसिटबाट पेस्ट गर्नुहोस्",

@@ -156,7 +156,7 @@ export const TechnicalSupportView: React.FC = () => {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
           {faqs.map((faq, index) => {
             const Icon = faq.icon;
             return (

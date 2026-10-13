@@ -1043,8 +1043,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 "Update attributes, pricing, or unit of measure",
               )
             : isNepali
-            ? "नयाँ सामानको विवरण, मूल्य, आपूर्तिकर्ता र प्रारम्भिक मौज्दात प्रविष्टि गर्नुहोस्।"
-            : "Specify product attributes, pricing, vendor supplier, and initial stock."
+              ? "नयाँ सामानको विवरण, मूल्य, आपूर्तिकर्ता र प्रारम्भिक मौज्दात प्रविष्टि गर्नुहोस्।"
+              : "Specify product attributes, pricing, vendor supplier, and initial stock."
         }
         maxWidth="md"
       >
@@ -1066,7 +1066,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           }}
         />
       </Modal>
-
 
       {/* ==================== DIALOG: CONFIRM DELETE ==================== */}
       <ConfirmDialog

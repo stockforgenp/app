@@ -103,16 +103,21 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
   });
 
   // Local File Restore State
-  const [pendingRestore, setPendingRestore] = useState<PendingRestore | null>(null);
+  const [pendingRestore, setPendingRestore] = useState<PendingRestore | null>(
+    null,
+  );
   const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
 
   // Google Sheets Cloud Sync State
-  const [googleConfig, setGoogleConfig] = useState<GoogleSyncConfig>(getGoogleSyncConfig);
+  const [googleConfig, setGoogleConfig] =
+    useState<GoogleSyncConfig>(getGoogleSyncConfig);
   const [isGoogleConfigModalOpen, setIsGoogleConfigModalOpen] = useState(false);
-  const [isGoogleRestoreConfirmOpen, setIsGoogleRestoreConfirmOpen] = useState(false);
-  const [googleRestorePreview, setGoogleRestorePreview] = useState<GoogleRestorePreview | null>(null);
+  const [isGoogleRestoreConfirmOpen, setIsGoogleRestoreConfirmOpen] =
+    useState(false);
+  const [googleRestorePreview, setGoogleRestorePreview] =
+    useState<GoogleRestorePreview | null>(null);
   const [isGoogleBackingUp, setIsGoogleBackingUp] = useState(false);
   const [isGoogleRestoring, setIsGoogleRestoring] = useState(false);
   const [googleStatusMessage, setGoogleStatusMessage] = useState<string>("");
@@ -146,7 +151,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
         isNepali
           ? "गुगल खाता सफलतापूर्वक जोडिएको छ!"
           : "Google account connected successfully!",
-        "success"
+        "success",
       );
     }
     setGoogleConfig(getGoogleSyncConfig());
@@ -175,7 +180,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
         isNepali
           ? "एसक्यूएल ब्याकअप स्क्रिप्ट (.sql) सफलतापूर्वक डाउनलोड भयो"
           : "SQL database backup script (.sql) downloaded successfully",
-        "success"
+        "success",
       );
     } catch (err: unknown) {
       showToast((err as Error).message, "error", "Export Failed");
@@ -201,7 +206,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
         isNepali
           ? "डाटाबेस बाइनरी (.sqlite) ब्याकअप सफलतापूर्वक डाउनलोड भयो"
           : "SQLite database backup (.sqlite) downloaded successfully",
-        "success"
+        "success",
       );
     } catch (err: unknown) {
       showToast((err as Error).message, "error", "Export Failed");
@@ -220,7 +225,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
           throw new Error(
             isNepali
               ? "चयन गरिएको ब्याकअप फाइल खाली छ।"
-              : "The selected backup file is empty."
+              : "The selected backup file is empty.",
           );
         }
 
@@ -246,7 +251,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
             throw new Error(
               isNepali
                 ? "एसक्यूएल स्क्रिप्ट खाली छ।"
-                : "The SQL backup file is empty."
+                : "The SQL backup file is empty.",
             );
           }
           setPendingRestore({
@@ -261,7 +266,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
         showToast(
           (err as Error).message,
           "error",
-          isNepali ? "फाइल अमान्य छ" : "Invalid File"
+          isNepali ? "फाइल अमान्य छ" : "Invalid File",
         );
       }
     };
@@ -279,7 +284,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
           isNepali
             ? `डाटाबेस एसक्यूएल फाइलबाट सफलतापूर्वक पुनर्स्थापित भयो (${pendingRestore.name})`
             : `Database successfully restored from SQL script (${pendingRestore.name})`,
-          "success"
+          "success",
         );
       } else if (pendingRestore.binaryData) {
         await importBinaryFile(pendingRestore.binaryData);
@@ -287,7 +292,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
           isNepali
             ? `डाटाबेस सफलतापूर्वक पुनर्स्थापित भयो (${pendingRestore.name})`
             : `Database successfully restored from backup file (${pendingRestore.name})`,
-          "success"
+          "success",
         );
       }
       onDatabaseRestored?.();
@@ -307,7 +312,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
         isNepali
           ? "डाटाबेस प्रारम्भिक अवस्थामा रिसेट भयो"
           : "Database reset to initial sample state",
-        "success"
+        "success",
       );
       onDatabaseRestored?.();
       loadStats();
@@ -334,7 +339,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
           ? "कृपया सुरु गर्नु अघि गुगल क्लाउड क्लाइन्ट आईडी (Client ID) प्रविष्ट गर्नुहोस्।"
           : "Please enter your Google OAuth Client ID to connect your Google account.",
         "info",
-        "Google Setup Required"
+        "Google Setup Required",
       );
       return null;
     }
@@ -353,7 +358,9 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
 
     setIsGoogleBackingUp(true);
     setGoogleStatusMessage(
-      isNepali ? "गुगलसँग प्रमाणीकरण हुँदैछ..." : "Authenticating with Google..."
+      isNepali
+        ? "गुगलसँग प्रमाणीकरण हुँदैछ..."
+        : "Authenticating with Google...",
     );
 
     try {
@@ -364,23 +371,23 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
       setGoogleStatusMessage(
         isNepali
           ? "गुगल स्प्रेडसिट जाँच तथा सिर्जना गरिँदैछ..."
-          : "Verifying / Creating backup Google Spreadsheet..."
+          : "Verifying / Creating backup Google Spreadsheet...",
       );
       const sheetInfo = await getOrCreateBackupSpreadsheet(
         accessToken,
-        currentShop?.name
+        currentShop?.name,
       );
 
       // 3. Export all SQLite tables + SQL dump
       setGoogleStatusMessage(
         isNepali
           ? "डाटा गुगल सिटमा अपलोड हुँदैछ..."
-          : "Uploading all tables & SQL dump to Google Sheet..."
+          : "Uploading all tables & SQL dump to Google Sheet...",
       );
       const result = await exportDatabaseToGoogleSheets(
         accessToken,
         sheetInfo.id,
-        currentShop?.name
+        currentShop?.name,
       );
 
       // Refresh config state
@@ -392,7 +399,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
           ? `गुगल सिटमा ब्याकअप सम्पन्न भयो (${result.totalRows} रेकर्डहरू)`
           : `Backed up successfully to Google Sheets (${result.totalRows} records synced)`,
         "success",
-        sheetInfo.isNew ? "Sheet Created & Backed Up" : "Google Sheet Updated"
+        sheetInfo.isNew ? "Sheet Created & Backed Up" : "Google Sheet Updated",
       );
     } catch (err: unknown) {
       console.error("Google Backup Error:", err);
@@ -407,13 +414,13 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
             ? "macOS मा पपअप रोकियो। कृपया '१. ब्राउजरमा खोल्नुहोस्' वा टोकन प्रयोग गर्नुहोस्।"
             : "Pop-up blocked on macOS. Please use '1. Sign In in Browser' or paste your token below.",
           "warning",
-          "macOS Pop-up Blocked"
+          "macOS Pop-up Blocked",
         );
       } else {
         showToast(
           errMsg || "Google Sheets backup failed.",
           "error",
-          "Google Backup Failed"
+          "Google Backup Failed",
         );
       }
     } finally {
@@ -434,7 +441,9 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
 
     setIsGoogleRestoring(true);
     setGoogleStatusMessage(
-      isNepali ? "गुगलसँग प्रमाणीकरण हुँदैछ..." : "Authenticating with Google..."
+      isNepali
+        ? "गुगलसँग प्रमाणीकरण हुँदैछ..."
+        : "Authenticating with Google...",
     );
 
     try {
@@ -444,22 +453,22 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
       setGoogleStatusMessage(
         isNepali
           ? "ब्याकअप गुगल सिट खोल्दै..."
-          : "Locating backup Google Spreadsheet..."
+          : "Locating backup Google Spreadsheet...",
       );
       const sheetInfo = await getOrCreateBackupSpreadsheet(
         accessToken,
-        currentShop?.name
+        currentShop?.name,
       );
 
       // Inspect sheet and prepare preview
       setGoogleStatusMessage(
         isNepali
           ? "गुगल सिटबाट रेकर्डहरू पढ्दै..."
-          : "Reading database records from Google Sheet..."
+          : "Reading database records from Google Sheet...",
       );
       const preview = await inspectGoogleSheetForRestore(
         accessToken,
-        sheetInfo.id
+        sheetInfo.id,
       );
 
       setGoogleRestorePreview(preview);
@@ -477,13 +486,13 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
             ? "macOS मा पपअप रोकियो। कृपया '१. ब्राउजरमा खोल्नुहोस्' वा टोकन प्रयोग गर्नुहोस्।"
             : "Pop-up blocked on macOS. Please use '1. Sign In in Browser' or paste your token below.",
           "warning",
-          "macOS Pop-up Blocked"
+          "macOS Pop-up Blocked",
         );
       } else {
         showToast(
           errMsg || "Failed to inspect Google Sheet backup.",
           "error",
-          "Google Restore Error"
+          "Google Restore Error",
         );
       }
     } finally {
@@ -503,7 +512,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
     setGoogleStatusMessage(
       isNepali
         ? "डाटाबेस पुनर्स्थापित गरिँदैछ..."
-        : "Applying database restore from Google Sheet..."
+        : "Applying database restore from Google Sheet...",
     );
 
     try {
@@ -512,7 +521,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
         isNepali
           ? "गुगल सिटबाट डाटाबेस सफलतापूर्वक पुनर्स्थापित भयो!"
           : "Database successfully restored from Google Sheet!",
-        "success"
+        "success",
       );
       setIsGoogleRestoreConfirmOpen(false);
       setGoogleRestorePreview(null);
@@ -535,7 +544,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
         isNepali
           ? "कृपया पहिले गुगल क्लाइन्ट आईडी (Client ID) प्रविष्ट गर्नुहोस्।"
           : "Please enter your Google OAuth Client ID first.",
-        "warning"
+        "warning",
       );
       return;
     }
@@ -551,7 +560,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
           ? "गुगल खाता सफलतापूर्वक प्रमाणीकरण भयो!"
           : "Google account successfully authenticated!",
         "success",
-        updated.userEmail || "Connected"
+        updated.userEmail || "Connected",
       );
     } catch (err: unknown) {
       showToast((err as Error).message, "error", "Google Sign-In Failed");
@@ -569,7 +578,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
         isNepali
           ? "कृपया पहिले गुगल क्लाइन्ट आईडी (Client ID) प्रविष्ट गर्नुहोस्।"
           : "Please enter your Google OAuth Client ID first.",
-        "warning"
+        "warning",
       );
       return;
     }
@@ -581,7 +590,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
         ? "गुगल लगइन पृष्ठ ब्राउजरमा खोलिएको छ। लगइन पछि टोकन प्रतिलिपि गर्नुहोस्।"
         : "Google sign-in page opened in browser. After login, copy your token or URL.",
       "info",
-      "Browser Opened"
+      "Browser Opened",
     );
   };
 
@@ -595,7 +604,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
           isNepali
             ? "क्लिपबोर्ड पहुँच उपलब्ध छैन। कृपया सिधै पेस्ट गर्नुहोस्।"
             : "Clipboard access not available. Please paste manually into the box.",
-          "info"
+          "info",
         );
         return;
       }
@@ -603,7 +612,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
       if (!clipText.trim()) {
         showToast(
           isNepali ? "क्लिपबोर्ड खाली छ।" : "Clipboard is empty.",
-          "warning"
+          "warning",
         );
         return;
       }
@@ -613,14 +622,14 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
         isNepali
           ? "टोकन क्लिपबोर्डबाट सुरक्षित गरियो!"
           : "Access token pasted from clipboard and saved!",
-        "success"
+        "success",
       );
     } catch {
       showToast(
         isNepali
           ? "क्लिपबोर्ड पढ्न सकिएन। कृपया तलको बाकसमा सिधै पेस्ट गर्नुहोस्।"
           : "Could not read clipboard. Please paste directly into the box.",
-        "warning"
+        "warning",
       );
     }
   };
@@ -646,7 +655,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
       isNepali
         ? "गुगल क्लाउड सेटिङहरू सुरक्षित गरियो।"
         : "Google Cloud Sync settings saved successfully.",
-      "success"
+      "success",
     );
   };
 
@@ -664,7 +673,7 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
       isNepali
         ? "गुगल सेसन विच्छेद (Disconnected) गरियो।"
         : "Google authentication session disconnected.",
-      "info"
+      "info",
     );
   };
 
@@ -826,7 +835,9 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
                   <span className="w-2 h-2 rounded-full bg-emerald-400" />
                   <span>
                     {isNepali ? "जोडिएको खाता:" : "Connected as:"}{" "}
-                    <strong className="text-neutral-100">{googleConfig.userEmail}</strong>
+                    <strong className="text-neutral-100">
+                      {googleConfig.userEmail}
+                    </strong>
                   </span>
                 </div>
               ) : (
@@ -849,7 +860,9 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
                   title="Open backup spreadsheet in Google Sheets"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span>{isNepali ? "गुगल सिट खोल्नुहोस्" : "Open Google Sheet"}</span>
+                  <span>
+                    {isNepali ? "गुगल सिट खोल्नुहोस्" : "Open Google Sheet"}
+                  </span>
                 </a>
               )}
 
@@ -883,13 +896,17 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
               {isGoogleBackingUp ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>{isNepali ? "ब्याकअप हुँदैछ..." : "Syncing to Sheets..."}</span>
+                  <span>
+                    {isNepali ? "ब्याकअप हुँदैछ..." : "Syncing to Sheets..."}
+                  </span>
                 </>
               ) : (
                 <>
                   <CloudUpload className="w-4 h-4" />
                   <span>
-                    {isNepali ? "गुगल सिटमा ब्याकअप लिनुहोस्" : "Backup to Google Sheets"}
+                    {isNepali
+                      ? "गुगल सिटमा ब्याकअप लिनुहोस्"
+                      : "Backup to Google Sheets"}
                   </span>
                 </>
               )}
@@ -912,7 +929,9 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
                 <>
                   <CloudDownload className="w-4 h-4" />
                   <span>
-                    {isNepali ? "गुगल सिटबाट पुनर्स्थापना" : "Restore from Google Sheets"}
+                    {isNepali
+                      ? "गुगल सिटबाट पुनर्स्थापना"
+                      : "Restore from Google Sheets"}
                   </span>
                 </>
               )}
@@ -930,7 +949,11 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
               title="Configure Google OAuth Client ID or sheet link"
             >
               <Settings className="w-3.5 h-3.5" />
-              <span>{isNepali ? "गुगल सेटिङ / क्लाइन्ट आईडी" : "Google Cloud Settings"}</span>
+              <span>
+                {isNepali
+                  ? "गुगल सेटिङ / क्लाइन्ट आईडी"
+                  : "Google Cloud Settings"}
+              </span>
             </button>
           </div>
         </div>
@@ -962,7 +985,9 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
                 <FileCode className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-neutral-200">
-                    {isNepali ? "एसक्यूएल डम्प (.sql)" : "SQL Script Dump (.sql)"}
+                    {isNepali
+                      ? "एसक्यूएल डम्प (.sql)"
+                      : "SQL Script Dump (.sql)"}
                   </div>
                   <div className="text-[11px] text-neutral-500 mt-0.5">
                     {isNepali
@@ -977,7 +1002,9 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
                 <HardDrive className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-neutral-200">
-                    {isNepali ? "बाइनरी डाटाबेस (.sqlite)" : "Binary Database (.sqlite)"}
+                    {isNepali
+                      ? "बाइनरी डाटाबेस (.sqlite)"
+                      : "Binary Database (.sqlite)"}
                   </div>
                   <div className="text-[11px] text-neutral-500 mt-0.5">
                     {isNepali
@@ -1001,7 +1028,9 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
               }
             >
               <FileCode className="w-4 h-4" />
-              <span>{isNepali ? "डाउनलोड .sql डम्प" : "Download .sql Dump"}</span>
+              <span>
+                {isNepali ? "डाउनलोड .sql डम्प" : "Download .sql Dump"}
+              </span>
             </button>
 
             <button
@@ -1093,7 +1122,9 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
           <div>
             <div className="text-xs font-medium text-neutral-200">
-              {isNepali ? "डाटाबेस रिसेट / खाली गर्नुहोस्" : "Clear & Reset Database"}
+              {isNepali
+                ? "डाटाबेस रिसेट / खाली गर्नुहोस्"
+                : "Clear & Reset Database"}
             </div>
             <div className="text-[11px] text-neutral-500 mt-0.5">
               {isNepali
@@ -1108,7 +1139,9 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
             className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-lg transition-colors cursor-pointer shrink-0"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>{isNepali ? "डाटाबेस रिसेट गर्नुहोस्" : "Reset Database"}</span>
+            <span>
+              {isNepali ? "डाटाबेस रिसेट गर्नुहोस्" : "Reset Database"}
+            </span>
           </button>
         </div>
       </div>
@@ -1136,7 +1169,9 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
         <form onSubmit={handleSaveGoogleSettings} className="space-y-4 text-xs">
           <div>
             <label className="block text-xs font-semibold text-neutral-300 mb-1">
-              {isNepali ? "गुगल क्लाइन्ट आईडी (Google Client ID) *" : "Google OAuth Client ID *"}
+              {isNepali
+                ? "गुगल क्लाइन्ट आईडी (Google Client ID) *"
+                : "Google OAuth Client ID *"}
             </label>
             <Input
               type="text"
@@ -1160,9 +1195,13 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <div>
                   <span className="block text-[11px] text-emerald-400/80">
-                    {isNepali ? "जोडिएको गुगल खाता" : "Connected Google Account"}
+                    {isNepali
+                      ? "जोडिएको गुगल खाता"
+                      : "Connected Google Account"}
                   </span>
-                  <strong className="text-neutral-100">{googleConfig.userEmail}</strong>
+                  <strong className="text-neutral-100">
+                    {googleConfig.userEmail}
+                  </strong>
                 </div>
               </div>
               <button
@@ -1216,7 +1255,9 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
                   ) : (
                     <Cloud className="w-3.5 h-3.5" />
                   )}
-                  <span>{isNepali ? "पपअप मार्फत प्रयास" : "Try In-App Pop-up"}</span>
+                  <span>
+                    {isNepali ? "पपअप मार्फत प्रयास" : "Try In-App Pop-up"}
+                  </span>
                 </button>
               </div>
 
@@ -1259,7 +1300,11 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
                 onClick={handlePasteTokenFromClipboard}
                 className="text-[11px] text-emerald-400 hover:text-emerald-300 font-medium underline flex items-center gap-1 cursor-pointer"
               >
-                <span>{isNepali ? "क्लिपबोर्डबाट पेस्ट गर्नुहोस्" : "Paste from Clipboard"}</span>
+                <span>
+                  {isNepali
+                    ? "क्लिपबोर्डबाट पेस्ट गर्नुहोस्"
+                    : "Paste from Clipboard"}
+                </span>
               </button>
             </div>
             <Input
@@ -1311,7 +1356,11 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
           <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-800 space-y-2 text-[11px] text-neutral-400">
             <div className="font-semibold text-neutral-200 flex items-center gap-1.5">
               <Info className="w-3.5 h-3.5 text-sky-400" />
-              <span>{isNepali ? "गुगल क्लाइन्ट आईडी बनाउने तरिका:" : "How to get a Google Client ID in 3 steps:"}</span>
+              <span>
+                {isNepali
+                  ? "गुगल क्लाइन्ट आईडी बनाउने तरिका:"
+                  : "How to get a Google Client ID in 3 steps:"}
+              </span>
             </div>
             <ol className="list-decimal pl-4 space-y-1 text-neutral-400">
               <li>
@@ -1326,14 +1375,19 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
                 </a>
               </li>
               <li>
-                Enable <strong>Google Sheets API</strong> and <strong>Google Drive API</strong>.
+                Enable <strong>Google Sheets API</strong> and{" "}
+                <strong>Google Drive API</strong>.
               </li>
               <li>
-                Create an <strong>OAuth Client ID (Web Application)</strong>, add{" "}
+                Create an <strong>OAuth Client ID (Web Application)</strong>,
+                add{" "}
                 <code className="text-neutral-300 bg-neutral-900 px-1 rounded">
-                  {typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}
+                  {typeof window !== "undefined"
+                    ? window.location.origin
+                    : "http://localhost:3000"}
                 </code>{" "}
-                to <em>Authorized JavaScript origins</em>, and paste the Client ID above.
+                to <em>Authorized JavaScript origins</em>, and paste the Client
+                ID above.
               </li>
             </ol>
           </div>
@@ -1346,9 +1400,13 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
                 className="px-3 py-1.5 text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>{isNepali ? "खाता विच्छेद (Disconnect)" : "Disconnect Google"}</span>
+                <span>
+                  {isNepali ? "खाता विच्छेद (Disconnect)" : "Disconnect Google"}
+                </span>
               </button>
-            ) : <div />}
+            ) : (
+              <div />
+            )}
 
             <div className="flex items-center gap-2">
               <button
@@ -1403,14 +1461,18 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
           {googleRestorePreview && (
             <div className="p-3.5 rounded-xl bg-neutral-950 border border-neutral-800 space-y-3">
               <div className="flex items-center justify-between text-neutral-300 border-b border-neutral-800 pb-2">
-                <span className="text-neutral-400">{isNepali ? "ब्याकअप मिति:" : "Backup Date:"}</span>
+                <span className="text-neutral-400">
+                  {isNepali ? "ब्याकअप मिति:" : "Backup Date:"}
+                </span>
                 <span className="font-mono font-medium">
                   {googleRestorePreview.backupDate}
                 </span>
               </div>
 
               <div className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">
-                {isNepali ? "पुनर्स्थापित हुने विवरणहरू:" : "Records to be restored:"}
+                {isNepali
+                  ? "पुनर्स्थापित हुने विवरणहरू:"
+                  : "Records to be restored:"}
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-neutral-300">
@@ -1501,7 +1563,9 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
               {isGoogleRestoring ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>{isNepali ? "पुनर्स्थापित हुँदैछ..." : "Restoring..."}</span>
+                  <span>
+                    {isNepali ? "पुनर्स्थापित हुँदैछ..." : "Restoring..."}
+                  </span>
                 </>
               ) : (
                 <span>
