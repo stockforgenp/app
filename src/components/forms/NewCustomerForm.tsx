@@ -4,7 +4,7 @@
  * Tracks contact details, PAN/VAT registration, repeat orders, and total expenditure.
  */
 import React, { useState } from "react";
-import { Users, Phone, Mail, FileText, MapPin } from "lucide-react";
+import { Users, Phone, FileText, MapPin } from "lucide-react";
 import { useLanguage } from "@/src/context/LanguageContext.tsx";
 import { useToast } from "@/src/context/ToastContext.tsx";
 import {
@@ -16,26 +16,29 @@ import Input from "../common/Input";
 
 interface CustomerFormProps {
   editingCustomer: Customer | null;
+  initialValues?: Partial<CreateCustomerInput>;
   onClose: () => void;
-  loadCustomers: () => void;
+  loadCustomers?: () => void;
+  onCustomerCreated?: (customer: Customer) => void;
 }
 
 export const NewCustomerForm: React.FC<CustomerFormProps> = ({
   editingCustomer,
+  initialValues,
   onClose,
   loadCustomers,
+  onCustomerCreated,
 }) => {
   const { showToast } = useToast();
   const { isNepali } = useLanguage();
 
   // Form Fields
   const [formData, setFormData] = useState<CreateCustomerInput>({
-    name: editingCustomer?.name ?? "",
-    phone: editingCustomer?.phone ?? "",
-    email: editingCustomer?.email ?? "",
-    pan_vat: editingCustomer?.pan_vat ?? "",
-    address: editingCustomer?.address ?? "",
-    notes: editingCustomer?.notes ?? "",
+    name: editingCustomer?.name ?? initialValues?.name ?? "",
+    phone: editingCustomer?.phone ?? initialValues?.phone ?? "",
+    pan_vat: editingCustomer?.pan_vat ?? initialValues?.pan_vat ?? "",
+    address: editingCustomer?.address ?? initialValues?.address ?? "",
+    notes: editingCustomer?.notes ?? initialValues?.notes ?? "",
   });
 
   const handleSubmitForm = (e: React.FormEvent) => {
@@ -57,17 +60,30 @@ export const NewCustomerForm: React.FC<CustomerFormProps> = ({
             : `Customer "${formData.name.trim()}" updated successfully`,
           "success",
         );
+        if (onCustomerCreated) {
+          onCustomerCreated({
+            ...editingCustomer,
+            name: formData.name.trim(),
+            phone: formData.phone?.trim() || null,
+            pan_vat: formData.pan_vat?.trim() || null,
+            address: formData.address?.trim() || null,
+            notes: formData.notes?.trim() || null,
+          });
+        }
       } else {
-        createCustomer(formData);
+        const created = createCustomer(formData);
         showToast(
           isNepali
             ? `नयाँ ग्राहक "${formData.name.trim()}" सफलतापूर्वक थपियो`
             : `Customer "${formData.name.trim()}" created successfully`,
           "success",
         );
+        if (onCustomerCreated) {
+          onCustomerCreated(created);
+        }
       }
       onClose();
-      loadCustomers();
+      if (loadCustomers) loadCustomers();
     } catch (err: unknown) {
       showToast((err as Error).message, "error");
     }
@@ -125,39 +141,24 @@ export const NewCustomerForm: React.FC<CustomerFormProps> = ({
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input
-          label={
-            <>
-              <Mail className="w-3.5 h-3.5 text-neutral-400" />
-              <span>{isNepali ? "इमेल" : "Email Address"}</span>
-            </>
-          }
-          type="email"
-          placeholder="customer@example.com"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-        />
-
-        <Input
-          label={
-            <>
-              <MapPin className="w-3.5 h-3.5 text-neutral-400" />
-              <span>{isNepali ? "ठेगाना" : "Address"}</span>
-            </>
-          }
-          type="text"
-          placeholder={
-            isNepali
-              ? "उदा. नयाँ बानेश्वर, काठमाडौँ"
-              : "e.g. New Baneshwor, Kathmandu"
-          }
-          value={formData.address}
-          onChange={(e) =>
-            setFormData({ ...formData, address: e.target.value })
-          }
-        />
-      </div>
+      <Input
+        label={
+          <>
+            <MapPin className="w-3.5 h-3.5 text-neutral-400" />
+            <span>{isNepali ? "ठेगाना" : "Address"}</span>
+          </>
+        }
+        type="text"
+        placeholder={
+          isNepali
+            ? "उदा. नयाँ बानेश्वर, काठमाडौँ"
+            : "e.g. New Baneshwor, Kathmandu"
+        }
+        value={formData.address}
+        onChange={(e) =>
+          setFormData({ ...formData, address: e.target.value })
+        }
+      />
 
       <div>
         <label className="block text-xs font-semibold text-neutral-300 mb-1">

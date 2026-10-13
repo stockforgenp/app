@@ -309,10 +309,7 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                       Sale Price
                     </th>
                     <th className="py-2.5 px-3 text-right font-mono">
-                      Discount
-                    </th>
-                    <th className="py-2.5 px-3 text-right font-mono">
-                      Net Total
+                      Total
                     </th>
                     <th className="py-2.5 px-4 text-right font-mono">
                       Item Profit
@@ -345,14 +342,13 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                         {formatCurrency(item.selling_price, currencySymbol)}
                       </td>
 
-                      <td className="py-3 px-3 text-right font-mono text-amber-400">
-                        {item.discount > 0
-                          ? `- ${formatCurrency(item.discount, currencySymbol)}`
-                          : "—"}
-                      </td>
-
                       <td className="py-3 px-3 text-right font-mono font-bold text-neutral-100">
                         {formatCurrency(item.total, currencySymbol)}
+                        {item.discount > 0 && (
+                          <div className="text-[10px] font-normal text-amber-400 font-mono">
+                            -{formatCurrency(item.discount, currencySymbol)}
+                          </div>
+                        )}
                       </td>
 
                       <td className="py-3 px-4 text-right font-mono font-semibold text-emerald-400">

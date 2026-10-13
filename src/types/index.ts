@@ -49,7 +49,6 @@ export interface Sale {
   customer_id?: number | null;
   customer_name?: string | null;
   customer_phone?: string | null;
-  customer_email?: string | null;
   customer_pan_vat?: string | null;
   customer_address?: string | null;
   subtotal: number;
@@ -104,7 +103,6 @@ export interface ProcessSaleCustomerInfo {
   customerId?: number | null;
   customerName?: string | null;
   customerPhone?: string | null;
-  customerEmail?: string | null;
   customerPanVat?: string | null;
   customerAddress?: string | null;
   applyVat?: boolean;
@@ -113,7 +111,6 @@ export interface ProcessSaleCustomerInfo {
   customerInput?: {
     name: string;
     phone?: string;
-    email?: string;
     pan_vat?: string;
     address?: string;
     notes?: string;
@@ -482,7 +479,6 @@ export interface CreateVendorInput {
 export interface Customer {
   id: number;
   name: string;
-  email?: string | null;
   phone?: string | null;
   pan_vat?: string | null;
   address?: string | null;
@@ -496,7 +492,6 @@ export interface Customer {
 
 export interface CreateCustomerInput {
   name: string;
-  email?: string | null;
   phone?: string | null;
   pan_vat?: string | null;
   address?: string | null;

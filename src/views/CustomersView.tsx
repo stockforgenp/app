@@ -134,7 +134,6 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
         c.name.toLowerCase().includes(q) ||
         (c.phone && c.phone.toLowerCase().includes(q)) ||
         (c.pan_vat && c.pan_vat.toLowerCase().includes(q)) ||
-        (c.email && c.email.toLowerCase().includes(q)) ||
         (c.address && c.address.toLowerCase().includes(q)),
     );
   }, [customers, search]);
@@ -290,8 +289,8 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
         onSearchChange={setSearch}
         searchPlaceholder={
           isNepali
-            ? "ग्राहकको नाम, फोन, इमेल वा PAN खोज्नुहोस्..."
-            : "Search by customer name, phone, email, or PAN/VAT..."
+            ? "ग्राहकको नाम, फोन वा PAN खोज्नुहोस्..."
+            : "Search by customer name, phone, or PAN/VAT..."
         }
         extraActionsSlot={
           <button

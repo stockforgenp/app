@@ -180,9 +180,6 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
         const price = formatCurrency(it.selling_price, '', false).padStart(8);
         const lineTotal = formatCurrency(it.total, '', false).padStart(9);
         text += `${name} ${qty} ${price} ${lineTotal}\n`;
-        if (it.discount > 0) {
-          text += `  (Discount: -${formatCurrency(it.discount, currencySymbol)})\n`;
-        }
       });
 
       text += `${lineSeparator}\n`;
@@ -478,11 +475,6 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
                               </span>
                             )}
                           </div>
-                          {it.discount > 0 && (
-                            <div className="text-[9px] text-emerald-700">
-                              {isNepali ? 'छुट:' : 'Disc:'} -{formatCurrency(it.discount, currencySymbol)}
-                            </div>
-                          )}
                         </td>
                         <td className="py-1.5 px-1 text-center font-bold text-gray-800 whitespace-nowrap">
                           {it.quantity} {it.product_unit ? <span className="font-normal text-[10px] text-gray-500">{it.product_unit}</span> : ''}

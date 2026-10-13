@@ -10,7 +10,6 @@ import {
   Mail,
   HelpCircle,
   Printer,
-  Barcode,
   Database,
   ExternalLink,
   Laptop,
@@ -57,15 +56,6 @@ export const TechnicalSupportView: React.FC = () => {
       desc: isNepali
         ? "५८mm वा ८०mm USB/LAN थर्मल प्रिन्टर जोड्दा प्रिन्ट नभएमा केबल जाँच्नुहोस्, रोलको दिशा मिलाउनुहोस् र ब्राउजर प्रिन्ट डायलगमा मार्जिन शून्य राख्नुहोस्।"
         : "Ensure your 58mm or 80mm ESC/POS printer is set as default in system settings. For clean receipt prints, set page margins to None/Minimum.",
-    },
-    {
-      icon: Barcode,
-      title: isNepali
-        ? "बारकोड स्क्यानरले कोड नपढेमा"
-        : "Barcode Scanner Configuration",
-      desc: isNepali
-        ? "बारकोड स्क्यानरले किबोर्ड इमुलेसन (USB HID) प्रयोग गर्दछ। कम्प्युटरको किबोर्ड भाषा अंग्रेजी (EN-US) मा छ कि छैन निश्चित गर्नुहोस्।"
-        : "Barcode scanners act as rapid keyboard inputs. Ensure your system input method is English (US) so scanned numerical digits are not converted.",
     },
     {
       icon: Database,

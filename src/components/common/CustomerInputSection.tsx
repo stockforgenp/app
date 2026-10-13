@@ -1,10 +1,3 @@
-/**
- * Customer Search, Autocomplete & Auto-Creation Input Section
- * Used during POS Sales checkout.
- * Searches existing customers by Name, Phone, or PAN/VAT;
- * If found, auto-fills details; if not found, allows inputting customer details
- * which are automatically created in the database upon sale completion.
- */
 import React, { useState, useEffect, useRef } from 'react';
 import {
   User,
@@ -12,25 +5,24 @@ import {
   Check,
   Plus,
   X,
-  ChevronDown,
-  ChevronUp,
   UserCheck,
-  Sparkles,
   Phone,
-  Mail,
   FileText,
   MapPin,
+  Edit2,
+  UserPlus,
 } from 'lucide-react';
 import { Customer } from '../../types/index.ts';
 import { searchCustomers } from '../../lib/services/customerService.ts';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { Input } from './Input.tsx';
+import { Modal } from './Modal.tsx';
+import { NewCustomerForm } from '../forms/NewCustomerForm.tsx';
 
 export interface CustomerInputData {
   customerId: number | null;
   name: string;
   phone: string;
-  email: string;
   pan_vat: string;
   address: string;
   notes?: string;
@@ -50,7 +42,7 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
   const [query, setQuery] = useState(value.name || value.phone || '');
   const [results, setResults] = useState<Customer[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [showExtraFields, setShowExtraFields] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Sync external name changes
@@ -87,12 +79,10 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
   const handleSelectCustomer = (customer: Customer) => {
     setQuery(customer.name);
     setIsOpen(false);
-    setShowExtraFields(true);
     onChange({
       customerId: customer.id,
       name: customer.name,
       phone: customer.phone || '',
-      email: customer.email || '',
       pan_vat: customer.pan_vat || '',
       address: customer.address || '',
       notes: customer.notes || '',
@@ -118,7 +108,6 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
         customerId: isExactMatch.id,
         name: isExactMatch.name,
         phone: isExactMatch.phone || value.phone,
-        email: isExactMatch.email || value.email,
         pan_vat: isExactMatch.pan_vat || value.pan_vat,
         address: isExactMatch.address || value.address,
         notes: isExactMatch.notes || value.notes,
@@ -140,12 +129,10 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
   const handleClear = () => {
     setQuery('');
     setIsOpen(false);
-    setShowExtraFields(false);
     onChange({
       customerId: null,
       name: '',
       phone: '',
-      email: '',
       pan_vat: '',
       address: '',
       notes: '',
@@ -153,12 +140,26 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
     });
   };
 
+  const handleCustomerCreated = (customer: Customer) => {
+    setQuery(customer.name);
+    setIsDialogOpen(false);
+    setIsOpen(false);
+    onChange({
+      customerId: customer.id,
+      name: customer.name,
+      phone: customer.phone || '',
+      pan_vat: customer.pan_vat || '',
+      address: customer.address || '',
+      notes: customer.notes || '',
+      isNew: false,
+    });
+  };
+
+  const hasCustomerInfo = Boolean(value.name.trim() || value.phone.trim() || value.pan_vat.trim());
   const isExistingCustomer = value.customerId !== null;
-  const isNewCustomerCandidate =
-    !isExistingCustomer && (value.name.trim().length > 0 || value.phone.trim().length > 0);
 
   return (
-    <div className="bg-neutral-900/60 border border-neutral-800 rounded-xl p-3.5 space-y-3">
+    <div className="bg-neutral-900/60 border border-neutral-800 rounded-xl p-3.5 space-y-2.5">
       {/* Section Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -174,22 +175,34 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
             </label>
             <p className="text-[10px] text-neutral-400">
               {isNepali
-                ? 'नाम, फोन वा PAN बाट खोज्नुहोस् वा नयाँ ग्राहक भर्नुहोस् (स्वतः दर्ता हुनेछ)'
-                : 'Search existing customer or enter new details to auto-save'}
+                ? 'नाम, फोन वा PAN बाट खोज्नुहोस् वा ग्राहक थप्नुहोस्'
+                : 'Search customer or add new customer in dialog'}
             </p>
           </div>
         </div>
 
-        {(value.name || value.phone || value.pan_vat) && (
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={handleClear}
-            className="text-[11px] text-neutral-400 hover:text-rose-400 flex items-center gap-1 transition-colors cursor-pointer"
+            onClick={() => setIsDialogOpen(true)}
+            className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
           >
-            <X className="w-3 h-3" />
-            <span>{isNepali ? 'हटाउनुहोस्' : 'Clear'}</span>
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>{isNepali ? 'नयाँ ग्राहक' : 'Add Customer'}</span>
           </button>
-        )}
+
+          {hasCustomerInfo && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="text-[11px] text-neutral-400 hover:text-rose-400 flex items-center gap-1 transition-colors cursor-pointer px-1.5 py-1"
+              title={isNepali ? 'हटाउनुहोस्' : 'Clear customer'}
+            >
+              <X className="w-3 h-3" />
+              <span>{isNepali ? 'हटाउनुहोस्' : 'Clear'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Search / Autocomplete Field */}
@@ -258,13 +271,13 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
               ))
             ) : null}
 
-            {/* Prompt to add as new customer if query is entered */}
+            {/* Prompt to add as new customer in Dialog */}
             {query.trim().length > 0 &&
               !results.some((r) => r.name.toLowerCase() === query.trim().toLowerCase()) && (
                 <div
                   onClick={() => {
                     setIsOpen(false);
-                    setShowExtraFields(true);
+                    setIsDialogOpen(true);
                   }}
                   className="px-3.5 py-2.5 bg-emerald-950/20 hover:bg-emerald-950/40 text-left flex items-center justify-between text-xs cursor-pointer text-emerald-400"
                 >
@@ -272,12 +285,12 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
                     <Plus className="w-3.5 h-3.5" />
                     <span>
                       {isNepali
-                        ? `नयाँ ग्राहकको रूपमा दर्ता: "${query.trim()}"`
-                        : `Add as new customer: "${query.trim()}"`}
+                        ? `नयाँ ग्राहक थप्नुहोस्: "${query.trim()}"`
+                        : `Add new customer dialog: "${query.trim()}"`}
                     </span>
                   </div>
                   <span className="text-[10px] text-emerald-300/80 bg-emerald-500/10 px-2 py-0.5 rounded">
-                    {isNepali ? 'स्वतः सिर्जना' : 'Auto-Create'}
+                    {isNepali ? 'डायलॉग' : 'Dialog'}
                   </span>
                 </div>
               )}
@@ -285,145 +298,119 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
         )}
       </div>
 
-      {/* Customer Status Badge */}
-      {isExistingCustomer && (
-        <div className="flex items-center justify-between px-3 py-1.5 bg-emerald-950/30 border border-emerald-500/30 rounded-lg text-xs text-emerald-300">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <UserCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="truncate font-medium">
-              {isNepali ? 'दर्ता भएको ग्राहक:' : 'Registered Customer:'}{' '}
-              <strong className="text-emerald-200">{value.name}</strong>
-              {value.phone && (
-                <span className="ml-1.5 font-mono text-[11px] text-emerald-400">
-                  ({value.phone})
-                </span>
+      {/* Minimal Customer Details Display */}
+      {hasCustomerInfo && (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-neutral-950/80 border border-neutral-800/80 rounded-lg text-xs">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
+            {/* Customer Name */}
+            <div className="flex items-center gap-1.5 min-w-0 font-medium text-neutral-200">
+              {isExistingCustomer ? (
+                <UserCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              ) : (
+                <User className="w-3.5 h-3.5 text-sky-400 shrink-0" />
               )}
-              {value.pan_vat && (
-                <span className="ml-1.5 font-mono text-[11px] text-emerald-300">
-                  [PAN: {value.pan_vat}]
-                </span>
-              )}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowExtraFields(!showExtraFields)}
-            className="text-[11px] text-emerald-400 hover:text-emerald-200 flex items-center gap-1 cursor-pointer shrink-0 ml-2"
-          >
-            <span>
-              {showExtraFields
-                ? isNepali
-                  ? 'लुकाउनुहोस्'
-                  : 'Hide details'
-                : isNepali
-                ? 'विवरण थप्नुहोस् / हेर्नुहोस्'
-                : 'Add / View details'}
-            </span>
-            {showExtraFields ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
-        </div>
-      )}
-
-      {isNewCustomerCandidate && (
-        <div className="flex items-center justify-between px-3 py-1.5 bg-sky-950/30 border border-sky-500/30 rounded-lg text-xs text-sky-300">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <Sparkles className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-            <span className="truncate">
-              {isNepali
-                ? `नयाँ ग्राहक "${value.name || value.phone}" बिक्री सम्पन्न हुँदा स्वतः दर्ता हुनेछ`
-                : `New customer "${value.name || value.phone}" will be automatically saved on sale`}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowExtraFields(!showExtraFields)}
-            className="text-[11px] text-sky-400 hover:text-sky-200 flex items-center gap-1 cursor-pointer shrink-0 ml-2"
-          >
-            <span>
-              {showExtraFields
-                ? isNepali
-                  ? 'लुकाउनुहोस्'
-                  : 'Hide'
-                : isNepali
-                ? 'थप विवरण थप्नुहोस्'
-                : 'Add details'}
-            </span>
-            {showExtraFields ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
-        </div>
-      )}
-
-      {/* Extra Details Accordion (Name, Phone, PAN, Email, Address) */}
-      {(showExtraFields || isNewCustomerCandidate) && (
-        <div className="pt-2 space-y-2.5 border-t border-neutral-800/80 animate-in fade-in duration-200">
-          {isExistingCustomer && (
-            <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 bg-emerald-950/20 px-2.5 py-1.5 rounded-lg border border-emerald-500/20">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span>
-                {isNepali
-                  ? 'नयाँ वा थपिएका विवरणहरू (PAN, इमेल, ठेगाना) यो बिक्री सम्पन्न हुँदा ग्राहक प्रोफाइलमा स्वतः सुरक्षित हुनेछन्।'
-                  : 'New or added details (PAN/VAT, email, address) will automatically update the customer profile on sale.'}
+              <span className="truncate max-w-[150px] font-semibold text-neutral-100">
+                {value.name || (isNepali ? 'अनाम ग्राहक' : 'Customer')}
               </span>
+              {isExistingCustomer ? (
+                <span className="text-[10px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded shrink-0">
+                  {isNepali ? 'दर्ता भएको' : 'Registered'}
+                </span>
+              ) : (
+                <span className="text-[10px] font-medium text-sky-400 bg-sky-500/10 border border-sky-500/20 px-1.5 py-0.2 rounded shrink-0">
+                  {isNepali ? 'नयाँ ग्राहक' : 'New'}
+                </span>
+              )}
             </div>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <Input
-              label={isNepali ? 'ग्राहकको नाम' : 'Customer Name'}
-              icon={User}
-              type="text"
-              sizeVariant="sm"
-              placeholder={isNepali ? 'उदा. राम श्रेष्ठ' : 'e.g. Ram Shrestha'}
-              value={value.name}
-              onChange={(e) => onChange({ ...value, name: e.target.value, isNew: !isExistingCustomer })}
-            />
 
-            <Input
-              label={isNepali ? 'फोन / मोबाइल' : 'Phone / Mobile'}
-              icon={Phone}
-              type="tel"
-              sizeVariant="sm"
-              mono
-              placeholder={isNepali ? 'उदा. 9841234567' : 'e.g. 9841234567'}
-              value={value.phone}
-              onChange={(e) => onChange({ ...value, phone: e.target.value, isNew: !isExistingCustomer })}
-            />
+            {/* Phone Chip */}
+            {value.phone && (
+              <div className="flex items-center gap-1 text-[11px] text-neutral-300 font-mono">
+                <Phone className="w-3 h-3 text-neutral-500 shrink-0" />
+                <span>{value.phone}</span>
+              </div>
+            )}
+
+            {/* PAN / VAT Chip */}
+            {value.pan_vat && (
+              <div className="flex items-center gap-1 text-[11px] text-neutral-400 font-mono">
+                <FileText className="w-3 h-3 text-neutral-500 shrink-0" />
+                <span>PAN: {value.pan_vat}</span>
+              </div>
+            )}
+
+            {/* Address Chip */}
+            {value.address && (
+              <div className="flex items-center gap-1 text-[11px] text-neutral-400 truncate max-w-[180px]">
+                <MapPin className="w-3 h-3 text-neutral-500 shrink-0" />
+                <span className="truncate">{value.address}</span>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <Input
-              label={isNepali ? 'PAN / VAT नम्बर' : 'PAN / VAT Number'}
-              icon={FileText}
-              type="text"
-              sizeVariant="sm"
-              mono
-              className="uppercase"
-              placeholder={isNepali ? 'उदा. 601234567' : 'e.g. 601234567'}
-              value={value.pan_vat}
-              onChange={(e) => onChange({ ...value, pan_vat: e.target.value, isNew: !isExistingCustomer })}
-            />
-
-            <Input
-              label={isNepali ? 'इमेल ठेगाना' : 'Email Address'}
-              icon={Mail}
-              type="email"
-              sizeVariant="sm"
-              placeholder="customer@example.com"
-              value={value.email}
-              onChange={(e) => onChange({ ...value, email: e.target.value, isNew: !isExistingCustomer })}
-            />
-          </div>
-
-          <Input
-            label={isNepali ? 'ठेगाना' : 'Address'}
-            icon={MapPin}
-            type="text"
-            sizeVariant="sm"
-            placeholder={isNepali ? 'उदा. नयाँ बानेश्वर, काठमाडौँ' : 'e.g. New Baneshwor, Kathmandu'}
-            value={value.address}
-            onChange={(e) => onChange({ ...value, address: e.target.value, isNew: !isExistingCustomer })}
-          />
+          {/* Quick Edit in Dialog Button */}
+          <button
+            type="button"
+            onClick={() => setIsDialogOpen(true)}
+            className="text-[11px] text-neutral-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer shrink-0 transition-colors ml-auto"
+            title={isNepali ? 'विवरण सम्पादन गर्नुहोस्' : 'Edit details in dialog'}
+          >
+            <Edit2 className="w-3 h-3" />
+            <span>{isNepali ? 'सम्पादन' : 'Edit'}</span>
+          </button>
         </div>
       )}
+
+      {/* Add / Edit Customer Modal Dialog */}
+      <Modal
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        title={
+          value.customerId
+            ? isNepali
+              ? 'ग्राहक विवरण सम्पादन गर्नुहोस्'
+              : 'Edit Customer Details'
+            : isNepali
+            ? 'नयाँ ग्राहक दर्ता गर्नुहोस्'
+            : 'Add New Customer'
+        }
+        subtitle={
+          isNepali
+            ? 'नाम, फोन, PAN/VAT र ठेगाना प्रविष्ट गर्नुहोस्'
+            : 'Enter customer name, phone, PAN/VAT, and address'
+        }
+        maxWidth="md"
+      >
+        <NewCustomerForm
+          editingCustomer={
+            value.customerId
+              ? {
+                  id: value.customerId,
+                  name: value.name,
+                  phone: value.phone || null,
+                  pan_vat: value.pan_vat || null,
+                  address: value.address || null,
+                  notes: value.notes || null,
+                  created_at: '',
+                  updated_at: '',
+                }
+              : null
+          }
+          initialValues={
+            !value.customerId
+              ? {
+                  name: /^[0-9+\s\-()]{7,}$/.test(query.trim()) ? value.name : query.trim() || value.name,
+                  phone: /^[0-9+\s\-()]{7,}$/.test(query.trim()) ? query.trim() : value.phone,
+                  pan_vat: value.pan_vat,
+                  address: value.address,
+                  notes: value.notes,
+                }
+              : undefined
+          }
+          onClose={() => setIsDialogOpen(false)}
+          onCustomerCreated={handleCustomerCreated}
+        />
+      </Modal>
     </div>
   );
 };

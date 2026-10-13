@@ -25,7 +25,6 @@ export interface ProcessSaleCustomerInfo {
   customerId?: number | null;
   customerName?: string | null;
   customerPhone?: string | null;
-  customerEmail?: string | null;
   customerPanVat?: string | null;
   customerAddress?: string | null;
   applyVat?: boolean;
@@ -34,7 +33,6 @@ export interface ProcessSaleCustomerInfo {
   customerInput?: {
     name: string;
     phone?: string;
-    email?: string;
     pan_vat?: string;
     address?: string;
   };
@@ -134,14 +132,12 @@ export function processSale(
     let resolvedCustomerId = customerInfo?.customerId ?? null;
     let resolvedCustomerName = customerInfo?.customerName?.trim() || null;
     let resolvedCustomerPhone = customerInfo?.customerPhone?.trim() || null;
-    let resolvedCustomerEmail = customerInfo?.customerEmail?.trim() || null;
     let resolvedCustomerPanVat = customerInfo?.customerPanVat?.trim() || null;
     let resolvedCustomerAddress = customerInfo?.customerAddress?.trim() || null;
 
     if (customerInfo?.customerInput) {
       if (customerInfo.customerInput.name) resolvedCustomerName = customerInfo.customerInput.name.trim();
       if (customerInfo.customerInput.phone) resolvedCustomerPhone = customerInfo.customerInput.phone.trim();
-      if (customerInfo.customerInput.email) resolvedCustomerEmail = customerInfo.customerInput.email.trim();
       if (customerInfo.customerInput.pan_vat) resolvedCustomerPanVat = customerInfo.customerInput.pan_vat.trim();
       if (customerInfo.customerInput.address) resolvedCustomerAddress = customerInfo.customerInput.address.trim();
     }
@@ -154,9 +150,6 @@ export function processSale(
 
         if (resolvedCustomerPanVat && resolvedCustomerPanVat !== (existingCustomer.pan_vat || '')) {
           updates.pan_vat = resolvedCustomerPanVat;
-        }
-        if (resolvedCustomerEmail && resolvedCustomerEmail !== (existingCustomer.email || '')) {
-          updates.email = resolvedCustomerEmail;
         }
         if (resolvedCustomerAddress && resolvedCustomerAddress !== (existingCustomer.address || '')) {
           updates.address = resolvedCustomerAddress;
@@ -180,7 +173,6 @@ export function processSale(
           if (updated) {
             resolvedCustomerName = updated.name;
             resolvedCustomerPhone = updated.phone ?? resolvedCustomerPhone;
-            resolvedCustomerEmail = updated.email ?? resolvedCustomerEmail;
             resolvedCustomerPanVat = updated.pan_vat ?? resolvedCustomerPanVat;
             resolvedCustomerAddress = updated.address ?? resolvedCustomerAddress;
           }
@@ -188,7 +180,6 @@ export function processSale(
           // Merge existing profile fields into any empty fields so the bill retains full profile info
           resolvedCustomerName = resolvedCustomerName || existingCustomer.name;
           resolvedCustomerPhone = resolvedCustomerPhone || (existingCustomer.phone ?? null);
-          resolvedCustomerEmail = resolvedCustomerEmail || (existingCustomer.email ?? null);
           resolvedCustomerPanVat = resolvedCustomerPanVat || (existingCustomer.pan_vat ?? null);
           resolvedCustomerAddress = resolvedCustomerAddress || (existingCustomer.address ?? null);
         }
@@ -198,7 +189,6 @@ export function processSale(
       const c = findOrCreateCustomer({
         name: resolvedCustomerName || (resolvedCustomerPhone ? `Customer (${resolvedCustomerPhone})` : 'Walk-in Customer'),
         phone: resolvedCustomerPhone || undefined,
-        email: resolvedCustomerEmail || undefined,
         pan_vat: resolvedCustomerPanVat || undefined,
         address: resolvedCustomerAddress || undefined,
       });
@@ -206,7 +196,6 @@ export function processSale(
         resolvedCustomerId = c.id;
         resolvedCustomerName = c.name;
         resolvedCustomerPhone = c.phone || resolvedCustomerPhone;
-        resolvedCustomerEmail = c.email || resolvedCustomerEmail;
         resolvedCustomerPanVat = c.pan_vat || resolvedCustomerPanVat;
         resolvedCustomerAddress = c.address || resolvedCustomerAddress;
       }
@@ -222,16 +211,15 @@ export function processSale(
     run(
       `INSERT INTO sales (
         bill_number, customer_id, customer_name, customer_phone,
-        customer_email, customer_pan_vat, customer_address,
+        customer_pan_vat, customer_address,
         subtotal, discount, taxable_amount, vat_rate, vat_amount,
         grand_total, total, paid_amount, due_amount, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         billNumber,
         resolvedCustomerId,
         resolvedCustomerName,
         resolvedCustomerPhone,
-        resolvedCustomerEmail,
         resolvedCustomerPanVat,
         resolvedCustomerAddress,
         saleSubtotal,
@@ -328,7 +316,6 @@ export function getSales(options?: {
       s.customer_id,
       s.customer_name,
       s.customer_phone,
-      s.customer_email,
       s.customer_pan_vat,
       s.customer_address,
       s.subtotal,
@@ -399,7 +386,6 @@ export function getSaleWithItems(saleId: number): { sale: Sale; items: SaleItem[
        s.customer_id,
        s.customer_name,
        s.customer_phone,
-       s.customer_email,
        s.customer_pan_vat,
        s.customer_address,
        s.subtotal,
@@ -566,14 +552,12 @@ export function updateSale(
     let resolvedCustomerId = customerInfo?.customerId !== undefined ? customerInfo.customerId : existing.sale.customer_id;
     let resolvedCustomerName = customerInfo?.customerName !== undefined ? customerInfo.customerName?.trim() || null : existing.sale.customer_name;
     let resolvedCustomerPhone = customerInfo?.customerPhone !== undefined ? customerInfo.customerPhone?.trim() || null : existing.sale.customer_phone;
-    let resolvedCustomerEmail = customerInfo?.customerEmail !== undefined ? customerInfo.customerEmail?.trim() || null : existing.sale.customer_email;
     let resolvedCustomerPanVat = customerInfo?.customerPanVat !== undefined ? customerInfo.customerPanVat?.trim() || null : existing.sale.customer_pan_vat;
     let resolvedCustomerAddress = customerInfo?.customerAddress !== undefined ? customerInfo.customerAddress?.trim() || null : existing.sale.customer_address;
 
     if (customerInfo?.customerInput) {
       if (customerInfo.customerInput.name) resolvedCustomerName = customerInfo.customerInput.name.trim();
       if (customerInfo.customerInput.phone) resolvedCustomerPhone = customerInfo.customerInput.phone.trim();
-      if (customerInfo.customerInput.email) resolvedCustomerEmail = customerInfo.customerInput.email.trim();
       if (customerInfo.customerInput.pan_vat) resolvedCustomerPanVat = customerInfo.customerInput.pan_vat.trim();
       if (customerInfo.customerInput.address) resolvedCustomerAddress = customerInfo.customerInput.address.trim();
     }
@@ -583,7 +567,6 @@ export function updateSale(
       if (existingCustomer) {
         const updates: Partial<CreateCustomerInput> = {};
         if (resolvedCustomerPanVat && resolvedCustomerPanVat !== (existingCustomer.pan_vat || '')) updates.pan_vat = resolvedCustomerPanVat;
-        if (resolvedCustomerEmail && resolvedCustomerEmail !== (existingCustomer.email || '')) updates.email = resolvedCustomerEmail;
         if (resolvedCustomerAddress && resolvedCustomerAddress !== (existingCustomer.address || '')) updates.address = resolvedCustomerAddress;
         if (resolvedCustomerPhone && resolvedCustomerPhone !== (existingCustomer.phone || '')) updates.phone = resolvedCustomerPhone;
         if (resolvedCustomerName && resolvedCustomerName !== existingCustomer.name) updates.name = resolvedCustomerName;
@@ -593,7 +576,6 @@ export function updateSale(
       const c = findOrCreateCustomer({
         name: resolvedCustomerName || (resolvedCustomerPhone ? `Customer (${resolvedCustomerPhone})` : 'Walk-in Customer'),
         phone: resolvedCustomerPhone || undefined,
-        email: resolvedCustomerEmail || undefined,
         pan_vat: resolvedCustomerPanVat || undefined,
         address: resolvedCustomerAddress || undefined,
       });
@@ -601,7 +583,6 @@ export function updateSale(
         resolvedCustomerId = c.id;
         resolvedCustomerName = c.name;
         resolvedCustomerPhone = c.phone || resolvedCustomerPhone;
-        resolvedCustomerEmail = c.email || resolvedCustomerEmail;
         resolvedCustomerPanVat = c.pan_vat || resolvedCustomerPanVat;
         resolvedCustomerAddress = c.address || resolvedCustomerAddress;
       }
@@ -621,7 +602,6 @@ export function updateSale(
         customer_id = ?,
         customer_name = ?,
         customer_phone = ?,
-        customer_email = ?,
         customer_pan_vat = ?,
         customer_address = ?,
         subtotal = ?,
@@ -639,7 +619,6 @@ export function updateSale(
         resolvedCustomerId ?? null,
         resolvedCustomerName ?? null,
         resolvedCustomerPhone ?? null,
-        resolvedCustomerEmail ?? null,
         resolvedCustomerPanVat ?? null,
         resolvedCustomerAddress ?? null,
         saleSubtotal,

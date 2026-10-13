@@ -159,10 +159,6 @@ function migrateDatabaseIfNeeded(db: Database) {
         db.run('ALTER TABLE sales ADD COLUMN customer_phone TEXT;');
         changed = true;
       }
-      if (!colNames.includes('customer_email')) {
-        db.run('ALTER TABLE sales ADD COLUMN customer_email TEXT;');
-        changed = true;
-      }
       if (!colNames.includes('customer_pan_vat')) {
         db.run('ALTER TABLE sales ADD COLUMN customer_pan_vat TEXT;');
         changed = true;

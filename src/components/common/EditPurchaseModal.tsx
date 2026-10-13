@@ -40,6 +40,7 @@ import {
   formatForDateTimeLocal,
   parseDateTimeLocalToIso,
 } from "../../lib/utils/format.ts";
+import { calculateProportionalDiscounts } from "../../helpers/discountHelpers.ts";
 import { useToast } from "../../context/ToastContext.tsx";
 import { useLanguage } from "../../context/LanguageContext.tsx";
 
@@ -88,6 +89,7 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
   const [purchaseNotes, setPurchaseNotes] = useState("");
   const [applyVat, setApplyVat] = useState(true);
   const [paidAmountInput, setPaidAmountInput] = useState("");
+  const [wholeDiscountInput, setWholeDiscountInput] = useState("");
 
   // Lines State
   const [lines, setLines] = useState<EditablePurchaseLine[]>([]);
@@ -100,6 +102,7 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
       setPurchaseRecord(null);
       setLines([]);
       setPaidAmountInput("");
+      setWholeDiscountInput("");
       return;
     }
 
@@ -131,6 +134,11 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
             ? details.purchase.paid_amount
             : (details.purchase.grand_total || details.purchase.total);
         setPaidAmountInput(fromMinorUnits(initialPaid).toString());
+        setWholeDiscountInput(
+          details.purchase.discount
+            ? fromMinorUnits(details.purchase.discount).toString()
+            : ""
+        );
 
         setLines(
           details.items.map((it) => {
@@ -143,7 +151,7 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
               quantity: it.quantity,
               costPrice: it.cost_price,
               sellingPrice: it.selling_price || (p ? p.selling_price : 0),
-              discount: it.discount,
+              discount: 0,
               currentStock: p ? p.current_stock : 0,
             };
           }),
@@ -216,13 +224,6 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
     setLines(updated);
   };
 
-  const handleUpdateDiscount = (index: number, val: string) => {
-    const minor = toMinorUnits(val);
-    const updated = [...lines];
-    updated[index].discount = minor;
-    setLines(updated);
-  };
-
   const handleRemoveLine = (index: number) => {
     if (lines.length <= 1) {
       showToast(
@@ -236,19 +237,41 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
     setLines(lines.filter((_, i) => i !== index));
   };
 
-  // Recalculations
+  // Recalculations with whole bill discount
   const calculations = useMemo(() => {
     let subtotal = 0;
-    let totalDiscount = 0;
     let totalUnits = 0;
 
-    lines.forEach((it) => {
+    const itemsForDiscount = lines.map((it) => {
       const gross = it.quantity * it.costPrice;
       subtotal += gross;
-      totalDiscount += it.discount;
       totalUnits += it.quantity;
+      return { gross, individualDiscount: 0 };
     });
 
+    const parsedWholeDiscount = Math.min(
+      subtotal,
+      toMinorUnits(parseFloat(wholeDiscountInput) || 0)
+    );
+
+    const distributed = calculateProportionalDiscounts(
+      itemsForDiscount,
+      parsedWholeDiscount
+    );
+
+    const distributedLines = lines.map((it, idx) => {
+      const gross = it.quantity * it.costPrice;
+      const allocDiscount = distributed[idx]?.allocatedWholeDiscount || 0;
+      const net = Math.max(0, gross - allocDiscount);
+      return {
+        ...it,
+        gross,
+        allocatedDiscount: allocDiscount,
+        net,
+      };
+    });
+
+    const totalDiscount = parsedWholeDiscount;
     const taxable = Math.max(0, subtotal - totalDiscount);
     const vatRate = applyVat ? 13.0 : 0.0;
     const vatAmount = applyVat ? Math.round(taxable * 0.13) : 0;
@@ -262,8 +285,9 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
       vatRate,
       vatAmount,
       grandTotal,
+      distributedLines,
     };
-  }, [lines, applyVat]);
+  }, [lines, applyVat, wholeDiscountInput]);
 
   const handleSave = () => {
     if (!purchaseId) return;
@@ -274,12 +298,12 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
 
     try {
       setSaving(true);
-      const itemsInput: ProcessPurchaseItemInput[] = lines.map((l) => ({
+      const itemsInput: ProcessPurchaseItemInput[] = calculations.distributedLines.map((l) => ({
         productId: l.productId,
         quantity: l.quantity,
         costPrice: l.costPrice,
         sellingPrice: l.sellingPrice,
-        discount: l.discount,
+        discount: l.allocatedDiscount,
       }));
 
       const parsedPaid =
@@ -524,16 +548,12 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
                     <th className="py-2.5 px-3 text-right w-28">
                       Retail Price
                     </th>
-                    <th className="py-2.5 px-3 text-right w-24">Discount</th>
-                    <th className="py-2.5 px-3 text-right w-28">Net Total</th>
+                    <th className="py-2.5 px-3 text-right w-28">Total</th>
                     <th className="py-2.5 px-2 text-center w-10"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800/60 bg-neutral-900/40">
-                  {lines.map((line, idx) => {
-                    const gross = line.quantity * line.costPrice;
-                    const net = Math.max(0, gross - line.discount);
-
+                  {calculations.distributedLines.map((line, idx) => {
                     return (
                       <tr key={idx} className="hover:bg-neutral-800/20">
                         <td className="py-2.5 px-3">
@@ -603,20 +623,13 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
                             className="w-24 ml-auto text-right px-2 py-1 text-xs font-mono bg-neutral-950 border border-neutral-800 rounded focus:outline-none focus:border-emerald-500"
                           />
                         </td>
-                        <td className="py-2.5 px-3 text-right">
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={fromMinorUnits(line.discount)}
-                            onChange={(e) =>
-                              handleUpdateDiscount(idx, e.target.value)
-                            }
-                            className="w-20 ml-auto text-right px-2 py-1 text-xs font-mono text-amber-400 bg-neutral-950 border border-neutral-800 rounded focus:outline-none focus:border-amber-500"
-                          />
-                        </td>
                         <td className="py-2.5 px-3 text-right font-mono font-bold text-neutral-100">
-                          {formatCurrency(net, currencySymbol)}
+                          {formatCurrency(line.net, currencySymbol)}
+                          {line.allocatedDiscount > 0 && (
+                            <div className="text-[10px] font-normal text-amber-400">
+                              -{formatCurrency(line.allocatedDiscount, currencySymbol)}
+                            </div>
+                          )}
                         </td>
                         <td className="py-2.5 px-2 text-center">
                           <button
@@ -661,9 +674,23 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
                   {formatCurrency(calculations.subtotal, currencySymbol)}
                 </span>
               </div>
+              <div className="flex items-center justify-end gap-3 text-amber-400">
+                <span className="text-xs font-medium">
+                  {isNepali ? "बिल छुट (Whole Discount)" : "Whole Bill Discount"}:
+                </span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={wholeDiscountInput}
+                  onChange={(e) => setWholeDiscountInput(e.target.value)}
+                  className="w-24 text-right px-2 py-1 text-xs font-mono font-bold bg-neutral-900 border border-neutral-700 rounded text-amber-400 focus:outline-none focus:border-amber-500"
+                />
+              </div>
               {calculations.totalDiscount > 0 && (
                 <div className="flex justify-end gap-6 text-amber-400">
-                  <span>{isNepali ? "छुट" : "Discount"}:</span>
+                  <span>{isNepali ? "लागू भएको छुट" : "Applied Discount"}:</span>
                   <span className="font-mono">
                     -{" "}
                     {formatCurrency(calculations.totalDiscount, currencySymbol)}

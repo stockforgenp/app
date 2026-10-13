@@ -39,7 +39,6 @@ CREATE TABLE IF NOT EXISTS vendors (
 CREATE TABLE IF NOT EXISTS customers (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
-  email TEXT,
   phone TEXT,
   pan_vat TEXT,
   address TEXT,
@@ -67,7 +66,6 @@ CREATE TABLE IF NOT EXISTS sales (
   customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
   customer_name TEXT,
   customer_phone TEXT,
-  customer_email TEXT,
   customer_pan_vat TEXT,
   customer_address TEXT,
   subtotal INTEGER NOT NULL,
@@ -211,7 +209,6 @@ CREATE INDEX IF NOT EXISTS idx_stock_movements_vendor_id ON stock_movements(vend
 CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
 CREATE INDEX IF NOT EXISTS idx_customers_pan_vat ON customers(pan_vat);
-CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
 CREATE INDEX IF NOT EXISTS idx_sales_customer_id ON sales(customer_id);
 CREATE INDEX IF NOT EXISTS idx_purchases_vendor_id ON purchases(vendor_id);
 CREATE INDEX IF NOT EXISTS idx_purchases_bill_number ON purchases(bill_number);

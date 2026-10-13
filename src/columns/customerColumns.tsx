@@ -4,7 +4,6 @@
 import {
   Users,
   Phone,
-  Mail,
   MapPin,
   ShoppingBag,
   Copy,
@@ -114,23 +113,16 @@ export function getCustomerColumns(
       sortKey: (c: Customer) => c.pan_vat || "",
     },
     {
-      id: "address_email",
-      header: isNepali ? "ठेगाना र इमेल" : "Email & Address",
+      id: "address",
+      header: isNepali ? "ठेगाना" : "Address",
       accessor: (c: Customer) => (
         <div className="space-y-0.5">
-          {c.email && (
-            <div className="flex items-center gap-1 text-neutral-300 truncate max-w-[200px]">
-              <Mail className="w-3 h-3 text-neutral-500 shrink-0" />
-              <span className="truncate">{c.email}</span>
-            </div>
-          )}
-          {c.address && (
-            <div className="flex items-center gap-1 text-neutral-400 text-[11px] truncate max-w-[200px]">
+          {c.address ? (
+            <div className="flex items-center gap-1 text-neutral-300 text-[11px] truncate max-w-[200px]">
               <MapPin className="w-3 h-3 text-neutral-500 shrink-0" />
               <span className="truncate">{c.address}</span>
             </div>
-          )}
-          {!c.email && !c.address && (
+          ) : (
             <span className="text-neutral-600">—</span>
           )}
         </div>

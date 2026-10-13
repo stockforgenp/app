@@ -437,7 +437,7 @@ export const TechnicalSupportSection: React.FC<
                 {t("dev_service_hardware")}
               </span>
               <span className="text-[10px] text-neutral-500">
-                USB / Bluetooth barcode readers
+                Cash drawers & POS peripherals
               </span>
             </div>
           </div>

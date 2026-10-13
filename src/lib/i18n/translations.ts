@@ -329,7 +329,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
       "Thermal Receipt & 58mm/80mm POS Printer Configuration",
     dev_service_database: "SQLite Database Maintenance, Backup & Recovery",
     dev_service_hardware:
-      "Barcode Scanner & Cash Drawer Peripheral Integration",
+      "Cash Drawer & Peripheral Integration",
     dev_service_custom:
       "Custom Business Invoicing, VAT Compliance & Software Updates",
     dev_diagnostics_title: "Live System Diagnostics",
@@ -726,10 +726,10 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     dev_website_label: "आधिकारिक पोर्टल तथा मद्दत",
     dev_services_title: "प्राविधिक सहयोगका सेवाहरू",
     dev_service_printer:
-      "थर्मल बिल प्रिन्टर (५८/८०mm) तथा बारकोड स्क्यानर सेटअप",
+      "थर्मल बिल प्रिन्टर (५८/८०mm) सेटअप",
     dev_service_database: "SQLite डाटाबेस मर्मत, ब्याकअप तथा रिकभरी",
     dev_service_hardware:
-      "बारकोड स्क्यानर र क्यास ड्रअर हार्डवेयर जोड्ने सहायता",
+      "क्यास ड्रअर तथा हार्डवेयर जोड्ने सहायता",
     dev_service_custom: "अनुकूलित बिलिङ, भ्याट नियम पालना र नयाँ सुविधा थप",
     dev_diagnostics_title: "प्रत्यक्ष प्रणाली विवरण (System Diagnostics)",
     dev_diagnostics_desc:

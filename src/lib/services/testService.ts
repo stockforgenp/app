@@ -607,9 +607,9 @@ export async function runBusinessLogicTests(): Promise<TestResultItem[]> {
   // Test 20: Customer Registration & Search by Phone/PAN/Name
   try {
     testDb.run(
-      `INSERT INTO customers (name, phone, email, pan_vat, address, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ['Aarav Thapa', '9851023456', 'aarav.thapa@example.com', '602345678', 'Baluwatar, Kathmandu', now, now]
+      `INSERT INTO customers (name, phone, pan_vat, address, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      ['Aarav Thapa', '9851023456', '602345678', 'Baluwatar, Kathmandu', now, now]
     );
 
     const custSearch = testDb.exec("SELECT id, name, phone, pan_vat FROM customers WHERE phone = '9851023456' OR pan_vat = '602345678'");
@@ -746,50 +746,48 @@ export async function runBusinessLogicTests(): Promise<TestResultItem[]> {
       actual: `Stock: ${stockAfter}, Cost: ${newCost}, ViewItems: ${viewRows[0]?.values?.length || 0}`,
     });
 
-    // Test 23: Customer Auto-Creation On 1st Sale & Auto-Update of Details (PAN/VAT, Email, Address) On 2nd Sale
+    // Test 23: Customer Auto-Creation On 1st Sale & Auto-Update of Details (PAN/VAT, Address) On 2nd Sale
     testDb.run(
-      `INSERT INTO customers (name, phone, email, pan_vat, address, created_at, updated_at)
-       VALUES (?, ?, NULL, NULL, NULL, ?, ?)`,
+      `INSERT INTO customers (name, phone, pan_vat, address, created_at, updated_at)
+       VALUES (?, ?, NULL, NULL, ?, ?)`,
       ['Suresh Thapa', '9801234567', now, now]
     );
-    const newCustRow = testDb.exec("SELECT id, pan_vat, address, email FROM customers WHERE phone = '9801234567'");
+    const newCustRow = testDb.exec("SELECT id, pan_vat, address FROM customers WHERE phone = '9801234567'");
     const newCustId = newCustRow[0]?.values[0]?.[0] as number;
     const initialPan = newCustRow[0]?.values[0]?.[1];
     const initialAddr = newCustRow[0]?.values[0]?.[2];
 
-    // Second sale: Existing customer is selected, and new PAN, email, address are added
+    // Second sale: Existing customer is selected, and new PAN, address are added
     testDb.run(
       `UPDATE customers
-       SET pan_vat = ?, email = ?, address = ?, updated_at = ?
+       SET pan_vat = ?, address = ?, updated_at = ?
        WHERE id = ?`,
-      ['609876543', 'suresh@test.com', 'Kathmandu Ward 4', now, newCustId]
+      ['609876543', 'Kathmandu Ward 4', now, newCustId]
     );
     testDb.run(
-      `INSERT INTO sales (bill_number, customer_id, customer_name, customer_phone, customer_email, customer_pan_vat, customer_address, subtotal, discount, total, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 5000, 0, 5000, ?)`,
-      ['BILL-00002', newCustId, 'Suresh Thapa', '9801234567', 'suresh@test.com', '609876543', 'Kathmandu Ward 4', now]
+      `INSERT INTO sales (bill_number, customer_id, customer_name, customer_phone, customer_pan_vat, customer_address, subtotal, discount, total, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 5000, 0, 5000, ?)`,
+      ['BILL-00002', newCustId, 'Suresh Thapa', '9801234567', '609876543', 'Kathmandu Ward 4', now]
     );
 
-    const updatedCustRow = testDb.exec("SELECT pan_vat, email, address FROM customers WHERE id = " + newCustId);
+    const updatedCustRow = testDb.exec("SELECT pan_vat, address FROM customers WHERE id = " + newCustId);
     const updatedPan = updatedCustRow[0]?.values[0]?.[0] as string;
-    const updatedEmail = updatedCustRow[0]?.values[0]?.[1] as string;
-    const updatedAddr = updatedCustRow[0]?.values[0]?.[2] as string;
+    const updatedAddr = updatedCustRow[0]?.values[0]?.[1] as string;
 
     const custUpdatePassed =
       initialPan === null &&
       initialAddr === null &&
       updatedPan === '609876543' &&
-      updatedEmail === 'suresh@test.com' &&
       updatedAddr === 'Kathmandu Ward 4';
 
     results.push({
-      name: '23. Customer Auto-Update of Details (PAN/VAT, Email, Address) on Subsequent Sale',
+      name: '23. Customer Auto-Update of Details (PAN/VAT, Address) on Subsequent Sale',
       passed: custUpdatePassed,
       message: custUpdatePassed
-        ? `Customer #${newCustId} was successfully created with Name/Phone only on first sale, and automatically updated with PAN (${updatedPan}), Email (${updatedEmail}), and Address (${updatedAddr}) on second sale.`
+        ? `Customer #${newCustId} was successfully created with Name/Phone only on first sale, and automatically updated with PAN (${updatedPan}) and Address (${updatedAddr}) on second sale.`
         : 'Failed to verify auto-update of customer details on second sale.',
-      expected: 'Initial PAN: null, Updated PAN: 609876543, Updated Email: suresh@test.com',
-      actual: `Initial PAN: ${initialPan}, Updated PAN: ${updatedPan}, Updated Email: ${updatedEmail}`,
+      expected: 'Initial PAN: null, Updated PAN: 609876543',
+      actual: `Initial PAN: ${initialPan}, Updated PAN: ${updatedPan}`,
     });
 
     // Test 24: Vendor Aggregation Query & Stock Movement Reference Integrity

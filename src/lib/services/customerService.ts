@@ -18,8 +18,8 @@ export function getAllCustomers(search?: string): Customer[] {
   if (search && search.trim()) {
     const s = `%${search.trim()}%`;
     return query<Customer>(
-      `${baseSql} WHERE c.name LIKE ? OR c.phone LIKE ? OR c.pan_vat LIKE ? OR c.email LIKE ? ORDER BY c.name ASC`,
-      [s, s, s, s]
+      `${baseSql} WHERE c.name LIKE ? OR c.phone LIKE ? OR c.pan_vat LIKE ? ORDER BY c.name ASC`,
+      [s, s, s]
     );
   }
 
@@ -62,7 +62,7 @@ export function searchCustomers(searchTerm: string, limit: number = 20): Custome
        (SELECT COUNT(*) FROM sales WHERE customer_id = c.id) as sales_count,
        (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM sales WHERE customer_id = c.id) as total_due
      FROM customers c 
-     WHERE c.name LIKE ? OR c.phone LIKE ? OR c.pan_vat LIKE ? OR c.email LIKE ?
+     WHERE c.name LIKE ? OR c.phone LIKE ? OR c.pan_vat LIKE ?
      ORDER BY 
        CASE 
          WHEN LOWER(c.phone) = LOWER(?) THEN 1
@@ -74,7 +74,7 @@ export function searchCustomers(searchTerm: string, limit: number = 20): Custome
        END,
        c.name ASC
      LIMIT ?`,
-    [s, s, s, s, term, term, term, term, term, limit]
+    [s, s, s, term, term, term, term, term, limit]
   );
 }
 
@@ -131,7 +131,6 @@ export function createCustomer(data: CreateCustomerInput): Customer {
   }
 
   const now = new Date().toISOString();
-  const email = data.email && data.email.trim() ? data.email.trim() : null;
   const phone = data.phone && data.phone.trim() ? data.phone.trim() : null;
   const panVat = data.pan_vat && data.pan_vat.trim() ? data.pan_vat.trim() : null;
   const address = data.address && data.address.trim() ? data.address.trim() : null;
@@ -139,9 +138,9 @@ export function createCustomer(data: CreateCustomerInput): Customer {
 
   return transaction(() => {
     run(
-      `INSERT INTO customers (name, email, phone, pan_vat, address, notes, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [trimmedName, email, phone, panVat, address, notes, now, now]
+      `INSERT INTO customers (name, phone, pan_vat, address, notes, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [trimmedName, phone, panVat, address, notes, now, now]
     );
 
     const idRes = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
@@ -167,7 +166,6 @@ export function updateCustomer(id: number, data: Partial<CreateCustomerInput>): 
     throw new Error('Customer name cannot be empty');
   }
 
-  const email = (data.email !== undefined ? data.email?.trim() : existing.email) ?? null;
   const phone = (data.phone !== undefined ? data.phone?.trim() : existing.phone) ?? null;
   const panVat = (data.pan_vat !== undefined ? data.pan_vat?.trim() : existing.pan_vat) ?? null;
   const address = (data.address !== undefined ? data.address?.trim() : existing.address) ?? null;
@@ -176,9 +174,9 @@ export function updateCustomer(id: number, data: Partial<CreateCustomerInput>): 
   transaction(() => {
     run(
       `UPDATE customers 
-       SET name = ?, email = ?, phone = ?, pan_vat = ?, address = ?, notes = ?, updated_at = ?
+       SET name = ?, phone = ?, pan_vat = ?, address = ?, notes = ?, updated_at = ?
        WHERE id = ?`,
-      [name, email, phone, panVat, address, notes, now, id]
+      [name, phone, panVat, address, notes, now, id]
     );
 
     // Keep denormalized customer_name in sales up-to-date
@@ -209,7 +207,6 @@ export function deleteCustomer(id: number): void {
 export function findOrCreateCustomer(data: {
   name?: string | null;
   phone?: string | null;
-  email?: string | null;
   pan_vat?: string | null;
   address?: string | null;
   notes?: string | null;
@@ -217,7 +214,6 @@ export function findOrCreateCustomer(data: {
   const trimmedName = data.name ? data.name.trim() : '';
   const trimmedPhone = data.phone ? data.phone.trim() : '';
   const trimmedPan = data.pan_vat ? data.pan_vat.trim() : '';
-  const trimmedEmail = data.email ? data.email.trim() : '';
   const trimmedAddress = data.address ? data.address.trim() : '';
 
   if (!trimmedName && !trimmedPhone && !trimmedPan) {
@@ -241,9 +237,6 @@ export function findOrCreateCustomer(data: {
       }
       if (trimmedPan && trimmedPan !== (matchByPhone.pan_vat || '')) {
         updates.pan_vat = trimmedPan;
-      }
-      if (trimmedEmail && trimmedEmail !== (matchByPhone.email || '')) {
-        updates.email = trimmedEmail;
       }
       if (trimmedAddress && trimmedAddress !== (matchByPhone.address || '')) {
         updates.address = trimmedAddress;
@@ -274,9 +267,6 @@ export function findOrCreateCustomer(data: {
       ) {
         updates.name = trimmedName;
       }
-      if (trimmedEmail && trimmedEmail !== (matchByPan.email || '')) {
-        updates.email = trimmedEmail;
-      }
       if (trimmedAddress && trimmedAddress !== (matchByPan.address || '')) {
         updates.address = trimmedAddress;
       }
@@ -302,9 +292,6 @@ export function findOrCreateCustomer(data: {
       if (trimmedPan && trimmedPan !== (matchByName.pan_vat || '')) {
         updates.pan_vat = trimmedPan;
       }
-      if (trimmedEmail && trimmedEmail !== (matchByName.email || '')) {
-        updates.email = trimmedEmail;
-      }
       if (trimmedAddress && trimmedAddress !== (matchByName.address || '')) {
         updates.address = trimmedAddress;
       }
@@ -321,7 +308,6 @@ export function findOrCreateCustomer(data: {
   return createCustomer({
     name: effectiveName,
     phone: trimmedPhone || null,
-    email: trimmedEmail || null,
     pan_vat: trimmedPan || null,
     address: trimmedAddress || null,
     notes: data.notes?.trim() || null,
