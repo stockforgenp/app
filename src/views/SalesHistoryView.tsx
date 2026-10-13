@@ -172,7 +172,7 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
         {selectedSaleDetail && (
           <div className="space-y-6">
             {/* Top Summary Chips */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800">
                 <div className="text-[11px] text-neutral-400">
                   Gross Subtotal
@@ -199,11 +199,12 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
 
               <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800">
                 <div className="text-[11px] text-neutral-400">
-                  Net Revenue Paid
+                  Grand Total
                 </div>
                 <div className="text-sm font-bold font-mono text-neutral-100 mt-0.5">
                   {formatCurrency(
-                    selectedSaleDetail.sale.total,
+                    selectedSaleDetail.sale.grand_total ||
+                      selectedSaleDetail.sale.total,
                     currencySymbol,
                   )}
                 </div>
@@ -211,9 +212,43 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
 
               <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800">
                 <div className="text-[11px] text-neutral-400">
-                  Transaction Profit
+                  Paid Amount
                 </div>
                 <div className="text-sm font-bold font-mono text-emerald-400 mt-0.5">
+                  {formatCurrency(
+                    selectedSaleDetail.sale.paid_amount !== undefined &&
+                      selectedSaleDetail.sale.paid_amount !== null
+                      ? selectedSaleDetail.sale.paid_amount
+                      : (selectedSaleDetail.sale.grand_total ||
+                          selectedSaleDetail.sale.total),
+                    currencySymbol,
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800">
+                <div className="text-[11px] text-neutral-400">
+                  Due Amount
+                </div>
+                <div
+                  className={`text-sm font-bold font-mono mt-0.5 ${
+                    (selectedSaleDetail.sale.due_amount ?? 0) > 0
+                      ? "text-rose-400"
+                      : "text-neutral-400"
+                  }`}
+                >
+                  {formatCurrency(
+                    selectedSaleDetail.sale.due_amount ?? 0,
+                    currencySymbol,
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800">
+                <div className="text-[11px] text-neutral-400">
+                  Gross Profit
+                </div>
+                <div className="text-sm font-bold font-mono text-teal-400 mt-0.5">
                   {formatCurrency(
                     selectedSaleDetail.sale.gross_profit ?? 0,
                     currencySymbol,
@@ -368,9 +403,9 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                     </span>
                   </div>
                 )}
-              <div className="flex justify-between text-sm font-bold text-emerald-400 pt-1.5 border-t border-neutral-800">
+              <div className="flex justify-between text-sm font-bold text-neutral-100 pt-1.5 border-t border-neutral-800">
                 <span>Grand Total:</span>
-                <span className="font-mono">
+                <span className="font-mono text-emerald-400">
                   {formatCurrency(
                     selectedSaleDetail.sale.grand_total ||
                       selectedSaleDetail.sale.total,
@@ -378,6 +413,56 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                   )}
                 </span>
               </div>
+
+              <div className="flex justify-between text-emerald-400 font-medium pt-1 border-t border-neutral-900">
+                <span>Paid Amount:</span>
+                <span className="font-mono">
+                  {formatCurrency(
+                    selectedSaleDetail.sale.paid_amount !== undefined &&
+                      selectedSaleDetail.sale.paid_amount !== null
+                      ? selectedSaleDetail.sale.paid_amount
+                      : (selectedSaleDetail.sale.grand_total ||
+                          selectedSaleDetail.sale.total),
+                    currencySymbol,
+                  )}
+                </span>
+              </div>
+
+              <div className="flex justify-between text-rose-400 font-medium">
+                <span>Current Due:</span>
+                <span className="font-mono">
+                  {formatCurrency(
+                    selectedSaleDetail.sale.due_amount ?? 0,
+                    currencySymbol,
+                  )}
+                </span>
+              </div>
+
+              {(selectedSaleDetail.sale.previous_due ?? 0) > 0 && (
+                <div className="flex justify-between text-amber-400/90 font-medium">
+                  <span>Previous Balance / Due:</span>
+                  <span className="font-mono">
+                    {formatCurrency(
+                      selectedSaleDetail.sale.previous_due ?? 0,
+                      currencySymbol,
+                    )}
+                  </span>
+                </div>
+              )}
+
+              {((selectedSaleDetail.sale.total_due ?? 0) > 0 ||
+                (selectedSaleDetail.sale.due_amount ?? 0) > 0) && (
+                <div className="flex justify-between text-xs font-bold text-rose-300 pt-1 border-t border-neutral-800">
+                  <span>Total Account Due:</span>
+                  <span className="font-mono">
+                    {formatCurrency(
+                      selectedSaleDetail.sale.total_due ??
+                        (selectedSaleDetail.sale.due_amount ?? 0),
+                      currencySymbol,
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="text-[11px] text-neutral-500 font-mono">
