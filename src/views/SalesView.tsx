@@ -1140,8 +1140,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
                       }}
                       className={`flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md transition-colors cursor-pointer border ${
                         calculations.totalDiscount > 0
-                          ? "bg-amber-500/20 text-amber-300 border-amber-500/40 font-semibold"
-                          : "text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30"
+                          ? "bg-amber-200/20 text-amber-300 border-amber-500/40 font-semibold"
+                          : "text-amber-300 hover:text-amber-200 bg-amber-300/10 hover:bg-amber-400/20 border-amber-500/30"
                       }`}
                       title={
                         isNepali ? "सम्पूर्ण बिल छुट" : "Whole bill discount"
@@ -1156,22 +1156,6 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             : "Bill Discount"}
                       </span>
                     </button>
-                    {calculations.totalDiscount > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setWholeDiscountValue("");
-                          showToast(
-                            isNepali ? "छुट हटाइयो" : "Discount cleared",
-                            "info",
-                          );
-                        }}
-                        className="text-[10px] text-amber-400 hover:text-amber-300 underline cursor-pointer"
-                        title="Clear discount"
-                      >
-                        {isNepali ? "हटाउनुहोस्" : "Reset"}
-                      </button>
-                    )}
                   </div>
                 )}
                 <button
@@ -1220,7 +1204,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                       <th className="py-2 px-3 text-right font-mono w-28">
                         Sale Price
                       </th>
-                      <th className="py-2 px-4 text-right font-mono w-28">
+                      <th className="py-2 px-4 text-right font-mono w-32">
                         Total
                       </th>
                       <th className="py-2 px-3 text-center w-10"></th>
@@ -1240,9 +1224,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
                           }`}
                         >
                           {/* Product Info */}
-                          <td className="py-3 px-4">
+                          <td className="py-2 px-4">
                             <div className="font-semibold text-neutral-200 flex items-center gap-1.5">
-                              <span>{item.product.name}</span>
+                              <span className="capitalize">
+                                {item.product.name}
+                              </span>
                               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-neutral-800 text-neutral-300 border border-neutral-700/60">
                                 {item.product.unit || "pcs"}
                               </span>
@@ -1280,68 +1266,62 @@ export const SalesView: React.FC<SalesViewProps> = ({
                           </td>
 
                           {/* Quantity with in-line stepper */}
-                          <td className="py-3 px-2 text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <div className="flex items-center justify-center gap-1 bg-neutral-950 border border-neutral-800 rounded p-0.5">
-                                <button
-                                  type="button"
-                                  disabled={item.quantity <= 1}
-                                  onClick={() =>
-                                    handleUpdateQuantity(
-                                      index,
-                                      (item.quantity - 1).toString(),
-                                    )
-                                  }
-                                  className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                >
-                                  <Minus className="w-3 h-3" />
-                                </button>
-                                <Input
-                                  type="number"
-                                  min="1"
-                                  max={
-                                    !allowNegativeStock
-                                      ? Math.max(1, item.product.current_stock)
-                                      : undefined
-                                  }
-                                  value={item.quantity}
-                                  onChange={(e) =>
-                                    handleUpdateQuantity(index, e.target.value)
-                                  }
-                                  containerClassName="w-10"
-                                  className="border-0 p-0 text-center text-xs font-mono text-neutral-100 bg-transparent focus:outline-none"
-                                />
-                                <button
-                                  type="button"
-                                  disabled={
-                                    !allowNegativeStock &&
-                                    item.quantity >= item.product.current_stock
-                                  }
-                                  onClick={() =>
-                                    handleUpdateQuantity(
-                                      index,
-                                      (item.quantity + 1).toString(),
-                                    )
-                                  }
-                                  title={
-                                    !allowNegativeStock &&
-                                    item.quantity >= item.product.current_stock
-                                      ? `Max available stock reached (${item.product.current_stock})`
-                                      : "Increase quantity"
-                                  }
-                                  className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                >
-                                  <Plus className="w-3 h-3" />
-                                </button>
-                              </div>
-                              <span className="text-[10px] font-mono text-neutral-400">
-                                {item.product.unit || "pcs"}
-                              </span>
+                          <td className="py-2 px-2 text-center">
+                            <div className="flex items-center justify-center bg-neutral-950 border border-neutral-800 rounded w-max mx-auto">
+                              <button
+                                type="button"
+                                disabled={item.quantity <= 1}
+                                onClick={() =>
+                                  handleUpdateQuantity(
+                                    index,
+                                    (item.quantity - 1).toString(),
+                                  )
+                                }
+                                className="min-w-8 h-8 flex items-center justify-center text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <input
+                                type="number"
+                                min="1"
+                                max={
+                                  !allowNegativeStock
+                                    ? Math.max(1, item.product.current_stock)
+                                    : undefined
+                                }
+                                value={item.quantity}
+                                onChange={(e) =>
+                                  handleUpdateQuantity(index, e.target.value)
+                                }
+                                className="h-8 border-0 p-0 text-center text-xs font-mono text-neutral-100 focus:outline-none focus:border-none focus:ring-0"
+                              />
+                              <button
+                                type="button"
+                                disabled={
+                                  !allowNegativeStock &&
+                                  item.quantity >= item.product.current_stock
+                                }
+                                onClick={() =>
+                                  handleUpdateQuantity(
+                                    index,
+                                    (item.quantity + 1).toString(),
+                                  )
+                                }
+                                title={
+                                  !allowNegativeStock &&
+                                  item.quantity >= item.product.current_stock
+                                    ? `Max available stock reached (${item.product.current_stock})`
+                                    : "Increase quantity"
+                                }
+                                className="min-w-8 h-8 flex items-center justify-center text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
                             </div>
                           </td>
 
                           {/* Actual Selling Price (Editable!) */}
-                          <td className="py-3 px-3 text-right">
+                          <td className="py-2 px-3 text-right">
                             <Input
                               type="number"
                               step="0.01"
@@ -1445,11 +1425,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
             </div>
 
             {/* Calculations Breakdown */}
-            <div className="p-5 bg-neutral-950 border-t border-neutral-800 space-y-3 shrink-0">
+            <div className="p-5 bg-neutral-950 border-t border-neutral-800 space-y-2 shrink-0">
               {/* Whole Bill Discount (Proportional) Input Card */}
               {cart.length > 0 && (
-                <div className="p-3 rounded-lg bg-neutral-900 border border-neutral-800 space-y-2">
-                  <div className="flex items-center justify-between">
+                <div className="p-3 rounded-lg bg-neutral-900 border border-neutral-800 space-y-1 flex justify-between items-center gap-2">
+                  <div>
                     <div className="flex items-center gap-1.5">
                       <Percent className="w-3.5 h-3.5 text-amber-400" />
                       <span className="text-xs font-semibold text-neutral-200">
@@ -1466,11 +1446,37 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <div className="relative flex-1 min-w-20">
+                      <Input
+                        type="number"
+                        step={wholeDiscountType === "fixed" ? "0.01" : "1"}
+                        min="0"
+                        max={wholeDiscountType === "percent" ? 100 : undefined}
+                        placeholder={
+                          wholeDiscountType === "fixed"
+                            ? `Whole discount (${currencySymbol})`
+                            : "Whole discount %"
+                        }
+                        value={wholeDiscountValue}
+                        onChange={(e) => setWholeDiscountValue(e.target.value)}
+                        className="text-xs font-mono pr-7 focus:border-amber-500"
+                      />
+                      {/* {wholeDiscountValue && ( */}
+                      <button
+                        type="button"
+                        onClick={() => setWholeDiscountValue("")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-200 p-0.5 rounded cursor-pointer"
+                        title="Clear whole discount"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      {/* )} */}
+                    </div>
                     <div className="flex bg-neutral-950 p-0.5 rounded-lg border border-neutral-800 text-[11px] shrink-0">
                       <button
                         type="button"
                         onClick={() => setWholeDiscountType("fixed")}
-                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
+                        className={`px-2.5 py-1.5 rounded transition-colors cursor-pointer ${
                           wholeDiscountType === "fixed"
                             ? "bg-neutral-800 text-neutral-100 font-semibold"
                             : "text-neutral-400 hover:text-neutral-200"
@@ -1490,49 +1496,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                         % Percent
                       </button>
                     </div>
-
-                    <div className="relative flex-1">
-                      <Input
-                        type="number"
-                        step={wholeDiscountType === "fixed" ? "0.01" : "1"}
-                        min="0"
-                        max={wholeDiscountType === "percent" ? 100 : undefined}
-                        placeholder={
-                          wholeDiscountType === "fixed"
-                            ? `Whole discount (${currencySymbol})...`
-                            : "Whole discount %..."
-                        }
-                        value={wholeDiscountValue}
-                        onChange={(e) => setWholeDiscountValue(e.target.value)}
-                        className="text-xs font-mono pr-7 focus:border-amber-500"
-                      />
-                      {wholeDiscountValue && (
-                        <button
-                          type="button"
-                          onClick={() => setWholeDiscountValue("")}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-200 p-0.5 rounded cursor-pointer"
-                          title="Clear whole discount"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
                   </div>
-
-                  {calculations.wholeDiscountAmount > 0 && (
-                    <div className="text-[11px] text-amber-400 flex items-center justify-between font-mono pt-1 border-t border-neutral-800/60">
-                      <span className="text-neutral-400">
-                        Proportionally distributed:
-                      </span>
-                      <span>
-                        -
-                        {formatCurrency(
-                          calculations.wholeDiscountAmount,
-                          currencySymbol,
-                        )}
-                      </span>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -1631,51 +1595,52 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
               {/* Payment & Dues Card */}
               {cart.length > 0 && (
-                <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 space-y-2.5">
+                <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-neutral-200">
                       {isNepali ? "प्राप्त रकम (Paid Amount)" : "Paid Amount"}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCustomPaid(false);
-                        setPaidAmountInput("");
-                      }}
-                      className={`text-[10px] px-2 py-0.5 rounded font-medium transition-colors cursor-pointer border ${
-                        !isCustomPaid
-                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                          : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
-                      }`}
-                    >
-                      {isNepali ? "पूरा चुक्ता" : "Paid in Full"}
-                    </button>
-                  </div>
-
-                  <div className="relative">
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      placeholder={`Enter paid amount (${currencySymbol})...`}
-                      value={
-                        isCustomPaid
-                          ? paidAmountInput
-                          : fromMinorUnits(calculations.grandTotal)
-                      }
-                      onChange={(e) => {
-                        setIsCustomPaid(true);
-                        setPaidAmountInput(e.target.value);
-                      }}
-                      className="w-full px-3 py-1.5 text-xs font-mono font-bold text-emerald-400 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500 pr-12"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-500 pointer-events-none">
-                      {currencySymbol}
-                    </span>
+                    <div className="flex gap-3">
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          placeholder={`Enter paid amount (${currencySymbol})...`}
+                          value={
+                            isCustomPaid
+                              ? paidAmountInput
+                              : fromMinorUnits(calculations.grandTotal)
+                          }
+                          onChange={(e) => {
+                            setIsCustomPaid(true);
+                            setPaidAmountInput(e.target.value);
+                          }}
+                          className="max-w-[120px] pl-10 pr-3 py-1.5 text-xs font-mono font-bold text-emerald-400 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500 pr-12"
+                        />
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-500 pointer-events-none">
+                          {currencySymbol}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomPaid(false);
+                          setPaidAmountInput("");
+                        }}
+                        className={`text-[10px] px-2 rounded font-medium transition-colors cursor-pointer border ${
+                          !isCustomPaid
+                            ? "bg-emerald-200/20 text-emerald-300 border-emerald-500/30"
+                            : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
+                        }`}
+                      >
+                        {isNepali ? "पूरा चुक्ता" : "Paid in Full"}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Due Breakdown */}
-                  <div className="space-y-1.5 pt-2 border-t border-neutral-800 text-xs">
+                  <div className="space-y-1.5 text-xs">
                     <div className="flex items-center justify-between text-neutral-300">
                       <span>
                         {isNepali ? "यस बिलको बाँकी" : "Current Bill Due"}:
@@ -1702,7 +1667,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     )}
 
                     {(customerPreviousDue > 0 || currentBillDue > 0) && (
-                      <div className="flex items-center justify-between text-neutral-100 font-bold pt-1.5 border-t border-neutral-800/80">
+                      <div className="flex items-center justify-between text-neutral-100 font-bold">
                         <span className="text-xs">
                           {isNepali
                             ? "कुल बाँकी बक्यौता"

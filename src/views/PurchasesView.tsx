@@ -320,32 +320,6 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     };
   }, [isBulkDiscountModalOpen, cart, bulkDiscountValue, bulkDiscountType]);
 
-  // Quick Barcode / SKU Submit
-  const handleQuickSkuSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!quickSkuInput.trim()) return;
-
-    const token = quickSkuInput.trim().toLowerCase();
-    const match = token.match(/^(.+?)(?:[*x:]\s*(\d+))?$/i);
-    const code = match ? match[1].trim() : token;
-    const count = match && match[2] ? parseInt(match[2], 10) : 1;
-
-    const matchedProduct = products.find(
-      (p) =>
-        (p.sku && p.sku.toLowerCase() === code) ||
-        p.id.toString() === code ||
-        p.name.toLowerCase() === code,
-    );
-
-    if (matchedProduct) {
-      handleAddToCart(matchedProduct, isNaN(count) || count <= 0 ? 1 : count);
-      setQuickSkuInput("");
-      showToast(`Added ${count}x "${matchedProduct.name}" to purchase`, "info");
-    } else {
-      showToast(`Product "${quickSkuInput}" not found in catalog`, "warning");
-    }
-  };
-
   // Calculations
   const calculations = useMemo(() => {
     let subtotal = 0;
@@ -776,34 +750,6 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
               )}
             </div>
 
-            {/* Barcode scanner input */}
-            <div className="p-3 bg-neutral-950/80 border-b border-neutral-800/80 shrink-0">
-              <form
-                onSubmit={handleQuickSkuSubmit}
-                className="flex items-center gap-2"
-              >
-                <div className="flex-1">
-                  <Input
-                    ref={quickSkuInputRef}
-                    type="text"
-                    placeholder={`Scan/enter SKU or product name to purchase (e.g. BEV-CC-500*5) [${MODIFIER_LABEL}+B]...`}
-                    value={quickSkuInput}
-                    onChange={(e) => setQuickSkuInput(e.target.value)}
-                    icon={ScanLine}
-                    iconPosition="left"
-                    className="py-1.5 text-xs font-mono"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={!quickSkuInput.trim()}
-                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0"
-                >
-                  {isNepali ? "थप्नुहोस्" : "Add Item"}
-                </button>
-              </form>
-            </div>
-
             {/* Cart Table */}
             {cart.length === 0 ? (
               <div className="p-12 text-center text-xs text-neutral-400 flex-1 min-h-0 flex flex-col items-center justify-center">
@@ -823,7 +769,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                       <th className="py-2.5 px-2 text-center w-24">
                         {isNepali ? "परिमाण" : "Qty"}
                       </th>
-                      <th className="py-2.5 px-3 text-right font-mono w-28">
+                      <th className="py-2.5 px-3 text-right font-mono w-30">
                         {isNepali ? "खरिद दर" : "Purchase Rate"}
                       </th>
                       <th className="py-2.5 px-4 text-right font-mono w-28">
@@ -841,7 +787,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                         >
                           {/* Product */}
                           <td className="py-3 px-4">
-                            <div className="font-semibold text-neutral-200">
+                            <div className="font-semibold text-neutral-200 capitalize">
                               {item.product.name}
                             </div>
                             <div className="text-[10px] text-neutral-400 font-mono mt-0.5">
