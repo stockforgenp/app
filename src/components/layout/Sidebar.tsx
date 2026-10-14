@@ -319,9 +319,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => onSelectTab("support" as NavTab)}
             className={`block rounded-lg p-2 border transition-all cursor-pointer group ${
               daysRemaining <= 7
-                ? "bg-rose-950/25 border-rose-500/40 hover:bg-rose-950/40 hover:border-rose-500/60"
+                ? "bg-rose-500/25 border-rose-500/40 hover:bg-rose-500/40 hover:border-rose-500/60"
                 : daysRemaining <= 30
-                  ? "bg-amber-950/20 border-amber-500/30 hover:bg-amber-950/30 hover:border-amber-500/50"
+                  ? "bg-amber-500/20 border-amber-500/30 hover:bg-amber-500/30 hover:border-amber-500/50"
                   : "bg-neutral-900/80 border-neutral-800/70 hover:bg-neutral-900 hover:border-neutral-700"
             }`}
             title={
@@ -343,17 +343,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             : "text-emerald-400"
                       }`}
                     />
-                    <span className="truncate">
+                    <span className="truncate uppercase">
                       {currentShop.subscription_plan || "Standard"}
                     </span>
                   </span>
                   <span
                     className={`font-mono font-bold px-1.5 py-0.5 rounded text-[9px] shrink-0 ${
                       daysRemaining <= 7
-                        ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                        ? "bg-rose-300/20 text-rose-300 border border-rose-500/30"
                         : daysRemaining <= 30
-                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                          : "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+                          ? "bg-amber-300/20 text-amber-300 border border-amber-500/30"
+                          : "bg-emerald-300/15 text-emerald-300 border border-emerald-500/30"
                     }`}
                   >
                     {daysRemaining <= 0

@@ -987,7 +987,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                         )}
 
                         <div className="min-w-0 flex-1 pr-2">
-                          <div className="text-xs font-semibold text-neutral-200 truncate">
+                          <div className="text-xs font-semibold text-neutral-200 truncate capitalize">
                             {p.name}
                           </div>
                           <div className="text-[10px] text-neutral-500 font-mono mt-0.5 flex items-center gap-1.5">
@@ -1017,18 +1017,18 @@ export const SalesView: React.FC<SalesViewProps> = ({
                       {/* Right action controls */}
                       <div className="flex items-center gap-2 shrink-0">
                         {isSelected ? (
-                          <div className="flex items-center gap-1 bg-neutral-900 border border-neutral-700 rounded p-0.5">
+                          <div className="flex items-center gap-1 bg-neutral-900 border border-neutral-700 rounded">
                             <button
                               type="button"
                               disabled={selectedQty <= 1}
                               onClick={() =>
                                 updateBatchQty(p.id, selectedQty - 1)
                               }
-                              className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
+                              className="w-8 h-8 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <Minus className="w-3 h-3" />
                             </button>
-                            <Input
+                            <input
                               type="number"
                               min="1"
                               max={
@@ -1041,8 +1041,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                                 const val = parseInt(e.target.value, 10);
                                 updateBatchQty(p.id, isNaN(val) ? 1 : val);
                               }}
-                              containerClassName="w-8"
-                              className="border-0 p-0 text-center text-xs font-mono font-bold text-neutral-100 bg-transparent focus:outline-none"
+                              className="h-8 border-0 p-0 text-center text-xs font-mono font-bold text-neutral-100 bg-transparent focus:outline-none"
                             />
                             <button
                               type="button"
@@ -1059,7 +1058,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                                   ? `Max stock reached (${p.current_stock})`
                                   : "Increase batch quantity"
                               }
-                              className="w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
+                              className="w-8 h-8 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <Plus className="w-3 h-3" />
                             </button>
