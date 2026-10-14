@@ -21,6 +21,7 @@ import {
   getVendorPreviousDueForPurchase,
 } from './vendorService.ts';
 import { getSettings } from './settingsService.ts';
+import { getProductById } from './productService.ts';
 
 export function processPurchase(
   items: ProcessPurchaseItemInput[],

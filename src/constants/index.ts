@@ -4,6 +4,7 @@
 
 export * from './units.ts';
 export * from './shop.ts';
+export * from './contactInfo.ts';
 export * from './support.ts';
 export * from './finance.ts';
 export * from './storage.ts';

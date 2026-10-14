@@ -381,7 +381,7 @@ export const SubscriptionExpiredView: React.FC = () => {
 
       {/* Footer */}
       <footer className="border-t border-neutral-800/80 bg-neutral-900/40 px-6 py-3 text-center text-[11px] text-neutral-500 font-mono">
-        {SUPPORT_CONTACTS.companyNameEn} · Putalisadak, Kathmandu, Nepal · Local SQLite Data Secure
+        {SUPPORT_CONTACTS.companyNameEn} · {SUPPORT_CONTACTS.addressEn} · Local SQLite Data Secure
       </footer>
     </div>
   );

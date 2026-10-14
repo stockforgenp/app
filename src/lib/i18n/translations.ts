@@ -319,10 +319,10 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     dev_email_support: "Official Support Email",
     dev_whatsapp_support: "WhatsApp & Viber Support",
     dev_office_location: "Office Headquarters",
-    dev_office_val: "Putalisadak, Kathmandu, Bagmati Province, Nepal",
+    dev_office_val: "Birgunj, Parsa, Nepal",
     dev_hours_label: "Support Operating Hours",
     dev_hours_val:
-      "Sun – Fri: 9:00 AM – 6:00 PM NPT (24/7 for POS emergencies)",
+      "Sun – Sat: 7:00 AM – 10:00 PM NPT (24/7 for POS emergencies)",
     dev_website_label: "Official Portal & Docs",
     dev_services_title: "Scope of Technical Support",
     dev_service_printer:
@@ -719,10 +719,10 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     dev_email_support: "आधिकारिक सहयोग इमेल",
     dev_whatsapp_support: "ह्वाट्सएप तथा भाइबर (WhatsApp / Viber)",
     dev_office_location: "कार्यालय ठेगाना",
-    dev_office_val: "पुतलीसडक, काठमाडौँ, बागमती प्रदेश, नेपाल",
+    dev_office_val: "वीरगन्ज, पर्सा, नेपाल",
     dev_hours_label: "सहयोग सञ्चालन समय",
     dev_hours_val:
-      "आइतबार – शुक्रबार: बिहान ९:०० – साँझ ६:०० (POS आपतकालीन २४/७)",
+      "आइतबार – शनिबार: बिहान ७:०० – साँझ १०:०० (POS आपतकालीन २४/७)",
     dev_website_label: "आधिकारिक पोर्टल तथा मद्दत",
     dev_services_title: "प्राविधिक सहयोगका सेवाहरू",
     dev_service_printer:

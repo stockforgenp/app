@@ -1,9 +1,9 @@
-/**
- * Technical Support & Company Constants
- * Centralized developer hotline, emails, WhatsApp, and operating hours.
- */
+import { CONTACT_INFO } from './contactInfo.ts';
 
 export interface SupportContactInfo {
+  developerName: string;
+  developerNameNp: string;
+  developerNameNe: string;
   companyNameEn: string;
   companyNameNp: string;
   companyNameNe: string;
@@ -29,27 +29,30 @@ export interface SupportContactInfo {
 }
 
 export const SUPPORT_CONTACTS: SupportContactInfo = {
+  developerName: CONTACT_INFO.name,
+  developerNameNp: CONTACT_INFO.nameNp,
+  developerNameNe: CONTACT_INFO.nameNp,
   companyNameEn: 'StockForge Technologies Pvt. Ltd.',
   companyNameNp: 'स्टकफोर्ज टेक्नोलोजिज प्रा. लि.',
   companyNameNe: 'स्टकफोर्ज टेक्नोलोजिज प्रा. लि.',
   teamNameEn: 'Core Engineering & Technical Support Team',
   teamNameNp: 'मूल इन्जिनियरिङ तथा प्राविधिक सहयोग टोली',
   teamNameNe: 'मूल इन्जिनियरिङ तथा प्राविधिक सहयोग टोली',
-  phone: '+977 9809167106',
-  phoneRaw: '+9779809167106',
-  phonePrimary: '+977 9809167106',
-  phoneSecondary: '+977 9809167106',
-  email: 'imayubalam@gmail.com',
-  emailDev: 'imayubalam@gmail.com',
-  whatsapp: '+977 9809167106',
-  whatsappRaw: '9779809167106',
+  phone: CONTACT_INFO.phone.display,
+  phoneRaw: CONTACT_INFO.phone.clean,
+  phonePrimary: CONTACT_INFO.phone.display,
+  phoneSecondary: CONTACT_INFO.phone.display,
+  email: CONTACT_INFO.email.address,
+  emailDev: CONTACT_INFO.email.address,
+  whatsapp: CONTACT_INFO.whatsapp.display,
+  whatsappRaw: CONTACT_INFO.whatsapp.number,
   website: 'https://stockforge.dev',
-  addressEn: 'Putalisadak, Kathmandu, Bagmati Province, Nepal',
-  addressNp: 'पुतलीसडक, काठमाडौँ, बागमती प्रदेश, नेपाल',
-  addressNe: 'पुतलीसडक, काठमाडौँ, बागमती प्रदेश, नेपाल',
-  hoursEn: 'Sun – Fri: 9:00 AM – 6:00 PM NPT (24/7 for POS emergencies)',
-  hoursNp: 'आइतबार – शुक्रबार: बिहान ९:०० – साँझ ६:०० (POS आपतकालीन २४/७)',
-  hoursNe: 'आइतबार – शुक्रबार: बिहान ९:०० – साँझ ६:०० (POS आपतकालीन २४/७)',
+  addressEn: CONTACT_INFO.address.displayEn,
+  addressNp: CONTACT_INFO.address.displayNp,
+  addressNe: CONTACT_INFO.address.displayNp,
+  hoursEn: CONTACT_INFO.hours.en,
+  hoursNp: CONTACT_INFO.hours.np,
+  hoursNe: CONTACT_INFO.hours.np,
   emergencySla: '< 2 Hours',
 };
 

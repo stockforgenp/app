@@ -61,6 +61,9 @@ export const TechnicalSupportSection: React.FC<
     teamName: isNepali
       ? SUPPORT_CONTACTS.teamNameNe
       : SUPPORT_CONTACTS.teamNameEn,
+    developerName: isNepali
+      ? SUPPORT_CONTACTS.developerNameNe
+      : SUPPORT_CONTACTS.developerName,
   };
 
   const handleCopy = (text: string, labelKey: string, message: string) => {
@@ -173,7 +176,11 @@ export const TechnicalSupportSection: React.FC<
             </span>
           </div>
           <p className="text-xs text-neutral-400 font-medium">
-            {supportContacts.teamName} · StockForge Desktop Suite
+            {isNepali ? "विकासकर्ता" : "Lead Developer"}:{" "}
+            <span className="text-neutral-200 font-semibold">
+              {supportContacts.developerName}
+            </span>{" "}
+            · {supportContacts.teamName}
           </p>
           <div className="flex items-center gap-2 text-[11px] text-neutral-500 pt-0.5">
             <span className="font-mono text-emerald-400 font-semibold">
