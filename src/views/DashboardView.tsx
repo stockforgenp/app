@@ -19,7 +19,7 @@ import {
   DateFilterPreset,
   getDashboardOverview,
 } from "../lib/services/analyticsService.ts";
-import { formatCurrency, formatNumber } from "../lib/utils/format.ts";
+import { formatCurrency, formatNumber, capitalizeWords } from "../lib/utils/format.ts";
 import { Product } from "../types/index.ts";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 import { NavTab } from "../components/layout/Sidebar.tsx";
@@ -391,8 +391,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     key={p.id}
                     className="hover:bg-neutral-800/40 transition-colors"
                   >
-                    <td className="py-3 px-6 font-medium text-neutral-200">
-                      {p.name}
+                    <td className="py-3 px-6 font-medium text-neutral-200 capitalize">
+                      {capitalizeWords(p.name)}
                     </td>
                     <td className="py-3 px-4 font-mono text-neutral-400">
                       {p.sku || "—"}
