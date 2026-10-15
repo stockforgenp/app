@@ -461,6 +461,7 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
             ? `${isNepali ? "खरिद बिलहरू" : "Purchase Bills"} — ${inspectPurchasesVendor.name}`
             : "Purchase Bills"
         }
+        maxWidth="4xl"
       >
         <div className="space-y-4">
           <div className="bg-neutral-850 p-3 rounded-lg border border-neutral-800 flex items-center justify-between text-xs">
@@ -518,6 +519,12 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
                       {isNepali ? "कुल रकम" : "Grand Total"}
                     </th>
                     <th className="px-3 py-2 text-right">
+                      {isNepali ? "भुक्तानी" : "Paid"}
+                    </th>
+                    <th className="px-3 py-2 text-right">
+                      {isNepali ? "बाँकी" : "Due"}
+                    </th>
+                    <th className="px-3 py-2 text-right">
                       {isNepali ? "प्रिन्ट" : "Action"}
                     </th>
                   </tr>
@@ -540,10 +547,33 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
                         {formatNumberByLang(pur.total_units || 0)}{" "}
                         {isNepali ? "थान" : "units"})
                       </td>
-                      <td className="px-3 py-2 text-right text-emerald-400 font-semibold font-mono">
+                      <td className="px-3 py-2 text-right text-neutral-100 font-semibold font-mono">
                         {formatCurrency(
                           pur.grand_total ?? pur.total,
                           currencySymbol,
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right text-emerald-400 font-mono">
+                        {formatCurrency(
+                          pur.paid_amount !== undefined &&
+                            pur.paid_amount !== null
+                            ? pur.paid_amount
+                            : (pur.grand_total ?? pur.total),
+                          currencySymbol,
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono">
+                        {(pur.due_amount ?? 0) > 0 ? (
+                          <span className="text-rose-400 font-medium">
+                            {formatCurrency(
+                              pur.due_amount ?? 0,
+                              currencySymbol,
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-neutral-500 text-[11px]">
+                            {isNepali ? "चुक्ता" : "Paid"}
+                          </span>
                         )}
                       </td>
                       <td className="px-3 py-2 text-right">

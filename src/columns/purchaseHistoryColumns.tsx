@@ -1,7 +1,7 @@
-import { Eye, Printer, Copy, Edit3 } from 'lucide-react';
+import { Eye, Printer, Copy, Edit3, Trash2 } from 'lucide-react';
 import { Column } from '../components/common/DataTable.tsx';
 import { Purchase } from '../types/index.ts';
-import { formatCurrency, formatDateTime } from '../helpers/formatHelpers.ts';
+import { formatCurrency, formatDateTime, capitalizeWords } from '../helpers/formatHelpers.ts';
 import { ActionMenu } from '../components/common/ActionMenu.tsx';
 
 export interface PurchaseHistoryColumnsOptions {
@@ -13,6 +13,7 @@ export interface PurchaseHistoryColumnsOptions {
   onPrint?: (purchase: Purchase) => void;
   onPrintPurchase?: (purchase: Purchase) => void;
   onEditPurchase?: (purchase: Purchase) => void;
+  onDeletePurchase?: (purchaseId: number) => void;
   onCopyBillNumber?: (billNumber: string) => void;
 }
 
@@ -28,6 +29,7 @@ export function getPurchaseHistoryColumns(
     onPrint,
     onPrintPurchase,
     onEditPurchase,
+    onDeletePurchase,
     onCopyBillNumber,
   } = options;
 
@@ -56,9 +58,11 @@ export function getPurchaseHistoryColumns(
       header: isNepali ? 'आपूर्तिकर्ता (Vendor)' : 'Supplier / Vendor',
       accessor: (row: Purchase) => (
         <div>
-          <div className="font-medium text-neutral-200">
-            {row.vendor_name || (
-              <span className="text-neutral-500 italic">Self-Supplied</span>
+          <div className="font-medium text-neutral-200 capitalize">
+            {row.vendor_name ? (
+              capitalizeWords(row.vendor_name)
+            ) : (
+              <span className="text-neutral-500 italic normal-case">Self-Supplied</span>
             )}
           </div>
           {row.vendor_pan_vat && (
@@ -126,6 +130,11 @@ export function getPurchaseHistoryColumns(
       id: 'paid_amount',
       header: isNepali ? 'भुक्तानी रकम' : 'Paid',
       align: 'right',
+      sortable: true,
+      sortKey: (row: Purchase) =>
+        row.paid_amount !== undefined && row.paid_amount !== null
+          ? row.paid_amount
+          : (row.grand_total || row.total),
       accessor: (row: Purchase) => {
         const paid =
           row.paid_amount !== undefined && row.paid_amount !== null
@@ -142,15 +151,17 @@ export function getPurchaseHistoryColumns(
       id: 'due_amount',
       header: isNepali ? 'बाँकी बक्यौता' : 'Due',
       align: 'right',
+      sortable: true,
+      sortKey: (row: Purchase) => row.due_amount ?? 0,
       accessor: (row: Purchase) => {
         const due = row.due_amount ?? 0;
-        return due > 0 ? (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 tabular-nums">
+        return (
+          <span
+            className={`font-mono tabular-nums ${
+              due > 0 ? 'text-rose-400 font-medium' : 'text-neutral-500'
+            }`}
+          >
             {formatCurrency(due, currencySymbol)}
-          </span>
-        ) : (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium text-emerald-500/80 bg-emerald-500/10 border border-emerald-500/20">
-            {isNepali ? 'भुक्तान' : 'Paid'}
           </span>
         );
       },
@@ -191,7 +202,17 @@ export function getPurchaseHistoryColumns(
                   label: isNepali ? 'बिल नं प्रतिलिपि' : 'Copy Bill #',
                   icon: Copy,
                   color: 'default',
+                  divider: !onDeletePurchase,
                   action: () => onCopyBillNumber(row.bill_number || `PO-${row.id}`),
+                }
+              : null,
+            onDeletePurchase
+              ? {
+                  label: isNepali ? 'खरिद मेटाउनुहोस्' : 'Delete Purchase',
+                  icon: Trash2,
+                  color: 'rose',
+                  divider: true,
+                  action: () => onDeletePurchase(row.id),
                 }
               : null,
           ]}

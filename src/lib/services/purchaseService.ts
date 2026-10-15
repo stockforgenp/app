@@ -20,6 +20,7 @@ import {
   updateVendor,
   getVendorPreviousDueForPurchase,
 } from './vendorService.ts';
+import { capitalizeWords } from '../utils/format.ts';
 import { getSettings } from './settingsService.ts';
 import { getProductById } from './productService.ts';
 
@@ -40,7 +41,7 @@ export function processPurchase(
   return transaction(() => {
     // 1. Resolve or auto-create vendor if details were supplied
     let resolvedVendorId: number | null = vendorInfo?.vendorId || null;
-    let resolvedVendorName: string | null = vendorInfo?.vendorName?.trim() || null;
+    let resolvedVendorName: string | null = vendorInfo?.vendorName ? capitalizeWords(vendorInfo.vendorName) : null;
     let resolvedVendorPhone: string | null = vendorInfo?.vendorPhone?.trim() || null;
     let resolvedVendorEmail: string | null = vendorInfo?.vendorEmail?.trim() || null;
     let resolvedVendorPanVat: string | null = vendorInfo?.vendorPanVat?.trim() || null;
@@ -168,7 +169,7 @@ export function processPurchase(
     const paidAmount = vendorInfo?.paidAmount !== undefined
       ? Math.max(0, Math.floor(vendorInfo.paidAmount))
       : grandTotal;
-    const dueAmount = grandTotal - paidAmount;
+    const dueAmount = Math.max(0, grandTotal - paidAmount);
 
     // 5. Insert into purchases table
     run(
@@ -223,7 +224,7 @@ export function processPurchase(
         ]
       );
 
-      // Inflow Stock into inventory: increase current_stock, update cost_price and vendor
+      // Inflow Stock into inventory: increase current_stock, update cost_price and selling_price if provided
       const newStock = it.product.current_stock + it.quantity;
       if (it.sellingPrice !== undefined && it.sellingPrice > 0) {
         run(
@@ -231,16 +232,12 @@ export function processPurchase(
            SET current_stock = ?,
                cost_price = ?,
                selling_price = ?,
-               vendor_id = COALESCE(?, vendor_id),
-               vendor_name = COALESCE(?, vendor_name),
                updated_at = ?
            WHERE id = ?`,
           [
             newStock,
             it.costPrice,
             it.sellingPrice,
-            resolvedVendorId,
-            resolvedVendorName,
             now,
             it.product.id,
           ]
@@ -250,15 +247,11 @@ export function processPurchase(
           `UPDATE products 
            SET current_stock = ?,
                cost_price = ?,
-               vendor_id = COALESCE(?, vendor_id),
-               vendor_name = COALESCE(?, vendor_name),
                updated_at = ?
            WHERE id = ?`,
           [
             newStock,
             it.costPrice,
-            resolvedVendorId,
-            resolvedVendorName,
             now,
             it.product.id,
           ]
@@ -479,7 +472,7 @@ export function updatePurchase(
 
     // 2. Vendor resolution
     let resolvedVendorId: number | null = vendorInfo?.vendorId ?? existing.purchase.vendor_id ?? null;
-    let resolvedVendorName: string | null = (vendorInfo?.vendorName?.trim()) || existing.purchase.vendor_name || null;
+    let resolvedVendorName: string | null = (vendorInfo?.vendorName ? capitalizeWords(vendorInfo.vendorName) : null) || existing.purchase.vendor_name || null;
     let resolvedVendorPhone: string | null = (vendorInfo?.vendorPhone?.trim()) || existing.purchase.vendor_phone || null;
     let resolvedVendorEmail: string | null = (vendorInfo?.vendorEmail?.trim()) || existing.purchase.vendor_email || null;
     let resolvedVendorPanVat: string | null = (vendorInfo?.vendorPanVat?.trim()) || existing.purchase.vendor_pan_vat || null;
@@ -574,7 +567,7 @@ export function updatePurchase(
       : (existing.purchase.paid_amount !== undefined && existing.purchase.paid_amount !== null
           ? existing.purchase.paid_amount
           : grandTotal);
-    const dueAmount = grandTotal - paidAmount;
+    const dueAmount = Math.max(0, grandTotal - paidAmount);
 
     // 4. Update purchases record
     run(
@@ -649,16 +642,12 @@ export function updatePurchase(
            SET current_stock = current_stock + ?,
                cost_price = ?,
                selling_price = ?,
-               vendor_id = COALESCE(?, vendor_id),
-               vendor_name = COALESCE(?, vendor_name),
                updated_at = ?
            WHERE id = ?`,
           [
             it.quantity,
             it.costPrice,
             it.sellingPrice,
-            resolvedVendorId,
-            resolvedVendorName,
             now,
             it.product.id,
           ]
@@ -668,15 +657,11 @@ export function updatePurchase(
           `UPDATE products 
            SET current_stock = current_stock + ?,
                cost_price = ?,
-               vendor_id = COALESCE(?, vendor_id),
-               vendor_name = COALESCE(?, vendor_name),
                updated_at = ?
            WHERE id = ?`,
           [
             it.quantity,
             it.costPrice,
-            resolvedVendorId,
-            resolvedVendorName,
             now,
             it.product.id,
           ]
@@ -713,4 +698,80 @@ export function updatePurchase(
     return updated.purchase;
   });
 }
+
+/**
+ * Permanently deletes a purchase record:
+ * - Validates negative stock constraints if disallowed
+ * - Deducts inflowed quantities from product inventory
+ * - Records stock return movements into the movement log for audit trail
+ * - Removes the purchase line items and purchase record atomically within a transaction
+ */
+export function deletePurchase(purchaseId: number): {
+  id: number;
+  billNumber: string | null;
+  deductedItemCount: number;
+} {
+  const existing = getPurchaseWithItems(purchaseId);
+  if (!existing) {
+    throw new Error(`Purchase record #${purchaseId} not found`);
+  }
+
+  const settings = getSettings();
+  const now = new Date().toISOString();
+
+  // Validate negative stock constraints if disallowed
+  if (!settings.allow_negative_stock) {
+    for (const item of existing.items) {
+      const prod = getProductById(item.product_id);
+      if (prod && prod.current_stock < item.quantity) {
+        throw new Error(
+          `Cannot delete purchase #${existing.purchase.bill_number || purchaseId}: Deducting ${item.quantity} unit(s) of "${prod.name}" would result in negative stock (Available: ${prod.current_stock}, Required: ${item.quantity}). Adjust stock or enable "Allow Negative Stock" in settings.`
+        );
+      }
+    }
+  }
+
+  const billLabel = existing.purchase.bill_number ? `Bill #${existing.purchase.bill_number}` : `Purchase #${purchaseId}`;
+  const vendorLabel = existing.purchase.vendor_name ? ` (${capitalizeWords(existing.purchase.vendor_name)})` : '';
+
+  return transaction(() => {
+    // 1. Revert inventory inflows (deduct stock from products) and record return movements
+    for (const item of existing.items) {
+      run(
+        `UPDATE products SET current_stock = current_stock - ?, updated_at = ? WHERE id = ?`,
+        [item.quantity, now, item.product_id]
+      );
+
+      // Record stock deduction in movement log
+      run(
+        `INSERT INTO stock_movements (
+          product_id, type, quantity, reference_id,
+          vendor_id, vendor_name, note, created_at
+        ) VALUES (?, 'RETURN', ?, ?, ?, ?, ?, ?)`,
+        [
+          item.product_id,
+          -item.quantity, // Negative number (deducted from stock)
+          purchaseId,
+          existing.purchase.vendor_id || null,
+          existing.purchase.vendor_name ? capitalizeWords(existing.purchase.vendor_name) : null,
+          `Deducted from purchase return: ${billLabel}${vendorLabel}`,
+          now,
+        ]
+      );
+    }
+
+    // 2. Remove purchase line items
+    run(`DELETE FROM purchase_items WHERE purchase_id = ?`, [purchaseId]);
+
+    // 3. Remove the purchase record itself
+    run(`DELETE FROM purchases WHERE id = ?`, [purchaseId]);
+
+    return {
+      id: purchaseId,
+      billNumber: existing.purchase.bill_number ?? null,
+      deductedItemCount: existing.items.length,
+    };
+  });
+}
+
 

@@ -5,6 +5,7 @@ import { StockMovement } from '../../types/index.ts';
 import { query, run, transaction } from '../db/sqliteEngine.ts';
 import { getProductById } from './productService.ts';
 import { getSettings } from './settingsService.ts';
+import { capitalizeWords } from '../utils/format.ts';
 
 export function restockProduct(
   productId: number,
@@ -25,7 +26,7 @@ export function restockProduct(
 
   const now = new Date().toISOString();
   const vId = vendorId !== undefined ? vendorId : null;
-  const vName = vendorName !== undefined ? (vendorName?.trim() || null) : null;
+  const vName = vendorName !== undefined ? (vendorName ? capitalizeWords(vendorName) : null) : null;
 
   transaction(() => {
     run(

@@ -3,7 +3,7 @@
  * Universal data table with integrated search, multi-criteria filters,
  * extra action toolbar slots, column sorting, and pagination.
  */
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Search,
   X,
@@ -16,11 +16,11 @@ import {
   ArrowUp,
   ArrowDown,
   Inbox,
-} from 'lucide-react';
-import { Input } from './Input.tsx';
-import { Select } from './Select.tsx';
-import { DateFilterBar, DateFilterBarProps } from './DateFilterBar.tsx';
-import { useLanguage } from '../../context/LanguageContext.tsx';
+} from "lucide-react";
+import { Input } from "./Input.tsx";
+import { Select } from "./Select.tsx";
+import { DateFilterBar, DateFilterBarProps } from "./DateFilterBar.tsx";
+import { useLanguage } from "../../context/LanguageContext.tsx";
 
 export interface Column<T> {
   id: string;
@@ -28,7 +28,7 @@ export interface Column<T> {
   accessor?: (item: T, index: number) => React.ReactNode;
   sortable?: boolean;
   sortKey?: (item: T) => string | number | Date | null | undefined;
-  align?: 'left' | 'center' | 'right';
+  align?: "left" | "center" | "right";
   width?: string;
   className?: string;
   headerClassName?: string;
@@ -47,7 +47,7 @@ export interface DataTableProps<T> {
   searchFilter?: (item: T, query: string) => boolean;
 
   // Date Filter
-  dateFilterConfig?: Omit<DateFilterBarProps, 'className'>;
+  dateFilterConfig?: Omit<DateFilterBarProps, "className">;
 
   // Custom Filters & Extra Actions
   filtersSlot?: React.ReactNode;
@@ -63,10 +63,10 @@ export interface DataTableProps<T> {
 
   // Sorting
   defaultSortColumn?: string;
-  defaultSortDirection?: 'asc' | 'desc';
+  defaultSortDirection?: "asc" | "desc";
   sortColumn?: string;
-  sortDirection?: 'asc' | 'desc';
-  onSortChange?: (columnId: string, direction: 'asc' | 'desc') => void;
+  sortDirection?: "asc" | "desc";
+  onSortChange?: (columnId: string, direction: "asc" | "desc") => void;
 
   // Pagination
   enablePagination?: boolean;
@@ -111,7 +111,7 @@ export function DataTable<T>({
   onSelectChange,
   bulkActionsSlot,
   defaultSortColumn,
-  defaultSortDirection = 'asc',
+  defaultSortDirection = "asc",
   sortColumn: controlledSortColumn,
   sortDirection: controlledSortDirection,
   onSortChange,
@@ -127,16 +127,18 @@ export function DataTable<T>({
   emptyTitle,
   emptyMessage,
   emptyAction,
-  className = '',
-  tableClassName = '',
-  headerClassName = '',
+  className = "",
+  tableClassName = "",
+  headerClassName = "",
 }: DataTableProps<T>): React.ReactElement {
   const { isNepali, formatNumberByLang } = useLanguage();
 
   // Internal search state if not controlled
-  const [internalSearch, setInternalSearch] = useState('');
+  const [internalSearch, setInternalSearch] = useState("");
   const isSearchControlled = controlledSearchQuery !== undefined;
-  const currentSearch = isSearchControlled ? controlledSearchQuery : internalSearch;
+  const currentSearch = isSearchControlled
+    ? controlledSearchQuery
+    : internalSearch;
 
   const handleSearchChange = (val: string) => {
     if (!isSearchControlled) {
@@ -146,16 +148,28 @@ export function DataTable<T>({
   };
 
   // Internal sorting state if not controlled
-  const [internalSortColumn, setInternalSortColumn] = useState<string | undefined>(defaultSortColumn);
-  const [internalSortDirection, setInternalSortDirection] = useState<'asc' | 'desc'>(defaultSortDirection);
+  const [internalSortColumn, setInternalSortColumn] = useState<
+    string | undefined
+  >(defaultSortColumn);
+  const [internalSortDirection, setInternalSortDirection] = useState<
+    "asc" | "desc"
+  >(defaultSortDirection);
 
-  const activeSortColumn = controlledSortColumn !== undefined ? controlledSortColumn : internalSortColumn;
-  const activeSortDirection = controlledSortDirection !== undefined ? controlledSortDirection : internalSortDirection;
+  const activeSortColumn =
+    controlledSortColumn !== undefined
+      ? controlledSortColumn
+      : internalSortColumn;
+  const activeSortDirection =
+    controlledSortDirection !== undefined
+      ? controlledSortDirection
+      : internalSortDirection;
 
   const handleColumnSort = (col: Column<T>) => {
     if (!col.sortable) return;
     const newDirection =
-      activeSortColumn === col.id && activeSortDirection === 'asc' ? 'desc' : 'asc';
+      activeSortColumn === col.id && activeSortDirection === "asc"
+        ? "desc"
+        : "asc";
 
     if (controlledSortColumn === undefined) {
       setInternalSortColumn(col.id);
@@ -165,9 +179,13 @@ export function DataTable<T>({
   };
 
   // Internal selection state
-  const [internalSelectedIds, setInternalSelectedIds] = useState<(string | number)[]>([]);
+  const [internalSelectedIds, setInternalSelectedIds] = useState<
+    (string | number)[]
+  >([]);
   const isSelectionControlled = controlledSelectedIds !== undefined;
-  const activeSelectedIds = isSelectionControlled ? controlledSelectedIds : internalSelectedIds;
+  const activeSelectedIds = isSelectionControlled
+    ? controlledSelectedIds
+    : internalSelectedIds;
 
   const resolveRowId = (item: T, idx: number): string | number => {
     if (getRowId) return getRowId(item, idx);
@@ -222,7 +240,7 @@ export function DataTable<T>({
       if (valB === null || valB === undefined) return -1;
 
       let comparison = 0;
-      if (typeof valA === 'number' && typeof valB === 'number') {
+      if (typeof valA === "number" && typeof valB === "number") {
         comparison = valA - valB;
       } else if (valA instanceof Date && valB instanceof Date) {
         comparison = valA.getTime() - valB.getTime();
@@ -230,7 +248,7 @@ export function DataTable<T>({
         comparison = String(valA).localeCompare(String(valB));
       }
 
-      return activeSortDirection === 'asc' ? comparison : -comparison;
+      return activeSortDirection === "asc" ? comparison : -comparison;
     });
   }, [filteredData, activeSortColumn, activeSortDirection, columns]);
 
@@ -248,7 +266,9 @@ export function DataTable<T>({
     }
   }, [currentSearch, filteredData.length, isPageControlled]);
 
-  const totalPages = enablePagination ? Math.max(1, Math.ceil(sortedData.length / pageSize)) : 1;
+  const totalPages = enablePagination
+    ? Math.max(1, Math.ceil(sortedData.length / pageSize))
+    : 1;
   const validPage = Math.min(Math.max(1, activePage), totalPages);
 
   const paginatedData = useMemo(() => {
@@ -267,8 +287,12 @@ export function DataTable<T>({
 
   // Selection handlers
   const handleToggleSelectAll = () => {
-    const pageRowIds = paginatedData.map((item, idx) => resolveRowId(item, idx));
-    const allSelected = pageRowIds.every((id) => activeSelectedIds.includes(id));
+    const pageRowIds = paginatedData.map((item, idx) =>
+      resolveRowId(item, idx),
+    );
+    const allSelected = pageRowIds.every((id) =>
+      activeSelectedIds.includes(id),
+    );
 
     let nextSelected: (string | number)[];
     if (allSelected) {
@@ -298,9 +322,12 @@ export function DataTable<T>({
 
   const isAllCurrentPageSelected =
     paginatedData.length > 0 &&
-    paginatedData.every((item, idx) => activeSelectedIds.includes(resolveRowId(item, idx)));
+    paginatedData.every((item, idx) =>
+      activeSelectedIds.includes(resolveRowId(item, idx)),
+    );
 
-  const startEntryIndex = sortedData.length === 0 ? 0 : (validPage - 1) * pageSize + 1;
+  const startEntryIndex =
+    sortedData.length === 0 ? 0 : (validPage - 1) * pageSize + 1;
   const endEntryIndex = Math.min(validPage * pageSize, sortedData.length);
 
   // Generate page numbers for pagination bar with ellipsis
@@ -310,23 +337,45 @@ export function DataTable<T>({
       for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
       if (validPage <= 4) {
-        pages.push(1, 2, 3, 4, 5, '...', totalPages);
+        pages.push(1, 2, 3, 4, 5, "...", totalPages);
       } else if (validPage >= totalPages - 3) {
-        pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+        pages.push(
+          1,
+          "...",
+          totalPages - 4,
+          totalPages - 3,
+          totalPages - 2,
+          totalPages - 1,
+          totalPages,
+        );
       } else {
-        pages.push(1, '...', validPage - 1, validPage, validPage + 1, '...', totalPages);
+        pages.push(
+          1,
+          "...",
+          validPage - 1,
+          validPage,
+          validPage + 1,
+          "...",
+          totalPages,
+        );
       }
     }
     return pages;
   }, [totalPages, validPage]);
 
-  const showToolbar = showSearch || Boolean(dateFilterConfig) || Boolean(filtersSlot) || Boolean(extraActionsSlot);
+  const showToolbar =
+    showSearch ||
+    Boolean(dateFilterConfig) ||
+    Boolean(filtersSlot) ||
+    Boolean(extraActionsSlot);
 
   return (
-    <div className={`space-y-4 ${className}`}>
+    <div
+      className={`bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xs ${className}`}
+    >
       {/* Table Toolbar: Search, Filters, Date Filter & Extra Actions */}
       {showToolbar && (
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3 shadow-xs">
+        <div className="p-4 space-y-3 border-b border-neutral-800 bg-neutral-900">
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
             {/* Left: Search & Filter Slots */}
             <div className="flex flex-1 flex-wrap items-center gap-2.5">
@@ -338,7 +387,7 @@ export function DataTable<T>({
                     sizeVariant="sm"
                     placeholder={
                       searchPlaceholder ||
-                      (isNepali ? 'खोजी गर्नुहोस्...' : 'Search records...')
+                      (isNepali ? "खोजी गर्नुहोस्..." : "Search records...")
                     }
                     value={currentSearch}
                     onChange={(e) => handleSearchChange(e.target.value)}
@@ -350,20 +399,23 @@ export function DataTable<T>({
               {filtersSlot}
 
               {/* Reset/Clear button */}
-              {(hasActiveFilters || Boolean(currentSearch)) && onClearFilters && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleSearchChange('');
-                    onClearFilters();
-                  }}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-200 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 transition-colors cursor-pointer shrink-0"
-                  title={isNepali ? 'फिल्टरहरू रिसेट गर्नुहोस्' : 'Reset filters'}
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-neutral-500" />
-                  <span>{isNepali ? 'रिसेट' : 'Reset'}</span>
-                </button>
-              )}
+              {(hasActiveFilters || Boolean(currentSearch)) &&
+                onClearFilters && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSearchChange("");
+                      onClearFilters();
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-200 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 transition-colors cursor-pointer shrink-0"
+                    title={
+                      isNepali ? "फिल्टरहरू रिसेट गर्नुहोस्" : "Reset filters"
+                    }
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-neutral-500" />
+                    <span>{isNepali ? "रिसेट" : "Reset"}</span>
+                  </button>
+                )}
             </div>
 
             {/* Right: Extra Action Buttons */}
@@ -385,13 +437,13 @@ export function DataTable<T>({
 
       {/* Bulk Action Banner when rows are selected */}
       {selectable && activeSelectedIds.length > 0 && (
-        <div className="px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between text-xs text-emerald-400 animate-in fade-in duration-150">
+        <div className="px-4 py-2.5 bg-emerald-500/10 border-b border-emerald-500/20 flex items-center justify-between text-xs text-emerald-400 animate-in fade-in duration-150">
           <div className="flex items-center gap-2">
             <span className="font-semibold font-mono">
               {formatNumberByLang(activeSelectedIds.length)}
             </span>
             <span>
-              {isNepali ? 'वस्तुहरू चयन गरिएका छन्' : 'item(s) selected'}
+              {isNepali ? "वस्तुहरू चयन गरिएका छन्" : "item(s) selected"}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -412,10 +464,11 @@ export function DataTable<T>({
       )}
 
       {/* Table Container */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xs">
-        <div className="overflow-x-auto scrollbar-thin">
-          <table className={`w-full text-left text-xs ${tableClassName}`}>
-            <thead className={`bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 select-none ${headerClassName}`}>
+      <div className="overflow-x-auto scrollbar-thin">
+        <table className={`w-full text-left text-xs ${tableClassName}`}>
+          <thead
+            className={`bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 select-none ${headerClassName}`}
+          >
               <tr>
                 {selectable && (
                   <th className="py-3 px-4 w-10 text-center">
@@ -424,7 +477,9 @@ export function DataTable<T>({
                       checked={isAllCurrentPageSelected}
                       onChange={handleToggleSelectAll}
                       className="w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
-                      title={isNepali ? 'सबै चयन गर्नुहोस्' : 'Select all on page'}
+                      title={
+                        isNepali ? "सबै चयन गर्नुहोस्" : "Select all on page"
+                      }
                     />
                   </th>
                 )}
@@ -432,31 +487,33 @@ export function DataTable<T>({
                 {columns.map((col) => {
                   const isSorted = activeSortColumn === col.id;
                   const alignClass =
-                    col.align === 'center'
-                      ? 'text-center'
-                      : col.align === 'right'
-                      ? 'text-right'
-                      : 'text-left';
+                    col.align === "center"
+                      ? "text-center"
+                      : col.align === "right"
+                        ? "text-right"
+                        : "text-left";
 
                   return (
                     <th
                       key={col.id}
                       style={{ width: col.width }}
-                      className={`py-3 px-4 ${alignClass} ${col.headerClassName || ''} ${
-                        col.sortable ? 'cursor-pointer hover:text-neutral-200 transition-colors' : ''
+                      className={`py-3 px-4 ${alignClass} ${col.headerClassName || ""} ${
+                        col.sortable
+                          ? "cursor-pointer hover:text-neutral-200 transition-colors"
+                          : ""
                       }`}
                       onClick={() => col.sortable && handleColumnSort(col)}
                     >
                       <div
                         className={`inline-flex items-center gap-1.5 ${
-                          col.align === 'right' ? 'flex-row-reverse' : ''
+                          col.align === "right" ? "flex-row-reverse" : ""
                         }`}
                       >
                         <span>{col.header}</span>
                         {col.sortable && (
                           <span className="text-neutral-500">
                             {isSorted ? (
-                              activeSortDirection === 'asc' ? (
+                              activeSortDirection === "asc" ? (
                                 <ArrowUp className="w-3.5 h-3.5 text-emerald-400" />
                               ) : (
                                 <ArrowDown className="w-3.5 h-3.5 text-emerald-400" />
@@ -483,7 +540,7 @@ export function DataTable<T>({
                     <div className="flex flex-col items-center justify-center gap-2">
                       <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
                       <p className="text-xs text-neutral-400">
-                        {isNepali ? 'डाटा लोड हुँदैछ...' : 'Loading data...'}
+                        {isNepali ? "डाटा लोड हुँदैछ..." : "Loading data..."}
                       </p>
                     </div>
                   </td>
@@ -497,17 +554,20 @@ export function DataTable<T>({
                     <div className="flex flex-col items-center justify-center max-w-sm mx-auto space-y-2">
                       <EmptyIcon className="w-9 h-9 text-neutral-600 mb-1" />
                       <p className="text-sm font-semibold text-neutral-300">
-                        {emptyTitle || (isNepali ? 'कुनै विवरण फेला परेन' : 'No records found')}
+                        {emptyTitle ||
+                          (isNepali
+                            ? "कुनै विवरण फेला परेन"
+                            : "No records found")}
                       </p>
                       <p className="text-xs text-neutral-400">
                         {emptyMessage ||
                           (currentSearch || hasActiveFilters
                             ? isNepali
-                              ? 'तपाईंको खोजी वा फिल्टर मापदण्डसँग कुनै डाटा मेल खाएन।'
-                              : 'No data matches your active filter or search criteria.'
+                              ? "तपाईंको खोजी वा फिल्टर मापदण्डसँग कुनै डाटा मेल खाएन।"
+                              : "No data matches your active filter or search criteria."
                             : isNepali
-                            ? 'यहाँ प्रदर्शन गर्न कुनै डाटा उपलब्ध छैन।'
-                            : 'There are no records to display in this list.')}
+                              ? "यहाँ प्रदर्शन गर्न कुनै डाटा उपलब्ध छैन।"
+                              : "There are no records to display in this list.")}
                       </p>
                       {emptyAction && <div className="pt-2">{emptyAction}</div>}
                     </div>
@@ -517,15 +577,15 @@ export function DataTable<T>({
                 paginatedData.map((item, idx) => {
                   const rowId = resolveRowId(item, idx);
                   const isSelected = activeSelectedIds.includes(rowId);
-                  const customRowClass = rowClassName?.(item, idx) || '';
+                  const customRowClass = rowClassName?.(item, idx) || "";
 
                   return (
                     <tr
                       key={String(rowId)}
                       onClick={() => onRowClick?.(item, idx)}
                       className={`hover:bg-neutral-800/40 transition-colors ${
-                        isSelected ? 'bg-emerald-950/20' : ''
-                      } ${onRowClick ? 'cursor-pointer' : ''} ${customRowClass}`}
+                        isSelected ? "bg-emerald-950/20" : ""
+                      } ${onRowClick ? "cursor-pointer" : ""} ${customRowClass}`}
                     >
                       {selectable && (
                         <td
@@ -543,20 +603,22 @@ export function DataTable<T>({
 
                       {columns.map((col) => {
                         const alignClass =
-                          col.align === 'center'
-                            ? 'text-center'
-                            : col.align === 'right'
-                            ? 'text-right'
-                            : 'text-left';
+                          col.align === "center"
+                            ? "text-center"
+                            : col.align === "right"
+                              ? "text-right"
+                              : "text-left";
 
                         return (
                           <td
                             key={col.id}
-                            className={`py-3 px-4 ${alignClass} ${col.className || ''}`}
+                            className={`py-3 px-4 ${alignClass} ${col.className || ""}`}
                           >
                             {col.accessor
                               ? col.accessor(item, idx)
-                              : ((item as Record<string, unknown>)[col.id] as React.ReactNode)}
+                              : ((item as Record<string, unknown>)[
+                                  col.id
+                                ] as React.ReactNode)}
                           </td>
                         );
                       })}
@@ -578,31 +640,31 @@ export function DataTable<T>({
                   <>
                     <strong className="text-neutral-200 font-mono">
                       {formatNumberByLang(sortedData.length)}
-                    </strong>{' '}
-                    मध्ये{' '}
+                    </strong>{" "}
+                    मध्ये{" "}
                     <strong className="text-neutral-200 font-mono">
                       {formatNumberByLang(startEntryIndex)}
                     </strong>
                     -
                     <strong className="text-neutral-200 font-mono">
                       {formatNumberByLang(endEntryIndex)}
-                    </strong>{' '}
+                    </strong>{" "}
                     देखाउँदै
                   </>
                 ) : (
                   <>
-                    Showing{' '}
+                    Showing{" "}
                     <strong className="text-neutral-200 font-mono">
                       {startEntryIndex}
-                    </strong>{' '}
-                    to{' '}
+                    </strong>{" "}
+                    to{" "}
                     <strong className="text-neutral-200 font-mono">
                       {endEntryIndex}
-                    </strong>{' '}
-                    of{' '}
+                    </strong>{" "}
+                    of{" "}
                     <strong className="text-neutral-200 font-mono">
                       {sortedData.length}
-                    </strong>{' '}
+                    </strong>{" "}
                     entries
                   </>
                 )}
@@ -611,7 +673,7 @@ export function DataTable<T>({
               {/* Page Size Selector */}
               <div className="flex items-center gap-1.5 pl-3 border-l border-neutral-800">
                 <span className="text-[11px] text-neutral-500">
-                  {isNepali ? 'प्रति पृष्ठ:' : 'Show:'}
+                  {isNepali ? "प्रति पृष्ठ:" : "Show:"}
                 </span>
                 <Select
                   value={pageSize}
@@ -660,9 +722,12 @@ export function DataTable<T>({
                 {/* Number Buttons */}
                 <div className="flex items-center gap-1">
                   {pageNumbers.map((p, idx) => {
-                    if (p === '...') {
+                    if (p === "...") {
                       return (
-                        <span key={`ellipsis-${idx}`} className="px-2 text-neutral-600">
+                        <span
+                          key={`ellipsis-${idx}`}
+                          className="px-2 text-neutral-600"
+                        >
                           ...
                         </span>
                       );
@@ -677,8 +742,8 @@ export function DataTable<T>({
                         onClick={() => handlePageChange(pageNum)}
                         className={`min-w-7 h-7 px-2 rounded-md font-mono text-xs font-medium transition-colors cursor-pointer ${
                           isActive
-                            ? 'bg-emerald-600 text-white font-bold'
-                            : 'text-neutral-300 hover:bg-neutral-800'
+                            ? "bg-emerald-600 text-white font-bold"
+                            : "text-neutral-300 hover:bg-neutral-800"
                         }`}
                       >
                         {formatNumberByLang(pageNum)}
@@ -713,7 +778,6 @@ export function DataTable<T>({
           </div>
         )}
       </div>
-    </div>
   );
 }
 

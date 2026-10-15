@@ -14,7 +14,7 @@ import {
 import { Vendor } from "../types/index.ts";
 import { Column } from "../components/common/DataTable.tsx";
 import { ActionMenu } from "../components/common/ActionMenu.tsx";
-import { formatCurrency } from "../helpers/formatHelpers.ts";
+import { formatCurrency, capitalizeWords } from "../helpers/formatHelpers.ts";
 
 export interface VendorColumnOptions {
   isNepali: boolean;
@@ -53,8 +53,8 @@ export function getVendorColumns(options: VendorColumnOptions): Column<Vendor>[]
             <Building2 className="w-3.5 h-3.5" />
           </div>
           <div className="min-w-0">
-            <p className="truncate font-semibold text-neutral-100">
-              {vendor.name}
+            <p className="truncate font-semibold text-neutral-100 capitalize">
+              {capitalizeWords(vendor.name)}
             </p>
             {vendor.notes && (
               <p className="text-xs text-neutral-500 truncate max-w-xs">
@@ -65,7 +65,7 @@ export function getVendorColumns(options: VendorColumnOptions): Column<Vendor>[]
         </div>
       ),
       sortable: true,
-      sortKey: (v) => v.name,
+      sortKey: (v) => capitalizeWords(v.name),
     },
     {
       id: "pan_vat",
@@ -177,13 +177,13 @@ export function getVendorColumns(options: VendorColumnOptions): Column<Vendor>[]
       align: "right",
       accessor: (vendor) => {
         const due = vendor.total_due || 0;
-        return due > 0 ? (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 tabular-nums">
+        return (
+          <span
+            className={`font-mono text-xs tabular-nums ${
+              due > 0 ? "text-rose-400 font-medium" : "text-neutral-500"
+            }`}
+          >
             {formatCurrency(due, currencySymbol)}
-          </span>
-        ) : (
-          <span className="text-neutral-500 font-mono text-xs">
-            {formatCurrency(0, currencySymbol)}
           </span>
         );
       },

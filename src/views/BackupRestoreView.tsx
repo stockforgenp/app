@@ -17,7 +17,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
-  Database,
   Download,
   Upload,
   RotateCcw,
@@ -35,7 +34,6 @@ import {
   CloudDownload,
   ExternalLink,
   Settings,
-  RefreshCw,
   FileSpreadsheet,
   LogOut,
   Info,
@@ -679,44 +677,6 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
 
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-150">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-              <Database className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-neutral-100 flex items-center gap-2">
-                <span>
-                  {isNepali
-                    ? "डाटाबेस ब्याकअप र पुनर्स्थापना"
-                    : "Database Backup & Recovery"}
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  SQLite WASM · Google Sheets
-                </span>
-              </h1>
-              <p className="text-xs text-neutral-400 mt-0.5">
-                {isNepali
-                  ? "गुगल सिट क्लाउड ब्याकअप, स्थानीय एसक्यूएल डम्प (.sql) र बाइनरी (.sqlite) मार्फत डाटा सुरक्षित राख्नुहोस्।"
-                  : "Manage Google Sheets cloud sync, offline SQL dumps, binary snapshots, and disaster recovery."}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Engine Status Badges */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-800 text-xs text-neutral-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>
-              {isNepali ? "१००% अफलाइन सुरक्षित" : "100% Offline & Private"}
-            </span>
-          </div>
-        </div>
-      </div>
-
       {/* Database Telemetry Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <motion.div

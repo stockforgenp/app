@@ -39,6 +39,7 @@ import {
   toMinorUnits,
   formatForDateTimeLocal,
   parseDateTimeLocalToIso,
+  capitalizeWords,
 } from "../../lib/utils/format.ts";
 import { calculateProportionalDiscounts } from "../../helpers/discountHelpers.ts";
 import { useToast } from "../../context/ToastContext.tsx";
@@ -313,7 +314,7 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
 
       updatePurchase(purchaseId, itemsInput, {
         vendorId: purchaseRecord?.vendor_id ?? null,
-        vendorName: vendorName.trim() || null,
+        vendorName: vendorName.trim() ? capitalizeWords(vendorName.trim()) : null,
         vendorPhone: vendorPhone.trim() || null,
         vendorPanVat: vendorPanVat.trim() || null,
         vendorEmail: vendorEmail.trim() || null,
@@ -436,8 +437,9 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
                     type="text"
                     value={vendorName}
                     onChange={(e) => setVendorName(e.target.value)}
+                    onBlur={() => setVendorName((v) => capitalizeWords(v))}
                     placeholder="Supplier / Vendor"
-                    className="w-full px-2.5 py-1 text-xs text-neutral-100 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500"
+                    className="w-full px-2.5 py-1 text-xs text-neutral-100 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500 capitalize"
                   />
                 </div>
                 <div>
@@ -522,8 +524,8 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
                       className="w-full px-3 py-2 text-left hover:bg-neutral-800/50 flex items-center justify-between transition-colors text-xs cursor-pointer"
                     >
                       <div>
-                        <div className="font-medium text-neutral-200">
-                          {p.name}
+                        <div className="font-medium text-neutral-200 capitalize">
+                          {capitalizeWords(p.name)}
                         </div>
                         <div className="text-[10px] text-neutral-400 font-mono">
                           {p.sku || "No SKU"} · In Stock: {p.current_stock}
@@ -557,8 +559,8 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
                     return (
                       <tr key={idx} className="hover:bg-neutral-800/20">
                         <td className="py-2.5 px-3">
-                          <div className="font-medium text-neutral-200">
-                            {line.productName}
+                          <div className="font-medium text-neutral-200 capitalize">
+                            {capitalizeWords(line.productName)}
                           </div>
                           <div className="text-[10px] text-neutral-400 font-mono">
                             {line.productSku || "—"} · {line.unit}
@@ -722,6 +724,7 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
                   step="0.01"
                   min="0"
                   value={paidAmountInput}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => setPaidAmountInput(e.target.value)}
                   className="w-28 text-right px-2 py-1 text-xs font-mono font-bold bg-neutral-900 border border-neutral-700 rounded text-emerald-400 focus:outline-none focus:border-emerald-500"
                 />

@@ -15,7 +15,7 @@ import {
   TodayPayrollStatus,
 } from '../../types/index.ts';
 import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
-import { getTodayISODate } from '../utils/format.ts';
+import { getTodayISODate, capitalizeWords } from '../utils/format.ts';
 
 import {
   DEFAULT_STAFF_ROLES,
@@ -88,12 +88,12 @@ export function getStaffById(id: number): Staff | null {
  * Create a new staff member
  */
 export function createStaff(input: CreateStaffInput): Staff {
-  const name = input.name?.trim();
+  const name = capitalizeWords(input.name);
   if (!name) {
     throw new Error('Staff member name is required');
   }
 
-  const role = input.role?.trim() || 'Sales Associate';
+  const role = capitalizeWords(input.role) || 'Sales Associate';
   const baseSalary = Math.max(0, Math.floor(input.base_salary || 0));
   const salaryType = input.salary_type || 'monthly';
   const status = input.status || 'active';
@@ -141,12 +141,12 @@ export function updateStaff(id: number, input: UpdateStaffInput): Staff {
       throw new Error(`Staff member #${id} not found`);
     }
 
-    const name = input.name !== undefined ? input.name.trim() : existing.name;
+    const name = input.name !== undefined ? capitalizeWords(input.name) : existing.name;
     if (!name) {
       throw new Error('Staff name cannot be empty');
     }
 
-    const role = input.role !== undefined ? input.role.trim() : existing.role;
+    const role = input.role !== undefined ? capitalizeWords(input.role) : existing.role;
     const phone = input.phone !== undefined ? (input.phone ? input.phone.trim() : null) : existing.phone;
     const email = input.email !== undefined ? (input.email ? input.email.trim() : null) : existing.email;
     const baseSalary = input.base_salary !== undefined ? Math.max(0, Math.floor(input.base_salary)) : existing.base_salary;

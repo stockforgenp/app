@@ -15,7 +15,7 @@ import {
 import { Staff } from "../types/index.ts";
 import { Column } from "../components/common/DataTable.tsx";
 import { ActionMenu } from "../components/common/ActionMenu.tsx";
-import { formatCurrency, formatDate } from "../helpers/formatHelpers.ts";
+import { formatCurrency, formatDate, capitalizeWords } from "../helpers/formatHelpers.ts";
 
 export interface StaffColumnOptions {
   isNepali?: boolean;
@@ -43,12 +43,12 @@ export function getStaffColumns(options: StaffColumnOptions): Column<Staff>[] {
       id: "name",
       header: isNepali ? "कर्मचारी" : "Employee",
       sortable: true,
-      sortKey: (staff) => staff.name,
+      sortKey: (staff) => capitalizeWords(staff.name),
       accessor: (staff) => (
         <div>
           <div className="font-semibold text-neutral-100 flex items-center gap-2">
             <Users className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
-            <span>{staff.name}</span>
+            <span className="capitalize">{capitalizeWords(staff.name)}</span>
             {staff.status === "active" && (
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
             )}
@@ -64,10 +64,10 @@ export function getStaffColumns(options: StaffColumnOptions): Column<Staff>[] {
       id: "role",
       header: isNepali ? "पद / जिम्मेवारी" : "Designation",
       sortable: true,
-      sortKey: (staff) => staff.role,
+      sortKey: (staff) => capitalizeWords(staff.role),
       accessor: (staff) => (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-800 text-neutral-200 border border-neutral-700/60">
-          {staff.role}
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-800 text-neutral-200 border border-neutral-700/60 capitalize">
+          {capitalizeWords(staff.role)}
         </span>
       ),
     },

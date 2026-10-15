@@ -9,6 +9,7 @@ import sqlWasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
 import { SCHEMA_SQL } from './schema.ts';
 import { seedInitialData, cleanupMockData } from './seed.ts';
 import { saveDatabaseToStorage, loadDatabaseFromStorage, clearDatabaseStorage } from './storage.ts';
+import { capitalizeWords } from '../utils/format.ts';
 
 let dbInstance: Database | null = null;
 let initPromise: Promise<Database> | null = null;
@@ -129,12 +130,56 @@ function migrateDatabaseIfNeeded(db: Database) {
       } catch {}
     }
 
+    // Ensure vendors table exists
+    const vendorsTable = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='vendors';");
+    if (vendorsTable.length === 0 || vendorsTable[0].values.length === 0) {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS vendors (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          email TEXT,
+          phone TEXT,
+          pan_vat TEXT,
+          address TEXT,
+          notes TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_vendors_name ON vendors(name);
+        CREATE INDEX IF NOT EXISTS idx_vendors_pan_vat ON vendors(pan_vat);
+        CREATE INDEX IF NOT EXISTS idx_vendors_phone ON vendors(phone);
+      `);
+      changed = true;
+    }
+
+    // Ensure customers table exists
+    const customersTable = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='customers';");
+    if (customersTable.length === 0 || customersTable[0].values.length === 0) {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS customers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          phone TEXT,
+          pan_vat TEXT,
+          address TEXT,
+          notes TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
+        CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
+        CREATE INDEX IF NOT EXISTS idx_customers_pan_vat ON customers(pan_vat);
+      `);
+      changed = true;
+    }
+
     // Ensure stock_movements vendor_id and vendor_name columns exist
     const movementTableInfo = db.exec("PRAGMA table_info(stock_movements);");
     if (movementTableInfo.length > 0 && movementTableInfo[0].values) {
       const colNames = movementTableInfo[0].values.map((col: unknown[]) => col[1] as string);
       if (!colNames.includes('vendor_id')) {
         db.run('ALTER TABLE stock_movements ADD COLUMN vendor_id INTEGER REFERENCES vendors(id) ON DELETE SET NULL;');
+        db.run('CREATE INDEX IF NOT EXISTS idx_stock_movements_vendor_id ON stock_movements(vendor_id);');
         changed = true;
       }
       if (!colNames.includes('vendor_name')) {
@@ -327,6 +372,66 @@ function migrateDatabaseIfNeeded(db: Database) {
     } else {
       const pCols = db.exec('PRAGMA table_info(purchases);');
       const pColNames = pCols[0]?.values.map((v) => v[1] as string) || [];
+      if (!pColNames.includes('bill_number')) {
+        db.run('ALTER TABLE purchases ADD COLUMN bill_number TEXT;');
+        changed = true;
+      }
+      if (!pColNames.includes('invoice_number')) {
+        db.run('ALTER TABLE purchases ADD COLUMN invoice_number TEXT;');
+        changed = true;
+      }
+      if (!pColNames.includes('vendor_id')) {
+        db.run('ALTER TABLE purchases ADD COLUMN vendor_id INTEGER REFERENCES vendors(id) ON DELETE SET NULL;');
+        changed = true;
+      }
+      if (!pColNames.includes('vendor_name')) {
+        db.run('ALTER TABLE purchases ADD COLUMN vendor_name TEXT;');
+        changed = true;
+      }
+      if (!pColNames.includes('vendor_phone')) {
+        db.run('ALTER TABLE purchases ADD COLUMN vendor_phone TEXT;');
+        changed = true;
+      }
+      if (!pColNames.includes('vendor_email')) {
+        db.run('ALTER TABLE purchases ADD COLUMN vendor_email TEXT;');
+        changed = true;
+      }
+      if (!pColNames.includes('vendor_pan_vat')) {
+        db.run('ALTER TABLE purchases ADD COLUMN vendor_pan_vat TEXT;');
+        changed = true;
+      }
+      if (!pColNames.includes('vendor_address')) {
+        db.run('ALTER TABLE purchases ADD COLUMN vendor_address TEXT;');
+        changed = true;
+      }
+      if (!pColNames.includes('subtotal')) {
+        db.run('ALTER TABLE purchases ADD COLUMN subtotal INTEGER NOT NULL DEFAULT 0;');
+        changed = true;
+      }
+      if (!pColNames.includes('discount')) {
+        db.run('ALTER TABLE purchases ADD COLUMN discount INTEGER NOT NULL DEFAULT 0;');
+        changed = true;
+      }
+      if (!pColNames.includes('taxable_amount')) {
+        db.run('ALTER TABLE purchases ADD COLUMN taxable_amount INTEGER;');
+        changed = true;
+      }
+      if (!pColNames.includes('vat_rate')) {
+        db.run('ALTER TABLE purchases ADD COLUMN vat_rate REAL DEFAULT 13.0;');
+        changed = true;
+      }
+      if (!pColNames.includes('vat_amount')) {
+        db.run('ALTER TABLE purchases ADD COLUMN vat_amount INTEGER NOT NULL DEFAULT 0;');
+        changed = true;
+      }
+      if (!pColNames.includes('grand_total')) {
+        db.run('ALTER TABLE purchases ADD COLUMN grand_total INTEGER;');
+        changed = true;
+      }
+      if (!pColNames.includes('total')) {
+        db.run('ALTER TABLE purchases ADD COLUMN total INTEGER NOT NULL DEFAULT 0;');
+        changed = true;
+      }
       if (!pColNames.includes('paid_amount')) {
         db.run('ALTER TABLE purchases ADD COLUMN paid_amount INTEGER DEFAULT NULL;');
         changed = true;
@@ -335,7 +440,35 @@ function migrateDatabaseIfNeeded(db: Database) {
         db.run('ALTER TABLE purchases ADD COLUMN due_amount INTEGER DEFAULT 0;');
         changed = true;
       }
+      if (!pColNames.includes('notes')) {
+        db.run('ALTER TABLE purchases ADD COLUMN notes TEXT;');
+        changed = true;
+      }
+      if (!pColNames.includes('created_at')) {
+        db.run("ALTER TABLE purchases ADD COLUMN created_at TEXT NOT NULL DEFAULT '';");
+        changed = true;
+      }
+
       try {
+        db.run('CREATE INDEX IF NOT EXISTS idx_purchases_vendor_id ON purchases(vendor_id);');
+        db.run('CREATE INDEX IF NOT EXISTS idx_purchases_bill_number ON purchases(bill_number);');
+        db.run('CREATE INDEX IF NOT EXISTS idx_purchases_created_at ON purchases(created_at);');
+      } catch {}
+
+      try {
+        db.run(`
+          UPDATE purchases
+          SET bill_number = 'PUR-' || substr('00000' || id, -5)
+          WHERE bill_number IS NULL OR bill_number = '';
+        `);
+        db.run(`
+          UPDATE purchases
+          SET taxable_amount = COALESCE(taxable_amount, subtotal - discount),
+              vat_rate = COALESCE(vat_rate, 13.0),
+              vat_amount = COALESCE(vat_amount, round((subtotal - discount) * 0.13)),
+              grand_total = COALESCE(grand_total, total)
+          WHERE grand_total IS NULL;
+        `);
         db.run(`
           UPDATE purchases
           SET paid_amount = COALESCE(paid_amount, grand_total, total),
@@ -368,6 +501,106 @@ function migrateDatabaseIfNeeded(db: Database) {
         CREATE VIEW IF NOT EXISTS purchase_products AS SELECT * FROM purchase_items;
       `);
       changed = true;
+    } else {
+      const piCols = db.exec('PRAGMA table_info(purchase_items);');
+      const piColNames = piCols[0]?.values.map((v) => v[1] as string) || [];
+      if (!piColNames.includes('product_name')) {
+        db.run('ALTER TABLE purchase_items ADD COLUMN product_name TEXT;');
+        changed = true;
+      }
+      if (!piColNames.includes('product_sku')) {
+        db.run('ALTER TABLE purchase_items ADD COLUMN product_sku TEXT;');
+        changed = true;
+      }
+      if (!piColNames.includes('selling_price')) {
+        db.run('ALTER TABLE purchase_items ADD COLUMN selling_price INTEGER;');
+        changed = true;
+      }
+      if (!piColNames.includes('discount')) {
+        db.run('ALTER TABLE purchase_items ADD COLUMN discount INTEGER NOT NULL DEFAULT 0;');
+        changed = true;
+      }
+      try {
+        db.run('CREATE INDEX IF NOT EXISTS idx_purchase_items_purchase_id ON purchase_items(purchase_id);');
+        db.run('CREATE INDEX IF NOT EXISTS idx_purchase_items_product_id ON purchase_items(product_id);');
+        db.run('CREATE VIEW IF NOT EXISTS purchase_products AS SELECT * FROM purchase_items;');
+      } catch {}
+    }
+
+    // Capitalize existing records across products, vendors, customers, staff, sales, and purchases
+    try {
+      const prods = db.exec("SELECT id, name FROM products WHERE name IS NOT NULL;");
+      if (prods.length > 0 && prods[0].values) {
+        for (const [id, name] of prods[0].values as [number, string][]) {
+          const cap = capitalizeWords(name);
+          if (cap && cap !== name) {
+            db.run("UPDATE products SET name = ? WHERE id = ?;", [cap, id]);
+            changed = true;
+          }
+        }
+      }
+      const vends = db.exec("SELECT id, name FROM vendors WHERE name IS NOT NULL;");
+      if (vends.length > 0 && vends[0].values) {
+        for (const [id, name] of vends[0].values as [number, string][]) {
+          const cap = capitalizeWords(name);
+          if (cap && cap !== name) {
+            db.run("UPDATE vendors SET name = ? WHERE id = ?;", [cap, id]);
+            changed = true;
+          }
+        }
+      }
+      const custs = db.exec("SELECT id, name FROM customers WHERE name IS NOT NULL;");
+      if (custs.length > 0 && custs[0].values) {
+        for (const [id, name] of custs[0].values as [number, string][]) {
+          const cap = capitalizeWords(name);
+          if (cap && cap !== name) {
+            db.run("UPDATE customers SET name = ? WHERE id = ?;", [cap, id]);
+            changed = true;
+          }
+        }
+      }
+      const stfs = db.exec("SELECT id, name FROM staff WHERE name IS NOT NULL;");
+      if (stfs.length > 0 && stfs[0].values) {
+        for (const [id, name] of stfs[0].values as [number, string][]) {
+          const cap = capitalizeWords(name);
+          if (cap && cap !== name) {
+            db.run("UPDATE staff SET name = ? WHERE id = ?;", [cap, id]);
+            changed = true;
+          }
+        }
+      }
+      const sls = db.exec("SELECT id, customer_name FROM sales WHERE customer_name IS NOT NULL;");
+      if (sls.length > 0 && sls[0].values) {
+        for (const [id, name] of sls[0].values as [number, string][]) {
+          const cap = capitalizeWords(name);
+          if (cap && cap !== name) {
+            db.run("UPDATE sales SET customer_name = ? WHERE id = ?;", [cap, id]);
+            changed = true;
+          }
+        }
+      }
+      const prchs = db.exec("SELECT id, vendor_name FROM purchases WHERE vendor_name IS NOT NULL;");
+      if (prchs.length > 0 && prchs[0].values) {
+        for (const [id, name] of prchs[0].values as [number, string][]) {
+          const cap = capitalizeWords(name);
+          if (cap && cap !== name) {
+            db.run("UPDATE purchases SET vendor_name = ? WHERE id = ?;", [cap, id]);
+            changed = true;
+          }
+        }
+      }
+      const mvts = db.exec("SELECT id, vendor_name FROM stock_movements WHERE vendor_name IS NOT NULL;");
+      if (mvts.length > 0 && mvts[0].values) {
+        for (const [id, name] of mvts[0].values as [number, string][]) {
+          const cap = capitalizeWords(name);
+          if (cap && cap !== name) {
+            db.run("UPDATE stock_movements SET vendor_name = ? WHERE id = ?;", [cap, id]);
+            changed = true;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Name capitalization migration warning:", e);
     }
   } catch (e) {
     console.error('Database migration error:', e);

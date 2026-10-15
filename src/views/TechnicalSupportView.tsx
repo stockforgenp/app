@@ -79,56 +79,6 @@ export const TechnicalSupportView: React.FC = () => {
 
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-150">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-neutral-800/80 gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-              <Headphones className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-neutral-100">
-                {isNepali
-                  ? "विकासकर्ता तथा प्राविधिक सहयोग"
-                  : "Developer & Technical Support"}
-              </h1>
-              <p className="text-xs text-neutral-400">
-                {isNepali
-                  ? "आधिकारिक विकासकर्ता सम्पर्क, आपातकालीन हटलाइन, हार्डवेयर मर्मत तथा प्रत्यक्ष सहयोग"
-                  : "Official company contacts, emergency checkout hotline, printer setup, and live assistance"}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Top Actions */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleWhatsApp}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer"
-          >
-            <MessageCircle className="w-3.5 h-3.5" />
-            <span>WhatsApp</span>
-          </button>
-          <a
-            href={`tel:${SUPPORT_CONTACTS.phoneRaw}`}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg transition-colors cursor-pointer"
-          >
-            <Phone className="w-3.5 h-3.5 text-emerald-400" />
-            <span>{SUPPORT_CONTACTS.phone}</span>
-          </a>
-          <button
-            type="button"
-            onClick={handleEmail}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-300 hover:text-white bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded-lg transition-colors cursor-pointer"
-          >
-            <Mail className="w-3.5 h-3.5" />
-            <span>Email</span>
-          </button>
-        </div>
-      </div>
-
       {/* Main Support Section with Live Diagnostics and Contact Grid */}
       <TechnicalSupportSection />
 

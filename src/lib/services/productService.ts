@@ -3,6 +3,7 @@
  */
 import { Product } from "../../types/index.ts";
 import { query, queryOne, run, transaction } from "../db/sqliteEngine.ts";
+import { capitalizeWords } from "../utils/format.ts";
 
 export function getAllProducts(search?: string): Product[] {
   if (search && search.trim()) {
@@ -140,7 +141,7 @@ export function createProduct(data: {
   min_stock_alert?: number | null;
 }): Product {
   const now = new Date().toISOString();
-  const name = data.name.trim();
+  const name = capitalizeWords(data.name);
   let sku = data.sku && data.sku.trim() ? data.sku.trim() : null;
   const unit =
     data.unit && data.unit.trim() ? data.unit.trim().toLowerCase() : "pcs";
@@ -219,7 +220,7 @@ export function updateProduct(
   },
 ): void {
   const now = new Date().toISOString();
-  const name = data.name.trim();
+  const name = capitalizeWords(data.name);
   let sku = data.sku && data.sku.trim() ? data.sku.trim() : null;
   const unit =
     data.unit && data.unit.trim() ? data.unit.trim().toLowerCase() : "pcs";

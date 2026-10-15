@@ -17,6 +17,7 @@ import {
   formatCurrency,
   formatDate,
   formatDateTime,
+  capitalizeWords,
 } from '../../lib/utils/format.ts';
 import { useToast } from '../../context/ToastContext.tsx';
 
@@ -55,8 +56,8 @@ export const PrintSalarySlipModal: React.FC<PrintSalarySlipModalProps> = ({
       text += `Voucher #: PAY-${payment.id.toString().padStart(5, '0')}\n`;
       text += `Date: ${formatDate(payment.payment_date)}\n`;
       text += `Period: ${payment.payment_period}\n`;
-      text += `Employee: ${payment.staff_name || 'Staff'}\n`;
-      text += `Designation: ${payment.staff_role || 'Staff'}\n`;
+      text += `Employee: ${capitalizeWords(payment.staff_name || 'Staff')}\n`;
+      text += `Designation: ${capitalizeWords(payment.staff_role || 'Staff')}\n`;
       text += `Payment Method: ${payment.payment_method}\n`;
       if (payment.reference) text += `Ref / Txn #: ${payment.reference}\n`;
       text += `-----------------------------------------\n`;
@@ -162,9 +163,9 @@ export const PrintSalarySlipModal: React.FC<PrintSalarySlipModalProps> = ({
             <div className="grid grid-cols-2 gap-3 py-3 border-b border-gray-200 text-[11px]">
               <div>
                 <span className="text-gray-500 font-medium block">Employee Name:</span>
-                <span className="text-sm font-bold text-gray-900">{payment.staff_name}</span>
+                <span className="text-sm font-bold text-gray-900 capitalize">{capitalizeWords(payment.staff_name)}</span>
                 <span className="text-[10px] text-gray-600 block mt-0.5">
-                  Designation: <span className="font-semibold text-gray-800">{payment.staff_role}</span>
+                  Designation: <span className="font-semibold text-gray-800 capitalize">{capitalizeWords(payment.staff_role)}</span>
                 </span>
               </div>
               <div className="text-right">

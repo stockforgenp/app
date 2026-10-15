@@ -364,6 +364,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
             ? `${isNepali ? "ग्राहक खरिद इतिहास" : "Purchase History"} - ${inspectCustomer.name}`
             : "Purchase History"
         }
+        maxWidth="3xl"
       >
         <div className="space-y-4">
           {inspectCustomer && (
@@ -443,10 +444,32 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
 
                   <div className="flex items-center gap-3 shrink-0">
                     <div className="text-right font-mono">
-                      <div className="font-bold text-emerald-400">
+                      <div className="font-bold text-neutral-100">
                         {formatCurrency(
                           s.grand_total || s.total,
                           currencySymbol,
+                        )}
+                      </div>
+                      <div className="text-[10px] flex items-center justify-end gap-1.5 mt-0.5">
+                        <span className="text-emerald-400">
+                          {isNepali ? "तिरेको:" : "Paid:"}{" "}
+                          {formatCurrency(
+                            s.paid_amount !== undefined &&
+                              s.paid_amount !== null
+                              ? s.paid_amount
+                              : s.grand_total || s.total,
+                            currencySymbol,
+                          )}
+                        </span>
+                        {(s.due_amount ?? 0) > 0 ? (
+                          <span className="text-rose-400 font-medium">
+                            {isNepali ? "बाँकी:" : "Due:"}{" "}
+                            {formatCurrency(s.due_amount ?? 0, currencySymbol)}
+                          </span>
+                        ) : (
+                          <span className="text-neutral-500">
+                            {isNepali ? "चुक्ता" : "Paid"}
+                          </span>
                         )}
                       </div>
                     </div>

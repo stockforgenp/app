@@ -21,7 +21,7 @@ import {
   getProductById,
   generateProductSku,
 } from "../../lib/services/productService.ts";
-import { fromMinorUnits, toMinorUnits } from "../../lib/utils/format.ts";
+import { fromMinorUnits, toMinorUnits, capitalizeWords } from "../../lib/utils/format.ts";
 import { COMMON_UNITS } from "../../constants/index.ts";
 import { useLanguage } from "../../context/LanguageContext.tsx";
 import { useToast } from "../../context/ToastContext.tsx";
@@ -113,8 +113,9 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
 
     try {
       if (editingProduct) {
+        const formattedName = capitalizeWords(formData.name);
         updateProduct(editingProduct.id, {
-          name: formData.name.trim(),
+          name: formattedName,
           sku: formData.sku.trim() || null,
           unit: formData.unit.trim() || "pcs",
           cost_price: cost,
@@ -137,8 +138,9 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
         }
       } else {
         const stock = parseInt(formData.initialStock, 10) || 0;
+        const formattedName = capitalizeWords(formData.name);
         const created = createProduct({
-          name: formData.name.trim(),
+          name: formattedName,
           sku: formData.sku.trim() || null,
           unit: formData.unit.trim() || "pcs",
           cost_price: cost,
@@ -207,6 +209,8 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
             }
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            onBlur={() => setFormData((prev) => ({ ...prev, name: capitalizeWords(prev.name) }))}
+            className="capitalize"
           />
         </div>
 

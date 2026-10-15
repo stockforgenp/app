@@ -13,6 +13,7 @@ import {
   updateCustomer,
   getCustomerPreviousDueForSale,
 } from './customerService.ts';
+import { capitalizeWords } from '../utils/format.ts';
 
 export interface ProcessSaleItemInput {
   productId: number;
@@ -130,13 +131,13 @@ export function processSale(
 
     // Resolve or auto-create customer
     let resolvedCustomerId = customerInfo?.customerId ?? null;
-    let resolvedCustomerName = customerInfo?.customerName?.trim() || null;
+    let resolvedCustomerName = customerInfo?.customerName ? capitalizeWords(customerInfo.customerName) : null;
     let resolvedCustomerPhone = customerInfo?.customerPhone?.trim() || null;
     let resolvedCustomerPanVat = customerInfo?.customerPanVat?.trim() || null;
     let resolvedCustomerAddress = customerInfo?.customerAddress?.trim() || null;
 
     if (customerInfo?.customerInput) {
-      if (customerInfo.customerInput.name) resolvedCustomerName = customerInfo.customerInput.name.trim();
+      if (customerInfo.customerInput.name) resolvedCustomerName = capitalizeWords(customerInfo.customerInput.name);
       if (customerInfo.customerInput.phone) resolvedCustomerPhone = customerInfo.customerInput.phone.trim();
       if (customerInfo.customerInput.pan_vat) resolvedCustomerPanVat = customerInfo.customerInput.pan_vat.trim();
       if (customerInfo.customerInput.address) resolvedCustomerAddress = customerInfo.customerInput.address.trim();
@@ -205,7 +206,7 @@ export function processSale(
     const paidAmount = customerInfo?.paidAmount !== undefined
       ? Math.max(0, Math.floor(customerInfo.paidAmount))
       : grandTotal;
-    const dueAmount = grandTotal - paidAmount;
+    const dueAmount = Math.max(0, grandTotal - paidAmount);
 
     // 2. Insert Sales Record (including customer reference and details)
     run(
@@ -550,13 +551,13 @@ export function updateSale(
 
     // 3. Customer resolution
     let resolvedCustomerId = customerInfo?.customerId !== undefined ? customerInfo.customerId : existing.sale.customer_id;
-    let resolvedCustomerName = customerInfo?.customerName !== undefined ? customerInfo.customerName?.trim() || null : existing.sale.customer_name;
+    let resolvedCustomerName = customerInfo?.customerName !== undefined ? (customerInfo.customerName ? capitalizeWords(customerInfo.customerName) : null) : existing.sale.customer_name;
     let resolvedCustomerPhone = customerInfo?.customerPhone !== undefined ? customerInfo.customerPhone?.trim() || null : existing.sale.customer_phone;
     let resolvedCustomerPanVat = customerInfo?.customerPanVat !== undefined ? customerInfo.customerPanVat?.trim() || null : existing.sale.customer_pan_vat;
     let resolvedCustomerAddress = customerInfo?.customerAddress !== undefined ? customerInfo.customerAddress?.trim() || null : existing.sale.customer_address;
 
     if (customerInfo?.customerInput) {
-      if (customerInfo.customerInput.name) resolvedCustomerName = customerInfo.customerInput.name.trim();
+      if (customerInfo.customerInput.name) resolvedCustomerName = capitalizeWords(customerInfo.customerInput.name);
       if (customerInfo.customerInput.phone) resolvedCustomerPhone = customerInfo.customerInput.phone.trim();
       if (customerInfo.customerInput.pan_vat) resolvedCustomerPanVat = customerInfo.customerInput.pan_vat.trim();
       if (customerInfo.customerInput.address) resolvedCustomerAddress = customerInfo.customerInput.address.trim();
@@ -594,7 +595,7 @@ export function updateSale(
       : (existing.sale.paid_amount !== undefined && existing.sale.paid_amount !== null
           ? existing.sale.paid_amount
           : grandTotal);
-    const dueAmount = grandTotal - paidAmount;
+    const dueAmount = Math.max(0, grandTotal - paidAmount);
 
     // 5. Update sales record
     run(
@@ -676,4 +677,63 @@ export function updateSale(
     return updatedSale.sale;
   });
 }
+
+/**
+ * Permanently deletes a sale record:
+ * - Restores product quantities back into inventory stock
+ * - Records stock return movements into the movement log for audit trail
+ * - Removes the sale line items and sale record atomically within a transaction
+ */
+export function deleteSale(saleId: number): {
+  id: number;
+  billNumber: string | null;
+  restoredItemCount: number;
+} {
+  const existing = getSaleWithItems(saleId);
+  if (!existing) {
+    throw new Error(`Sale #${saleId} not found`);
+  }
+
+  const now = new Date().toISOString();
+  const billLabel = existing.sale.bill_number ? `Bill #${existing.sale.bill_number}` : `Sale #${saleId}`;
+  const customerLabel = existing.sale.customer_name ? ` (${capitalizeWords(existing.sale.customer_name)})` : '';
+
+  return transaction(() => {
+    // 1. Revert inventory deductions (restore stock back to products) and record return movements
+    for (const item of existing.items) {
+      run(
+        `UPDATE products SET current_stock = current_stock + ?, updated_at = ? WHERE id = ?`,
+        [item.quantity, now, item.product_id]
+      );
+
+      // Record stock return movement in movement log
+      run(
+        `INSERT INTO stock_movements (
+          product_id, type, quantity, reference_id, note, created_at
+        ) VALUES (?, 'RETURN', ?, ?, ?, ?)`,
+        [
+          item.product_id,
+          item.quantity,
+          saleId,
+          `Restored from sales return: ${billLabel}${customerLabel}`,
+          now,
+        ]
+      );
+    }
+
+    // 2. Remove sale line items
+    run(`DELETE FROM sale_items WHERE sale_id = ?`, [saleId]);
+
+    // 3. Remove the sale record itself
+    run(`DELETE FROM sales WHERE id = ?`, [saleId]);
+
+    return {
+      id: saleId,
+      billNumber: existing.sale.bill_number ?? null,
+      restoredItemCount: existing.items.length,
+    };
+  });
+}
+
+
 

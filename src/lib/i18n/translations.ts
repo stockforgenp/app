@@ -222,10 +222,21 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     hist_col_subtotal: "Subtotal",
     hist_col_discount: "Discount",
     hist_col_total: "Net Total",
+    hist_col_paid: "Paid",
+    hist_col_due: "Due",
+    paid_badge: "Paid",
     hist_col_profit: "Gross Profit",
     hist_col_actions: "Actions",
     hist_print_receipt: "Print Bill",
     hist_view_items: "Inspect Items",
+    hist_delete_sale: "Delete Sale",
+    hist_delete_sale_confirm_title: "Confirm Delete Sale",
+    hist_delete_sale_confirm_msg:
+      "Are you sure you want to permanently delete this sale? Deducted quantities will be restored back to inventory stock.",
+    pur_delete_purchase: "Delete Purchase",
+    pur_delete_confirm_title: "Confirm Delete Purchase",
+    pur_delete_confirm_msg:
+      "Are you sure you want to permanently delete this purchase? Inflowed quantities will be deducted from inventory stock.",
     hist_no_sales: "No sales transactions found.",
 
     // Bill / Receipt Printing
@@ -621,10 +632,21 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     hist_col_subtotal: "उप-जम्मा",
     hist_col_discount: "छुट",
     hist_col_total: "कुल रकम",
+    hist_col_paid: "भुक्तानी रकम",
+    hist_col_due: "बाँकी बक्यौता",
+    paid_badge: "चुक्ता",
     hist_col_profit: "कुल नाफा",
     hist_col_actions: "कार्यहरू",
     hist_print_receipt: "बिल प्रिन्ट गर्नुहोस्",
     hist_view_items: "सामान विवरण हेर्नुहोस्",
+    hist_delete_sale: "बिक्री मेटाउनुहोस्",
+    hist_delete_sale_confirm_title: "बिक्री मेटाउने पुष्टि",
+    hist_delete_sale_confirm_msg:
+      "के तपाईं यो बिक्री मेटाउन निश्चित हुनुहुन्छ? बिक्री भएका सबै सामानहरूको मौज्दात गोदाममा पुनः फिर्ता थपिनेछ।",
+    pur_delete_purchase: "खरिद मेटाउनुहोस्",
+    pur_delete_confirm_title: "खरिद मेटाउने पुष्टि",
+    pur_delete_confirm_msg:
+      "के तपाईं यो खरिद मेटाउन निश्चित हुनुहुन्छ? खरिद भएका सबै सामानहरूको मौज्दात गोदामबाट घटाइनेछ।",
     hist_no_sales: "कुनै बिक्री कारोबार फेला परेन।",
 
     // Bill / Receipt Printing

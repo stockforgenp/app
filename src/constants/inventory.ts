@@ -47,6 +47,7 @@ export const getMovementTypeOptions = (isNepali: boolean = false): MovementTypeO
   { value: 'PURCHASE', label: 'PURCHASE (Supplier Order)' },
   { value: 'SALE', label: 'SALE (Customer Order)' },
   { value: 'ADJUSTMENT', label: 'ADJUSTMENT (Count Recount)' },
+  { value: 'RETURN', label: isNepali ? 'फिर्ता (Sales / Purchase Return)' : 'RETURN (Sales / Purchase Return)' },
 ];
 
 export const MOVEMENT_TYPE_OPTIONS: MovementTypeOption[] = getMovementTypeOptions(false);

@@ -36,6 +36,7 @@ import {
   toMinorUnits,
   formatForDateTimeLocal,
   parseDateTimeLocalToIso,
+  capitalizeWords,
 } from '../../lib/utils/format.ts';
 import { calculateProportionalDiscounts } from '../../helpers/discountHelpers.ts';
 import { useToast } from '../../context/ToastContext.tsx';
@@ -289,7 +290,7 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
 
       updateSale(saleId, itemsInput, {
         customerId: saleRecord?.customer_id ?? null,
-        customerName: customerName.trim() || null,
+        customerName: customerName.trim() ? capitalizeWords(customerName.trim()) : null,
         customerPhone: customerPhone.trim() || null,
         customerPanVat: customerPanVat.trim() || null,
         customerAddress: customerAddress.trim() || null,
@@ -378,8 +379,9 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
                     type="text"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
+                    onBlur={() => setCustomerName((v) => capitalizeWords(v))}
                     placeholder="Walk-in Customer"
-                    className="w-full px-2.5 py-1 text-xs text-neutral-100 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500"
+                    className="w-full px-2.5 py-1 text-xs text-neutral-100 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500 capitalize"
                   />
                 </div>
                 <div>
@@ -464,8 +466,8 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
                       className="w-full px-3 py-2 text-left hover:bg-neutral-800/50 flex items-center justify-between transition-colors text-xs cursor-pointer"
                     >
                       <div>
-                        <div className="font-medium text-neutral-200">
-                          {p.name}
+                        <div className="font-medium text-neutral-200 capitalize">
+                          {capitalizeWords(p.name)}
                         </div>
                         <div className="text-[10px] text-neutral-400 font-mono">
                           {p.sku || 'No SKU'} · Stock: {p.current_stock}
@@ -496,8 +498,8 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
                     return (
                       <tr key={idx} className="hover:bg-neutral-800/20">
                         <td className="py-2.5 px-3">
-                          <div className="font-medium text-neutral-200">
-                            {line.productName}
+                          <div className="font-medium text-neutral-200 capitalize">
+                            {capitalizeWords(line.productName)}
                           </div>
                           <div className="text-[10px] text-neutral-400 font-mono">
                             {line.productSku || '—'} · {line.unit}
@@ -646,6 +648,7 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
                   step="0.01"
                   min="0"
                   value={paidAmountInput}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => setPaidAmountInput(e.target.value)}
                   className="w-28 text-right px-2 py-1 text-xs font-mono font-bold bg-neutral-900 border border-neutral-700 rounded text-emerald-400 focus:outline-none focus:border-emerald-500"
                 />

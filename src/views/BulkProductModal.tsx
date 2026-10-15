@@ -16,6 +16,7 @@ import {
   getAllProducts,
   createProductsBatch,
 } from "../lib/services/productService.ts";
+import { capitalizeWords } from "../helpers/formatHelpers.ts";
 import { useLanguage } from "../context/LanguageContext.tsx";
 import { useToast } from "../context/ToastContext.tsx";
 import { COMMON_UNITS, DEFAULT_PRODUCT_UNIT } from "../constants/index.ts";
@@ -499,7 +500,7 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
             : null;
 
         return {
-          name: r.name.trim(),
+          name: capitalizeWords(r.name.trim()),
           sku: r.sku.trim() || null,
           unit: r.unit.trim().toLowerCase() || "pcs",
           cost_price: toMinorUnits(r.costPrice),
@@ -711,8 +712,15 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
                             onChange={(e) =>
                               handleUpdateRow(row.id, "name", e.target.value)
                             }
+                            onBlur={() =>
+                              handleUpdateRow(
+                                row.id,
+                                "name",
+                                capitalizeWords(row.name),
+                              )
+                            }
                             onKeyDown={(e) => handleKeyDown(e, index, "name")}
-                            className={`w-full bg-neutral-900 border rounded-md px-2.5 py-1.5 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:ring-1 ${
+                            className={`w-full capitalize bg-neutral-900 border rounded-md px-2.5 py-1.5 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:ring-1 ${
                               isTouched && errors.name
                                 ? "border-rose-500/90 focus:ring-rose-500/40 bg-rose-950/20"
                                 : "border-neutral-800 focus:border-emerald-500 focus:ring-emerald-500/30"

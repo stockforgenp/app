@@ -28,6 +28,7 @@ import {
   formatDateTime,
   fromMinorUnits,
   toMinorUnits,
+  capitalizeWords,
 } from "../../lib/utils/format.ts";
 import { useToast } from "../../context/ToastContext.tsx";
 import { useLanguage } from "../../context/LanguageContext.tsx";
@@ -184,7 +185,8 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
       text += `${lineSeparator}\n`;
       text += `Bill #: ${sale.bill_number || `BILL-${sale.id.toString().padStart(5, "0")}`}\n`;
       text += `Date: ${formatDateTime(sale.created_at)}\n`;
-      if (sale.customer_name) text += `Customer: ${sale.customer_name}\n`;
+      if (sale.customer_name)
+        text += `Customer: ${capitalizeWords(sale.customer_name)}\n`;
       if (sale.customer_phone) text += `Phone: ${sale.customer_phone}\n`;
       if (sale.customer_pan_vat) text += `PAN/VAT: ${sale.customer_pan_vat}\n`;
       if (sale.customer_address) text += `Address: ${sale.customer_address}\n`;
@@ -193,7 +195,9 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
       text += `${lineSeparator}\n`;
 
       displayItems.forEach((it) => {
-        const name = (it.product_name || "Item").padEnd(18).slice(0, 18);
+        const name = capitalizeWords(it.product_name || "Item")
+          .padEnd(18)
+          .slice(0, 18);
         const qty = it.quantity.toString().padStart(4);
         const price = formatCurrency(it.selling_price, "", false).padStart(8);
         const lineTotal = formatCurrency(it.total, "", false).padStart(9);
@@ -472,8 +476,8 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
                       <span className="text-gray-500 font-medium">
                         {isNepali ? "ग्राहक:" : "Customer:"}
                       </span>
-                      <span className="font-semibold text-gray-900">
-                        {sale.customer_name}
+                      <span className="font-semibold text-gray-900 capitalize">
+                        {capitalizeWords(sale.customer_name)}
                       </span>
                     </div>
                   )}
@@ -537,7 +541,7 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
                           <tr key={itemKey} className="align-top">
                             <td className="py-1.5 pr-2">
                               <div className="font-semibold text-gray-900 leading-tight flex items-center gap-1">
-                                <span>{it.product_name}</span>
+                                <span className="capitalize">{capitalizeWords(it.product_name)}</span>
                                 {isCustom && (
                                   <span
                                     className="print:hidden text-[9px] font-normal px-1 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-300"

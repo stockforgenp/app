@@ -13,19 +13,22 @@ import {
   Printer,
   Truck,
   Edit3,
+  Trash2,
 } from "lucide-react";
 import { Purchase, PurchaseItem } from "../types/index.ts";
 import {
   getPurchases,
   getPurchaseWithItems,
+  deletePurchase,
 } from "../lib/services/purchaseService.ts";
 import { PrintPurchaseBillModal } from "../components/common/PrintPurchaseBillModal.tsx";
 import { EditPurchaseModal } from "../components/common/EditPurchaseModal.tsx";
 import { Modal } from "../components/common/Modal.tsx";
+import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
 import { getPurchaseHistoryColumns } from "../columns/index.ts";
 import { DatePreset } from "../lib/utils/dateFilters.ts";
-import { formatCurrency, formatDateTime } from "../lib/utils/format.ts";
+import { formatCurrency, formatDateTime, capitalizeWords } from "../lib/utils/format.ts";
 import { useToast } from "../context/ToastContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 import { useLanguage } from "../context/LanguageContext.tsx";
@@ -53,6 +56,7 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
     items: PurchaseItem[];
   } | null>(null);
   const [editPurchaseId, setEditPurchaseId] = useState<number | null>(null);
+  const [deletingPurchaseId, setDeletingPurchaseId] = useState<number | null>(null);
   const [printPurchaseId, setPrintPurchaseId] = useState<number | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
@@ -124,6 +128,9 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
         },
         onEditPurchase: (row) => {
           setEditPurchaseId(row.id);
+        },
+        onDeletePurchase: (purchaseId) => {
+          setDeletingPurchaseId(purchaseId);
         },
         onCopyBillNumber: (billNumber) => {
           navigator.clipboard.writeText(billNumber);
@@ -262,9 +269,10 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
                 <span className="text-neutral-500 block">
                   Supplier / Vendor:
                 </span>
-                <span className="font-semibold text-neutral-200">
-                  {inspectPurchaseDetail.purchase.vendor_name ||
-                    "Self-Supplied"}
+                <span className="font-semibold text-neutral-200 capitalize">
+                  {inspectPurchaseDetail.purchase.vendor_name
+                    ? capitalizeWords(inspectPurchaseDetail.purchase.vendor_name)
+                    : "Self-Supplied"}
                 </span>
                 {inspectPurchaseDetail.purchase.vendor_pan_vat && (
                   <span className="text-neutral-400 block font-mono text-[11px]">
@@ -307,8 +315,8 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
                   {inspectPurchaseDetail.items.map((it) => (
                     <tr key={it.id} className="hover:bg-neutral-900/40">
                       <td className="py-2 px-3 font-sans">
-                        <div className="font-medium text-neutral-200">
-                          {it.product_name}
+                        <div className="font-medium text-neutral-200 capitalize">
+                          {capitalizeWords(it.product_name)}
                         </div>
                         {it.product_sku && (
                           <div className="text-[10px] text-neutral-500 font-mono">
@@ -382,9 +390,9 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
                     </span>
                   </div>
                 )}
-              <div className="flex justify-between text-sm font-bold text-emerald-400 pt-2 border-t border-neutral-800">
-                <span>Grand Total:</span>
-                <span>
+              <div className="flex justify-between text-sm font-bold text-neutral-100 pt-2 border-t border-neutral-800">
+                <span>{isNepali ? "कुल रकम (Grand Total):" : "Grand Total:"}</span>
+                <span className="font-mono text-emerald-400">
                   {formatCurrency(
                     inspectPurchaseDetail.purchase.grand_total ||
                       inspectPurchaseDetail.purchase.total,
@@ -392,6 +400,71 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
                   )}
                 </span>
               </div>
+
+              {/* Paid Amount */}
+              <div className="flex justify-between text-emerald-400 font-medium pt-1.5 border-t border-neutral-900">
+                <span>{isNepali ? "भुक्तानी रकम (Paid):" : "Paid Amount:"}</span>
+                <span>
+                  {formatCurrency(
+                    inspectPurchaseDetail.purchase.paid_amount !== undefined &&
+                      inspectPurchaseDetail.purchase.paid_amount !== null
+                      ? inspectPurchaseDetail.purchase.paid_amount
+                      : inspectPurchaseDetail.purchase.grand_total ||
+                          inspectPurchaseDetail.purchase.total,
+                    currencySymbol,
+                  )}
+                </span>
+              </div>
+
+              {/* Current Due */}
+              <div className="flex justify-between font-medium">
+                <span className={(inspectPurchaseDetail.purchase.due_amount ?? 0) > 0 ? "text-rose-400" : "text-neutral-400"}>
+                  {isNepali ? "बाँकी बक्यौता (Current Due):" : "Current Due:"}
+                </span>
+                <span className="font-mono">
+                  {(inspectPurchaseDetail.purchase.due_amount ?? 0) > 0 ? (
+                    <span className="text-rose-400 font-bold">
+                      {formatCurrency(
+                        inspectPurchaseDetail.purchase.due_amount ?? 0,
+                        currencySymbol,
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-neutral-500">
+                      {formatCurrency(0, currencySymbol)}
+                    </span>
+                  )}
+                </span>
+              </div>
+
+              {/* Previous Due / Balance if any */}
+              {(inspectPurchaseDetail.purchase.previous_due ?? 0) > 0 && (
+                <div className="flex justify-between text-amber-400/90 font-medium">
+                  <span>{isNepali ? "साविक बाँकी (Previous Due):" : "Previous Balance / Due:"}</span>
+                  <span>
+                    {formatCurrency(
+                      inspectPurchaseDetail.purchase.previous_due ?? 0,
+                      currencySymbol,
+                    )}
+                  </span>
+                </div>
+              )}
+
+              {/* Total Vendor Due if any */}
+              {((inspectPurchaseDetail.purchase.total_due ?? 0) > 0 ||
+                (inspectPurchaseDetail.purchase.due_amount ?? 0) > 0) && (
+                <div className="flex justify-between text-xs font-bold text-rose-300 pt-1 border-t border-neutral-800">
+                  <span>{isNepali ? "कुल आपूर्तिकर्ता बाँकी (Total Vendor Due):" : "Total Vendor Due:"}</span>
+                  <span>
+                    {formatCurrency(
+                      inspectPurchaseDetail.purchase.total_due ??
+                        inspectPurchaseDetail.purchase.due_amount ??
+                        0,
+                      currencySymbol,
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Modal Actions */}
@@ -422,6 +495,18 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
                   <span>
                     {isNepali ? "खरिद सच्याउनुहोस्" : "Edit Purchase"}
                   </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const id = inspectPurchaseDetail.purchase.id;
+                    setDeletingPurchaseId(id);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>{isNepali ? "खरिद मेटाउनुहोस्" : "Delete Purchase"}</span>
                 </button>
               </div>
 
@@ -458,6 +543,40 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
           currencySymbol={currencySymbol}
         />
       )}
+
+      {/* Confirm Delete Purchase Dialog */}
+      <ConfirmDialog
+        isOpen={deletingPurchaseId !== null}
+        onClose={() => setDeletingPurchaseId(null)}
+        onConfirm={() => {
+          if (!deletingPurchaseId) return;
+          try {
+            const res = deletePurchase(deletingPurchaseId);
+            showToast(
+              isNepali
+                ? `खरिद #${res.billNumber || deletingPurchaseId} मेटाइयो र चलान खातामा खरिद फिर्ता अभिलेख गरियो!`
+                : `Purchase #${res.billNumber || deletingPurchaseId} deleted and deducted via purchase return in movement log!`,
+              "success"
+            );
+            if (inspectPurchaseDetail?.purchase.id === deletingPurchaseId) {
+              setInspectPurchaseDetail(null);
+            }
+            setDeletingPurchaseId(null);
+            loadHistory();
+          } catch (err: unknown) {
+            showToast((err as Error).message, "error");
+          }
+        }}
+        title={isNepali ? "खरिद मेटाउने पुष्टि" : "Confirm Delete Purchase"}
+        message={
+          isNepali
+            ? "के तपाईं यो खरिद मेटाउन निश्चित हुनुहुन्छ? खरिद भएका सबै सामानहरूको मौज्दात गोदामबाट घटाइनेछ र चलान खातामा खरिद फिर्ता अभिलेख हुनेछ।"
+            : "Are you sure you want to permanently delete this purchase? Inflowed quantities will be deducted from inventory stock and logged as a purchase return in stock movements."
+        }
+        confirmText={isNepali ? "मेटाउनुहोस्" : "Delete Purchase"}
+        cancelText={isNepali ? "रद्द" : "Cancel"}
+        isDestructive={true}
+      />
     </div>
   );
 };

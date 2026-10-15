@@ -11,6 +11,7 @@ import {
   updateCustomer,
   createCustomer,
 } from "@/src/lib/services/customerService.ts";
+import { capitalizeWords } from "@/src/helpers/formatHelpers.ts";
 import { Customer, CreateCustomerInput } from "@/src/types/index.ts";
 import Input from "../common/Input";
 
@@ -43,7 +44,8 @@ export const NewCustomerForm: React.FC<CustomerFormProps> = ({
 
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) {
+    const trimmedName = formData.name.trim();
+    if (!trimmedName) {
       showToast(
         isNepali ? "ग्राहकको नाम आवश्यक छ" : "Customer name is required",
         "warning",
@@ -51,19 +53,24 @@ export const NewCustomerForm: React.FC<CustomerFormProps> = ({
       return;
     }
 
+    const payload: CreateCustomerInput = {
+      ...formData,
+      name: capitalizeWords(trimmedName),
+    };
+
     try {
       if (editingCustomer) {
-        updateCustomer(editingCustomer.id, formData);
+        updateCustomer(editingCustomer.id, payload);
         showToast(
           isNepali
-            ? `ग्राहक "${formData.name.trim()}" अद्यावधिक गरियो`
-            : `Customer "${formData.name.trim()}" updated successfully`,
+            ? `ग्राहक "${payload.name}" अद्यावधिक गरियो`
+            : `Customer "${payload.name}" updated successfully`,
           "success",
         );
         if (onCustomerCreated) {
           onCustomerCreated({
             ...editingCustomer,
-            name: formData.name.trim(),
+            name: payload.name,
             phone: formData.phone?.trim() || null,
             pan_vat: formData.pan_vat?.trim() || null,
             address: formData.address?.trim() || null,
@@ -71,11 +78,11 @@ export const NewCustomerForm: React.FC<CustomerFormProps> = ({
           });
         }
       } else {
-        const created = createCustomer(formData);
+        const created = createCustomer(payload);
         showToast(
           isNepali
-            ? `नयाँ ग्राहक "${formData.name.trim()}" सफलतापूर्वक थपियो`
-            : `Customer "${formData.name.trim()}" created successfully`,
+            ? `नयाँ ग्राहक "${payload.name}" सफलतापूर्वक थपियो`
+            : `Customer "${payload.name}" created successfully`,
           "success",
         );
         if (onCustomerCreated) {
@@ -101,11 +108,18 @@ export const NewCustomerForm: React.FC<CustomerFormProps> = ({
         }
         type="text"
         required
+        className="capitalize"
         placeholder={
           isNepali ? "उदा. राम बहादुर श्रेष्ठ" : "e.g. Ram Bahadur Shrestha"
         }
         value={formData.name}
         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+        onBlur={() =>
+          setFormData((prev) => ({
+            ...prev,
+            name: capitalizeWords(prev.name),
+          }))
+        }
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

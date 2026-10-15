@@ -24,7 +24,6 @@ import {
   Moon,
   Languages,
   LogOut,
-  Headphones,
 } from "lucide-react";
 import { AppSettings, TestResultItem } from "../types/index.ts";
 import {
@@ -157,23 +156,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-150">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-neutral-100">
-            {t("set_title")}
-          </h1>
-          <p className="text-xs text-neutral-400 mt-1">{t("set_subtitle")}</p>
-        </div>
-        <Link
-          to="/support"
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer self-start sm:self-auto"
-        >
-          <Headphones className="w-3.5 h-3.5" />
-          <span>{t("dev_support_section_title")}</span>
-        </Link>
-      </div>
-
       {/* Shop Profile & Identity Card */}
       {currentShop && (
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 space-y-4">
@@ -260,7 +242,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 {isNepali ? "समयावधि" : "Duration"}
               </span>
               <span className="text-xs text-neutral-300 block truncate">
-                {currentShop.subscription_duration_days || 365} {isNepali ? "दिन" : "Days"}
+                {currentShop.subscription_duration_days || 365}{" "}
+                {isNepali ? "दिन" : "Days"}
               </span>
             </div>
 

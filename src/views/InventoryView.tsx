@@ -12,23 +12,8 @@
  * - Bulk actions: Multi-select products to Sell in POS
  */
 import React, { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import {
-  Search,
-  Plus,
-  Edit2,
-  Trash2,
-  ArrowUpDown,
-  History,
-  Receipt,
-  ShoppingCart,
-  SlidersHorizontal,
-  Boxes,
-  Building2,
-  PlusCircle,
-  Table2,
-} from "lucide-react";
+import { Plus, Boxes, Building2, Table2 } from "lucide-react";
 import { Product, StockMovement, Vendor } from "../types/index.ts";
 import {
   getAllProducts,
@@ -40,24 +25,19 @@ import {
   getStockMovements,
 } from "../lib/services/inventoryService.ts";
 import { getAllVendors } from "../lib/services/vendorService.ts";
-import {
-  formatCurrency,
-  formatDate,
-  formatDateTime,
-} from "../lib/utils/format.ts";
+import { formatCurrency, formatDateTime, capitalizeWords } from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
-import { ActionMenu } from "../components/common/ActionMenu.tsx";
+import { DataTable, Column } from "../components/common/DataTable.tsx";
+import { getProductColumns } from "../columns/index.ts";
 import { Select } from "../components/common/Select.tsx";
 import { Input } from "../components/common/Input.tsx";
 import { NewProductForm } from "../components/forms/NewProductForm.tsx";
 import { BulkProductModal } from "./BulkProductModal.tsx";
-import { DateFilterBar } from "../components/common/DateFilterBar.tsx";
 import { DatePreset } from "../lib/utils/dateFilters.ts";
 import { useToast } from "../context/ToastContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 import { useLanguage } from "../context/LanguageContext.tsx";
-import { MODIFIER_LABEL } from "../lib/hooks/useGlobalShortcuts.ts";
 import {
   getStockStatusOptions,
   StockStatusFilter,
@@ -111,8 +91,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     useState<StockStatusFilter>("all");
   const [movementTypeFilter, setMovementTypeFilter] = useState<string>("ALL");
 
-  // Multi-selection & Sorting
-  const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
+  // Sorting
   const [sortBy, setSortBy] = useState<ProductSortField>("name");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 
@@ -151,16 +130,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   };
 
   const loadMovements = (productId?: number) => {
+    const targetProductId = productId ?? selectedMovements?.id;
+    if (!targetProductId) {
+      setMovementsList([]);
+      return;
+    }
     try {
       setMovementsList(
         getStockMovements({
-          productId,
-          vendorId:
-            selectedVendorId !== "all" ? Number(selectedVendorId) : undefined,
-          type: movementTypeFilter !== "ALL" ? movementTypeFilter : undefined,
-          startDate: startDate ? `${startDate}T00:00:00.000Z` : undefined,
-          endDate: endDate ? `${endDate}T23:59:59.999Z` : undefined,
-          search: search.trim() || undefined,
+          productId: targetProductId,
         }),
       );
     } catch (e) {
@@ -170,24 +148,19 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
   useEffect(() => {
     loadData();
-    loadMovements();
+    if (selectedMovements) {
+      loadMovements(selectedMovements.id);
+    } else {
+      setMovementsList([]);
+    }
     const unsubscribe = subscribeToDbChanges(() => {
       loadData();
       if (selectedMovements) {
         loadMovements(selectedMovements.id);
-      } else {
-        loadMovements();
       }
     });
     return unsubscribe;
-  }, [
-    selectedMovements,
-    selectedVendorId,
-    movementTypeFilter,
-    startDate,
-    endDate,
-    search,
-  ]);
+  }, [selectedMovements]);
 
   // Sync external props
   useEffect(() => {
@@ -325,33 +298,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     }
   };
 
-  // Selection & Selling Handlers
-  const toggleSelectProduct = (id: number) => {
-    setSelectedProductIds((prev) =>
-      prev.includes(id) ? prev.filter((pId) => pId !== id) : [...prev, id],
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (filteredProducts.length === 0) return;
-    if (selectedProductIds.length === filteredProducts.length) {
-      setSelectedProductIds([]);
-    } else {
-      setSelectedProductIds(filteredProducts.map((p) => p.id));
-    }
-  };
-
-  const handleSellSelected = () => {
-    const selected = products.filter((p) => selectedProductIds.includes(p.id));
-    if (selected.length === 0) return;
-    if (onStartSaleWithProducts) {
-      onStartSaleWithProducts(
-        selected.map((p) => ({ product: p, quantity: 1 })),
-      );
-      setSelectedProductIds([]);
-    }
-  };
-
   // Sorting
   const toggleSort = (
     column: "name" | "stock" | "cost" | "selling" | "valuation" | "date",
@@ -363,6 +309,44 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       setSortOrder("asc");
     }
   };
+
+  // Table Columns for Shared DataTable
+  const productColumns = useMemo<Column<Product>[]>(
+    () =>
+      getProductColumns({
+        isNepali,
+        currencySymbol,
+        lowStockThreshold,
+        formatNumberByLang,
+        onViewLedger: (p) => {
+          setSelectedMovements(p);
+          loadMovements(p.id);
+        },
+        onSellInPos: onStartSaleWithProducts
+          ? (p) => onStartSaleWithProducts([{ product: p, quantity: 1 }])
+          : undefined,
+        onRestock: (p) => {
+          setSelectedRestock(p);
+          setRestockQty("10");
+          setRestockNote("Inventory restock delivery");
+          setRestockVendorId("");
+        },
+        onAdjust: (p) => {
+          setSelectedAdjust(p);
+          setAdjustTargetStock(p.current_stock.toString());
+          setAdjustNote("Physical inventory recount");
+        },
+        onEdit: (p) => handleOpenEdit(p),
+        onDelete: (p) => setDeletingProduct(p),
+      }),
+    [
+      isNepali,
+      currencySymbol,
+      lowStockThreshold,
+      formatNumberByLang,
+      onStartSaleWithProducts,
+    ],
+  );
 
   // Filtered Products (Stock Ledger)
   const filteredProducts = useMemo(() => {
@@ -468,57 +452,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-150">
-      {/* Top Header & Main Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-neutral-100 flex items-center gap-2.5">
-            <Boxes className="w-5 h-5 text-emerald-400" />
-            <span>{t("inv_title", "Inventory & Products")}</span>
-          </h1>
-          <p className="text-xs text-neutral-400 mt-1">
-            {isNepali
-              ? `सामानको सूची, आपूर्तिकर्ता (Vendor), मिति अनुसार फिल्टर र मौज्दात मूल्याङ्कन`
-              : `Catalog master, supplier link, date & vendor filtering, stock movements & valuation`}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Link to Global Movement Log */}
-          <Link
-            to="/movements"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-300 hover:text-neutral-100 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 shadow-xs transition-colors cursor-pointer"
-            title="View Stock Movement Audit Log"
-          >
-            <History className="w-3.5 h-3.5 text-emerald-400" />
-            <span>{isNepali ? "चलान अडिट लग" : "Movement Log"}</span>
-          </Link>
-
-          {/* Quick Create Product Button */}
-          <button
-            onClick={handleOpenCreate}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors cursor-pointer"
-            title={`Add New Product (${MODIFIER_LABEL}+Shift+P)`}
-          >
-            <Plus className="w-4 h-4" />
-            <span>{t("prod_add_button", "Add Product")}</span>
-          </button>
-
-          {/* Add Multiple (Table) Button */}
-          <button
-            onClick={() => setIsBulkCreateOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg shadow-xs transition-colors cursor-pointer"
-            title="Add Multiple Products in Table Format"
-          >
-            <Table2 className="w-4 h-4 text-emerald-400" />
-            <span>
-              {isNepali
-                ? "थोक सामान थप्नुहोस् (तालिका)"
-                : "Add Multiple (Table)"}
-            </span>
-          </button>
-        </div>
-      </div>
-
       {/* Aggregate KPI Strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* Total Products */}
@@ -613,416 +546,113 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         </motion.div>
       </div>
 
-      {/* Multi-Select Floating Action Bar */}
-      {selectedProductIds.length > 0 && (
-        <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-xl flex items-center justify-between shadow-xs animate-in fade-in">
-          <div className="flex items-center gap-2 text-xs text-neutral-200">
-            <span className="font-bold text-emerald-400 font-mono text-sm">
-              {formatNumberByLang(selectedProductIds.length)}
-            </span>
-            <span>{isNepali ? "सामान छानिएको" : "products selected"}</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSelectedProductIds([])}
-              className="px-3 py-1.5 text-xs text-neutral-400 hover:text-neutral-200 transition-colors cursor-pointer"
-            >
-              {isNepali ? "सबै हटाउनुहोस्" : "Deselect All"}
-            </button>
-            <button
-              type="button"
-              onClick={handleSellSelected}
-              className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors cursor-pointer"
-            >
-              <Receipt className="w-3.5 h-3.5" />
-              <span>
-                {isNepali
-                  ? `छानिएका सामान बिक्रीमा राख्नुहोस् (${formatNumberByLang(selectedProductIds.length)})`
-                  : `Sell Selected in POS (${selectedProductIds.length})`}
-              </span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ==================== RICH FILTERING TOOLBAR ==================== */}
-      <div className="bg-neutral-900 p-4 rounded-xl border border-neutral-800 space-y-3">
-        {/* Row 1: Search & Core Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-          {/* Search Box */}
-          <div className="md:col-span-7">
-            <Input
-              type="text"
-              placeholder={
-                isNepali
-                  ? "सामानको नाम, SKU वा कोड खोज्नुहोस्..."
-                  : "Search by title, SKU, or ID..."
-              }
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              icon={Search}
-              clearable
-              onClear={() => setSearch("")}
-              className="py-2 text-xs"
-            />
-          </div>
-
-          {/* Stock Status Filter */}
-          <div className="md:col-span-5">
+      {/* Unified Shared DataTable with Integrated Search, Date Filter, Status Filter, Sorting, Actions, and Pagination */}
+      <DataTable<Product>
+        data={filteredProducts}
+        columns={productColumns}
+        searchQuery={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={
+          isNepali
+            ? "सामानको नाम, SKU वा कोड खोज्नुहोस्..."
+            : "Search by title, SKU, or ID..."
+        }
+        filtersSlot={
+          <div className="flex flex-wrap items-center gap-2">
             <Select
               value={stockStatusFilter}
               onChange={(e) =>
                 setStockStatusFilter(e.target.value as StockStatusFilter)
               }
               options={getStockStatusOptions(isNepali)}
+              containerClassName="w-full sm:w-48"
+              sizeVariant="sm"
             />
           </div>
-        </div>
-
-        {/* Row 2: Standard DateFilterBar */}
-        <div className="pt-2 border-t border-neutral-800/80">
-          <DateFilterBar
-            preset={datePreset}
-            onPresetChange={(p, start, end) => {
-              setDatePreset(p);
-              setStartDate(start);
-              setEndDate(end);
-            }}
-            startDate={startDate}
-            endDate={endDate}
-            onStartDateChange={setStartDate}
-            onEndDateChange={setEndDate}
-            hasActiveFilters={hasActiveFilters}
-            onClear={handleClearFilters}
-          />
-        </div>
-      </div>
-
-      {/* Main Stock Ledger Content */}
-      {/* ==================== PRODUCT & STOCK INVENTORY LEDGER ==================== */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 select-none">
-              <tr>
-                <th className="py-3 px-4 w-10 text-center">
-                  <Input
-                    type="checkbox"
-                    checked={
-                      filteredProducts.length > 0 &&
-                      selectedProductIds.length === filteredProducts.length
-                    }
-                    onChange={toggleSelectAll}
-                    title="Select/Deselect all filtered"
-                    className="w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
-                  />
-                </th>
-                <th
-                  onClick={() => toggleSort("name")}
-                  className="py-3 px-6 cursor-pointer hover:text-neutral-200"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span>{t("prod_name", "Product Name")}</span>
-                    <ArrowUpDown className="w-3.5 h-3.5 text-neutral-500" />
-                  </div>
-                </th>
-                <th className="py-3 px-4 font-mono">{t("prod_sku", "SKU")}</th>
-                <th className="py-3 px-3 text-center font-mono">
-                  {t("prod_unit_short", "Unit")}
-                </th>
-                <th
-                  onClick={() => toggleSort("cost")}
-                  className="py-3 px-4 text-right font-mono cursor-pointer hover:text-neutral-200"
-                >
-                  <div className="flex items-center justify-end gap-1.5">
-                    <span>{t("prod_cost_price", "Cost Price")}</span>
-                    <ArrowUpDown className="w-3.5 h-3.5 text-neutral-500" />
-                  </div>
-                </th>
-                <th
-                  onClick={() => toggleSort("selling")}
-                  className="py-3 px-4 text-right font-mono cursor-pointer hover:text-neutral-200"
-                >
-                  <div className="flex items-center justify-end gap-1.5">
-                    <span>{t("prod_selling_price", "Selling Price")}</span>
-                    <ArrowUpDown className="w-3.5 h-3.5 text-neutral-500" />
-                  </div>
-                </th>
-                <th
-                  onClick={() => toggleSort("stock")}
-                  className="py-3 px-4 text-right font-mono cursor-pointer hover:text-neutral-200"
-                >
-                  <div className="flex items-center justify-end gap-1.5">
-                    <span>{t("prod_current_stock", "Current Stock")}</span>
-                    <ArrowUpDown className="w-3.5 h-3.5 text-neutral-500" />
-                  </div>
-                </th>
-                <th
-                  onClick={() => toggleSort("valuation")}
-                  className="py-3 px-4 text-right font-mono cursor-pointer hover:text-neutral-200"
-                >
-                  <div className="flex items-center justify-end gap-1.5">
-                    <span>{t("inv_col_valuation", "Stock Value")}</span>
-                    <ArrowUpDown className="w-3.5 h-3.5 text-neutral-500" />
-                  </div>
-                </th>
-                <th className="py-3 px-3 text-center">
-                  {isNepali ? "इतिहास" : "Ledger"}
-                </th>
-                <th className="py-3 px-6 text-right">
-                  {t("prod_actions", "Actions")}
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-neutral-800/60">
-              {filteredProducts.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={10}
-                    className="py-12 text-center text-neutral-400 text-xs"
-                  >
-                    <Boxes className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
-                    <p className="font-semibold text-neutral-300">
-                      {isNepali
-                        ? "कुनै सामान फेला परेन।"
-                        : "No matching inventory items found."}
-                    </p>
-                    <p className="text-neutral-500 text-[11px] mt-1">
-                      {hasActiveFilters
-                        ? "Try clearing date, vendor, or search filters to see all products."
-                        : isNepali
-                          ? "सामान थप्न तलका बटनहरू प्रयोग गर्नुहोस्।"
-                          : "Click below to register products one by one or in bulk table format."}
-                    </p>
-                    {!hasActiveFilters && (
-                      <div className="flex items-center justify-center gap-3 mt-4">
-                        <button
-                          type="button"
-                          onClick={handleOpenCreate}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors cursor-pointer"
-                        >
-                          <Plus className="w-4 h-4" />
-                          <span>{t("prod_add_button", "Add Product")}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setIsBulkCreateOpen(true)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg shadow-xs transition-colors cursor-pointer"
-                        >
-                          <Table2 className="w-4 h-4 text-emerald-400" />
-                          <span>
-                            {isNepali
-                              ? "थोक सामान थप्नुहोस् (तालिका)"
-                              : "Add Multiple (Table)"}
-                          </span>
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ) : (
-                filteredProducts.map((p) => {
-                  const specificThreshold =
-                    p.min_stock_alert !== null &&
-                    p.min_stock_alert !== undefined
-                      ? p.min_stock_alert
-                      : lowStockThreshold;
-                  const isLow = p.current_stock <= specificThreshold;
-                  const isSelected = selectedProductIds.includes(p.id);
-                  const valuation = Math.max(0, p.current_stock * p.cost_price);
-                  const marginPct =
-                    p.selling_price > 0
-                      ? Math.round(
-                          ((p.selling_price - p.cost_price) / p.selling_price) *
-                            100,
-                        )
-                      : 0;
-
-                  return (
-                    <tr
-                      key={p.id}
-                      className={`hover:bg-neutral-800/40 transition-colors group ${
-                        isSelected ? "bg-emerald-950/20" : ""
-                      }`}
-                    >
-                      <td className="py-3 px-4 text-center">
-                        <Input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelectProduct(p.id)}
-                          className="w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
-                        />
-                      </td>
-
-                      <td className="py-3 px-6">
-                        <div className="font-semibold text-neutral-100">
-                          {p.name}
-                        </div>
-                        <div className="text-[11px] text-neutral-500 mt-0.5 font-mono">
-                          ID: #{p.id} · Added: {formatDate(p.created_at)}
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-4 font-mono text-neutral-400">
-                        {p.sku || (
-                          <span className="text-neutral-600 italic">None</span>
-                        )}
-                      </td>
-
-                      <td className="py-3 px-3 text-center">
-                        <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-neutral-800 text-neutral-300 border border-neutral-700/60">
-                          {p.unit || "pcs"}
-                        </span>
-                      </td>
-
-                      <td className="py-3 px-4 text-right font-mono text-neutral-400 tabular-nums">
-                        {formatCurrency(p.cost_price, currencySymbol)}
-                      </td>
-
-                      <td className="py-3 px-4 text-right font-mono text-neutral-200 font-medium tabular-nums">
-                        <div>
-                          {formatCurrency(p.selling_price, currencySymbol)}
-                        </div>
-                        <div className="text-[10px] text-neutral-500 font-sans">
-                          {marginPct}% margin
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-4 text-right font-mono tabular-nums">
-                        <div>
-                          <span
-                            className={`font-semibold ${
-                              isLow
-                                ? "text-amber-400 font-bold"
-                                : "text-neutral-200"
-                            }`}
-                          >
-                            {p.current_stock}
-                          </span>
-                          <span className="text-[11px] text-neutral-400 font-sans ml-1">
-                            {p.unit || "pcs"}
-                          </span>
-                          {isLow && (
-                            <span className="ml-1.5 px-1.5 py-0.2 rounded text-[10px] font-sans font-medium bg-amber-500/15 text-amber-400 border border-amber-500/20">
-                              low
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[10px] text-neutral-500 font-sans mt-0.5">
-                          Alert ≤ {specificThreshold}
-                          {p.min_stock_alert !== null &&
-                            p.min_stock_alert !== undefined && (
-                              <span className="text-emerald-400 ml-1 font-mono text-[9px]">
-                                (custom)
-                              </span>
-                            )}
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-4 text-right font-mono font-semibold text-emerald-400 tabular-nums">
-                        {formatCurrency(valuation, currencySymbol)}
-                      </td>
-
-                      <td className="py-3 px-3 text-center">
-                        <button
-                          onClick={() => {
-                            setSelectedMovements(p);
-                            loadMovements(p.id);
-                          }}
-                          className="p-1.5 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded transition-colors cursor-pointer"
-                          title="View stock movement ledger"
-                        >
-                          <History className="w-4 h-4" />
-                        </button>
-                      </td>
-
-                      <td className="py-3 px-6 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <ActionMenu
-                            align="right"
-                            items={[
-                              {
-                                label: isNepali
-                                  ? "बिक्रीमा थप्नुहोस्"
-                                  : "Sell in POS",
-                                icon: ShoppingCart,
-                                color: "emerald",
-                                action: () =>
-                                  onStartSaleWithProducts?.([
-                                    { product: p, quantity: 1 },
-                                  ]),
-                              },
-                              {
-                                label: isNepali
-                                  ? "मौज्दात थप (Restock)"
-                                  : "Restock Units",
-                                icon: PlusCircle,
-                                color: "emerald",
-                                action: () => {
-                                  setSelectedRestock(p);
-                                  setRestockQty("10");
-                                  setRestockNote("Inventory restock delivery");
-                                  setRestockVendorId("");
-                                },
-                              },
-                              {
-                                label: isNepali
-                                  ? "मौज्दात मिलान (Adjust)"
-                                  : "Adjust Count",
-                                icon: SlidersHorizontal,
-                                color: "amber",
-                                action: () => {
-                                  setSelectedAdjust(p);
-                                  setAdjustTargetStock(
-                                    p.current_stock.toString(),
-                                  );
-                                  setAdjustNote("Physical inventory recount");
-                                },
-                              },
-                              {
-                                label: isNepali
-                                  ? "चलान इतिहास (Ledger)"
-                                  : "Movement History",
-                                icon: History,
-                                color: "indigo",
-                                action: () => {
-                                  setSelectedMovements(p);
-                                  loadMovements(p.id);
-                                },
-                              },
-                              {
-                                label: isNepali
-                                  ? "विवरण सम्पादन (Edit)"
-                                  : "Edit Product",
-                                icon: Edit2,
-                                color: "sky",
-                                action: () => handleOpenEdit(p),
-                              },
-                              {
-                                label: isNepali
-                                  ? "सामान मेटाउनुहोस् (Delete)"
-                                  : "Delete Product",
-                                icon: Trash2,
-                                color: "rose",
-                                isDestructive: true,
-                                divider: true,
-                                action: () => setDeletingProduct(p),
-                              },
-                            ]}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+        }
+        dateFilterConfig={{
+          preset: datePreset,
+          onPresetChange: (p, start, end) => {
+            setDatePreset(p);
+            setStartDate(start);
+            setEndDate(end);
+          },
+          startDate,
+          endDate,
+          onStartDateChange: setStartDate,
+          onEndDateChange: setEndDate,
+          hasActiveFilters,
+          onClear: handleClearFilters,
+        }}
+        extraActionsSlot={
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>{t("prod_add_button", "Add Product")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsBulkCreateOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
+            >
+              <Table2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>
+                {isNepali
+                  ? "थोक सामान थप्नुहोस् (तालिका)"
+                  : "Add Multiple (Table)"}
+              </span>
+            </button>
+          </div>
+        }
+        enablePagination={true}
+        pageSize={15}
+        pageSizeOptions={[10, 15, 25, 50, 100]}
+        emptyIcon={Boxes}
+        emptyTitle={
+          isNepali
+            ? "कुनै सामान फेला परेन।"
+            : "No matching inventory items found."
+        }
+        emptyMessage={
+          hasActiveFilters
+            ? isNepali
+              ? "फिल्टर वा खोज हटाएर पुनः प्रयास गर्नुहोस्।"
+              : "Try clearing date, vendor, or search filters to see all products."
+            : isNepali
+              ? "सामान थप्न तलका बटनहरू प्रयोग गर्नुहोस्।"
+              : "Click below to register products one by one or in bulk table format."
+        }
+        emptyAction={
+          !hasActiveFilters ? (
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleOpenCreate}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{t("prod_add_button", "Add Product")}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsBulkCreateOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg shadow-xs transition-colors cursor-pointer"
+              >
+                <Table2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>
+                  {isNepali
+                    ? "थोक सामान थप्नुहोस् (तालिका)"
+                    : "Add Multiple (Table)"}
+                </span>
+              </button>
+            </div>
+          ) : undefined
+        }
+      />
 
       {/* ==================== MODAL: CREATE / EDIT PRODUCT ==================== */}
       <Modal
@@ -1251,14 +881,25 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         isOpen={selectedMovements !== undefined && selectedMovements !== null}
         onClose={() => {
           setSelectedMovements(null);
+          setMovementsList([]);
           onClearActiveModals?.();
         }}
         title={
           selectedMovements
-            ? `Stock Movement Ledger: ${selectedMovements.name}`
-            : "All Stock Movements Audit Log"
+            ? isNepali
+              ? `चलान खाता (Stock Ledger): ${selectedMovements.name}`
+              : `Stock Movement Ledger: ${selectedMovements.name}`
+            : isNepali
+              ? "चलान अडिट लग"
+              : "Stock Movements Audit Log"
         }
-        subtitle="Every stock increase, decrease, sale, purchase, and adjustment recorded with timestamp."
+        subtitle={
+          selectedMovements
+            ? isNepali
+              ? `SKU: ${selectedMovements.sku || "None"} · हालको मौज्दात: ${selectedMovements.current_stock} ${selectedMovements.unit || "pcs"} · यस सामानको सम्पूर्ण दाखिला, बिक्री तथा मौज्दात मिलानको विवरण`
+              : `SKU: ${selectedMovements.sku || "None"} · Current Stock: ${selectedMovements.current_stock} ${selectedMovements.unit || "pcs"} · Complete audit log of restocks, purchases, sales, and adjustments.`
+            : "Every stock increase, decrease, sale, purchase, and adjustment recorded with timestamp."
+        }
         maxWidth="2xl"
       >
         <div className="space-y-3">
@@ -1266,16 +907,26 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             <table className="w-full text-left text-xs">
               <thead className="bg-neutral-950 text-neutral-400 font-medium sticky top-0 border-b border-neutral-800">
                 <tr>
-                  <th className="py-2.5 px-4 font-mono">Date / Time</th>
-                  {!selectedMovements && (
-                    <th className="py-2.5 px-3">Product</th>
-                  )}
-                  <th className="py-2.5 px-3 text-center">Type</th>
-                  <th className="py-2.5 px-3">Supplier</th>
-                  <th className="py-2.5 px-3 text-right font-mono">
-                    Qty Delta
+                  <th className="py-2.5 px-4 font-mono">
+                    {isNepali ? "मिति र समय" : "Date / Time"}
                   </th>
-                  <th className="py-2.5 px-4">Audit Note</th>
+                  {!selectedMovements && (
+                    <th className="py-2.5 px-3">
+                      {isNepali ? "सामान" : "Product"}
+                    </th>
+                  )}
+                  <th className="py-2.5 px-3 text-center">
+                    {isNepali ? "प्रकार" : "Type"}
+                  </th>
+                  <th className="py-2.5 px-3">
+                    {isNepali ? "आपूर्तिकर्ता" : "Supplier"}
+                  </th>
+                  <th className="py-2.5 px-3 text-right font-mono">
+                    {isNepali ? "मात्रा परिवर्तन" : "Qty Delta"}
+                  </th>
+                  <th className="py-2.5 px-4">
+                    {isNepali ? "कैफियत" : "Audit Note"}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-800/60">
@@ -1285,7 +936,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       colSpan={6}
                       className="py-8 text-center text-neutral-500"
                     >
-                      No stock movement records found for this item.
+                      {isNepali
+                        ? "यो सामानको कुनै चलान अभिलेख फेला परेन।"
+                        : "No stock movement records found for this item."}
                     </td>
                   </tr>
                 ) : (
@@ -1310,21 +963,26 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                                   ? "bg-teal-500/10 text-teal-400 border border-teal-500/20"
                                   : m.type === "SALE"
                                     ? "bg-sky-500/10 text-sky-400 border border-sky-500/20"
-                                    : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                    : m.type === "RETURN"
+                                      ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
                             }`}
                           >
                             {m.type}
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 text-neutral-400">
-                          {m.vendor_name || "—"}
+                        <td className="py-2.5 px-3 text-neutral-400 capitalize">
+                          {m.vendor_name ? capitalizeWords(m.vendor_name) : "—"}
                         </td>
                         <td
                           className={`py-2.5 px-3 text-right font-mono font-bold whitespace-nowrap ${
                             isPositive ? "text-emerald-400" : "text-rose-400"
                           }`}
                         >
-                          {isPositive ? `+${m.quantity}` : m.quantity}
+                          {isPositive ? `+${m.quantity}` : m.quantity}{" "}
+                          <span className="font-normal text-[11px] text-neutral-400 font-sans">
+                            {selectedMovements?.unit || m.product_unit || "pcs"}
+                          </span>
                         </td>
                         <td className="py-2.5 px-4 text-neutral-300 break-words">
                           {m.note || "—"}
@@ -1341,11 +999,12 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             <button
               onClick={() => {
                 setSelectedMovements(null);
+                setMovementsList([]);
                 onClearActiveModals?.();
               }}
               className="px-4 py-1.5 text-xs text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors cursor-pointer"
             >
-              Close
+              {isNepali ? "बन्द गर्नुहोस्" : "Close"}
             </button>
           </div>
         </div>

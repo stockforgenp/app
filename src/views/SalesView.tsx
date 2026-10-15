@@ -123,9 +123,6 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const [printSaleId, setPrintSaleId] = useState<number | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
-  // Quick Multi-SKU input right on POS
-  const [quickSkuInput, setQuickSkuInput] = useState("");
-
   // Whole / Overall Sale Discount State (proportionally divided across line items)
   const [wholeDiscountValue, setWholeDiscountValue] = useState("");
   const [wholeDiscountType, setWholeDiscountType] = useState<
@@ -638,11 +635,17 @@ export const SalesView: React.FC<SalesViewProps> = ({
     if (!isCustomPaid) {
       return calculations.grandTotal;
     }
-    const val = parseFloat(paidAmountInput);
+    const trimmed = paidAmountInput.trim();
+    if (trimmed === "") return 0;
+    const val = parseFloat(trimmed);
     if (isNaN(val) || val < 0) return 0;
     return toMinorUnits(val);
   }, [isCustomPaid, paidAmountInput, calculations.grandTotal]);
 
+  const changeToReturn = Math.max(
+    0,
+    effectivePaidAmount - calculations.grandTotal,
+  );
   const currentBillDue = Math.max(
     0,
     calculations.grandTotal - effectivePaidAmount,
@@ -739,10 +742,6 @@ export const SalesView: React.FC<SalesViewProps> = ({
         customerPanVat: sale.customer_pan_vat,
       });
 
-      // Auto-open bill print preview for quick thermal slip/invoice print
-      setPrintSaleId(sale.id);
-      setIsPrintModalOpen(true);
-
       setCart([]);
       setPaidAmountInput("");
       setIsCustomPaid(false);
@@ -762,6 +761,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
     }
   };
 
+  const handleCompleteSaleRef = useRef(handleCompleteSale);
+  useEffect(() => {
+    handleCompleteSaleRef.current = handleCompleteSale;
+  });
+
   // POS-Specific Keyboard Shortcuts (F2 / Ctrl+Enter for sale completion, Ctrl+B to focus scanner)
   useEffect(() => {
     const handlePosKeyDown = (e: KeyboardEvent) => {
@@ -772,7 +776,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
       if (e.key === "F2" || (isModifier && e.key === "Enter")) {
         if (cart.length > 0 && !calculations.hasStockViolation) {
           e.preventDefault();
-          handleCompleteSale();
+          handleCompleteSaleRef.current();
         }
         return;
       }
@@ -788,7 +792,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
     window.addEventListener("keydown", handlePosKeyDown);
     return () => window.removeEventListener("keydown", handlePosKeyDown);
-  }, [cart, calculations, customerData, saleDateTime, applyVat]);
+  }, [cart, calculations.hasStockViolation]);
 
   // Selected batch items summary stats
   const batchSelectedCount = Object.keys(batchQuantities).length;
@@ -1599,7 +1603,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     <span className="text-xs font-semibold text-neutral-200">
                       {isNepali ? "प्राप्त रकम (Paid Amount)" : "Paid Amount"}
                     </span>
-                    <div className="flex gap-3">
+                    <div className="flex gap-2 items-center">
                       <div className="relative">
                         <input
                           type="number"
@@ -1611,13 +1615,16 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               ? paidAmountInput
                               : fromMinorUnits(calculations.grandTotal)
                           }
+                          onFocus={(e) => {
+                            e.target.select();
+                          }}
                           onChange={(e) => {
                             setIsCustomPaid(true);
                             setPaidAmountInput(e.target.value);
                           }}
-                          className="max-w-[120px] pl-10 pr-3 py-1.5 text-xs font-mono font-bold text-emerald-400 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500 pr-12"
+                          className="w-36 pl-8 pr-3 py-1.5 text-xs font-mono font-bold text-emerald-400 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500"
                         />
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-500 pointer-events-none">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-500 pointer-events-none">
                           {currencySymbol}
                         </span>
                       </div>
@@ -1627,9 +1634,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
                           setIsCustomPaid(false);
                           setPaidAmountInput("");
                         }}
-                        className={`text-[10px] px-2 rounded font-medium transition-colors cursor-pointer border ${
+                        className={`text-[10px] px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer border ${
                           !isCustomPaid
-                            ? "bg-emerald-200/20 text-emerald-300 border-emerald-500/30"
+                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
                             : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
                         }`}
                       >
@@ -1640,6 +1647,20 @@ export const SalesView: React.FC<SalesViewProps> = ({
 
                   {/* Due Breakdown */}
                   <div className="space-y-1.5 text-xs">
+                    {changeToReturn > 0 && (
+                      <div className="flex items-center justify-between text-emerald-400">
+                        <span>
+                          {isNepali
+                            ? "फिर्ता गर्नुपर्ने रकम"
+                            : "Change to Return"}
+                          :
+                        </span>
+                        <span className="font-mono font-bold">
+                          {formatCurrency(changeToReturn, currencySymbol)}
+                        </span>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between text-neutral-300">
                       <span>
                         {isNepali ? "यस बिलको बाँकी" : "Current Bill Due"}:

@@ -834,6 +834,123 @@ export async function runBusinessLogicTests(): Promise<TestResultItem[]> {
       expected: '1 vendor row returned without error',
       actual: `${vendorQuery[0]?.values?.length || 0} rows returned`,
     });
+
+    // Test 25: Sale Deletion, Stock Restoration & Sales Return Stock Movement Audit Log
+    const preSaleStockRow = testDb.exec("SELECT current_stock FROM products WHERE id = 1");
+    const preSaleStock = (preSaleStockRow[0]?.values[0]?.[0] as number) || 0;
+    
+    // Simulate sale of 4 units
+    testDb.run(
+      `INSERT INTO sales (bill_number, subtotal, discount, total, created_at, updated_at)
+       VALUES ('INV-TEST-001', 24000, 0, 24000, ?, ?)`,
+      [now, now]
+    );
+    const saleIdRow = testDb.exec("SELECT id FROM sales WHERE bill_number = 'INV-TEST-001'");
+    const testSaleId = saleIdRow[0]?.values[0]?.[0] as number;
+    testDb.run(
+      `INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, actual_selling_price, discount, total)
+       VALUES (?, 1, 4, 6000, 6000, 0, 24000)`,
+      [testSaleId]
+    );
+    testDb.run("UPDATE products SET current_stock = current_stock - 4, updated_at = ? WHERE id = 1", [now]);
+    testDb.run(
+      `INSERT INTO stock_movements (product_id, type, quantity, reference_id, note, created_at)
+       VALUES (1, 'SALE', -4, ?, 'Completed Sale #INV-TEST-001', ?)`,
+      [testSaleId, now]
+    );
+
+    // Delete the sale, restore stock and log RETURN stock movement
+    testDb.run("UPDATE products SET current_stock = current_stock + 4, updated_at = ? WHERE id = 1", [now]);
+    testDb.run(
+      `INSERT INTO stock_movements (product_id, type, quantity, reference_id, note, created_at)
+       VALUES (1, 'RETURN', 4, ?, 'Restored from sales return: Bill #INV-TEST-001', ?)`,
+      [testSaleId, now]
+    );
+    testDb.run("DELETE FROM sale_items WHERE sale_id = ?", [testSaleId]);
+    testDb.run("DELETE FROM sales WHERE id = ?", [testSaleId]);
+
+    const postDeleteStockRow = testDb.exec("SELECT current_stock FROM products WHERE id = 1");
+    const postDeleteStock = (postDeleteStockRow[0]?.values[0]?.[0] as number) || 0;
+    const saleReturnMvtRow = testDb.exec(`
+      SELECT type, quantity, note FROM stock_movements 
+      WHERE reference_id = ${testSaleId} AND type = 'RETURN'
+    `);
+    const saleReturnPassed = 
+      postDeleteStock === preSaleStock &&
+      saleReturnMvtRow.length > 0 &&
+      saleReturnMvtRow[0].values.length === 1 &&
+      saleReturnMvtRow[0].values[0][0] === 'RETURN' &&
+      saleReturnMvtRow[0].values[0][1] === 4 &&
+      String(saleReturnMvtRow[0].values[0][2]).includes('Restored from sales return');
+
+    results.push({
+      name: '25. Sale Deletion, Stock Restoration & Sales Return Stock Movement Audit Log',
+      passed: saleReturnPassed,
+      message: saleReturnPassed
+        ? `Sale deletion restored stock back to ${postDeleteStock} units and recorded RETURN movement (+4 units) with note: "${saleReturnMvtRow[0]?.values[0]?.[2]}".`
+        : 'Failed to verify stock restoration or sales return movement record.',
+      expected: `Stock: ${preSaleStock}, Movement: RETURN (+4)`,
+      actual: `Stock: ${postDeleteStock}, Movement: ${saleReturnMvtRow[0]?.values[0]?.[0]} (${saleReturnMvtRow[0]?.values[0]?.[1]})`,
+    });
+
+    // Test 26: Purchase Deletion, Stock Deduction & Purchase Return Stock Movement Audit Log
+    const prePurStockRow = testDb.exec("SELECT current_stock FROM products WHERE id = 1");
+    const prePurStock = (prePurStockRow[0]?.values[0]?.[0] as number) || 0;
+
+    // Simulate purchase of 6 units
+    testDb.run(
+      `INSERT INTO purchases (bill_number, vendor_id, vendor_name, subtotal, discount, total, created_at)
+       VALUES ('PUR-TEST-001', ${testVendorId}, 'Everest Suppliers', 24000, 0, 24000, ?)`,
+      [now]
+    );
+    const purIdRow = testDb.exec("SELECT id FROM purchases WHERE bill_number = 'PUR-TEST-001'");
+    const testPurId = purIdRow[0]?.values[0]?.[0] as number;
+    testDb.run(
+      `INSERT INTO purchase_items (purchase_id, product_id, product_name, product_sku, quantity, cost_price, selling_price, discount, total)
+       VALUES (?, 1, 'Test Chai 250g', 'TEA-001', 6, 4000, 6000, 0, 24000)`,
+      [testPurId]
+    );
+    testDb.run("UPDATE products SET current_stock = current_stock + 6, updated_at = ? WHERE id = 1", [now]);
+    testDb.run(
+      `INSERT INTO stock_movements (product_id, type, quantity, reference_id, vendor_id, vendor_name, note, created_at)
+       VALUES (1, 'RESTOCK', 6, ?, ${testVendorId}, 'Everest Suppliers', 'Purchase Order #PUR-TEST-001', ?)`,
+      [testPurId, now]
+    );
+
+    // Delete the purchase, deduct stock and log RETURN stock movement
+    testDb.run("UPDATE products SET current_stock = current_stock - 6, updated_at = ? WHERE id = 1", [now]);
+    testDb.run(
+      `INSERT INTO stock_movements (product_id, type, quantity, reference_id, vendor_id, vendor_name, note, created_at)
+       VALUES (1, 'RETURN', -6, ?, ${testVendorId}, 'Everest Suppliers', 'Deducted from purchase return: Bill #PUR-TEST-001 (Everest Suppliers)', ?)`,
+      [testPurId, now]
+    );
+    testDb.run("DELETE FROM purchase_items WHERE purchase_id = ?", [testPurId]);
+    testDb.run("DELETE FROM purchases WHERE id = ?", [testPurId]);
+
+    const postDeletePurStockRow = testDb.exec("SELECT current_stock FROM products WHERE id = 1");
+    const postDeletePurStock = (postDeletePurStockRow[0]?.values[0]?.[0] as number) || 0;
+    const purReturnMvtRow = testDb.exec(`
+      SELECT type, quantity, vendor_name, note FROM stock_movements 
+      WHERE reference_id = ${testPurId} AND type = 'RETURN'
+    `);
+    const purReturnPassed = 
+      postDeletePurStock === prePurStock &&
+      purReturnMvtRow.length > 0 &&
+      purReturnMvtRow[0].values.length === 1 &&
+      purReturnMvtRow[0].values[0][0] === 'RETURN' &&
+      purReturnMvtRow[0].values[0][1] === -6 &&
+      purReturnMvtRow[0].values[0][2] === 'Everest Suppliers' &&
+      String(purReturnMvtRow[0].values[0][3]).includes('Deducted from purchase return');
+
+    results.push({
+      name: '26. Purchase Deletion, Stock Deduction & Purchase Return Stock Movement Audit Log',
+      passed: purReturnPassed,
+      message: purReturnPassed
+        ? `Purchase deletion deducted stock back to ${postDeletePurStock} units and recorded RETURN movement (-6 units) with vendor "Everest Suppliers" and note: "${purReturnMvtRow[0]?.values[0]?.[3]}".`
+        : 'Failed to verify stock deduction or purchase return movement record.',
+      expected: `Stock: ${prePurStock}, Movement: RETURN (-6)`,
+      actual: `Stock: ${postDeletePurStock}, Movement: ${purReturnMvtRow[0]?.values[0]?.[0]} (${purReturnMvtRow[0]?.values[0]?.[1]})`,
+    });
   } catch (err: unknown) {
     results.push({
       name: '22. Multi-Item Purchase, Vendor Link, Stock Inflow & purchase_products View',

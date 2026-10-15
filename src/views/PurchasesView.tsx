@@ -410,7 +410,9 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     if (!isCustomPaid) {
       return calculations.grandTotal;
     }
-    const parsed = parseFloat(paidAmountInput);
+    const trimmed = paidAmountInput.trim();
+    if (trimmed === "") return 0;
+    const parsed = parseFloat(trimmed);
     if (isNaN(parsed) || parsed < 0) return 0;
     return toMinorUnits(parsed);
   }, [isCustomPaid, paidAmountInput, calculations.grandTotal]);
@@ -482,15 +484,17 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         vendorPanVat: purchase.vendor_pan_vat,
       });
 
-      setPrintPurchaseId(purchase.id);
-      setIsPrintModalOpen(true);
-
       handleClearCart();
       loadCatalog();
     } catch (err: unknown) {
       showToast((err as Error).message, "error", "Purchase Failed");
     }
   };
+
+  const handleCompletePurchaseRef = useRef(handleCompletePurchase);
+  useEffect(() => {
+    handleCompletePurchaseRef.current = handleCompletePurchase;
+  });
 
   // Keyboard shortcut listener (F2 or Ctrl+Enter to complete purchase)
   useEffect(() => {
@@ -499,22 +503,13 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
       if (e.key === "F2" || (isModifier && e.key === "Enter")) {
         if (cart.length > 0) {
           e.preventDefault();
-          handleCompletePurchase();
+          handleCompletePurchaseRef.current();
         }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    cart,
-    calculations,
-    vendorData,
-    supplierInvoiceNo,
-    purchaseDateTime,
-    purchaseNotes,
-    applyVat,
-    effectivePaidAmount,
-  ]);
+  }, [cart]);
 
   // Batch selections in modal
   const submitBatchFromQuantities = () => {
@@ -649,7 +644,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                     >
                       <div className="min-w-0 pr-2">
                         <div className="text-xs font-semibold text-neutral-200 group-hover:text-emerald-300 flex items-center gap-1.5 truncate">
-                          <span>{p.name}</span>
+                          <span className="capitalize">{p.name}</span>
                           <span className="text-[10px] font-mono text-neutral-400 bg-neutral-800 px-1 rounded">
                             {p.unit || "pcs"}
                           </span>
@@ -710,8 +705,8 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                     }}
                     className={`flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md transition-colors cursor-pointer border ${
                       calculations.totalDiscount > 0
-                        ? "bg-amber-500/20 text-amber-300 border-amber-500/40 font-semibold"
-                        : "text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30"
+                        ? "bg-amber-100/20 text-amber-300 border-amber-900/40 font-semibold"
+                        : "text-amber-600 hover:text-amber-700 bg-amber-100/10 hover:bg-amber-200/20 border-amber-500/30"
                     }`}
                   >
                     <Percent className="w-3 h-3" />
@@ -962,7 +957,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
             </div>
 
             {/* Calculations Breakdown */}
-            <div className="p-5 bg-neutral-950 border-t border-neutral-800 space-y-2.5 shrink-0">
+            <div className="p-5 bg-neutral-950 border-t border-neutral-800 space-y-1.5 shrink-0">
               <div className="flex items-center justify-between text-xs text-neutral-400">
                 <span>
                   {isNepali ? "उप-जम्मा (Gross Subtotal)" : "Subtotal (Gross)"}
@@ -1040,7 +1035,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-neutral-800 flex items-center justify-between">
+              <div className="pt-1 border-t border-neutral-800 flex items-center justify-between">
                 <div>
                   <div className="text-sm font-bold text-neutral-100">
                     {applyVat
@@ -1064,51 +1059,55 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
 
               {/* Payment & Dues Card */}
               {cart.length > 0 && (
-                <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 space-y-2.5">
+                <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-neutral-200">
                       {isNepali ? "भुक्तानी रकम (Paid Amount)" : "Paid Amount"}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCustomPaid(false);
-                        setPaidAmountInput("");
-                      }}
-                      className={`text-[10px] px-2 py-0.5 rounded font-medium transition-colors cursor-pointer border ${
-                        !isCustomPaid
-                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                          : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
-                      }`}
-                    >
-                      {isNepali ? "पूरा भुक्तानी" : "Paid in Full"}
-                    </button>
-                  </div>
-
-                  <div className="relative">
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      placeholder={`Enter paid amount (${currencySymbol})...`}
-                      value={
-                        isCustomPaid
-                          ? paidAmountInput
-                          : fromMinorUnits(calculations.grandTotal)
-                      }
-                      onChange={(e) => {
-                        setIsCustomPaid(true);
-                        setPaidAmountInput(e.target.value);
-                      }}
-                      className="w-full px-3 py-1.5 text-xs font-mono font-bold text-emerald-400 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500 pr-12"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-500 pointer-events-none">
-                      {currencySymbol}
-                    </span>
+                    <div className="flex gap-2 items-center">
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          placeholder={`Enter paid amount (${currencySymbol})...`}
+                          value={
+                            isCustomPaid
+                              ? paidAmountInput
+                              : fromMinorUnits(calculations.grandTotal)
+                          }
+                          onFocus={(e) => {
+                            e.target.select();
+                          }}
+                          onChange={(e) => {
+                            setIsCustomPaid(true);
+                            setPaidAmountInput(e.target.value);
+                          }}
+                          className="w-36 pl-8 pr-3 py-1.5 text-xs font-mono font-bold text-emerald-400 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500"
+                        />
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-500 pointer-events-none">
+                          {currencySymbol}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomPaid(false);
+                          setPaidAmountInput("");
+                        }}
+                        className={`text-[10px] px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer border ${
+                          !isCustomPaid
+                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                            : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
+                        }`}
+                      >
+                        {isNepali ? "पूरा भुक्तानी" : "Paid in Full"}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Due Breakdown */}
-                  <div className="space-y-1.5 pt-2 border-t border-neutral-800 text-xs">
+                  <div className="space-y-1 text-xs">
                     <div className="flex items-center justify-between text-neutral-300">
                       <span>
                         {isNepali ? "यस खरिदको बाँकी" : "Current Purchase Due"}:
@@ -1135,7 +1134,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                     )}
 
                     {(vendorPreviousDue > 0 || currentBillDue > 0) && (
-                      <div className="flex items-center justify-between text-neutral-100 font-bold pt-1.5 border-t border-neutral-800/80">
+                      <div className="flex items-center justify-between text-neutral-100 font-bold">
                         <span className="text-xs">
                           {isNepali ? "कुल तिर्न बाँकी" : "Total Payable Due"}:
                         </span>
@@ -1329,7 +1328,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                   className="p-2.5 flex items-center justify-between gap-3 text-xs"
                 >
                   <div className="min-w-0">
-                    <div className="font-semibold text-neutral-200 truncate">
+                    <div className="font-semibold text-neutral-200 truncate capitalize">
                       {p.name}
                     </div>
                     <div className="text-[10px] text-neutral-400 font-mono">

@@ -11,6 +11,7 @@ import {
   createVendor,
   updateVendor,
 } from "../../lib/services/vendorService.ts";
+import { capitalizeWords } from "../../helpers/formatHelpers.ts";
 import { Vendor, CreateVendorInput } from "../../types/index.ts";
 import { Input, Textarea } from "../common/Input.tsx";
 
@@ -78,7 +79,8 @@ export const NewVendorForm: React.FC<NewVendorFormProps> = ({
 
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) {
+    const trimmedName = formData.name.trim();
+    if (!trimmedName) {
       showToast(
         isNepali ? "आपूर्तिकर्ताको नाम आवश्यक छ" : "Vendor name is required",
         "warning",
@@ -86,18 +88,23 @@ export const NewVendorForm: React.FC<NewVendorFormProps> = ({
       return;
     }
 
+    const payload: CreateVendorInput = {
+      ...formData,
+      name: capitalizeWords(trimmedName),
+    };
+
     try {
       if (editingVendor) {
-        updateVendor(editingVendor.id, formData);
+        updateVendor(editingVendor.id, payload);
         showToast(
           isNepali
-            ? `आपूर्तिकर्ता "${formData.name.trim()}" अद्यावधिक गरियो`
-            : `Vendor "${formData.name.trim()}" updated successfully`,
+            ? `आपूर्तिकर्ता "${payload.name}" अद्यावधिक गरियो`
+            : `Vendor "${payload.name}" updated successfully`,
           "success",
         );
         onVendorCreated?.({
           ...editingVendor,
-          name: formData.name.trim(),
+          name: payload.name,
           pan_vat: formData.pan_vat?.trim() || null,
           phone: formData.phone?.trim() || null,
           email: formData.email?.trim() || null,
@@ -105,11 +112,11 @@ export const NewVendorForm: React.FC<NewVendorFormProps> = ({
           notes: formData.notes?.trim() || null,
         });
       } else {
-        const created = createVendor(formData);
+        const created = createVendor(payload);
         showToast(
           isNepali
-            ? `नयाँ आपूर्तिकर्ता "${formData.name.trim()}" सफलतापूर्वक थपियो`
-            : `Vendor "${formData.name.trim()}" created successfully`,
+            ? `नयाँ आपूर्तिकर्ता "${payload.name}" सफलतापूर्वक थपियो`
+            : `Vendor "${payload.name}" created successfully`,
           "success",
         );
         onVendorCreated?.(created);
@@ -141,6 +148,7 @@ export const NewVendorForm: React.FC<NewVendorFormProps> = ({
           }
           type="text"
           required
+          className="capitalize"
           placeholder={
             isNepali
               ? "जस्तै: सूर्य डिस्ट्रिब्युटर्स"
@@ -148,6 +156,12 @@ export const NewVendorForm: React.FC<NewVendorFormProps> = ({
           }
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          onBlur={() =>
+            setFormData((prev) => ({
+              ...prev,
+              name: capitalizeWords(prev.name),
+            }))
+          }
         />
       </div>
 

@@ -6,11 +6,12 @@
  * - Modal to inspect all line items with snapshot cost, actual selling, discounts, and item profit
  */
 import React, { useState, useEffect, useMemo } from "react";
-import { Receipt, User, Phone, Printer, Edit3 } from "lucide-react";
+import { Receipt, User, Phone, Printer, Edit3, Trash2 } from "lucide-react";
 import { Sale, SaleItem } from "../types/index.ts";
-import { getSales, getSaleWithItems } from "../lib/services/salesService.ts";
-import { formatCurrency, formatDateTime } from "../lib/utils/format.ts";
+import { getSales, getSaleWithItems, deleteSale } from "../lib/services/salesService.ts";
+import { formatCurrency, formatDateTime, capitalizeWords } from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
+import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { PrintBillModal } from "../components/common/PrintBillModal.tsx";
 import { EditSaleModal } from "../components/common/EditSaleModal.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
@@ -43,6 +44,9 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
 
   // Edit sale modal state
   const [editSaleId, setEditSaleId] = useState<number | null>(null);
+
+  // Delete sale confirm state
+  const [deletingSaleId, setDeletingSaleId] = useState<number | null>(null);
 
   // Bill print modal state
   const [printBillSaleId, setPrintBillSaleId] = useState<number | null>(null);
@@ -92,6 +96,9 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
         },
         onEditSale: (saleId) => {
           setEditSaleId(saleId);
+        },
+        onDeleteSale: (saleId) => {
+          setDeletingSaleId(saleId);
         },
         onCopySaleId: (saleId) => {
           navigator.clipboard.writeText(`#${saleId}`);
@@ -243,9 +250,10 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                   <User className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-neutral-200">
-                    {selectedSaleDetail.sale.customer_name ||
-                      "Walk-in Customer (Not Specified)"}
+                  <div className="text-xs font-semibold text-neutral-200 capitalize">
+                    {selectedSaleDetail.sale.customer_name
+                      ? capitalizeWords(selectedSaleDetail.sale.customer_name)
+                      : "Walk-in Customer (Not Specified)"}
                   </div>
                   <div className="text-[11px] text-neutral-400 font-mono flex items-center flex-wrap gap-2 mt-0.5">
                     {selectedSaleDetail.sale.customer_phone ? (
@@ -296,8 +304,8 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                 <tbody className="divide-y divide-neutral-800/60">
                   {selectedSaleDetail.items.map((item) => (
                     <tr key={item.id} className="hover:bg-neutral-800/30">
-                      <td className="py-3 px-4 font-semibold text-neutral-200">
-                        {item.product_name}
+                      <td className="py-3 px-4 font-semibold text-neutral-200 capitalize">
+                        {capitalizeWords(item.product_name)}
                       </td>
 
                       <td className="py-3 px-2 text-center font-mono text-neutral-300">
@@ -387,8 +395,8 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                 </span>
               </div>
 
-              <div className="flex justify-between text-emerald-400 font-medium pt-1 border-t border-neutral-900">
-                <span>Paid Amount:</span>
+              <div className="flex justify-between text-emerald-400 font-medium pt-1.5 border-t border-neutral-900">
+                <span>{isNepali ? "भुक्तानी रकम (Paid):" : "Paid Amount:"}</span>
                 <span className="font-mono">
                   {formatCurrency(
                     selectedSaleDetail.sale.paid_amount !== undefined &&
@@ -401,19 +409,29 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                 </span>
               </div>
 
-              <div className="flex justify-between text-rose-400 font-medium">
-                <span>Current Due:</span>
+              <div className="flex justify-between font-medium">
+                <span className={(selectedSaleDetail.sale.due_amount ?? 0) > 0 ? "text-rose-400" : "text-neutral-400"}>
+                  {isNepali ? "बाँकी बक्यौता (Current Due):" : "Current Due:"}
+                </span>
                 <span className="font-mono">
-                  {formatCurrency(
-                    selectedSaleDetail.sale.due_amount ?? 0,
-                    currencySymbol,
+                  {(selectedSaleDetail.sale.due_amount ?? 0) > 0 ? (
+                    <span className="text-rose-400 font-bold">
+                      {formatCurrency(
+                        selectedSaleDetail.sale.due_amount ?? 0,
+                        currencySymbol,
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-neutral-500">
+                      {formatCurrency(0, currencySymbol)}
+                    </span>
                   )}
                 </span>
               </div>
 
               {(selectedSaleDetail.sale.previous_due ?? 0) > 0 && (
                 <div className="flex justify-between text-amber-400/90 font-medium">
-                  <span>Previous Balance / Due:</span>
+                  <span>{isNepali ? "साविक बाँकी (Previous Due):" : "Previous Balance / Due:"}</span>
                   <span className="font-mono">
                     {formatCurrency(
                       selectedSaleDetail.sale.previous_due ?? 0,
@@ -426,7 +444,7 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
               {((selectedSaleDetail.sale.total_due ?? 0) > 0 ||
                 (selectedSaleDetail.sale.due_amount ?? 0) > 0) && (
                 <div className="flex justify-between text-xs font-bold text-rose-300 pt-1 border-t border-neutral-800">
-                  <span>Total Account Due:</span>
+                  <span>{isNepali ? "कुल ग्राहक बाँकी (Total Customer Due):" : "Total Customer Due:"}</span>
                   <span className="font-mono">
                     {formatCurrency(
                       selectedSaleDetail.sale.total_due ??
@@ -471,6 +489,18 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                   <Edit3 className="w-4 h-4 text-amber-400" />
                   <span>{isNepali ? "कारोबार सच्याउनुहोस्" : "Edit Sale"}</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const id = selectedSaleDetail.sale.id;
+                    setDeletingSaleId(id);
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>{isNepali ? "बिक्री मेटाउनुहोस्" : "Delete Sale"}</span>
+                </button>
               </div>
 
               <button
@@ -499,6 +529,40 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
         onClose={() => setIsPrintModalOpen(false)}
         saleId={printBillSaleId}
         currencySymbol={currencySymbol}
+      />
+
+      {/* Confirm Delete Sale Dialog */}
+      <ConfirmDialog
+        isOpen={deletingSaleId !== null}
+        onClose={() => setDeletingSaleId(null)}
+        onConfirm={() => {
+          if (!deletingSaleId) return;
+          try {
+            const res = deleteSale(deletingSaleId);
+            showToast(
+              isNepali
+                ? `बिक्री #${res.billNumber || deletingSaleId} मेटाइयो र चलान खातामा बिक्री फिर्ता अभिलेख गरियो!`
+                : `Sale #${res.billNumber || deletingSaleId} deleted and restored via sales return in movement log!`,
+              "success"
+            );
+            if (selectedSaleDetail?.sale.id === deletingSaleId) {
+              setSelectedSaleDetail(null);
+            }
+            setDeletingSaleId(null);
+            loadSales();
+          } catch (err: unknown) {
+            showToast((err as Error).message, "error");
+          }
+        }}
+        title={t("hist_delete_sale_confirm_title", "Confirm Delete Sale")}
+        message={
+          isNepali
+            ? "के तपाईं यो बिक्री मेटाउन निश्चित हुनुहुन्छ? सामानहरूको मौज्दात गोदाममा फिर्ता गरिनेछ र चलान खातामा बिक्री फिर्ता अभिलेख हुनेछ।"
+            : "Are you sure you want to permanently delete this sale? Deducted quantities will be restored back to inventory and logged as a sales return in stock movements."
+        }
+        confirmText={t("hist_delete_sale", "Delete Sale")}
+        cancelText={isNepali ? "रद्द" : "Cancel"}
+        isDestructive={true}
       />
     </div>
   );

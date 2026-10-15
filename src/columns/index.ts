@@ -6,3 +6,4 @@ export * from "./vendorColumns.tsx";
 export * from "./stockMovementColumns.tsx";
 export * from "./staffColumns.tsx";
 export * from "./payrollColumns.tsx";
+export * from "./productColumns.tsx";

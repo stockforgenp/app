@@ -12,7 +12,7 @@ import { motion } from "framer-motion";
 import { StaffMonthlyPayrollStatus, SalaryPayment } from "../types/index.ts";
 import { Column } from "../components/common/DataTable.tsx";
 import { ActionMenu } from "../components/common/ActionMenu.tsx";
-import { formatCurrency, formatDate } from "../helpers/formatHelpers.ts";
+import { formatCurrency, formatDate, capitalizeWords } from "../helpers/formatHelpers.ts";
 
 export interface PayrollRosterColumnsOptions {
   currencySymbol: string;
@@ -44,14 +44,14 @@ export function getPayrollRosterColumns(
       id: "staff",
       header: isNepali ? "कर्मचारी र पद" : "Employee & Role",
       sortable: true,
-      sortKey: (item) => item.staff_name,
+      sortKey: (item) => capitalizeWords(item.staff_name),
       accessor: (item) => (
         <div>
-          <div className="font-semibold text-neutral-200">
-            {item.staff_name}
+          <div className="font-semibold text-neutral-200 capitalize">
+            {capitalizeWords(item.staff_name)}
           </div>
-          <div className="text-[11px] text-neutral-400 mt-0.5">
-            {item.staff_role} ·{" "}
+          <div className="text-[11px] text-neutral-400 mt-0.5 capitalize">
+            {capitalizeWords(item.staff_role)} ·{" "}
             <span className="font-mono">ID #{item.staff_id}</span>
           </div>
         </div>
@@ -292,12 +292,12 @@ export function getSalaryDisbursementColumns(
       id: "staff",
       header: isNepali ? "कर्मचारी र पद" : "Employee & Role",
       sortable: true,
-      sortKey: (p) => p.staff_name,
+      sortKey: (p) => capitalizeWords(p.staff_name),
       accessor: (p) => (
         <div>
-          <div className="font-semibold text-neutral-200">{p.staff_name}</div>
-          <div className="text-[11px] text-neutral-400 mt-0.5">
-            {p.staff_role}
+          <div className="font-semibold text-neutral-200 capitalize">{capitalizeWords(p.staff_name)}</div>
+          <div className="text-[11px] text-neutral-400 mt-0.5 capitalize">
+            {capitalizeWords(p.staff_role)}
           </div>
         </div>
       ),

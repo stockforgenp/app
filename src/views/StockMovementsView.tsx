@@ -7,7 +7,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   History,
   Building2,
-  Search,
   SlidersHorizontal,
   TrendingDown,
   TrendingUp,
@@ -15,9 +14,7 @@ import {
 import { StockMovement, Vendor } from "../types/index.ts";
 import { getStockMovements } from "../lib/services/inventoryService.ts";
 import { getAllVendors } from "../lib/services/vendorService.ts";
-import { Input } from "../components/common/Input.tsx";
 import { Select } from "../components/common/Select.tsx";
-import { DateFilterBar } from "../components/common/DateFilterBar.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
 import { getStockMovementColumns } from "../columns/index.ts";
 import { DatePreset } from "../lib/utils/dateFilters.ts";
@@ -96,6 +93,12 @@ export const StockMovementsView: React.FC<StockMovementsViewProps> = () => {
         saleUnits += Math.abs(m.quantity);
       } else if (m.type === "ADJUSTMENT") {
         adjustmentEvents++;
+      } else if (m.type === "RETURN") {
+        if (m.quantity > 0) {
+          restockUnits += m.quantity;
+        } else {
+          saleUnits += Math.abs(m.quantity);
+        }
       }
     }
 
@@ -191,33 +194,25 @@ export const StockMovementsView: React.FC<StockMovementsViewProps> = () => {
         </div>
       </div>
 
-      {/* Rich Filtering Toolbar */}
-      <div className="bg-neutral-900 p-4 rounded-xl border border-neutral-800 space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-          {/* Search Box */}
-          <div className="md:col-span-5">
-            <Input
-              type="text"
-              placeholder={
-                isNepali
-                  ? "चलान इतिहास खोज्नुहोस् (सामान, आपूर्तिकर्ता, कैफियत)..."
-                  : "Search movements by product, supplier, or audit note..."
-              }
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              icon={Search}
-              clearable
-              onClear={() => setSearch("")}
-              className="py-2 text-xs"
-            />
-          </div>
-
-          {/* Vendor Filter Dropdown */}
-          <div className="md:col-span-4">
+      {/* Movement Log Table with Integrated Search, Vendor & Type Filters, and Date Presets */}
+      <DataTable<StockMovement>
+        data={movementsList}
+        columns={movementColumns}
+        searchQuery={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={
+          isNepali
+            ? "चलान इतिहास खोज्नुहोस् (सामान, आपूर्तिकर्ता, कैफियत)..."
+            : "Search movements by product, supplier, or audit note..."
+        }
+        filtersSlot={
+          <>
             <Select
               icon={Building2}
               value={selectedVendorId}
               onChange={(e) => setSelectedVendorId(e.target.value)}
+              containerClassName="w-full sm:w-56"
+              sizeVariant="sm"
               options={[
                 {
                   value: "all",
@@ -229,44 +224,33 @@ export const StockMovementsView: React.FC<StockMovementsViewProps> = () => {
                 })),
               ]}
             />
-          </div>
-
-          {/* Movement Type Filter */}
-          <div className="md:col-span-3">
             <Select
               value={movementTypeFilter}
               onChange={(e) =>
                 setMovementTypeFilter(e.target.value as MovementTypeFilter)
               }
+              containerClassName="w-full sm:w-44"
+              sizeVariant="sm"
               options={getMovementTypeOptions(isNepali)}
             />
-          </div>
-        </div>
-
-        {/* Row 2: Standard DateFilterBar */}
-        <div className="pt-2 border-t border-neutral-800/80">
-          <DateFilterBar
-            preset={datePreset}
-            onPresetChange={(p, start, end) => {
-              setDatePreset(p);
-              setStartDate(start);
-              setEndDate(end);
-            }}
-            startDate={startDate}
-            endDate={endDate}
-            onStartDateChange={setStartDate}
-            onEndDateChange={setEndDate}
-            hasActiveFilters={hasActiveFilters}
-            onClear={handleClearFilters}
-          />
-        </div>
-      </div>
-
-      {/* Movement Log Table */}
-      <DataTable<StockMovement>
-        data={movementsList}
-        columns={movementColumns}
-        showSearch={false}
+          </>
+        }
+        dateFilterConfig={{
+          preset: datePreset,
+          onPresetChange: (p, start, end) => {
+            setDatePreset(p);
+            setStartDate(start);
+            setEndDate(end);
+          },
+          startDate,
+          endDate,
+          onStartDateChange: setStartDate,
+          onEndDateChange: setEndDate,
+          hasActiveFilters,
+          onClear: handleClearFilters,
+        }}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={handleClearFilters}
         getRowId={(m) => m.id}
         emptyIcon={History}
         emptyTitle={

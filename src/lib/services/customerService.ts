@@ -4,6 +4,7 @@
  */
 import { Customer, CreateCustomerInput, Sale } from '../../types/index.ts';
 import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
+import { capitalizeWords } from '../utils/format.ts';
 
 export function getAllCustomers(search?: string): Customer[] {
   const baseSql = `
@@ -125,7 +126,7 @@ export function getCustomerPreviousDueForSale(
 }
 
 export function createCustomer(data: CreateCustomerInput): Customer {
-  const trimmedName = data.name.trim();
+  const trimmedName = capitalizeWords(data.name);
   if (!trimmedName) {
     throw new Error('Customer name is required');
   }
@@ -161,7 +162,7 @@ export function updateCustomer(id: number, data: Partial<CreateCustomerInput>): 
   }
 
   const now = new Date().toISOString();
-  const name = data.name !== undefined ? data.name.trim() : existing.name;
+  const name = data.name !== undefined ? capitalizeWords(data.name) : existing.name;
   if (!name) {
     throw new Error('Customer name cannot be empty');
   }
@@ -317,6 +318,8 @@ export function findOrCreateCustomer(data: {
 export function getCustomerSales(customerId: number): Sale[] {
   return query<Sale>(
     `SELECT s.*, 
+            COALESCE(s.paid_amount, s.grand_total, s.total) as paid_amount,
+            COALESCE(s.due_amount, 0) as due_amount,
             (SELECT COUNT(*) FROM sale_items WHERE sale_id = s.id) as item_count
      FROM sales s
      WHERE s.customer_id = ?

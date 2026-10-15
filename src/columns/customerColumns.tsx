@@ -15,7 +15,7 @@ import {
 import { Column } from "../components/common/DataTable.tsx";
 import { Customer } from "../types/index.ts";
 import { ActionMenu } from "../components/common/ActionMenu.tsx";
-import { formatCurrency } from "../helpers/formatHelpers.ts";
+import { formatCurrency, capitalizeWords } from "../helpers/formatHelpers.ts";
 
 export interface CustomerColumnsOptions {
   isNepali: boolean;
@@ -52,7 +52,7 @@ export function getCustomerColumns(
         <div>
           <div className="font-semibold text-neutral-200 flex items-center gap-1.5">
             <Users className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>{c.name}</span>
+            <span className="capitalize">{capitalizeWords(c.name)}</span>
             {(c.sales_count || 0) > 1 && (
               <span className="text-[10px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-1.5 py-0.2 rounded font-medium">
                 {isNepali ? "नियमित" : "Repeat"}
@@ -67,7 +67,7 @@ export function getCustomerColumns(
         </div>
       ),
       sortable: true,
-      sortKey: (c: Customer) => c.name,
+      sortKey: (c: Customer) => capitalizeWords(c.name),
     },
     {
       id: "phone",
@@ -177,13 +177,13 @@ export function getCustomerColumns(
       align: "right",
       accessor: (c: Customer) => {
         const due = c.total_due || 0;
-        return due > 0 ? (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 tabular-nums">
+        return (
+          <span
+            className={`font-mono text-xs tabular-nums ${
+              due > 0 ? "text-rose-400 font-medium" : "text-neutral-500"
+            }`}
+          >
             {formatCurrency(due, currencySymbol)}
-          </span>
-        ) : (
-          <span className="text-neutral-500 font-mono text-xs">
-            {formatCurrency(0, currencySymbol)}
           </span>
         );
       },

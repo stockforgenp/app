@@ -20,6 +20,7 @@ import {
 import { useToast } from "@/src/context/ToastContext.tsx";
 import { useLanguage } from "@/src/context/LanguageContext.tsx";
 import { fromMinorUnits, toMinorUnits } from "@/src/helpers";
+import { capitalizeWords } from "@/src/helpers/formatHelpers.ts";
 import { createStaff, updateStaff } from "@/src/lib/services/staffService";
 import { getTodayISODate } from "@/src/lib/utils/format";
 import {
@@ -116,7 +117,8 @@ export const NewStaffForm: React.FC<NewStaffFormProps> = ({
       return;
     }
 
-    const effectiveRole = isCustomRole ? formCustomRole.trim() : formRole;
+    const formattedName = capitalizeWords(trimmedName);
+    const effectiveRole = isCustomRole ? capitalizeWords(formCustomRole.trim()) : formRole;
     if (!effectiveRole) {
       setFormError(
         isNepali
@@ -141,7 +143,7 @@ export const NewStaffForm: React.FC<NewStaffFormProps> = ({
     try {
       if (editingStaff) {
         const updateInput: UpdateStaffInput = {
-          name: trimmedName,
+          name: formattedName,
           role: effectiveRole,
           salary_type: formSalaryType,
           base_salary: minorSalary,
@@ -154,13 +156,13 @@ export const NewStaffForm: React.FC<NewStaffFormProps> = ({
         updateStaff(editingStaff.id, updateInput);
         showToast(
           isNepali
-            ? `कर्मचारी "${trimmedName}" अद्यावधिक गरियो`
-            : `Employee "${trimmedName}" updated successfully.`,
+            ? `कर्मचारी "${formattedName}" अद्यावधिक गरियो`
+            : `Employee "${formattedName}" updated successfully.`,
           "success",
         );
       } else {
         const createInput: CreateStaffInput = {
-          name: trimmedName,
+          name: formattedName,
           role: effectiveRole,
           salary_type: formSalaryType,
           base_salary: minorSalary,
@@ -173,8 +175,8 @@ export const NewStaffForm: React.FC<NewStaffFormProps> = ({
         createStaff(createInput);
         showToast(
           isNepali
-            ? `नयाँ कर्मचारी "${trimmedName}" थपियो`
-            : `Employee "${trimmedName}" added to team.`,
+            ? `नयाँ कर्मचारी "${formattedName}" थपियो`
+            : `Employee "${formattedName}" added to team.`,
           "success",
         );
       }
@@ -207,9 +209,11 @@ export const NewStaffForm: React.FC<NewStaffFormProps> = ({
         }
         type="text"
         required
+        className="capitalize"
         placeholder={isNepali ? "उदा. राहुल शर्मा" : "e.g. Rahul Sharma"}
         value={formName}
         onChange={(e) => setFormName(e.target.value)}
+        onBlur={() => setFormName((v) => capitalizeWords(v))}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -250,11 +254,13 @@ export const NewStaffForm: React.FC<NewStaffFormProps> = ({
             }
             type="text"
             required
+            className="capitalize"
             placeholder={
               isNepali ? "उदा. शिफ्ट सुपरभाइजर" : "e.g. Shift Supervisor"
             }
             value={formCustomRole}
             onChange={(e) => setFormCustomRole(e.target.value)}
+            onBlur={() => setFormCustomRole((v) => capitalizeWords(v))}
           />
         ) : (
           <Select

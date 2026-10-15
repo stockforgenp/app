@@ -1,7 +1,7 @@
 import { Building2 } from "lucide-react";
 import { StockMovement } from "../types/index.ts";
 import { Column } from "../components/common/DataTable.tsx";
-import { formatDateTime } from "../helpers/formatHelpers.ts";
+import { formatDateTime, capitalizeWords } from "../helpers/formatHelpers.ts";
 
 export interface StockMovementColumnOptions {
   isNepali: boolean;
@@ -30,8 +30,8 @@ export function getStockMovementColumns(
       header: isNepali ? "सामान विवरण" : "Product Item",
       accessor: (m) => (
         <div>
-          <div className="font-semibold text-neutral-200">
-            {m.product_name || `Product #${m.product_id}`}
+          <div className="font-semibold text-neutral-200 capitalize">
+            {m.product_name ? capitalizeWords(m.product_name) : `Product #${m.product_id}`}
           </div>
           <div className="text-[10px] text-neutral-500 font-mono">
             ID: #{m.product_id}
@@ -39,7 +39,7 @@ export function getStockMovementColumns(
         </div>
       ),
       sortable: true,
-      sortKey: (m) => m.product_name || "",
+      sortKey: (m) => m.product_name ? capitalizeWords(m.product_name) : "",
     },
     {
       id: "type",
@@ -54,7 +54,9 @@ export function getStockMovementColumns(
                 ? "bg-teal-500/10 text-teal-400 border border-teal-500/20"
                 : m.type === "SALE"
                   ? "bg-sky-500/10 text-sky-400 border border-sky-500/20"
-                  : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  : m.type === "RETURN"
+                    ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                    : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
           }`}
         >
           {m.type}
@@ -70,13 +72,13 @@ export function getStockMovementColumns(
         m.vendor_name ? (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-800 text-neutral-300 border border-neutral-700/60">
             <Building2 className="w-3 h-3 text-emerald-400" />
-            <span className="truncate max-w-[140px]">{m.vendor_name}</span>
+            <span className="truncate max-w-[140px] capitalize">{capitalizeWords(m.vendor_name)}</span>
           </span>
         ) : (
           <span className="text-neutral-600 text-[11px]">—</span>
         ),
       sortable: true,
-      sortKey: (m) => m.vendor_name || "",
+      sortKey: (m) => m.vendor_name ? capitalizeWords(m.vendor_name) : "",
     },
     {
       id: "quantity",

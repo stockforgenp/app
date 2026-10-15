@@ -176,3 +176,34 @@ export function parseDateTimeLocalToIso(val?: string): string {
   return d.toISOString();
 }
 
+/**
+ * Capitalizes the first letter of each word in a string while preserving mixed casing/acronyms.
+ * Examples:
+ * - "paracetamol 500mg" -> "Paracetamol 500mg"
+ * - "john doe" -> "John Doe"
+ * - "shree krishna stores" -> "Shree Krishna Stores"
+ * - "coca-cola" -> "Coca-Cola"
+ * - "USB cable" -> "USB Cable"
+ * - "RAMESH SHRESTHA" -> "Ramesh Shrestha"
+ */
+export function capitalizeWords(str: string | undefined | null): string {
+  if (!str) return '';
+  const trimmed = str.trim();
+  if (!trimmed) return '';
+
+  // If the whole string is in ALL CAPS (common with caps lock on), convert to lowercase first
+  const isAllUpper = trimmed === trimmed.toUpperCase() && /[a-zA-Z]/.test(trimmed);
+  const normalized = isAllUpper ? trimmed.toLowerCase() : trimmed;
+
+  return normalized
+    .split(/(\s+)/)
+    .map((part) => {
+      if (!part || /^\s+$/.test(part)) return part;
+      // Capitalize first letter of word, including after hyphens, slashes, and parentheses
+      return part.replace(/(?:^|[(\[/\-_.,])([a-zA-Z])/g, (match, letter) => {
+        return match.slice(0, -1) + letter.toUpperCase();
+      });
+    })
+    .join('');
+}
+

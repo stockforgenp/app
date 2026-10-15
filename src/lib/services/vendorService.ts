@@ -10,6 +10,7 @@ import {
   Purchase,
 } from "../../types/index.ts";
 import { query, queryOne, run, transaction } from "../db/sqliteEngine.ts";
+import { capitalizeWords } from "../utils/format.ts";
 
 export function getAllVendors(search?: string): Vendor[] {
   const baseSql = `
@@ -151,7 +152,7 @@ export function getVendorPreviousDueForPurchase(
 }
 
 export function createVendor(data: CreateVendorInput): Vendor {
-  const trimmedName = data.name.trim();
+  const trimmedName = capitalizeWords(data.name);
   if (!trimmedName) {
     throw new Error("Vendor name is required");
   }
@@ -193,7 +194,7 @@ export function updateVendor(
   }
 
   const now = new Date().toISOString();
-  const name = data.name !== undefined ? data.name.trim() : existing.name;
+  const name = data.name !== undefined ? capitalizeWords(data.name) : existing.name;
   if (!name) {
     throw new Error("Vendor name cannot be empty");
   }
@@ -261,7 +262,7 @@ export function findOrCreateVendor(data: {
   address?: string | null;
   notes?: string | null;
 }): Vendor | null {
-  const trimmedName = data.name ? data.name.trim() : "";
+  const trimmedName = data.name ? capitalizeWords(data.name) : "";
   if (!trimmedName) {
     return null;
   }
@@ -355,6 +356,8 @@ export function getVendorMovements(
 export function getVendorPurchases(vendorId: number): Purchase[] {
   return query<Purchase>(
     `SELECT p.*,
+       COALESCE(p.paid_amount, p.grand_total, p.total) as paid_amount,
+       COALESCE(p.due_amount, 0) as due_amount,
        (SELECT COUNT(*) FROM purchase_items WHERE purchase_id = p.id) as item_count,
        (SELECT COALESCE(SUM(quantity), 0) FROM purchase_items WHERE purchase_id = p.id) as total_units
      FROM purchases p

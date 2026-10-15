@@ -4,7 +4,7 @@
 import { Edit2, Trash2, Printer, Copy } from 'lucide-react';
 import { Column } from '../components/common/DataTable.tsx';
 import { Expense } from '../types/index.ts';
-import { formatCurrency, formatDate } from '../helpers/formatHelpers.ts';
+import { formatCurrency, formatDate, capitalizeWords } from '../helpers/formatHelpers.ts';
 import { ActionMenu } from '../components/common/ActionMenu.tsx';
 
 export interface ExpenseColumnsOptions {
@@ -36,12 +36,12 @@ export function getExpenseColumns(
       id: 'category',
       header: 'Category',
       accessor: (exp: Expense) => (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-800 text-neutral-200 border border-neutral-700/60">
-          {exp.category}
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-800 text-neutral-200 border border-neutral-700/60 capitalize">
+          {capitalizeWords(exp.category)}
         </span>
       ),
       sortable: true,
-      sortKey: (exp: Expense) => exp.category,
+      sortKey: (exp: Expense) => capitalizeWords(exp.category),
     },
     {
       id: 'receipt_reference',

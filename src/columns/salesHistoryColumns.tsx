@@ -1,10 +1,10 @@
 /**
  * Table Column Definitions: Sales History
  */
-import { Eye, Printer, Copy, Edit3 } from 'lucide-react';
+import { Eye, Printer, Copy, Edit3, Trash2 } from 'lucide-react';
 import { Column } from '../components/common/DataTable.tsx';
 import { Sale } from '../types/index.ts';
-import { formatCurrency, formatDateTime } from '../helpers/formatHelpers.ts';
+import { formatCurrency, formatDateTime, capitalizeWords } from '../helpers/formatHelpers.ts';
 import { ActionMenu } from '../components/common/ActionMenu.tsx';
 
 export interface SalesHistoryColumnsOptions {
@@ -14,6 +14,7 @@ export interface SalesHistoryColumnsOptions {
   onPrintThermalBill?: (saleId: number) => void;
   onCopySaleId?: (saleId: number) => void;
   onEditSale?: (saleId: number) => void;
+  onDeleteSale?: (saleId: number) => void;
   onInspect?: (sale: Sale) => void;
   onPrint?: (sale: Sale) => void;
 }
@@ -28,6 +29,7 @@ export function getSalesHistoryColumns(
     onPrintThermalBill,
     onCopySaleId,
     onEditSale,
+    onDeleteSale,
     onInspect,
     onPrint,
   } = options;
@@ -65,8 +67,8 @@ export function getSalesHistoryColumns(
       accessor: (s: Sale) =>
         s.customer_name ? (
           <div>
-            <div className="font-semibold text-neutral-200 truncate max-w-[150px]">
-              {s.customer_name}
+            <div className="font-semibold text-neutral-200 truncate max-w-[150px] capitalize">
+              {capitalizeWords(s.customer_name)}
             </div>
             <div className="text-[10px] font-mono text-neutral-400 mt-0.5 truncate max-w-[150px] flex items-center gap-1.5">
               {s.customer_phone && <span>{s.customer_phone}</span>}
@@ -130,6 +132,10 @@ export function getSalesHistoryColumns(
       header: t('hist_col_paid', 'Paid'),
       align: 'right',
       sortable: true,
+      sortKey: (s: Sale) =>
+        s.paid_amount !== undefined && s.paid_amount !== null
+          ? s.paid_amount
+          : (s.grand_total ?? s.total),
       accessor: (s: Sale) => {
         const paid =
           s.paid_amount !== undefined && s.paid_amount !== null
@@ -147,15 +153,16 @@ export function getSalesHistoryColumns(
       header: t('hist_col_due', 'Due'),
       align: 'right',
       sortable: true,
+      sortKey: (s: Sale) => s.due_amount ?? 0,
       accessor: (s: Sale) => {
         const due = s.due_amount ?? 0;
-        return due > 0 ? (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 tabular-nums">
+        return (
+          <span
+            className={`font-mono tabular-nums ${
+              due > 0 ? 'text-rose-400 font-medium' : 'text-neutral-500'
+            }`}
+          >
             {formatCurrency(due, currencySymbol)}
-          </span>
-        ) : (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium text-emerald-500/80 bg-emerald-500/10 border border-emerald-500/20">
-            Paid
           </span>
         );
       },
@@ -210,8 +217,17 @@ export function getSalesHistoryColumns(
                     label: 'Copy Sale ID',
                     icon: Copy,
                     color: 'indigo',
-                    divider: true,
+                    divider: !onDeleteSale,
                     action: () => onCopySaleId(s.id),
+                  }
+                : null,
+              onDeleteSale
+                ? {
+                    label: t('hist_delete_sale', 'Delete Sale'),
+                    icon: Trash2,
+                    color: 'rose',
+                    divider: true,
+                    action: () => onDeleteSale(s.id),
                   }
                 : null,
             ]}

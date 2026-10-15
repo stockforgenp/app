@@ -1,5 +1,5 @@
 import React from "react";
-import { Calendar, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import {
   DatePreset,
   DATE_PRESETS,
