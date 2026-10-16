@@ -179,9 +179,11 @@ export async function registerShop(input: RegisterShopInput): Promise<Shop> {
   return shop;
 }
 
-const API_URL =
-  ((import.meta as any).env?.VITE_API_URL as string) ||
-  "http://localhost:4000/api/v1";
+// const API_URL =
+//   ((import.meta as any).env?.VITE_API_URL as string) ||
+//   "http://localhost:4000/api/v1";
+
+const API_URL = "https://backend-4uk0.onrender.com/api/v1";
 
 interface ApiLoginResponse {
   success: boolean;
