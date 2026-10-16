@@ -30,10 +30,14 @@ export const DATE_PRESETS: DateFilterOption[] = [
   { id: 'custom', label: 'Custom', nepaliLabel: 'कस्टम' },
 ];
 
+import { getCalendarSystem } from '../lib/services/settingsService.ts';
+import { getBsMonthRange, getBsYearRange, getTodayBs, bsToAd } from '../lib/calendar/nepaliCalendar.ts';
+
 /**
- * Calculates start and end dates (YYYY-MM-DD) for a given preset
+ * Calculates start and end dates (YYYY-MM-DD in AD for DB queries) for a given preset,
+ * respecting the active calendar system (BS or AD).
  */
-export function calculateDateRange(preset: DatePreset): {
+export function calculateDateRange(preset: DatePreset, calendarOverride?: 'BS' | 'AD'): {
   startDate: string;
   endDate: string;
 } {
@@ -46,6 +50,7 @@ export function calculateDateRange(preset: DatePreset): {
   };
 
   const todayStr = formatYMD(now);
+  const calendar = calendarOverride || getCalendarSystem();
 
   switch (preset) {
     case 'today':
@@ -67,11 +72,21 @@ export function calculateDateRange(preset: DatePreset): {
 
     case 'month':
     case 'thisMonth': {
+      if (calendar === 'BS') {
+        const todayBs = getTodayBs();
+        const startAd = bsToAd(todayBs.year, todayBs.month, 1);
+        return { startDate: formatYMD(startAd), endDate: todayStr };
+      }
       const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       return { startDate: formatYMD(firstOfMonth), endDate: todayStr };
     }
 
     case 'year': {
+      if (calendar === 'BS') {
+        const todayBs = getTodayBs();
+        const startAd = bsToAd(todayBs.year, 1, 1);
+        return { startDate: formatYMD(startAd), endDate: todayStr };
+      }
       const firstOfYear = new Date(now.getFullYear(), 0, 1);
       return { startDate: formatYMD(firstOfYear), endDate: todayStr };
     }

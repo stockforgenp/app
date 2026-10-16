@@ -56,7 +56,7 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
     items: PurchaseItem[];
   } | null>(null);
   const [editPurchaseId, setEditPurchaseId] = useState<number | null>(null);
-  const [deletingPurchaseId, setDeletingPurchaseId] = useState<number | null>(null);
+  const [returningPurchaseId, setReturningPurchaseId] = useState<number | null>(null);
   const [printPurchaseId, setPrintPurchaseId] = useState<number | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
@@ -82,20 +82,21 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
     return unsubscribe;
   }, [historyStartDate, historyEndDate, historySearch]);
 
-  // Aggregate KPI stats
+  // Aggregate KPI stats (exclude returned purchases from spend and units)
   const historyStats = useMemo(() => {
     let totalSpend = 0;
     let vatTotal = 0;
     let totalUnitsInflow = 0;
 
     for (const p of historyList) {
+      if (p.status === 'RETURNED') continue;
       totalSpend += p.grand_total || p.total;
       vatTotal += p.vat_amount || 0;
       totalUnitsInflow += p.total_units || 0;
     }
 
     return {
-      totalCount: historyList.length,
+      totalCount: historyList.filter(p => p.status !== 'RETURNED').length,
       totalSpend,
       vatTotal,
       totalUnitsInflow,
@@ -129,8 +130,11 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
         onEditPurchase: (row) => {
           setEditPurchaseId(row.id);
         },
+        onReturnPurchase: (purchaseId) => {
+          setReturningPurchaseId(purchaseId);
+        },
         onDeletePurchase: (purchaseId) => {
-          setDeletingPurchaseId(purchaseId);
+          setReturningPurchaseId(purchaseId);
         },
         onCopyBillNumber: (billNumber) => {
           navigator.clipboard.writeText(billNumber);
@@ -263,6 +267,25 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
           maxWidth="2xl"
         >
           <div className="space-y-4">
+            {/* Returned Notice Banner */}
+            {inspectPurchaseDetail.purchase.status === "RETURNED" && (
+              <div className="p-3.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
+                  <span className="text-xs font-semibold">
+                    {isNepali
+                      ? "यो खरिद फिर्ता (Returned) गरिएको छ। यसको सामान मौज्दातबाट घटाइएको छ र कुल खर्च/बाँकी हिसाबमा जोडिएको छैन।"
+                      : "This purchase has been Returned. Its stock has been deducted from inventory and financial totals are excluded."}
+                  </span>
+                </div>
+                {inspectPurchaseDetail.purchase.returned_at && (
+                  <span className="text-[11px] font-mono text-rose-400/80">
+                    {formatDateTime(inspectPurchaseDetail.purchase.returned_at)}
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Vendor & Invoice Meta */}
             <div className="grid grid-cols-2 gap-3 p-3 bg-neutral-950 rounded-lg border border-neutral-800 text-xs">
               <div>
@@ -482,32 +505,36 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
                   <span>Print Bill</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    const id = inspectPurchaseDetail.purchase.id;
-                    setInspectPurchaseDetail(null);
-                    setEditPurchaseId(id);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 rounded-lg transition-colors cursor-pointer"
-                >
-                  <Edit3 className="w-4 h-4 text-amber-400" />
-                  <span>
-                    {isNepali ? "खरिद सच्याउनुहोस्" : "Edit Purchase"}
-                  </span>
-                </button>
+                {inspectPurchaseDetail.purchase.status !== "RETURNED" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const id = inspectPurchaseDetail.purchase.id;
+                        setInspectPurchaseDetail(null);
+                        setEditPurchaseId(id);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <Edit3 className="w-4 h-4 text-amber-400" />
+                      <span>
+                        {isNepali ? "खरिद सच्याउनुहोस्" : "Edit Purchase"}
+                      </span>
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    const id = inspectPurchaseDetail.purchase.id;
-                    setDeletingPurchaseId(id);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg transition-colors cursor-pointer"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>{isNepali ? "खरिद मेटाउनुहोस्" : "Delete Purchase"}</span>
-                </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const id = inspectPurchaseDetail.purchase.id;
+                        setReturningPurchaseId(id);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>{isNepali ? "खरिद फिर्ता गर्नुहोस्" : "Return Purchase"}</span>
+                    </button>
+                  </>
+                )}
               </div>
 
               <button
@@ -544,36 +571,36 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
         />
       )}
 
-      {/* Confirm Delete Purchase Dialog */}
+      {/* Confirm Return Purchase Dialog */}
       <ConfirmDialog
-        isOpen={deletingPurchaseId !== null}
-        onClose={() => setDeletingPurchaseId(null)}
+        isOpen={returningPurchaseId !== null}
+        onClose={() => setReturningPurchaseId(null)}
         onConfirm={() => {
-          if (!deletingPurchaseId) return;
+          if (!returningPurchaseId) return;
           try {
-            const res = deletePurchase(deletingPurchaseId);
+            const res = deletePurchase(returningPurchaseId);
             showToast(
               isNepali
-                ? `खरिद #${res.billNumber || deletingPurchaseId} मेटाइयो र चलान खातामा खरिद फिर्ता अभिलेख गरियो!`
-                : `Purchase #${res.billNumber || deletingPurchaseId} deleted and deducted via purchase return in movement log!`,
+                ? `खरिद #${res.billNumber || returningPurchaseId} फिर्ता गरियो र गोदामबाट सामानको मौज्दात घटाइयो!`
+                : `Purchase #${res.billNumber || returningPurchaseId} marked as returned and inventory updated!`,
               "success"
             );
-            if (inspectPurchaseDetail?.purchase.id === deletingPurchaseId) {
+            if (inspectPurchaseDetail?.purchase.id === returningPurchaseId) {
               setInspectPurchaseDetail(null);
             }
-            setDeletingPurchaseId(null);
+            setReturningPurchaseId(null);
             loadHistory();
           } catch (err: unknown) {
             showToast((err as Error).message, "error");
           }
         }}
-        title={isNepali ? "खरिद मेटाउने पुष्टि" : "Confirm Delete Purchase"}
+        title={isNepali ? "खरिद फिर्ता पुष्टि" : "Confirm Purchase Return"}
         message={
           isNepali
-            ? "के तपाईं यो खरिद मेटाउन निश्चित हुनुहुन्छ? खरिद भएका सबै सामानहरूको मौज्दात गोदामबाट घटाइनेछ र चलान खातामा खरिद फिर्ता अभिलेख हुनेछ।"
-            : "Are you sure you want to permanently delete this purchase? Inflowed quantities will be deducted from inventory stock and logged as a purchase return in stock movements."
+            ? "के तपाईं यो खरिद फिर्ता गर्न निश्चित हुनुहुन्छ? यो रेकर्ड इतिहासमा 'फिर्ता' (Returned) को रूपमा रहनेछ, खरिद भएका सबै सामानहरूको मौज्दात गोदामबाट घटाइनेछ र कुल खर्च/बाँकीमा जोडिने छैन।"
+            : "Are you sure you want to return this purchase? The record will remain in history marked as 'Returned', inflowed quantities will be deducted from inventory, and it will be excluded from spend and dues."
         }
-        confirmText={isNepali ? "मेटाउनुहोस्" : "Delete Purchase"}
+        confirmText={isNepali ? "फिर्ता गर्नुहोस्" : "Return Purchase"}
         cancelText={isNepali ? "रद्द" : "Cancel"}
         isDestructive={true}
       />

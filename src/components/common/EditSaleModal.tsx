@@ -27,11 +27,13 @@ import {
 } from 'lucide-react';
 import { Modal } from './Modal.tsx';
 import { Input } from './Input.tsx';
+import { NepaliDatePicker } from './NepaliDatePicker.tsx';
 import { Product, Sale, SaleItem } from '../../types/index.ts';
 import { getSaleWithItems, updateSale, ProcessSaleItemInput } from '../../lib/services/salesService.ts';
 import { getAllProducts } from '../../lib/services/productService.ts';
 import {
   formatCurrency,
+  formatDateTime,
   fromMinorUnits,
   toMinorUnits,
   formatForDateTimeLocal,
@@ -107,6 +109,17 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
       setAllProducts(productsList);
 
       if (details) {
+        if (details.sale.status === 'RETURNED') {
+          showToast(
+            isNepali
+              ? 'फिर्ता भइसकेको कारोबार सच्याउन मिल्दैन।'
+              : 'Returned sales transactions cannot be edited.',
+            'error'
+          );
+          onClose();
+          return;
+        }
+
         setSaleRecord(details.sale);
         setSaleDateTime(formatForDateTimeLocal(details.sale.created_at));
         setCustomerName(details.sale.customer_name || '');
@@ -346,12 +359,14 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
                 <span>{isNepali ? 'कारोबार मिति र समय' : 'Sale Date & Time'}</span>
               </label>
               <div className="flex items-center gap-2">
-                <input
-                  type="datetime-local"
-                  value={saleDateTime}
-                  onChange={(e) => setSaleDateTime(e.target.value)}
-                  className="flex-1 px-3 py-1.5 text-xs font-mono text-neutral-100 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500"
-                />
+                <div className="flex-1">
+                  <NepaliDatePicker
+                    value={saleDateTime}
+                    showTime={true}
+                    sizeVariant="sm"
+                    onChange={(adDateTime) => setSaleDateTime(adDateTime)}
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => setSaleDateTime(formatForDateTimeLocal())}
@@ -361,11 +376,16 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
                   {isNepali ? 'अहिले (Now)' : 'Now'}
                 </button>
               </div>
-              <p className="text-[10px] text-neutral-400">
-                {isNepali
-                  ? 'गलत मिति भएमा यहाँबाट सच्याउनुहोस्'
-                  : 'Adjust if the sale was conducted on a different date/time'}
-              </p>
+              <div className="flex items-center justify-between text-[10px] text-neutral-400">
+                <span>
+                  {isNepali
+                    ? 'गलत मिति भएमा यहाँबाट सच्याउनुहोस्'
+                    : 'Adjust if the sale was conducted on a different date/time'}
+                </span>
+                <span className="font-mono text-emerald-400 font-semibold">
+                  {formatDateTime(parseDateTimeLocalToIso(saleDateTime))}
+                </span>
+              </div>
             </div>
 
             {/* Customer Details */}

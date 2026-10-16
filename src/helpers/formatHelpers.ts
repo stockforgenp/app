@@ -1,7 +1,7 @@
-/**
- * Formatting and Display Helper Functions
- * Number formatting, currency conversions, and date/time formatting.
- */
+import { getCalendarSystem } from '../lib/services/settingsService.ts';
+import { formatBsDate, formatBsDateTime, adToBs } from '../lib/calendar/nepaliCalendar.ts';
+import { isNepaliActive } from '../lib/i18n/translations.ts';
+import { CalendarSystem } from '../types/index.ts';
 
 /**
  * Convert Latin digits (0-9) to Nepali Unicode numerals (०-९)
@@ -112,10 +112,24 @@ export function formatQuantity(qty: number, unit?: string): string {
   return unit ? `${formatted} ${unit}` : formatted;
 }
 
-export function formatDate(isoString: string): string {
+/**
+ * Format date respecting active calendar system (BS or AD)
+ * Defaults to Bikram Sambat (BS)
+ */
+export function formatDate(isoString: string, calendarOverride?: CalendarSystem): string {
   try {
     const d = new Date(isoString);
     if (isNaN(d.getTime())) return isoString;
+
+    const calendar = calendarOverride || getCalendarSystem();
+    if (calendar === 'BS') {
+      const isNp = isNepaliActive();
+      return formatBsDate(d, {
+        format: 'long',
+        digits: isNp ? 'np' : 'en',
+      });
+    }
+
     return d.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -126,10 +140,22 @@ export function formatDate(isoString: string): string {
   }
 }
 
-export function formatDateTime(isoString: string): string {
+/**
+ * Format datetime respecting active calendar system (BS or AD)
+ */
+export function formatDateTime(isoString: string, calendarOverride?: CalendarSystem): string {
   try {
     const d = new Date(isoString);
     if (isNaN(d.getTime())) return isoString;
+
+    const calendar = calendarOverride || getCalendarSystem();
+    if (calendar === 'BS') {
+      const isNp = isNepaliActive();
+      return formatBsDateTime(d, {
+        digits: isNp ? 'np' : 'en',
+      });
+    }
+
     return d.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -137,6 +163,33 @@ export function formatDateTime(isoString: string): string {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
+    });
+  } catch {
+    return isoString;
+  }
+}
+
+/**
+ * Explicit Bikram Sambat date formatter
+ */
+export function formatDateBS(
+  isoString: string,
+  options?: { format?: 'numeric' | 'short' | 'long' | 'full'; digits?: 'en' | 'np'; includeSuffix?: boolean }
+): string {
+  return formatBsDate(isoString, options);
+}
+
+/**
+ * Explicit Gregorian (AD) date formatter
+ */
+export function formatDateAD(isoString: string): string {
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return isoString;
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
     });
   } catch {
     return isoString;

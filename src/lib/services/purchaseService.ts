@@ -314,6 +314,8 @@ export function getPurchases(options?: {
       p.total,
       COALESCE(p.paid_amount, p.grand_total, p.total) as paid_amount,
       COALESCE(p.due_amount, 0) as due_amount,
+      COALESCE(p.status, 'COMPLETED') as status,
+      p.returned_at,
       p.notes,
       p.created_at,
       COUNT(pi.id) as item_count,
@@ -389,6 +391,8 @@ export function getPurchaseWithItems(
        p.total,
        COALESCE(p.paid_amount, p.grand_total, p.total) as paid_amount,
        COALESCE(p.due_amount, 0) as due_amount,
+       COALESCE(p.status, 'COMPLETED') as status,
+       p.returned_at,
        p.notes,
        p.created_at
      FROM purchases p
@@ -700,13 +704,14 @@ export function updatePurchase(
 }
 
 /**
- * Permanently deletes a purchase record:
+ * Processes a return for a purchase:
  * - Validates negative stock constraints if disallowed
  * - Deducts inflowed quantities from product inventory
  * - Records stock return movements into the movement log for audit trail
- * - Removes the purchase line items and purchase record atomically within a transaction
+ * - Marks the purchase record status as 'RETURNED' with returned_at timestamp
+ * - Retains the purchase record and line items in history for full auditing
  */
-export function deletePurchase(purchaseId: number): {
+export function returnPurchase(purchaseId: number): {
   id: number;
   billNumber: string | null;
   deductedItemCount: number;
@@ -714,6 +719,10 @@ export function deletePurchase(purchaseId: number): {
   const existing = getPurchaseWithItems(purchaseId);
   if (!existing) {
     throw new Error(`Purchase record #${purchaseId} not found`);
+  }
+
+  if (existing.purchase.status === 'RETURNED') {
+    throw new Error(`Purchase #${existing.purchase.bill_number || purchaseId} has already been returned.`);
   }
 
   const settings = getSettings();
@@ -725,7 +734,7 @@ export function deletePurchase(purchaseId: number): {
       const prod = getProductById(item.product_id);
       if (prod && prod.current_stock < item.quantity) {
         throw new Error(
-          `Cannot delete purchase #${existing.purchase.bill_number || purchaseId}: Deducting ${item.quantity} unit(s) of "${prod.name}" would result in negative stock (Available: ${prod.current_stock}, Required: ${item.quantity}). Adjust stock or enable "Allow Negative Stock" in settings.`
+          `Cannot return purchase #${existing.purchase.bill_number || purchaseId}: Deducting ${item.quantity} unit(s) of "${prod.name}" would result in negative stock (Available: ${prod.current_stock}, Required: ${item.quantity}). Adjust stock or enable "Allow Negative Stock" in settings.`
         );
       }
     }
@@ -760,11 +769,8 @@ export function deletePurchase(purchaseId: number): {
       );
     }
 
-    // 2. Remove purchase line items
-    run(`DELETE FROM purchase_items WHERE purchase_id = ?`, [purchaseId]);
-
-    // 3. Remove the purchase record itself
-    run(`DELETE FROM purchases WHERE id = ?`, [purchaseId]);
+    // 2. Mark the purchase record as RETURNED (record is KEPT in history!)
+    run(`UPDATE purchases SET status = 'RETURNED', returned_at = ? WHERE id = ?`, [now, purchaseId]);
 
     return {
       id: purchaseId,
@@ -773,5 +779,10 @@ export function deletePurchase(purchaseId: number): {
     };
   });
 }
+
+/**
+ * Backward compatibility alias for returnPurchase
+ */
+export const deletePurchase = returnPurchase;
 
 

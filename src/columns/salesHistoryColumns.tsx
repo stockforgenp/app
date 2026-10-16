@@ -1,7 +1,7 @@
 /**
  * Table Column Definitions: Sales History
  */
-import { Eye, Printer, Copy, Edit3, Trash2 } from 'lucide-react';
+import { Eye, Printer, Copy, Edit3, Trash2, RotateCcw } from 'lucide-react';
 import { Column } from '../components/common/DataTable.tsx';
 import { Sale } from '../types/index.ts';
 import { formatCurrency, formatDateTime, capitalizeWords } from '../helpers/formatHelpers.ts';
@@ -15,6 +15,7 @@ export interface SalesHistoryColumnsOptions {
   onCopySaleId?: (saleId: number) => void;
   onEditSale?: (saleId: number) => void;
   onDeleteSale?: (saleId: number) => void;
+  onReturnSale?: (saleId: number) => void;
   onInspect?: (sale: Sale) => void;
   onPrint?: (sale: Sale) => void;
 }
@@ -30,9 +31,12 @@ export function getSalesHistoryColumns(
     onCopySaleId,
     onEditSale,
     onDeleteSale,
+    onReturnSale,
     onInspect,
     onPrint,
   } = options;
+
+  const handleReturn = onReturnSale || onDeleteSale;
 
   return [
     {
@@ -49,6 +53,25 @@ export function getSalesHistoryColumns(
           )}
         </div>
       ),
+    },
+    {
+      id: 'status',
+      header: t('hist_col_status', 'Status'),
+      align: 'center',
+      sortable: true,
+      accessor: (s: Sale) => {
+        const isReturned = s.status === 'RETURNED';
+        return isReturned ? (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+            <RotateCcw className="w-3 h-3" />
+            <span>{t('status_returned', 'Returned')}</span>
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            {t('status_completed', 'Completed')}
+          </span>
+        );
+      },
     },
     {
       id: 'created_at',
@@ -122,7 +145,7 @@ export function getSalesHistoryColumns(
       align: 'right',
       sortable: true,
       accessor: (s: Sale) => (
-        <span className="font-mono font-bold text-neutral-100 tabular-nums">
+        <span className={`font-mono font-bold tabular-nums ${s.status === 'RETURNED' ? 'text-neutral-500 line-through' : 'text-neutral-100'}`}>
           {formatCurrency(s.grand_total ?? s.total, currencySymbol)}
         </span>
       ),
@@ -142,7 +165,7 @@ export function getSalesHistoryColumns(
             ? s.paid_amount
             : (s.grand_total ?? s.total);
         return (
-          <span className="font-mono text-emerald-400 tabular-nums font-medium">
+          <span className={`font-mono tabular-nums font-medium ${s.status === 'RETURNED' ? 'text-neutral-500' : 'text-emerald-400'}`}>
             {formatCurrency(paid, currencySymbol)}
           </span>
         );
@@ -159,7 +182,11 @@ export function getSalesHistoryColumns(
         return (
           <span
             className={`font-mono tabular-nums ${
-              due > 0 ? 'text-rose-400 font-medium' : 'text-neutral-500'
+              s.status === 'RETURNED'
+                ? 'text-neutral-500'
+                : due > 0
+                ? 'text-rose-400 font-medium'
+                : 'text-neutral-500'
             }`}
           >
             {formatCurrency(due, currencySymbol)}
@@ -173,7 +200,7 @@ export function getSalesHistoryColumns(
       align: 'right',
       sortable: true,
       accessor: (s: Sale) => (
-        <span className="font-mono font-semibold text-emerald-400 tabular-nums">
+        <span className={`font-mono font-semibold tabular-nums ${s.status === 'RETURNED' ? 'text-neutral-500' : 'text-emerald-400'}`}>
           {formatCurrency(s.gross_profit ?? 0, currencySymbol)}
         </span>
       ),
@@ -183,57 +210,60 @@ export function getSalesHistoryColumns(
       header: t('hist_col_actions', 'Details'),
       align: 'right',
       width: '80px',
-      accessor: (s: Sale) => (
-        <div className="flex items-center justify-end gap-2">
-          <ActionMenu
-            align="right"
-            items={[
-              onInspectSale || onInspect
-                ? {
-                    label: 'Inspect Transaction',
-                    icon: Eye,
-                    color: 'sky',
-                    action: () => (onInspectSale ? onInspectSale(s.id) : onInspect?.(s)),
-                  }
-                : null,
-              onEditSale
-                ? {
-                    label: 'Edit Sale',
-                    icon: Edit3,
-                    color: 'amber',
-                    action: () => onEditSale(s.id),
-                  }
-                : null,
-              onPrintThermalBill || onPrint
-                ? {
-                    label: 'Print Thermal Bill',
-                    icon: Printer,
-                    color: 'emerald',
-                    action: () => (onPrintThermalBill ? onPrintThermalBill(s.id) : onPrint?.(s)),
-                  }
-                : null,
-              onCopySaleId
-                ? {
-                    label: 'Copy Sale ID',
-                    icon: Copy,
-                    color: 'indigo',
-                    divider: !onDeleteSale,
-                    action: () => onCopySaleId(s.id),
-                  }
-                : null,
-              onDeleteSale
-                ? {
-                    label: t('hist_delete_sale', 'Delete Sale'),
-                    icon: Trash2,
-                    color: 'rose',
-                    divider: true,
-                    action: () => onDeleteSale(s.id),
-                  }
-                : null,
-            ]}
-          />
-        </div>
-      ),
+      accessor: (s: Sale) => {
+        const isReturned = s.status === 'RETURNED';
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <ActionMenu
+              align="right"
+              items={[
+                onInspectSale || onInspect
+                  ? {
+                      label: 'Inspect Transaction',
+                      icon: Eye,
+                      color: 'sky',
+                      action: () => (onInspectSale ? onInspectSale(s.id) : onInspect?.(s)),
+                    }
+                  : null,
+                onEditSale && !isReturned
+                  ? {
+                      label: 'Edit Sale',
+                      icon: Edit3,
+                      color: 'amber',
+                      action: () => onEditSale(s.id),
+                    }
+                  : null,
+                onPrintThermalBill || onPrint
+                  ? {
+                      label: 'Print Thermal Bill',
+                      icon: Printer,
+                      color: 'emerald',
+                      action: () => (onPrintThermalBill ? onPrintThermalBill(s.id) : onPrint?.(s)),
+                    }
+                  : null,
+                onCopySaleId
+                  ? {
+                      label: 'Copy Sale ID',
+                      icon: Copy,
+                      color: 'indigo',
+                      divider: !handleReturn || isReturned,
+                      action: () => onCopySaleId(s.id),
+                    }
+                  : null,
+                handleReturn && !isReturned
+                  ? {
+                      label: t('hist_return_sale', 'Return Sale (फिर्ता)'),
+                      icon: RotateCcw,
+                      color: 'rose',
+                      divider: true,
+                      action: () => handleReturn(s.id),
+                    }
+                  : null,
+              ]}
+            />
+          </div>
+        );
+      },
     },
   ];
 }

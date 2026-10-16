@@ -1,4 +1,4 @@
-import { Eye, Printer, Copy, Edit3, Trash2 } from 'lucide-react';
+import { Eye, Printer, Copy, Edit3, Trash2, RotateCcw } from 'lucide-react';
 import { Column } from '../components/common/DataTable.tsx';
 import { Purchase } from '../types/index.ts';
 import { formatCurrency, formatDateTime, capitalizeWords } from '../helpers/formatHelpers.ts';
@@ -14,6 +14,7 @@ export interface PurchaseHistoryColumnsOptions {
   onPrintPurchase?: (purchase: Purchase) => void;
   onEditPurchase?: (purchase: Purchase) => void;
   onDeletePurchase?: (purchaseId: number) => void;
+  onReturnPurchase?: (purchaseId: number) => void;
   onCopyBillNumber?: (billNumber: string) => void;
 }
 
@@ -30,11 +31,13 @@ export function getPurchaseHistoryColumns(
     onPrintPurchase,
     onEditPurchase,
     onDeletePurchase,
+    onReturnPurchase,
     onCopyBillNumber,
   } = options;
 
   const handleInspect = onInspectPurchase || onInspect;
   const handlePrint = onPrintPurchase || onPrint;
+  const handleReturn = onReturnPurchase || onDeletePurchase;
 
   return [
     {
@@ -52,6 +55,24 @@ export function getPurchaseHistoryColumns(
           )}
         </div>
       ),
+    },
+    {
+      id: 'status',
+      header: isNepali ? 'स्थिति' : 'Status',
+      align: 'center',
+      accessor: (row: Purchase) => {
+        const isReturned = row.status === 'RETURNED';
+        return isReturned ? (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+            <RotateCcw className="w-3 h-3" />
+            <span>{isNepali ? 'फिर्ता' : 'Returned'}</span>
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            {isNepali ? 'सम्पन्न' : 'Completed'}
+          </span>
+        );
+      },
     },
     {
       id: 'vendor_name',
@@ -87,7 +108,7 @@ export function getPurchaseHistoryColumns(
       header: isNepali ? 'एकाइ' : 'Units',
       align: 'right',
       accessor: (row: Purchase) => (
-        <span className="font-mono text-neutral-300">
+        <span className={`font-mono ${row.status === 'RETURNED' ? 'text-neutral-500' : 'text-neutral-300'}`}>
           {formatNumberByLang
             ? formatNumberByLang(row.total_units || 0)
             : (row.total_units || 0)}
@@ -121,7 +142,7 @@ export function getPurchaseHistoryColumns(
       header: isNepali ? 'कुल रकम' : 'Grand Total',
       align: 'right',
       accessor: (row: Purchase) => (
-        <span className="font-mono font-bold text-neutral-100">
+        <span className={`font-mono font-bold ${row.status === 'RETURNED' ? 'text-neutral-500 line-through' : 'text-neutral-100'}`}>
           {formatCurrency(row.grand_total || row.total, currencySymbol)}
         </span>
       ),
@@ -141,7 +162,7 @@ export function getPurchaseHistoryColumns(
             ? row.paid_amount
             : (row.grand_total || row.total);
         return (
-          <span className="font-mono text-emerald-400 font-medium">
+          <span className={`font-mono font-medium ${row.status === 'RETURNED' ? 'text-neutral-500' : 'text-emerald-400'}`}>
             {formatCurrency(paid, currencySymbol)}
           </span>
         );
@@ -158,7 +179,11 @@ export function getPurchaseHistoryColumns(
         return (
           <span
             className={`font-mono tabular-nums ${
-              due > 0 ? 'text-rose-400 font-medium' : 'text-neutral-500'
+              row.status === 'RETURNED'
+                ? 'text-neutral-500'
+                : due > 0
+                ? 'text-rose-400 font-medium'
+                : 'text-neutral-500'
             }`}
           >
             {formatCurrency(due, currencySymbol)}
@@ -170,54 +195,57 @@ export function getPurchaseHistoryColumns(
       id: 'actions',
       header: isNepali ? 'कार्य' : 'Actions',
       align: 'right',
-      accessor: (row: Purchase) => (
-        <ActionMenu
-          items={[
-            handleInspect
-              ? {
-                  label: isNepali ? 'विवरण हेर्नुहोस्' : 'View Details',
-                  icon: Eye,
-                  color: 'emerald',
-                  action: () => handleInspect(row),
-                }
-              : null,
-            onEditPurchase
-              ? {
-                  label: isNepali ? 'खरिद सच्याउनुहोस्' : 'Edit Purchase',
-                  icon: Edit3,
-                  color: 'amber',
-                  action: () => onEditPurchase(row),
-                }
-              : null,
-            handlePrint
-              ? {
-                  label: isNepali ? 'बिल पुनः प्रिन्ट' : 'Reprint Bill',
-                  icon: Printer,
-                  color: 'sky',
-                  action: () => handlePrint(row),
-                }
-              : null,
-            onCopyBillNumber
-              ? {
-                  label: isNepali ? 'बिल नं प्रतिलिपि' : 'Copy Bill #',
-                  icon: Copy,
-                  color: 'default',
-                  divider: !onDeletePurchase,
-                  action: () => onCopyBillNumber(row.bill_number || `PO-${row.id}`),
-                }
-              : null,
-            onDeletePurchase
-              ? {
-                  label: isNepali ? 'खरिद मेटाउनुहोस्' : 'Delete Purchase',
-                  icon: Trash2,
-                  color: 'rose',
-                  divider: true,
-                  action: () => onDeletePurchase(row.id),
-                }
-              : null,
-          ]}
-        />
-      ),
+      accessor: (row: Purchase) => {
+        const isReturned = row.status === 'RETURNED';
+        return (
+          <ActionMenu
+            items={[
+              handleInspect
+                ? {
+                    label: isNepali ? 'विवरण हेर्नुहोस्' : 'View Details',
+                    icon: Eye,
+                    color: 'emerald',
+                    action: () => handleInspect(row),
+                  }
+                : null,
+              onEditPurchase && !isReturned
+                ? {
+                    label: isNepali ? 'खरिद सच्याउनुहोस्' : 'Edit Purchase',
+                    icon: Edit3,
+                    color: 'amber',
+                    action: () => onEditPurchase(row),
+                  }
+                : null,
+              handlePrint
+                ? {
+                    label: isNepali ? 'बिल पुनः प्रिन्ट' : 'Reprint Bill',
+                    icon: Printer,
+                    color: 'sky',
+                    action: () => handlePrint(row),
+                  }
+                : null,
+              onCopyBillNumber
+                ? {
+                    label: isNepali ? 'बिल नं प्रतिलिपि' : 'Copy Bill #',
+                    icon: Copy,
+                    color: 'default',
+                    divider: !handleReturn || isReturned,
+                    action: () => onCopyBillNumber(row.bill_number || `PO-${row.id}`),
+                  }
+                : null,
+              handleReturn && !isReturned
+                ? {
+                    label: isNepali ? 'खरिद फिर्ता गर्नुहोस्' : 'Return Purchase (फिर्ता)',
+                    icon: RotateCcw,
+                    color: 'rose',
+                    divider: true,
+                    action: () => handleReturn(row.id),
+                  }
+                : null,
+            ]}
+          />
+        );
+      },
     },
   ];
 }

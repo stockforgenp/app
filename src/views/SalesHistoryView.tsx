@@ -45,8 +45,8 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
   // Edit sale modal state
   const [editSaleId, setEditSaleId] = useState<number | null>(null);
 
-  // Delete sale confirm state
-  const [deletingSaleId, setDeletingSaleId] = useState<number | null>(null);
+  // Return sale confirm state
+  const [returningSaleId, setReturningSaleId] = useState<number | null>(null);
 
   // Bill print modal state
   const [printBillSaleId, setPrintBillSaleId] = useState<number | null>(null);
@@ -97,8 +97,11 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
         onEditSale: (saleId) => {
           setEditSaleId(saleId);
         },
+        onReturnSale: (saleId) => {
+          setReturningSaleId(saleId);
+        },
         onDeleteSale: (saleId) => {
-          setDeletingSaleId(saleId);
+          setReturningSaleId(saleId);
         },
         onCopySaleId: (saleId) => {
           navigator.clipboard.writeText(`#${saleId}`);
@@ -165,6 +168,25 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
       >
         {selectedSaleDetail && (
           <div className="space-y-6">
+            {/* Returned Notice Banner */}
+            {selectedSaleDetail.sale.status === "RETURNED" && (
+              <div className="p-3.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
+                  <span className="text-xs font-semibold">
+                    {isNepali
+                      ? "यो कारोबार बिक्री फिर्ता (Returned) गरिएको छ। यसको रकम आम्दानी र बाँकी हिसाबमा जोडिएको छैन।"
+                      : "This sale transaction has been Returned. Its stock has been restored to inventory and financial totals are excluded."}
+                  </span>
+                </div>
+                {selectedSaleDetail.sale.returned_at && (
+                  <span className="text-[11px] font-mono text-rose-400/80">
+                    {formatDateTime(selectedSaleDetail.sale.returned_at)}
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Top Summary Chips */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-800">
@@ -477,30 +499,34 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                   <span>Print Bill</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    const id = selectedSaleDetail.sale.id;
-                    setSelectedSaleDetail(null);
-                    setEditSaleId(id);
-                  }}
-                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-neutral-200 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 rounded-lg transition-colors cursor-pointer"
-                >
-                  <Edit3 className="w-4 h-4 text-amber-400" />
-                  <span>{isNepali ? "कारोबार सच्याउनुहोस्" : "Edit Sale"}</span>
-                </button>
+                {selectedSaleDetail.sale.status !== "RETURNED" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const id = selectedSaleDetail.sale.id;
+                        setSelectedSaleDetail(null);
+                        setEditSaleId(id);
+                      }}
+                      className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-neutral-200 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <Edit3 className="w-4 h-4 text-amber-400" />
+                      <span>{isNepali ? "कारोबार सच्याउनुहोस्" : "Edit Sale"}</span>
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    const id = selectedSaleDetail.sale.id;
-                    setDeletingSaleId(id);
-                  }}
-                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg transition-colors cursor-pointer"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>{isNepali ? "बिक्री मेटाउनुहोस्" : "Delete Sale"}</span>
-                </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const id = selectedSaleDetail.sale.id;
+                        setReturningSaleId(id);
+                      }}
+                      className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>{isNepali ? "बिक्री फिर्ता गर्नुहोस्" : "Return Sale"}</span>
+                    </button>
+                  </>
+                )}
               </div>
 
               <button
@@ -531,36 +557,36 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
         currencySymbol={currencySymbol}
       />
 
-      {/* Confirm Delete Sale Dialog */}
+      {/* Confirm Return Sale Dialog */}
       <ConfirmDialog
-        isOpen={deletingSaleId !== null}
-        onClose={() => setDeletingSaleId(null)}
+        isOpen={returningSaleId !== null}
+        onClose={() => setReturningSaleId(null)}
         onConfirm={() => {
-          if (!deletingSaleId) return;
+          if (!returningSaleId) return;
           try {
-            const res = deleteSale(deletingSaleId);
+            const res = deleteSale(returningSaleId);
             showToast(
               isNepali
-                ? `बिक्री #${res.billNumber || deletingSaleId} मेटाइयो र चलान खातामा बिक्री फिर्ता अभिलेख गरियो!`
-                : `Sale #${res.billNumber || deletingSaleId} deleted and restored via sales return in movement log!`,
+                ? `बिक्री #${res.billNumber || returningSaleId} फिर्ता गरियो र मौज्दात गोदाममा पुनर्स्थापना गरियो!`
+                : `Sale #${res.billNumber || returningSaleId} marked as returned and inventory restored!`,
               "success"
             );
-            if (selectedSaleDetail?.sale.id === deletingSaleId) {
+            if (selectedSaleDetail?.sale.id === returningSaleId) {
               setSelectedSaleDetail(null);
             }
-            setDeletingSaleId(null);
+            setReturningSaleId(null);
             loadSales();
           } catch (err: unknown) {
             showToast((err as Error).message, "error");
           }
         }}
-        title={t("hist_delete_sale_confirm_title", "Confirm Delete Sale")}
+        title={isNepali ? "बिक्री फिर्ता पुष्टि" : t("hist_return_sale_confirm_title", "Confirm Sale Return")}
         message={
           isNepali
-            ? "के तपाईं यो बिक्री मेटाउन निश्चित हुनुहुन्छ? सामानहरूको मौज्दात गोदाममा फिर्ता गरिनेछ र चलान खातामा बिक्री फिर्ता अभिलेख हुनेछ।"
-            : "Are you sure you want to permanently delete this sale? Deducted quantities will be restored back to inventory and logged as a sales return in stock movements."
+            ? "के तपाईं यो बिक्री फिर्ता गर्न निश्चित हुनुहुन्छ? यो रेकर्ड इतिहासमा 'फिर्ता' (Returned) को रूपमा रहनेछ, बिक्री भएका सामानहरूको मौज्दात गोदाममा पुनर्स्थापना गरिनेछ र यसको रकम आम्दानी वा बक्यौतामा जोडिने छैन।"
+            : "Are you sure you want to return this sale? The record will remain in history marked as 'Returned', sold items will be restored to your inventory, and it will be excluded from revenue and dues."
         }
-        confirmText={t("hist_delete_sale", "Delete Sale")}
+        confirmText={isNepali ? "फिर्ता गर्नुहोस्" : t("hist_return_sale", "Return Sale")}
         cancelText={isNepali ? "रद्द" : "Cancel"}
         isDestructive={true}
       />

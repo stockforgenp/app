@@ -35,6 +35,7 @@ import { Modal } from "../components/common/Modal.tsx";
 import { Input } from "../components/common/Input.tsx";
 import {
   formatCurrency,
+  formatDateTime,
   toMinorUnits,
   fromMinorUnits,
   formatForDateTimeLocal,
@@ -43,6 +44,7 @@ import {
 import { useToast } from "../context/ToastContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 import { MODIFIER_LABEL } from "../lib/hooks/useGlobalShortcuts.ts";
+import { NepaliDatePicker } from "../components/common/NepaliDatePicker.tsx";
 import { useLanguage } from "../context/LanguageContext.tsx";
 
 interface PurchasesViewProps {
@@ -881,13 +883,15 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="datetime-local"
-                    value={purchaseDateTime}
-                    onChange={(e) => setPurchaseDateTime(e.target.value)}
-                    className="px-2.5 py-1 text-xs font-mono text-neutral-200 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors"
-                  />
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="w-64 sm:w-72">
+                    <NepaliDatePicker
+                      value={purchaseDateTime}
+                      showTime={true}
+                      sizeVariant="sm"
+                      onChange={(adDateTime) => setPurchaseDateTime(adDateTime)}
+                    />
+                  </div>
                   {isCustomPurchaseDate && (
                     <button
                       type="button"

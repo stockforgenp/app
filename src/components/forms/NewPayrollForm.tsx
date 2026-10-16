@@ -37,6 +37,7 @@ import { useToast } from "../../context/ToastContext.tsx";
 import { useLanguage } from "../../context/LanguageContext.tsx";
 import { Input } from "../common/Input.tsx";
 import { Select } from "../common/Select.tsx";
+import { NepaliDatePicker } from "../common/NepaliDatePicker.tsx";
 
 export interface NewPayrollFormProps {
   initialStaff?: Staff | StaffMonthlyPayrollStatus | null;
@@ -352,19 +353,18 @@ export const NewPayrollForm: React.FC<NewPayrollFormProps> = ({
           onChange={(e) => setPayPeriod(e.target.value)}
         />
 
-        <Input
-          label={
-            <>
-              <Calendar className="w-3.5 h-3.5 text-neutral-400" />
-              <span>{isNepali ? "भुक्तानी मिति" : "Disbursement Date"}</span>
-              <span className="text-rose-400">*</span>
-            </>
-          }
-          type="date"
-          required
-          value={payDate}
-          onChange={(e) => setPayDate(e.target.value)}
-        />
+        <div>
+          <label className="text-xs font-medium text-neutral-300 mb-1 flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-neutral-400" />
+            <span>{isNepali ? "भुक्तानी मिति" : "Disbursement Date"}</span>
+            <span className="text-rose-400">*</span>
+          </label>
+          <NepaliDatePicker
+            value={payDate}
+            onChange={(adDate) => setPayDate(adDate)}
+            required
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

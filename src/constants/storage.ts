@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   AUTH_TOKEN: 'stockforge_client_auth_token',
   SIDEBAR_COLLAPSED: 'stockforge_sidebar_collapsed',
   LAST_BACKUP_TIME: 'stockforge_last_backup_time',
+  CALENDAR_SYSTEM: 'stockforge_calendar_system',
 } as const;
 
 export const DB_CONFIG = {

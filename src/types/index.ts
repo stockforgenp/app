@@ -65,6 +65,8 @@ export interface Sale {
   cost_total?: number;
   gross_profit?: number;
   item_count?: number;
+  status?: 'COMPLETED' | 'RETURNED';
+  returned_at?: string | null;
   created_at: string;
   lowStockAlerts?: LowStockAlertItem[];
 }
@@ -141,6 +143,8 @@ export interface Purchase {
   notes?: string | null;
   item_count?: number;
   total_units?: number;
+  status?: 'COMPLETED' | 'RETURNED';
+  returned_at?: string | null;
   created_at: string;
 }
 
@@ -211,7 +215,10 @@ export interface AppSettings {
   google_sheet_backup_id?: string;
   google_sheet_backup_url?: string;
   google_sheet_last_backup?: string;
+  calendar_system?: CalendarSystem;
 }
+
+export type CalendarSystem = 'BS' | 'AD';
 
 export type SubscriptionStatus = 'active' | 'expired' | 'trial' | 'grace_period';
 

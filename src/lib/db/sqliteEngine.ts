@@ -241,6 +241,14 @@ function migrateDatabaseIfNeeded(db: Database) {
         db.run('ALTER TABLE sales ADD COLUMN due_amount INTEGER DEFAULT 0;');
         changed = true;
       }
+      if (!colNames.includes('status')) {
+        db.run("ALTER TABLE sales ADD COLUMN status TEXT NOT NULL DEFAULT 'COMPLETED';");
+        changed = true;
+      }
+      if (!colNames.includes('returned_at')) {
+        db.run('ALTER TABLE sales ADD COLUMN returned_at TEXT;');
+        changed = true;
+      }
 
       // Backfill existing rows if bill_number or grand_total or paid_amount is missing
       try {
@@ -442,6 +450,14 @@ function migrateDatabaseIfNeeded(db: Database) {
       }
       if (!pColNames.includes('notes')) {
         db.run('ALTER TABLE purchases ADD COLUMN notes TEXT;');
+        changed = true;
+      }
+      if (!pColNames.includes('status')) {
+        db.run("ALTER TABLE purchases ADD COLUMN status TEXT NOT NULL DEFAULT 'COMPLETED';");
+        changed = true;
+      }
+      if (!pColNames.includes('returned_at')) {
+        db.run('ALTER TABLE purchases ADD COLUMN returned_at TEXT;');
         changed = true;
       }
       if (!pColNames.includes('created_at')) {

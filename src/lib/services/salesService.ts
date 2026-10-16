@@ -328,6 +328,8 @@ export function getSales(options?: {
       s.total,
       COALESCE(s.paid_amount, s.grand_total, s.total) as paid_amount,
       COALESCE(s.due_amount, 0) as due_amount,
+      COALESCE(s.status, 'COMPLETED') as status,
+      s.returned_at,
       s.created_at,
       COUNT(si.id) as item_count,
       SUM(si.quantity * si.cost_price) as cost_total,
@@ -398,6 +400,8 @@ export function getSaleWithItems(saleId: number): { sale: Sale; items: SaleItem[
        s.total,
        COALESCE(s.paid_amount, s.grand_total, s.total) as paid_amount,
        COALESCE(s.due_amount, 0) as due_amount,
+       COALESCE(s.status, 'COMPLETED') as status,
+       s.returned_at,
        s.created_at,
        COUNT(si.id) as item_count,
        SUM(si.quantity * si.cost_price) as cost_total,
@@ -679,12 +683,13 @@ export function updateSale(
 }
 
 /**
- * Permanently deletes a sale record:
+ * Processes a return for a sale:
  * - Restores product quantities back into inventory stock
  * - Records stock return movements into the movement log for audit trail
- * - Removes the sale line items and sale record atomically within a transaction
+ * - Marks the sale record status as 'RETURNED' with returned_at timestamp
+ * - Retains the sale record and line items in history for full auditing
  */
-export function deleteSale(saleId: number): {
+export function returnSale(saleId: number): {
   id: number;
   billNumber: string | null;
   restoredItemCount: number;
@@ -692,6 +697,10 @@ export function deleteSale(saleId: number): {
   const existing = getSaleWithItems(saleId);
   if (!existing) {
     throw new Error(`Sale #${saleId} not found`);
+  }
+
+  if (existing.sale.status === 'RETURNED') {
+    throw new Error(`Sale #${existing.sale.bill_number || saleId} has already been returned.`);
   }
 
   const now = new Date().toISOString();
@@ -721,11 +730,8 @@ export function deleteSale(saleId: number): {
       );
     }
 
-    // 2. Remove sale line items
-    run(`DELETE FROM sale_items WHERE sale_id = ?`, [saleId]);
-
-    // 3. Remove the sale record itself
-    run(`DELETE FROM sales WHERE id = ?`, [saleId]);
+    // 2. Mark the sale record as RETURNED (record is KEPT in history!)
+    run(`UPDATE sales SET status = 'RETURNED', returned_at = ? WHERE id = ?`, [now, saleId]);
 
     return {
       id: saleId,
@@ -734,6 +740,11 @@ export function deleteSale(saleId: number): {
     };
   });
 }
+
+/**
+ * Backward compatibility alias for returnSale
+ */
+export const deleteSale = returnSale;
 
 
 

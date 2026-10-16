@@ -181,7 +181,7 @@ export async function registerShop(input: RegisterShopInput): Promise<Shop> {
 
 const API_URL =
   ((import.meta as any).env?.VITE_API_URL as string) ||
-  "http://localhost:5000/api/v1";
+  "http://localhost:4000/api/v1";
 
 interface ApiLoginResponse {
   success: boolean;
@@ -213,7 +213,42 @@ interface ApiLoginResponse {
 }
 
 /**
+ * Synchronize local SQLite app settings with the active shop's profile
+ */
+function syncAppSettings(shop: Shop) {
+  run(
+    `INSERT INTO app_settings (key, value) VALUES ('store_name', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [shop.name],
+  );
+  run(
+    `INSERT INTO app_settings (key, value) VALUES ('store_email', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [shop.email],
+  );
+  if (shop.phone) {
+    run(
+      `INSERT INTO app_settings (key, value) VALUES ('store_phone', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      [shop.phone],
+    );
+  }
+  if (shop.address) {
+    run(
+      `INSERT INTO app_settings (key, value) VALUES ('store_address', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      [shop.address],
+    );
+  }
+  run(
+    `INSERT INTO app_settings (key, value) VALUES ('store_type', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [shop.shop_type],
+  );
+  run(
+    `INSERT INTO app_settings (key, value) VALUES ('currency_symbol', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [shop.currency_symbol || "Rs."],
+  );
+}
+
+/**
  * Attempt to authenticate client with remote backend API
+ * Sends request to POST /api/v1/clients/login (Firebase Auth + Firestore clients collection)
  */
 async function authenticateWithApi(
   emailOrPhone: string,
@@ -234,12 +269,14 @@ async function authenticateWithApi(
     }
     return data.data;
   } catch (err: any) {
-    // If it's a network error (server offline/no internet), return null to permit offline local login
+    // If it's a network error (server offline/no internet), return null to permit offline local login fallback
     if (
       err.name === "TypeError" &&
       (err.message.includes("fetch") ||
         err.message.includes("Failed to fetch") ||
-        err.message.includes("NetworkError"))
+        err.message.includes("NetworkError") ||
+        err.message.includes("Load failed") ||
+        err.message.includes("network"))
     ) {
       return null;
     }
@@ -248,8 +285,13 @@ async function authenticateWithApi(
 }
 
 /**
- * Log in to an existing shop using email or phone + password
- * Checks local database first; incorporates remote backend API login on top.
+ * Log in to an existing shop using email or phone + password.
+ * Flow:
+ * 1. Validates credentials against backend client login API (checks Firebase user & clients collection in Firestore).
+ * 2. On successful API response:
+ *    - If the shop record exists in local SQLite, updates it with the latest data and password hash.
+ *    - If the shop record does NOT exist in local SQLite, inserts it.
+ * 3. Falls back to local credentials only if server is unreachable (offline mode).
  */
 export async function loginShop(input: LoginInput): Promise<Shop> {
   const term = input.emailOrPhone.trim();
@@ -262,137 +304,135 @@ export async function loginShop(input: LoginInput): Promise<Shop> {
     throw new Error("Please enter your password.");
   }
 
-  // 1. Check local SQLite database for matching shop
-  const shopRow = queryOne<
-    Shop & {
-      password_hash: string;
-      subscription_plan?: string;
-      subscription_status?: string;
-      subscribed_date?: string;
-      subscription_duration_days?: number;
-      subscription_expiry_date?: string;
-    }
-  >(
-    `SELECT id, name, email, phone, shop_type, address, currency_symbol, is_active,
-            subscription_status, subscription_plan, subscribed_date,
-            COALESCE(subscription_duration_days, 365) as subscription_duration_days,
-            subscription_expiry_date,
-            password_hash, created_at, updated_at
-     FROM shops
-     WHERE LOWER(email) = LOWER(?) OR phone = ?`,
-    [term, term],
-  );
-
   const computedHash = await hashPassword(password);
 
-  // Case A: Shop exists in local DB
-  if (shopRow) {
-    let apiData: ApiLoginResponse["data"] | null = null;
-    const localPasswordMatch = shopRow.password_hash === computedHash;
+  // 1. Authenticate with backend client login API first
+  const apiData = await authenticateWithApi(term, password);
 
-    if (localPasswordMatch) {
-      // Local password matches! Try background/online API login to sync token & details if server reachable
-      try {
-        apiData = await authenticateWithApi(term, password);
-      } catch {
-        // If API explicitly rejects (e.g. account banned or suspended on server), reject login
-        // But if network error, authenticateWithApi returns null
-      }
-    } else {
-      // Local hash doesn't match: maybe password was updated on server or registered on another device.
-      // Attempt remote API login
-      apiData = await authenticateWithApi(term, password);
-      if (!apiData) {
-        throw new Error(
-          "Incorrect password. Please verify your credentials and try again.",
-        );
-      }
-      // Password was valid remotely! Update local SQLite password_hash
-      run(`UPDATE shops SET password_hash = ?, updated_at = ? WHERE id = ?`, [
-        computedHash,
-        new Date().toISOString(),
-        shopRow.id,
-      ]);
-    }
+  // When API authentication succeeded:
+  if (apiData && apiData.client) {
+    const client = apiData.client;
 
-    // Save auth token if obtained from remote API
-    if (apiData?.token) {
+    // Save remote auth token
+    if (apiData.token) {
       try {
         localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, apiData.token);
       } catch {}
     }
 
-    // Sync subscription & profile if remote API provided fresh data
-    if (apiData?.client) {
-      const client = apiData.client;
-      try {
-        run(
-          `UPDATE shops
-           SET name = COALESCE(?, name),
-               subscription_status = COALESCE(?, subscription_status),
-               subscription_plan = COALESCE(?, subscription_plan),
-               subscription_expiry_date = COALESCE(?, subscription_expiry_date),
-               updated_at = ?
-           WHERE id = ?`,
-          [
-            client.shopName || client.name,
-            client.subscription?.status,
-            client.subscription?.plan,
-            client.subscription?.expiryDate,
-            new Date().toISOString(),
-            shopRow.id,
-          ],
-        );
-      } catch {}
+    const clientEmail = (client.email || (term.includes("@") ? term : ""))
+      .toLowerCase()
+      .trim();
+    const clientPhone =
+      client.phone?.trim() || (!term.includes("@") ? term : null);
+
+    // Check if client already exists in local SQLite database
+    const existingShop = queryOne<Shop>(
+      `SELECT id, name, email, phone, shop_type, address, currency_symbol, is_active,
+              subscription_status, subscription_plan, subscribed_date,
+              COALESCE(subscription_duration_days, 365) as subscription_duration_days,
+              subscription_expiry_date, created_at, updated_at
+       FROM shops
+       WHERE (LOWER(email) = LOWER(?) AND email != '') OR (phone IS NOT NULL AND phone != '' AND phone = ?)`,
+      [clientEmail, clientPhone || ""],
+    );
+
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const shopName = client.shopName || client.name || "My Retail Shop";
+    const shopType = client.shopType || "General Retail";
+    const address = client.address || null;
+    const currencySymbol = client.currencySymbol || "Rs.";
+    const subStatus = client.subscription?.status || "active";
+    const subPlan = client.subscription?.plan || "Standard";
+    const durationDays = client.subscription?.durationDays || 365;
+    const subscribedDate =
+      client.subscription?.startDate?.split("T")[0] || nowIso.split("T")[0];
+    const expiryDate =
+      client.subscription?.expiryDate?.split("T")[0] ||
+      new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+
+    let shop: Shop | null = null;
+
+    if (existingShop) {
+      // 2a. Record exists locally -> UPDATE with response from API
+      run(
+        `UPDATE shops
+         SET name = ?,
+             email = ?,
+             password_hash = ?,
+             phone = ?,
+             shop_type = ?,
+             address = ?,
+             currency_symbol = ?,
+             subscription_status = ?,
+             subscription_plan = ?,
+             subscribed_date = ?,
+             subscription_duration_days = ?,
+             subscription_expiry_date = ?,
+             updated_at = ?
+         WHERE id = ?`,
+        [
+          shopName,
+          clientEmail || existingShop.email,
+          computedHash,
+          clientPhone || existingShop.phone,
+          shopType,
+          address || existingShop.address,
+          currencySymbol,
+          subStatus,
+          subPlan,
+          subscribedDate,
+          durationDays,
+          expiryDate,
+          nowIso,
+          existingShop.id,
+        ],
+      );
+
+      shop = getShopById(existingShop.id);
+    } else {
+      // 2b. Record does NOT exist locally -> INSERT new shop record
+      run(
+        `INSERT INTO shops (name, email, password_hash, phone, shop_type, address, currency_symbol, is_active,
+                            subscription_status, subscription_plan, subscribed_date, subscription_duration_days, subscription_expiry_date,
+                            created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          shopName,
+          clientEmail,
+          computedHash,
+          clientPhone,
+          shopType,
+          address,
+          currencySymbol,
+          subStatus,
+          subPlan,
+          subscribedDate,
+          durationDays,
+          expiryDate,
+          client.createdAt || nowIso,
+          client.updatedAt || nowIso,
+        ],
+      );
+
+      const idRes = queryOne<{ id: number }>(
+        "SELECT last_insert_rowid() as id",
+      );
+      const newShopId = idRes?.id ?? 0;
+      shop = getShopById(newShopId);
     }
 
-    const shop = getShopById(shopRow.id) || {
-      id: shopRow.id,
-      name: shopRow.name,
-      email: shopRow.email,
-      phone: shopRow.phone,
-      shop_type: shopRow.shop_type,
-      address: shopRow.address,
-      currency_symbol: shopRow.currency_symbol,
-      is_active: shopRow.is_active,
-      subscription_status: (shopRow.subscription_status as any) || "active",
-      subscription_plan: shopRow.subscription_plan || "Standard",
-      subscribed_date: shopRow.subscribed_date,
-      subscription_duration_days: shopRow.subscription_duration_days || 365,
-      subscription_expiry_date: shopRow.subscription_expiry_date,
-      created_at: shopRow.created_at,
-      updated_at: shopRow.updated_at,
-    };
+    if (!shop) {
+      throw new Error(
+        "Failed to initialize or update shop record in local database.",
+      );
+    }
 
-    // Synchronize app settings with current shop
-    run(
-      `INSERT INTO app_settings (key, value) VALUES ('store_name', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-      [shop.name],
-    );
-    run(
-      `INSERT INTO app_settings (key, value) VALUES ('store_email', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-      [shop.email],
-    );
-    if (shop.phone) {
-      run(
-        `INSERT INTO app_settings (key, value) VALUES ('store_phone', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-        [shop.phone],
-      );
-    }
-    if (shop.address) {
-      run(
-        `INSERT INTO app_settings (key, value) VALUES ('store_address', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-        [shop.address],
-      );
-    }
-    run(
-      `INSERT INTO app_settings (key, value) VALUES ('store_type', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-      [shop.shop_type],
-    );
-    run(
-      `INSERT INTO app_settings (key, value) VALUES ('currency_symbol', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-      [shop.currency_symbol || "Rs."],
-    );
+    // Synchronize app settings with active shop
+    syncAppSettings(shop);
 
     try {
       localStorage.setItem(ACTIVE_SHOP_STORAGE_KEY, String(shop.id));
@@ -401,107 +441,34 @@ export async function loginShop(input: LoginInput): Promise<Shop> {
     return shop;
   }
 
-  // Case B: Shop is NOT in local DB -> Authenticate against backend API
-  const apiData = await authenticateWithApi(term, password);
-  if (!apiData) {
-    throw new Error(
-      "No registered shop found matching this email or phone number in local database, and unable to reach server.",
-    );
-  }
+  // 3. Fallback for Offline Mode (Network unreachable)
+  // If authenticateWithApi returned null due to network error, check local DB
+  const localShop = queryOne<
+    Shop & {
+      password_hash: string;
+    }
+  >(
+    `SELECT id, name, email, phone, shop_type, address, currency_symbol, is_active,
+            subscription_status, subscription_plan, subscribed_date,
+            COALESCE(subscription_duration_days, 365) as subscription_duration_days,
+            subscription_expiry_date, password_hash, created_at, updated_at
+     FROM shops
+     WHERE LOWER(email) = LOWER(?) OR phone = ?`,
+    [term, term],
+  );
 
-  // Remote authentication succeeded! Save auth token
-  if (apiData.token) {
+  if (localShop && localShop.password_hash === computedHash) {
+    const shop = getShopById(localShop.id) || localShop;
+    syncAppSettings(shop);
     try {
-      localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, apiData.token);
+      localStorage.setItem(ACTIVE_SHOP_STORAGE_KEY, String(shop.id));
     } catch {}
+    return shop;
   }
 
-  const client = apiData.client;
-  const now = new Date();
-  const nowIso = now.toISOString();
-  const shopName = client.shopName || client.name || "My Retail Shop";
-  const email = (client.email || term).toLowerCase();
-  const phone = client.phone || (term.includes("@") ? null : term);
-  const shopType = client.shopType || "General Retail";
-  const address = client.address || null;
-  const currencySymbol = client.currencySymbol || "Rs.";
-  const subStatus = client.subscription?.status || "active";
-  const subPlan = client.subscription?.plan || "Standard";
-  const subscribedDate =
-    client.subscription?.startDate?.split("T")[0] || nowIso.split("T")[0];
-  const durationDays = client.subscription?.durationDays || 365;
-  const expiryDate =
-    client.subscription?.expiryDate?.split("T")[0] ||
-    new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0];
-
-  // Insert shop into local SQLite shops table
-  run(
-    `INSERT INTO shops (name, email, password_hash, phone, shop_type, address, currency_symbol, is_active,
-                        subscription_status, subscription_plan, subscribed_date, subscription_duration_days, subscription_expiry_date,
-                        created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      shopName,
-      email,
-      computedHash,
-      phone,
-      shopType,
-      address,
-      currencySymbol,
-      subStatus,
-      subPlan,
-      subscribedDate,
-      durationDays,
-      expiryDate,
-      client.createdAt || nowIso,
-      client.updatedAt || nowIso,
-    ],
+  throw new Error(
+    "Unable to connect to the authentication server, and no matching local shop credentials were found.",
   );
-
-  const idRes = queryOne<{ id: number }>("SELECT last_insert_rowid() as id");
-  const newShopId = idRes?.id ?? 0;
-  const newShop = getShopById(newShopId);
-  if (!newShop) {
-    throw new Error("Failed to initialize shop record in local database.");
-  }
-
-  // Synchronize app settings with new shop
-  run(
-    `INSERT INTO app_settings (key, value) VALUES ('store_name', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-    [newShop.name],
-  );
-  run(
-    `INSERT INTO app_settings (key, value) VALUES ('store_email', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-    [newShop.email],
-  );
-  if (newShop.phone) {
-    run(
-      `INSERT INTO app_settings (key, value) VALUES ('store_phone', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-      [newShop.phone],
-    );
-  }
-  if (newShop.address) {
-    run(
-      `INSERT INTO app_settings (key, value) VALUES ('store_address', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-      [newShop.address],
-    );
-  }
-  run(
-    `INSERT INTO app_settings (key, value) VALUES ('store_type', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-    [newShop.shop_type],
-  );
-  run(
-    `INSERT INTO app_settings (key, value) VALUES ('currency_symbol', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-    [newShop.currency_symbol || "Rs."],
-  );
-
-  try {
-    localStorage.setItem(ACTIVE_SHOP_STORAGE_KEY, String(newShop.id));
-  } catch {}
-
-  return newShop;
 }
 
 /**

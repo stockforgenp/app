@@ -77,6 +77,8 @@ CREATE TABLE IF NOT EXISTS sales (
   total INTEGER NOT NULL,
   paid_amount INTEGER DEFAULT NULL,
   due_amount INTEGER DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'COMPLETED',
+  returned_at TEXT,
   created_at TEXT NOT NULL
 );
 
@@ -110,6 +112,8 @@ CREATE TABLE IF NOT EXISTS purchases (
   total INTEGER NOT NULL,
   paid_amount INTEGER DEFAULT NULL,
   due_amount INTEGER DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'COMPLETED',
+  returned_at TEXT,
   notes TEXT,
   created_at TEXT NOT NULL
 );

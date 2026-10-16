@@ -97,7 +97,7 @@ export function getFinancialSummary(startDate: string, endDate: string): Financi
        COALESCE(SUM(total), 0) as revenue,
        COALESCE(SUM(discount), 0) as discount
      FROM sales
-     WHERE created_at >= ? AND created_at <= ?`,
+     WHERE created_at >= ? AND created_at <= ? AND (status IS NULL OR status != 'RETURNED')`,
     [startDate, endDate]
   );
 
@@ -107,7 +107,7 @@ export function getFinancialSummary(startDate: string, endDate: string): Financi
        COALESCE(SUM(si.quantity * si.cost_price), 0) as cogs
      FROM sale_items si
      JOIN sales s ON si.sale_id = s.id
-     WHERE s.created_at >= ? AND s.created_at <= ?`,
+     WHERE s.created_at >= ? AND s.created_at <= ? AND (s.status IS NULL OR s.status != 'RETURNED')`,
     [startDate, endDate]
   );
 
@@ -193,7 +193,7 @@ export function getProductAnalytics(startDate: string, endDate: string): {
      FROM sale_items si
      JOIN products p ON si.product_id = p.id
      JOIN sales s ON si.sale_id = s.id
-     WHERE s.created_at >= ? AND s.created_at <= ?
+     WHERE s.created_at >= ? AND s.created_at <= ? AND (s.status IS NULL OR s.status != 'RETURNED')
      GROUP BY p.id
      HAVING units_sold > 0`,
     [startDate, endDate]
@@ -224,7 +224,7 @@ export function getDailySalesTrend(startDate: string, endDate: string): DailySal
          COUNT(id) as transactions,
          COALESCE(SUM(total), 0) as revenue
        FROM sales
-       WHERE created_at >= ? AND created_at <= ?
+       WHERE created_at >= ? AND created_at <= ? AND (status IS NULL OR status != 'RETURNED')
        GROUP BY substr(created_at, 1, 10)
      ),
      daily_cogs AS (
@@ -233,7 +233,7 @@ export function getDailySalesTrend(startDate: string, endDate: string): DailySal
          COALESCE(SUM(si.quantity * si.cost_price), 0) as cogs
        FROM sale_items si
        JOIN sales s ON si.sale_id = s.id
-       WHERE s.created_at >= ? AND s.created_at <= ?
+       WHERE s.created_at >= ? AND s.created_at <= ? AND (s.status IS NULL OR s.status != 'RETURNED')
        GROUP BY substr(s.created_at, 1, 10)
      )
      SELECT 

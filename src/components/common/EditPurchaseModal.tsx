@@ -26,6 +26,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Modal } from "./Modal.tsx";
+import { NepaliDatePicker } from "./NepaliDatePicker.tsx";
 import { Product, Purchase, PurchaseItem } from "../../types/index.ts";
 import {
   getPurchaseWithItems,
@@ -35,6 +36,7 @@ import {
 import { getAllProducts } from "../../lib/services/productService.ts";
 import {
   formatCurrency,
+  formatDateTime,
   fromMinorUnits,
   toMinorUnits,
   formatForDateTimeLocal,
@@ -114,6 +116,17 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
       setAllProducts(productsList);
 
       if (details) {
+        if (details.purchase.status === 'RETURNED') {
+          showToast(
+            isNepali
+              ? 'फिर्ता भइसकेको खरिद कारोबार सच्याउन मिल्दैन।'
+              : 'Returned purchase transactions cannot be edited.',
+            'error'
+          );
+          onClose();
+          return;
+        }
+
         setPurchaseRecord(details.purchase);
         setPurchaseDateTime(
           formatForDateTimeLocal(details.purchase.created_at),
@@ -375,12 +388,14 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
                 </span>
               </label>
               <div className="flex items-center gap-2">
-                <input
-                  type="datetime-local"
-                  value={purchaseDateTime}
-                  onChange={(e) => setPurchaseDateTime(e.target.value)}
-                  className="flex-1 px-3 py-1.5 text-xs font-mono text-neutral-100 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500"
-                />
+                <div className="flex-1">
+                  <NepaliDatePicker
+                    value={purchaseDateTime}
+                    showTime={true}
+                    sizeVariant="sm"
+                    onChange={(adDateTime) => setPurchaseDateTime(adDateTime)}
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => setPurchaseDateTime(formatForDateTimeLocal())}
@@ -390,11 +405,16 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
                   {isNepali ? "अहिले (Now)" : "Now"}
                 </button>
               </div>
-              <p className="text-[10px] text-neutral-400">
-                {isNepali
-                  ? "पहिले खरिद गरेको सामानको मिति मिलाउनुहोस्"
-                  : "Adjust if the purchase was made on an earlier date"}
-              </p>
+              <div className="flex items-center justify-between text-[10px] text-neutral-400">
+                <span>
+                  {isNepali
+                    ? "पहिले खरिद गरेको सामानको मिति मिलाउनुहोस्"
+                    : "Adjust if the purchase was made on an earlier date"}
+                </span>
+                <span className="font-mono text-emerald-400 font-semibold">
+                  {formatDateTime(parseDateTimeLocalToIso(purchaseDateTime))}
+                </span>
+              </div>
 
               <div className="grid grid-cols-2 gap-2 pt-2">
                 <div>

@@ -1,8 +1,9 @@
 /**
  * Settings Service
  */
-import { AppSettings } from "../../types/index.ts";
+import { AppSettings, CalendarSystem } from "../../types/index.ts";
 import { query, queryOne, run } from "../db/sqliteEngine.ts";
+import { STORAGE_KEYS } from "../../constants/index.ts";
 
 const DEFAULT_SETTINGS: AppSettings = {
   currency_symbol: "Rs.",
@@ -14,6 +15,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   store_pan_vat: "",
   enable_vat: true,
   receipt_footer: "Thank you for shopping with us! Please come again.",
+  calendar_system: "BS",
 };
 
 export function getSettings(): AppSettings {
@@ -22,6 +24,14 @@ export function getSettings(): AppSettings {
       "SELECT key, value FROM app_settings",
     );
     const settings: AppSettings = { ...DEFAULT_SETTINGS };
+
+    // Initialize from cached localStorage if available
+    try {
+      const cachedCal = localStorage.getItem(STORAGE_KEYS.CALENDAR_SYSTEM);
+      if (cachedCal === "BS" || cachedCal === "AD") {
+        settings.calendar_system = cachedCal;
+      }
+    } catch {}
 
     for (const row of rows) {
       if (row.key === "currency_symbol") {
@@ -43,6 +53,12 @@ export function getSettings(): AppSettings {
         settings.enable_vat = row.value !== "false";
       } else if (row.key === "receipt_footer") {
         settings.receipt_footer = row.value;
+      } else if (row.key === "calendar_system") {
+        const cal = row.value === "AD" ? "AD" : "BS";
+        settings.calendar_system = cal;
+        try {
+          localStorage.setItem(STORAGE_KEYS.CALENDAR_SYSTEM, cal);
+        } catch {}
       }
     }
 
@@ -123,7 +139,52 @@ export function updateSettings(newSettings: Partial<AppSettings>): AppSettings {
     );
   }
 
+  if (newSettings.calendar_system !== undefined) {
+    const cal = newSettings.calendar_system === "AD" ? "AD" : "BS";
+    run(
+      "INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+      ["calendar_system", cal],
+    );
+    try {
+      localStorage.setItem(STORAGE_KEYS.CALENDAR_SYSTEM, cal);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("stockforge:calendar-changed", { detail: cal }),
+        );
+      }
+    } catch {}
+  }
+
   return getSettings();
+}
+
+/**
+ * Get active calendar system ('BS' | 'AD'). Defaults to 'BS'.
+ */
+export function getCalendarSystem(): CalendarSystem {
+  try {
+    const cached = localStorage.getItem(STORAGE_KEYS.CALENDAR_SYSTEM);
+    if (cached === "BS" || cached === "AD") return cached;
+    const dbVal = getAppSetting("calendar_system");
+    if (dbVal === "BS" || dbVal === "AD") {
+      try {
+        localStorage.setItem(STORAGE_KEYS.CALENDAR_SYSTEM, dbVal);
+      } catch {}
+      return dbVal;
+    }
+  } catch {}
+  return "BS";
+}
+
+/**
+ * Set active calendar system ('BS' | 'AD').
+ */
+export function setCalendarSystem(system: CalendarSystem): void {
+  const val = system === "AD" ? "AD" : "BS";
+  try {
+    localStorage.setItem(STORAGE_KEYS.CALENDAR_SYSTEM, val);
+  } catch {}
+  updateSettings({ calendar_system: val });
 }
 
 /**

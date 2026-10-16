@@ -33,6 +33,7 @@ import {
 } from "@/src/types";
 import { Input } from "../common/Input.tsx";
 import { Select } from "../common/Select.tsx";
+import { NepaliDatePicker } from "../common/NepaliDatePicker.tsx";
 
 export interface NewStaffFormProps {
   editingStaff: Staff | null;
@@ -347,17 +348,16 @@ export const NewStaffForm: React.FC<NewStaffFormProps> = ({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* Joining Date */}
-        <Input
-          label={
-            <>
-              <Calendar className="w-3.5 h-3.5 text-neutral-400" />
-              <span>{isNepali ? "कार्य सुरु मिति" : "Joining Date"}</span>
-            </>
-          }
-          type="date"
-          value={formJoinDate}
-          onChange={(e) => setFormJoinDate(e.target.value)}
-        />
+        <div>
+          <label className="text-xs font-medium text-neutral-300 mb-1 flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-neutral-400" />
+            <span>{isNepali ? "कार्य सुरु मिति" : "Joining Date"}</span>
+          </label>
+          <NepaliDatePicker
+            value={formJoinDate}
+            onChange={(adDate) => setFormJoinDate(adDate)}
+          />
+        </div>
 
         {isCustomRole && (
           <Select

@@ -24,7 +24,7 @@ export function getAllVendors(search?: string): Vendor[] {
         )
       ) as product_count,
       (
-        COALESCE((SELECT SUM(COALESCE(p_rec.grand_total, p_rec.total)) FROM purchases p_rec WHERE p_rec.vendor_id = v.id), 0)
+        COALESCE((SELECT SUM(COALESCE(p_rec.grand_total, p_rec.total)) FROM purchases p_rec WHERE p_rec.vendor_id = v.id AND (p_rec.status IS NULL OR p_rec.status != 'RETURNED')), 0)
         +
         COALESCE((
           SELECT SUM(sm.quantity * COALESCE(p.cost_price, 0))
@@ -33,7 +33,7 @@ export function getAllVendors(search?: string): Vendor[] {
           WHERE sm.vendor_id = v.id AND sm.type = 'RESTOCK' AND sm.reference_id IS NULL AND (sm.note IS NULL OR sm.note NOT LIKE 'Purchase%')
         ), 0)
       ) as total_purchased,
-      (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM purchases WHERE vendor_id = v.id) as total_due
+      (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM purchases WHERE vendor_id = v.id AND (status IS NULL OR status != 'RETURNED')) as total_due
     FROM vendors v
   `;
 
@@ -60,7 +60,7 @@ export function getVendorById(id: number): Vendor | null {
          )
        ) as product_count,
        (
-         COALESCE((SELECT SUM(COALESCE(p_rec.grand_total, p_rec.total)) FROM purchases p_rec WHERE p_rec.vendor_id = v.id), 0)
+         COALESCE((SELECT SUM(COALESCE(p_rec.grand_total, p_rec.total)) FROM purchases p_rec WHERE p_rec.vendor_id = v.id AND (p_rec.status IS NULL OR p_rec.status != 'RETURNED')), 0)
          +
          COALESCE((
            SELECT SUM(sm.quantity * COALESCE(p.cost_price, 0))
@@ -69,7 +69,7 @@ export function getVendorById(id: number): Vendor | null {
           WHERE sm.vendor_id = v.id AND sm.type = 'RESTOCK' AND sm.reference_id IS NULL AND (sm.note IS NULL OR sm.note NOT LIKE 'Purchase%')
         ), 0)
        ) as total_purchased,
-       (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM purchases WHERE vendor_id = v.id) as total_due
+       (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM purchases WHERE vendor_id = v.id AND (status IS NULL OR status != 'RETURNED')) as total_due
      FROM vendors v 
      WHERE v.id = ?`,
     [id],
@@ -97,7 +97,7 @@ export function searchVendors(
   if (!term) {
     return query<Vendor>(
       `SELECT v.*, ${productCountSubquery},
-         (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM purchases WHERE vendor_id = v.id) as total_due
+         (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM purchases WHERE vendor_id = v.id AND (status IS NULL OR status != 'RETURNED')) as total_due
        FROM vendors v 
        ORDER BY v.name ASC 
        LIMIT ?`,
@@ -108,7 +108,7 @@ export function searchVendors(
   const s = `%${term}%`;
   return query<Vendor>(
     `SELECT v.*, ${productCountSubquery},
-       (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM purchases WHERE vendor_id = v.id) as total_due
+       (SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) FROM purchases WHERE vendor_id = v.id AND (status IS NULL OR status != 'RETURNED')) as total_due
      FROM vendors v 
      WHERE v.name LIKE ? OR v.pan_vat LIKE ? OR v.phone LIKE ? OR v.email LIKE ?
      ORDER BY 
@@ -130,7 +130,7 @@ export function searchVendors(
 export function getVendorTotalDue(vendorId?: number | null): number {
   if (!vendorId) return 0;
   const row = queryOne<{ total_due: number }>(
-    `SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) as total_due FROM purchases WHERE vendor_id = ?`,
+    `SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) as total_due FROM purchases WHERE vendor_id = ? AND (status IS NULL OR status != 'RETURNED')`,
     [vendorId]
   );
   return row?.total_due ?? 0;
@@ -145,7 +145,7 @@ export function getVendorPreviousDueForPurchase(
 ): number {
   if (!vendorId) return 0;
   const row = queryOne<{ prev_due: number }>(
-    `SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) as prev_due FROM purchases WHERE vendor_id = ? AND id < ?`,
+    `SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) as prev_due FROM purchases WHERE vendor_id = ? AND id < ? AND (status IS NULL OR status != 'RETURNED')`,
     [vendorId, purchaseId]
   );
   return row?.prev_due ?? 0;
@@ -358,6 +358,8 @@ export function getVendorPurchases(vendorId: number): Purchase[] {
     `SELECT p.*,
        COALESCE(p.paid_amount, p.grand_total, p.total) as paid_amount,
        COALESCE(p.due_amount, 0) as due_amount,
+       COALESCE(p.status, 'COMPLETED') as status,
+       p.returned_at,
        (SELECT COUNT(*) FROM purchase_items WHERE purchase_id = p.id) as item_count,
        (SELECT COALESCE(SUM(quantity), 0) FROM purchase_items WHERE purchase_id = p.id) as total_units
      FROM purchases p

@@ -24,11 +24,14 @@ import {
   Moon,
   Languages,
   LogOut,
+  Calendar,
 } from "lucide-react";
-import { AppSettings, TestResultItem } from "../types/index.ts";
+import { AppSettings, TestResultItem, CalendarSystem } from "../types/index.ts";
 import {
   getSettings,
   updateSettings,
+  getCalendarSystem,
+  setCalendarSystem,
 } from "../lib/services/settingsService.ts";
 import { runBusinessLogicTests } from "../lib/services/testService.ts";
 import { Select } from "../components/common/Select.tsx";
@@ -74,6 +77,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     settings.receipt_footer ||
       "Thank you for shopping with us! Please come again.",
   );
+  const [calendarSystem, setCalendarSystemState] = useState<CalendarSystem>(
+    settings.calendar_system || getCalendarSystem() || "BS",
+  );
 
   // Tests
   const [testResults, setTestResults] = useState<TestResultItem[] | null>(null);
@@ -109,6 +115,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setReceiptFooterInput(
       s.receipt_footer || "Thank you for shopping with us! Please come again.",
     );
+    setCalendarSystemState(s.calendar_system || getCalendarSystem() || "BS");
   }, [language]);
 
   const handleSaveGeneral = (e: React.FormEvent) => {
@@ -124,6 +131,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       store_pan_vat: storePanVatInput.trim(),
       enable_vat: enableVat,
       receipt_footer: receiptFooterInput.trim(),
+      calendar_system: calendarSystem,
     });
     setSettings(updated);
     onSettingsUpdated(updated);
@@ -475,6 +483,134 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
               <p className="text-[11px] text-neutral-400 mt-1">
                 नेपाली भाषा र स्वचालित नेपाली रुपैयाँ संकेत (रु.)।
+              </p>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Calendar System Selection Card (Bikram Sambat BS vs Gregorian AD) */}
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
+          <div className="flex items-center gap-2 text-sm font-semibold text-neutral-100">
+            <Calendar className="w-4 h-4 text-emerald-400" />
+            <span>{isNepali ? "क्यालेन्डर प्रणाली (मिति ढाँचा)" : "Calendar System (Date Format)"}</span>
+          </div>
+          <span className="text-xs text-neutral-400">
+            Active:{" "}
+            <strong className="text-emerald-400 font-medium">
+              {calendarSystem === "BS"
+                ? isNepali
+                  ? "विक्रम संवत् (वि.सं. / BS)"
+                  : "Bikram Sambat (B.S.)"
+                : isNepali
+                  ? "ईस्वी संवत् (ई.सं. / AD)"
+                  : "Gregorian (A.D.)"}
+            </strong>
+          </span>
+        </div>
+
+        <p className="text-xs text-neutral-400">
+          {isNepali
+            ? "बिल, इनभ्वाइस, बिक्री/खरिद विवरण, तलब र रिपोर्टहरूमा प्रयोग हुने मिति प्रणाली छान्नुहोस्। नेपालका खुद्रा पसलहरूका लागि विक्रम संवत् (वि.सं.) पूर्वनिर्धारित हो।"
+            : "Choose the calendar system used across bills, invoices, transactions, payroll, and reports. Bikram Sambat (B.S.) is enabled by default for retail businesses in Nepal."}
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+          {/* Bikram Sambat (BS) - Default */}
+          <button
+            type="button"
+            onClick={() => {
+              setCalendarSystemState("BS");
+              setCalendarSystem("BS");
+              const updated = updateSettings({ calendar_system: "BS" });
+              setSettings(updated);
+              onSettingsUpdated(updated);
+              showToast(
+                isNepali
+                  ? "क्यालेन्डर प्रणाली विक्रम संवत् (वि.सं.) मा सेट गरियो"
+                  : "Calendar system set to Bikram Sambat (B.S.)",
+                "success",
+              );
+            }}
+            className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3.5 ${
+              calendarSystem === "BS"
+                ? "border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/30"
+                : "border-neutral-800 bg-neutral-950 hover:border-neutral-700"
+            }`}
+          >
+            <div
+              className={`p-2.5 rounded-lg shrink-0 ${
+                calendarSystem === "BS"
+                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  : "bg-neutral-800 text-neutral-400"
+              }`}
+            >
+              <span className="font-mono text-xs font-bold">B.S.</span>
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-neutral-100">
+                  {isNepali ? "विक्रम संवत् (वि.सं.)" : "Bikram Sambat (B.S.)"}
+                </span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-semibold border border-emerald-500/20">
+                  {isNepali ? "पूर्वनिर्धारित (Default)" : "Default"}
+                </span>
+              </div>
+              <p className="text-[11px] text-neutral-400 mt-1">
+                {isNepali
+                  ? "नेपाली क्यालेन्डर (बैशाख - चैत)। इनभ्वाइस र रिपोर्टहरूमा मिति वि.सं. मा देखिन्छ।"
+                  : "Official Nepali calendar (Baisakh - Chaitra). Displays dates in Bikram Sambat offline."}
+              </p>
+            </div>
+          </button>
+
+          {/* Gregorian (AD) */}
+          <button
+            type="button"
+            onClick={() => {
+              setCalendarSystemState("AD");
+              setCalendarSystem("AD");
+              const updated = updateSettings({ calendar_system: "AD" });
+              setSettings(updated);
+              onSettingsUpdated(updated);
+              showToast(
+                isNepali
+                  ? "क्यालेन्डर प्रणाली ईस्वी संवत् (ई.सं.) मा सेट गरियो"
+                  : "Calendar system set to Gregorian (A.D.)",
+                "info",
+              );
+            }}
+            className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3.5 ${
+              calendarSystem === "AD"
+                ? "border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/30"
+                : "border-neutral-800 bg-neutral-950 hover:border-neutral-700"
+            }`}
+          >
+            <div
+              className={`p-2.5 rounded-lg shrink-0 ${
+                calendarSystem === "AD"
+                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  : "bg-neutral-800 text-neutral-400"
+              }`}
+            >
+              <span className="font-mono text-xs font-bold">A.D.</span>
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-neutral-100">
+                  {isNepali ? "ईस्वी संवत् (ई.सं.)" : "Gregorian (A.D.)"}
+                </span>
+                {calendarSystem === "AD" && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-semibold border border-emerald-500/20">
+                    Active
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-neutral-400 mt-1">
+                {isNepali
+                  ? "अन्तर्राष्ट्रिय क्यालेन्डर (Jan - Dec)।"
+                  : "International Gregorian calendar (Jan - Dec)."}
               </p>
             </div>
           </button>

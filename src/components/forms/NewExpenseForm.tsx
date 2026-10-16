@@ -32,6 +32,7 @@ import {
 import { Expense } from "../../types/index.ts";
 import { Input, Textarea } from "../common/Input.tsx";
 import { Select } from "../common/Select.tsx";
+import { NepaliDatePicker } from "../common/NepaliDatePicker.tsx";
 
 export interface NewExpenseFormProps {
   editingExpense: Expense | null;
@@ -274,19 +275,18 @@ export const NewExpenseForm: React.FC<NewExpenseFormProps> = ({
           required
         />
 
-        <Input
-          label={
-            <>
-              <Calendar className="w-3.5 h-3.5 text-neutral-400" />
-              <span>{isNepali ? "मिति" : "Date"}</span>
-              <span className="text-rose-400">*</span>
-            </>
-          }
-          type="date"
-          value={formDate}
-          onChange={(e) => setFormDate(e.target.value)}
-          required
-        />
+        <div>
+          <label className="text-xs font-medium text-neutral-300 mb-1 flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-neutral-400" />
+            <span>{isNepali ? "मिति" : "Date"}</span>
+            <span className="text-rose-400">*</span>
+          </label>
+          <NepaliDatePicker
+            value={formDate}
+            onChange={(adDate) => setFormDate(adDate)}
+            required
+          />
+        </div>
       </div>
 
       {/* Payment Method & Receipt Reference */}

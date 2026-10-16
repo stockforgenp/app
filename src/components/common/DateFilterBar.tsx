@@ -6,7 +6,9 @@ import {
   calculateDateRange,
 } from "../../lib/utils/dateFilters.ts";
 import { Input } from "./Input.tsx";
+import { NepaliDatePicker } from "./NepaliDatePicker.tsx";
 import { useLanguage } from "../../context/LanguageContext.tsx";
+import { getCalendarSystem } from "../../lib/services/settingsService.ts";
 
 export interface DateFilterBarProps {
   preset: DatePreset;
@@ -86,35 +88,33 @@ export const DateFilterBar: React.FC<DateFilterBarProps> = ({
       <div className="flex items-center gap-2 justify-end shrink-0">
         {showCustomInputs && (
           <div
-            className={`flex items-center gap-2 bg-neutral-950 rounded-lg border text-neutral-300 transition-colors ${
-              isCustom ? "border-emerald-500/50" : "border-neutral-800"
+            className={`flex items-center gap-1.5 p-0.5 rounded-lg border text-neutral-300 transition-colors ${
+              isCustom ? "border-emerald-500/50 bg-neutral-950" : "border-neutral-800 bg-neutral-950"
             }`}
           >
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => {
-                onStartDateChange(e.target.value);
-                onPresetChange("custom", e.target.value, endDate);
-              }}
-              sizeVariant={sizeVariant}
-              containerClassName="w-auto"
-              className="bg-transparent border-0 p-0 text-neutral-200 focus:outline-none text-xs min-w-28"
-              title="Start Date"
-            />
-            <span className="border-l border-neutral-800 w-0.5 h-4" />
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e) => {
-                onEndDateChange(e.target.value);
-                onPresetChange("custom", startDate, e.target.value);
-              }}
-              sizeVariant={sizeVariant}
-              containerClassName="w-auto"
-              className="bg-transparent border-0 p-0 text-neutral-200 focus:outline-none text-xs min-w-28"
-              title="End Date"
-            />
+            <div className="w-36 sm:w-44">
+              <NepaliDatePicker
+                value={startDate}
+                sizeVariant="sm"
+                placeholder={isNepali ? "सुरु मिति" : "Start Date"}
+                onChange={(adDate) => {
+                  onStartDateChange(adDate);
+                  onPresetChange("custom", adDate, endDate);
+                }}
+              />
+            </div>
+            <span className="text-neutral-500 text-xs px-0.5">—</span>
+            <div className="w-36 sm:w-44">
+              <NepaliDatePicker
+                value={endDate}
+                sizeVariant="sm"
+                placeholder={isNepali ? "अन्तिम मिति" : "End Date"}
+                onChange={(adDate) => {
+                  onEndDateChange(adDate);
+                  onPresetChange("custom", startDate, adDate);
+                }}
+              />
+            </div>
           </div>
         )}
 

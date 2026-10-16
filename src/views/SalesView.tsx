@@ -35,6 +35,7 @@ import { getCustomerTotalDue } from "../lib/services/customerService.ts";
 import { calculateProportionalDiscounts } from "../helpers/index.ts";
 import {
   formatCurrency,
+  formatDateTime,
   fromMinorUnits,
   toMinorUnits,
   formatForDateTimeLocal,
@@ -50,6 +51,7 @@ import {
   CustomerInputSection,
   CustomerInputData,
 } from "../components/common/CustomerInputSection.tsx";
+import { NepaliDatePicker } from "../components/common/NepaliDatePicker.tsx";
 import { useLanguage } from "../context/LanguageContext.tsx";
 
 interface SalesViewProps {
@@ -1402,13 +1404,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="datetime-local"
-                    value={saleDateTime}
-                    onChange={(e) => setSaleDateTime(e.target.value)}
-                    className="px-2.5 py-1 text-xs font-mono text-neutral-200 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors"
-                  />
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="w-64 sm:w-72">
+                    <NepaliDatePicker
+                      value={saleDateTime}
+                      showTime={true}
+                      sizeVariant="sm"
+                      onChange={(adDateTime) => setSaleDateTime(adDateTime)}
+                    />
+                  </div>
                   {isCustomSaleDate && (
                     <button
                       type="button"
