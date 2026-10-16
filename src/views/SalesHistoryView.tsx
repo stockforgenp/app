@@ -13,6 +13,7 @@ import { formatCurrency, formatDateTime, capitalizeWords } from "../lib/utils/fo
 import { Modal } from "../components/common/Modal.tsx";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { PrintBillModal } from "../components/common/PrintBillModal.tsx";
+import { PrintSalesHistoryModal } from "../components/common/PrintSalesHistoryModal.tsx";
 import { EditSaleModal } from "../components/common/EditSaleModal.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
 import { getSalesHistoryColumns } from "../columns/index.ts";
@@ -51,6 +52,9 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
   // Bill print modal state
   const [printBillSaleId, setPrintBillSaleId] = useState<number | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
+  // Full sales history print modal state
+  const [isPrintHistoryOpen, setIsPrintHistoryOpen] = useState(false);
 
   const loadSales = () => {
     try {
@@ -123,6 +127,16 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
           "hist_search_placeholder",
           "Search by Sale #ID, customer name, phone, or product...",
         )}
+        extraActionsSlot={
+          <button
+            type="button"
+            onClick={() => setIsPrintHistoryOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
+          >
+            <Printer className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{isNepali ? "इतिहास प्रिन्ट" : "Print History"}</span>
+          </button>
+        }
         dateFilterConfig={{
           preset: datePreset,
           onPresetChange: (p, start, end) => {
@@ -555,6 +569,20 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
         onClose={() => setIsPrintModalOpen(false)}
         saleId={printBillSaleId}
         currencySymbol={currencySymbol}
+      />
+
+      {/* Sales History Statement Print Modal */}
+      <PrintSalesHistoryModal
+        isOpen={isPrintHistoryOpen}
+        onClose={() => setIsPrintHistoryOpen(false)}
+        sales={sales}
+        currencySymbol={currencySymbol}
+        filters={{
+          startDate,
+          endDate,
+          search,
+          datePreset,
+        }}
       />
 
       {/* Confirm Return Sale Dialog */}

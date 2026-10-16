@@ -22,6 +22,7 @@ import {
   deletePurchase,
 } from "../lib/services/purchaseService.ts";
 import { PrintPurchaseBillModal } from "../components/common/PrintPurchaseBillModal.tsx";
+import { PrintPurchaseHistoryModal } from "../components/common/PrintPurchaseHistoryModal.tsx";
 import { EditPurchaseModal } from "../components/common/EditPurchaseModal.tsx";
 import { Modal } from "../components/common/Modal.tsx";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
@@ -59,6 +60,7 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
   const [returningPurchaseId, setReturningPurchaseId] = useState<number | null>(null);
   const [printPurchaseId, setPrintPurchaseId] = useState<number | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [isPrintHistoryOpen, setIsPrintHistoryOpen] = useState(false);
 
   const loadHistory = () => {
     try {
@@ -220,17 +222,27 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
             : "Search by purchase bill #, vendor name, PAN/VAT, or supplier invoice..."
         }
         extraActionsSlot={
-          <Link
-            to="/purchases"
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-          >
-            <Truck className="w-4 h-4" />
-            <span>
-              {isNepali
-                ? "नयाँ खरिद दाखिला (New Purchase)"
-                : "New Purchase Order"}
-            </span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsPrintHistoryOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
+            >
+              <Printer className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{isNepali ? "इतिहास प्रिन्ट" : "Print History"}</span>
+            </button>
+            <Link
+              to="/purchases"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+            >
+              <Truck className="w-4 h-4" />
+              <span>
+                {isNepali
+                  ? "नयाँ खरिद दाखिला (New Purchase)"
+                  : "New Purchase Order"}
+              </span>
+            </Link>
+          </div>
         }
         dateFilterConfig={{
           preset: historyDatePreset,
@@ -570,6 +582,19 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
           currencySymbol={currencySymbol}
         />
       )}
+
+      {/* Print Purchase History Statement Modal */}
+      <PrintPurchaseHistoryModal
+        isOpen={isPrintHistoryOpen}
+        onClose={() => setIsPrintHistoryOpen(false)}
+        purchases={historyList}
+        currencySymbol={currencySymbol}
+        filters={{
+          startDate: historyStartDate,
+          endDate: historyEndDate,
+          search: historySearch,
+        }}
+      />
 
       {/* Confirm Return Purchase Dialog */}
       <ConfirmDialog

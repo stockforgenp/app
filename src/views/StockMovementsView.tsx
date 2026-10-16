@@ -10,12 +10,14 @@ import {
   SlidersHorizontal,
   TrendingDown,
   TrendingUp,
+  Printer,
 } from "lucide-react";
 import { StockMovement, Vendor } from "../types/index.ts";
 import { getStockMovements } from "../lib/services/inventoryService.ts";
 import { getAllVendors } from "../lib/services/vendorService.ts";
 import { Select } from "../components/common/Select.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
+import { PrintStockMovementsModal } from "../components/common/PrintStockMovementsModal.tsx";
 import { getStockMovementColumns } from "../columns/index.ts";
 import { DatePreset } from "../lib/utils/dateFilters.ts";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
@@ -44,6 +46,7 @@ export const StockMovementsView: React.FC<StockMovementsViewProps> = () => {
   const [endDate, setEndDate] = useState("");
   const [movementTypeFilter, setMovementTypeFilter] =
     useState<MovementTypeFilter>("ALL");
+  const [isPrintOpen, setIsPrintOpen] = useState(false);
 
   const loadVendors = () => {
     try {
@@ -235,6 +238,16 @@ export const StockMovementsView: React.FC<StockMovementsViewProps> = () => {
             />
           </>
         }
+        extraActionsSlot={
+          <button
+            type="button"
+            onClick={() => setIsPrintOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
+          >
+            <Printer className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{isNepali ? "चलान प्रिन्ट" : "Print Movements"}</span>
+          </button>
+        }
         dateFilterConfig={{
           preset: datePreset,
           onPresetChange: (p, start, end) => {
@@ -263,6 +276,24 @@ export const StockMovementsView: React.FC<StockMovementsViewProps> = () => {
             ? "फिल्टर रिसेट गरेर पुनः प्रयास गर्नुहोस्।"
             : "Try resetting date, vendor, or type filters."
         }
+      />
+
+      {/* Print Stock Movements Modal */}
+      <PrintStockMovementsModal
+        isOpen={isPrintOpen}
+        onClose={() => setIsPrintOpen(false)}
+        movements={movementsList}
+        filters={{
+          startDate,
+          endDate,
+          search,
+          movementType:
+            movementTypeFilter !== "ALL" ? movementTypeFilter : undefined,
+          vendorName:
+            selectedVendorId !== "all"
+              ? vendors.find((v) => String(v.id) === selectedVendorId)?.name
+              : undefined,
+        }}
       />
     </div>
   );

@@ -158,12 +158,18 @@ button:disabled {
   }
 
   #printable-bill,
-  #printable-bill * {
+  #printable-bill *,
+  #printable-report,
+  #printable-report *,
+  .printable-area,
+  .printable-area * {
     visibility: visible;
   }
 
-  #printable-bill {
-    position: fixed;
+  #printable-bill,
+  #printable-report,
+  .printable-area {
+    position: absolute;
     left: 0;
     top: 0;
     width: 100%;

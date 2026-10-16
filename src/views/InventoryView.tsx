@@ -13,7 +13,7 @@
  */
 import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Plus, Boxes, Building2, Table2 } from "lucide-react";
+import { Plus, Boxes, Building2, Table2, Printer } from "lucide-react";
 import { Product, StockMovement, Vendor } from "../types/index.ts";
 import {
   getAllProducts,
@@ -34,6 +34,7 @@ import { Select } from "../components/common/Select.tsx";
 import { Input } from "../components/common/Input.tsx";
 import { NewProductForm } from "../components/forms/NewProductForm.tsx";
 import { BulkProductModal } from "./BulkProductModal.tsx";
+import { PrintStockLedgerModal } from "../components/common/PrintStockLedgerModal.tsx";
 import { DatePreset } from "../lib/utils/dateFilters.ts";
 import { useToast } from "../context/ToastContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
@@ -109,6 +110,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [selectedMovements, setSelectedMovements] = useState<Product | null>(
     activeMovementsProduct || null,
   );
+
+  // Stock Ledger Print Modals State
+  const [isPrintCatalogLedgerOpen, setIsPrintCatalogLedgerOpen] = useState(false);
+  const [isPrintItemLedgerOpen, setIsPrintItemLedgerOpen] = useState(false);
 
   // Restock Form
   const [restockQty, setRestockQty] = useState("10");
@@ -588,6 +593,14 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => setIsPrintCatalogLedgerOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
+            >
+              <Printer className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{isNepali ? "खाता प्रिन्ट" : "Print Ledger"}</span>
+            </button>
+            <button
+              type="button"
               onClick={handleOpenCreate}
               className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
             >
@@ -995,7 +1008,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             </table>
           </div>
 
-          <div className="pt-3 flex justify-end">
+          <div className="pt-3 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setIsPrintItemLedgerOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow-xs transition-colors cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>{isNepali ? "चलान खाता प्रिन्ट" : "Print Ledger"}</span>
+            </button>
             <button
               onClick={() => {
                 setSelectedMovements(null);
@@ -1009,6 +1030,31 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </div>
         </div>
       </Modal>
+
+      {/* ==================== MODAL: PRINT CATALOG STOCK LEDGER ==================== */}
+      <PrintStockLedgerModal
+        isOpen={isPrintCatalogLedgerOpen}
+        onClose={() => setIsPrintCatalogLedgerOpen(false)}
+        currencySymbol={currencySymbol}
+        products={filteredProducts}
+        lowStockThreshold={lowStockThreshold}
+        filterLabel={
+          stockStatusFilter !== "all"
+            ? `Status: ${stockStatusFilter}`
+            : undefined
+        }
+      />
+
+      {/* ==================== MODAL: PRINT SINGLE ITEM STOCK LEDGER ==================== */}
+      {selectedMovements && (
+        <PrintStockLedgerModal
+          isOpen={isPrintItemLedgerOpen}
+          onClose={() => setIsPrintItemLedgerOpen(false)}
+          currencySymbol={currencySymbol}
+          product={selectedMovements}
+          movements={movementsList}
+        />
+      )}
 
       {/* ==================== MODAL: BULK CREATE PRODUCTS (TABLE) ==================== */}
       <BulkProductModal
