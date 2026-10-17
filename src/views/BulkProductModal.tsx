@@ -5,13 +5,12 @@ import {
   Copy,
   CheckCircle2,
   AlertCircle,
-  Sparkles,
   AlertTriangle,
 } from "lucide-react";
 import { Modal } from "../components/common/Modal.tsx";
 import { Select } from "../components/common/Select.tsx";
 import { Product } from "../types/index.ts";
-import { toMinorUnits, formatCurrency } from "../lib/utils/format.ts";
+import { toMinorUnits } from "../lib/utils/format.ts";
 import {
   getAllProducts,
   createProductsBatch,
@@ -58,7 +57,7 @@ const createEmptyRow = (
   costPrice: "",
   sellingPrice: "",
   initialStock: "0",
-  minStockAlert: "",
+  minStockAlert: "0",
 });
 
 export const BulkProductModal: React.FC<BulkProductModalProps> = ({
@@ -413,8 +412,6 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
     }
   };
 
-
-
   // Real-time calculation of overall state
   const invalidRowsCount = Object.keys(rowErrors).length;
   const validRows = rows.filter((r) => {
@@ -425,12 +422,6 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
     );
     return Object.keys(errs).length === 0;
   });
-
-  const totalStockValuation = validRows.reduce((acc, r) => {
-    const qty = parseInt(r.initialStock, 10) || 0;
-    const cost = parseFloat(r.costPrice) || 0;
-    return acc + Math.max(0, qty) * Math.max(0, cost);
-  }, 0);
 
   // Submit and save all valid products
   const handleSaveAll = async () => {
@@ -536,7 +527,7 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        title={t("prod_bulk_title", "Add Multiple Products (Table Mode)")}
+        title={t("prod_bulk_title", "Add Multiple Products")}
         subtitle={t(
           "prod_bulk_subtitle",
           "Rapidly enter products in spreadsheet format or paste from Excel / Google Sheets",
@@ -544,57 +535,6 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
         maxWidth="full"
       >
         <div className="space-y-4">
-          {/* Action Toolbar */}
-          <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2 border-b border-neutral-800">
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Add Another Product with validation button */}
-              <button
-                type="button"
-                onClick={handleAddAnotherProduct}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors cursor-pointer"
-                title="Validate current row and add another product"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>{t("prod_bulk_add_another", "Add Another Product")}</span>
-              </button>
-            </div>
-
-            {/* Live Status Indicators */}
-            <div className="flex items-center gap-4 text-xs font-mono">
-              <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>
-                  {validRows.length}{" "}
-                  {t("prod_bulk_ready_count", "Ready to save")}
-                </span>
-              </span>
-              {invalidRowsCount > 0 && (
-                <span className="flex items-center gap-1.5 text-rose-400 font-medium">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>
-                    {invalidRowsCount}{" "}
-                    {t("prod_bulk_incomplete_count", "Incomplete rows")}
-                  </span>
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Validation Guidance Hint */}
-          <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-lg px-3 py-2 text-xs flex items-center justify-between gap-2 text-neutral-400">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>
-                {isNepali
-                  ? "नयाँ सामान थप्नका लागि नाम, लागत र बिक्री मूल्य अनिवार्य छन्। फारम पूरा गरेपछि 'अर्को सामान थप्नुहोस्' वा 'Enter' थिच्नुहोस्।"
-                  : "Product Name, Cost Price, and Selling Price are required. Press 'Add Another Product' or 'Enter' on the row to validate and proceed."}
-              </span>
-            </div>
-            <span className="text-[11px] font-mono text-neutral-500 shrink-0 hidden sm:inline">
-              Enter = Validate & Next Row
-            </span>
-          </div>
-
           {/* Interactive Table */}
           <div
             ref={tableContainerRef}
@@ -618,15 +558,17 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
                     {t("prod_cost_price", "Cost Price")} ({currencySymbol}){" "}
                     <span className="text-rose-400">*</span>
                   </th>
-                  <th className="py-2.5 px-3 w-36 text-right">
+                  <th className="py-2.5 px-3 w-40 text-right">
                     {t("prod_selling_price", "Selling Price")} ({currencySymbol}
                     ) <span className="text-rose-400">*</span>
                   </th>
                   <th className="py-2.5 px-3 w-28 text-right">
-                    {t("prod_initial_stock", "Stock Qty")}
+                    {/* {t("prod_initial_stock", "Stock Qty")} */}
+                    OSQ
                   </th>
                   <th className="py-2.5 px-3 w-28 text-right">
-                    {t("prod_min_alert", "Min Alert")}
+                    {/* {t("prod_min_alert", "Min Alert")} */}
+                    MAT
                   </th>
                   <th className="py-2.5 px-3 text-center w-20">Actions</th>
                 </tr>
@@ -988,77 +930,89 @@ export const BulkProductModal: React.FC<BulkProductModalProps> = ({
           </div>
 
           {/* Bottom Summary & Actions Footer */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-3 border-t border-neutral-800 bg-neutral-900/60 p-4 rounded-xl">
-            <div className="flex items-center gap-6 text-xs text-neutral-300 flex-wrap">
-              <div>
-                <span className="text-neutral-500">
-                  {isNepali ? "कुल सामान:" : "Total Products:"}
-                </span>{" "}
-                <span className="font-mono font-semibold text-neutral-100">
-                  {rows.length}
-                </span>
-              </div>
-              <div>
-                <span className="text-neutral-500">
-                  {isNepali ? "सेभ गर्न तयार:" : "Valid Ready:"}
-                </span>{" "}
-                <span className="font-mono font-semibold text-emerald-400">
-                  {validRows.length}
-                </span>
-              </div>
-              {invalidRowsCount > 0 && (
+          <div className="pt-3 border-t border-neutral-800 bg-neutral-900/60 py-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <button
+                type="button"
+                onClick={handleAddAnotherProduct}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors cursor-pointer"
+                title="Validate current row and add another product"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{t("prod_bulk_add_another", "Add Another Product")}</span>
+              </button>
+              <div className="flex items-center gap-6 text-xs text-neutral-300 flex-wrap">
                 <div>
                   <span className="text-neutral-500">
-                    {isNepali ? "त्रुटि भएका:" : "With Errors:"}
+                    {isNepali ? "कुल सामान:" : "Total Products:"}
                   </span>{" "}
-                  <span className="font-mono font-semibold text-rose-400">
-                    {invalidRowsCount}
+                  <span className="font-mono font-semibold text-neutral-100">
+                    {rows.length}
                   </span>
                 </div>
-              )}
-              <div>
-                <span className="text-neutral-500">
-                  {t("prod_bulk_total_value", "Estimated Stock Value")}:
-                </span>{" "}
-                <span className="font-mono font-bold text-neutral-100">
-                  {formatCurrency(
-                    toMinorUnits(totalStockValuation.toString()),
-                    currencySymbol,
-                  )}
-                </span>
+                <div>
+                  <span className="text-neutral-500">
+                    {isNepali ? "सेभ गर्न तयार:" : "Valid Ready:"}
+                  </span>{" "}
+                  <span className="font-mono font-semibold text-emerald-400">
+                    {validRows.length}
+                  </span>
+                </div>
+                {invalidRowsCount > 0 && (
+                  <div>
+                    <span className="text-neutral-500">
+                      {isNepali ? "त्रुटि भएका:" : "With Errors:"}
+                    </span>{" "}
+                    <span className="font-mono font-semibold text-rose-400">
+                      {invalidRowsCount}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <span className="text-neutral-500">OSQ:</span>{" "}
+                  <span className="font-mono font-semibold text-neutral-100">
+                    Opening Stock Quantity
+                  </span>
+                </div>
+                <div>
+                  <span className="text-neutral-500">MAT:</span>{" "}
+                  <span className="font-mono font-semibold text-neutral-100">
+                    Minimum Alert Threshold
+                  </span>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={isSubmitting}
-                className="px-4 py-2 text-xs font-semibold text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded-lg transition-colors cursor-pointer"
-              >
-                {t("action_cancel", "Cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveAll}
-                disabled={isSubmitting || validRows.length === 0}
-                className={`flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white rounded-lg shadow-sm transition-all cursor-pointer ${
-                  validRows.length === 0 || isSubmitting
-                    ? "bg-neutral-800 text-neutral-500 cursor-not-allowed"
-                    : "bg-emerald-600 hover:bg-emerald-500"
-                }`}
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>
-                  {isSubmitting
-                    ? isNepali
-                      ? "सेभ गरिँदैछ..."
-                      : "Saving..."
-                    : isNepali
-                      ? `${validRows.length} सामानहरू सेभ गर्नुहोस्`
-                      : `Save ${validRows.length} Products`}
-                </span>
-              </button>
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-xs font-semibold text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded-lg transition-colors cursor-pointer"
+                >
+                  {t("action_cancel", "Cancel")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAll}
+                  disabled={isSubmitting || validRows.length === 0}
+                  className={`flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white rounded-lg shadow-sm transition-all cursor-pointer ${
+                    validRows.length === 0 || isSubmitting
+                      ? "bg-neutral-800 text-neutral-500 cursor-not-allowed"
+                      : "bg-emerald-600 hover:bg-emerald-500"
+                  }`}
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>
+                    {isSubmitting
+                      ? isNepali
+                        ? "सेभ गरिँदैछ..."
+                        : "Saving..."
+                      : isNepali
+                        ? `${validRows.length} सामानहरू सेभ गर्नुहोस्`
+                        : `Save ${validRows.length} Products`}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -148,7 +148,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     prod_unit_short: "Unit",
     prod_unit_placeholder: "e.g. pcs, kg, ltr, box",
     prod_cost_price: "Cost Price",
-    prod_selling_price: "Default Selling",
+    prod_selling_price: "Selling Price",
     prod_current_stock: "Current Stock",
     prod_min_alert: "Minimum Alert Threshold",
     prod_min_alert_hint:
@@ -164,9 +164,8 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     prod_created_success: "Product created successfully",
     prod_updated_success: "Product updated successfully",
     prod_deleted_success: "Product deleted",
-    prod_bulk_title: "Add Multiple Products (Table Mode)",
-    prod_bulk_subtitle:
-      "Rapidly enter multiple products in spreadsheet format",
+    prod_bulk_title: "Add Multiple Products",
+    prod_bulk_subtitle: "Rapidly enter multiple products in spreadsheet format",
     prod_bulk_add_row: "Add Row",
     prod_bulk_add_5_rows: "Add 5 Rows",
     prod_bulk_paste: "Paste from Spreadsheet",
@@ -339,8 +338,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     dev_service_printer:
       "Thermal Receipt & 58mm/80mm POS Printer Configuration",
     dev_service_database: "SQLite Database Maintenance, Backup & Recovery",
-    dev_service_hardware:
-      "Cash Drawer & Peripheral Integration",
+    dev_service_hardware: "Cash Drawer & Peripheral Integration",
     dev_service_custom:
       "Custom Business Invoicing, VAT Compliance & Software Updates",
     dev_diagnostics_title: "Live System Diagnostics",
@@ -747,11 +745,9 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
       "आइतबार – शनिबार: बिहान ७:०० – साँझ १०:०० (POS आपतकालीन २४/७)",
     dev_website_label: "आधिकारिक पोर्टल तथा मद्दत",
     dev_services_title: "प्राविधिक सहयोगका सेवाहरू",
-    dev_service_printer:
-      "थर्मल बिल प्रिन्टर (५८/८०mm) सेटअप",
+    dev_service_printer: "थर्मल बिल प्रिन्टर (५८/८०mm) सेटअप",
     dev_service_database: "SQLite डाटाबेस मर्मत, ब्याकअप तथा रिकभरी",
-    dev_service_hardware:
-      "क्यास ड्रअर तथा हार्डवेयर जोड्ने सहायता",
+    dev_service_hardware: "क्यास ड्रअर तथा हार्डवेयर जोड्ने सहायता",
     dev_service_custom: "अनुकूलित बिलिङ, भ्याट नियम पालना र नयाँ सुविधा थप",
     dev_diagnostics_title: "प्रत्यक्ष प्रणाली विवरण (System Diagnostics)",
     dev_diagnostics_desc:

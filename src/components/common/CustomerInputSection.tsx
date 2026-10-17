@@ -249,10 +249,10 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
                           </div>
                         </div>
 
-                        <span className="shrink-0 text-[10px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        {/* <span className="shrink-0 text-[10px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
                           <Check className="w-2.5 h-2.5" />
                           <span>{isNepali ? "अवस्थित" : "Found"}</span>
-                        </span>
+                        </span> */}
                       </button>
                     ))
                   : null}
@@ -308,7 +308,8 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
                 <User className="w-3.5 h-3.5 text-sky-400 shrink-0" />
               )}
               <span className="truncate max-w-[150px] font-semibold text-neutral-100 capitalize">
-                {capitalizeWords(value.name) || (isNepali ? "अनाम ग्राहक" : "Customer")}
+                {capitalizeWords(value.name) ||
+                  (isNepali ? "अनाम ग्राहक" : "Customer")}
               </span>
               {isExistingCustomer ? (
                 <span className="text-[10px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded shrink-0">

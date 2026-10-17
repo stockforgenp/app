@@ -647,19 +647,18 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const totalPayableOverall = calculations.grandTotal + customerPreviousDue;
   const settlePreviousDue =
     customerPreviousDue > 0 && effectivePaidAmount > calculations.grandTotal
-      ? Math.min(effectivePaidAmount - calculations.grandTotal, customerPreviousDue)
+      ? Math.min(
+          effectivePaidAmount - calculations.grandTotal,
+          customerPreviousDue,
+        )
       : 0;
   const remainingPreviousDue = customerPreviousDue - settlePreviousDue;
   const currentBillDue = Math.max(
     0,
     calculations.grandTotal - effectivePaidAmount,
   );
-  const changeToReturn = Math.max(
-    0,
-    effectivePaidAmount - totalPayableOverall,
-  );
+  const changeToReturn = Math.max(0, effectivePaidAmount - totalPayableOverall);
   const totalCustomerDue = currentBillDue + remainingPreviousDue;
-
 
   const handleCompleteSale = () => {
     if (cart.length === 0) {
@@ -1659,14 +1658,21 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             type="button"
                             onClick={() => {
                               setIsCustomPaid(true);
-                              setPaidAmountInput(fromMinorUnits(totalPayableOverall).toString());
+                              setPaidAmountInput(
+                                fromMinorUnits(totalPayableOverall).toString(),
+                              );
                             }}
                             className={`text-[10px] px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer border ${
-                              isCustomPaid && effectivePaidAmount === totalPayableOverall
+                              isCustomPaid &&
+                              effectivePaidAmount === totalPayableOverall
                                 ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
                                 : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
                             }`}
-                            title={isNepali ? "साविक बक्यौता सहित सबै चुक्ता" : "Settle current bill + all previous due"}
+                            title={
+                              isNepali
+                                ? "साविक बक्यौता सहित सबै चुक्ता"
+                                : "Settle current bill + all previous due"
+                            }
                           >
                             {isNepali ? "सबै चुक्ता" : "Settle All"}
                           </button>
