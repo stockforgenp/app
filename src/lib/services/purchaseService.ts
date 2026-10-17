@@ -19,6 +19,8 @@ import {
   getVendorById,
   updateVendor,
   getVendorPreviousDueForPurchase,
+  getVendorTotalDue,
+  recordVendorPayment,
 } from './vendorService.ts';
 import { capitalizeWords } from '../utils/format.ts';
 import { getSettings } from './settingsService.ts';
@@ -165,11 +167,29 @@ export function processPurchase(
     const nextId = countRes?.next_id ?? 1;
     const billNumber = `PUR-${String(nextId).padStart(5, '0')}`;
 
-    // 4. Calculate paid amount and due amount
-    const paidAmount = vendorInfo?.paidAmount !== undefined
+    // 4. Calculate paid amount and due amount for this specific purchase
+    const totalPaidInput = vendorInfo?.paidAmount !== undefined
       ? Math.max(0, Math.floor(vendorInfo.paidAmount))
       : grandTotal;
-    const dueAmount = Math.max(0, grandTotal - paidAmount);
+
+    const thisPurchasePaid = Math.min(totalPaidInput, grandTotal);
+    const thisPurchaseDue = Math.max(0, grandTotal - totalPaidInput);
+
+    // If paid more than this purchase total and vendor has previous outstanding due, settle previous dues
+    if (resolvedVendorId && totalPaidInput > grandTotal) {
+      const excess = totalPaidInput - grandTotal;
+      const prevDue = getVendorTotalDue(resolvedVendorId);
+      if (prevDue > 0) {
+        const settleAmount = Math.min(excess, prevDue);
+        recordVendorPayment({
+          vendorId: resolvedVendorId,
+          amount: settleAmount,
+          paymentMethod: 'Cash',
+          paymentDate: transactionCreatedAt,
+          note: `Settled with purchase ${billNumber}`,
+        });
+      }
+    }
 
     // 5. Insert into purchases table
     run(
@@ -194,12 +214,13 @@ export function processPurchase(
         vatAmount,
         grandTotal,
         grandTotal,
-        paidAmount,
-        dueAmount,
+        thisPurchasePaid,
+        thisPurchaseDue,
         vendorInfo?.notes?.trim() || null,
         transactionCreatedAt,
       ]
     );
+
 
     const purchaseIdRes = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
     const purchaseId = purchaseIdRes?.id ?? nextId;

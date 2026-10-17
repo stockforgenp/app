@@ -24,6 +24,8 @@ import { formatCurrency, formatDate } from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { PrintPurchaseBillModal } from "../components/common/PrintPurchaseBillModal.tsx";
+import { StatementModal } from "../components/common/StatementModal.tsx";
+import { SettleBalanceModal } from "../components/common/SettleBalanceModal.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
 import { getVendorColumns } from "../columns/index.ts";
 import { useToast } from "../context/ToastContext.tsx";
@@ -62,6 +64,11 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
   const [printPurchaseId, setPrintPurchaseId] = useState<number | null>(null);
   const [isPrintPurchaseModalOpen, setIsPrintPurchaseModalOpen] =
     useState(false);
+
+  // Statement & Settle Dues Modals
+  const [statementVendor, setStatementVendor] = useState<Vendor | null>(null);
+  const [settleVendor, setSettleVendor] = useState<Vendor | null>(null);
+
 
   const loadVendors = useCallback(() => {
     try {
@@ -189,6 +196,8 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
         onCopyPan: handleCopyPan,
         onViewProducts: handleViewProducts,
         onViewPurchases: handleViewPurchases,
+        onViewStatement: (v) => setStatementVendor(v),
+        onSettleDue: (v) => setSettleVendor(v),
         onEdit: handleOpenEdit,
         onDelete: (v) => setDeletingVendor(v),
         onCopyPhone: (phone) => {
@@ -198,6 +207,7 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
       }),
     [isNepali, currencySymbol, copiedPan, formatNumberByLang, showToast],
   );
+
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150 p-8">
@@ -598,16 +608,70 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
             )}
           </div>
 
-          <div className="flex justify-end pt-2">
+          <div className="flex items-center justify-between pt-2 border-t border-neutral-800">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const v = inspectPurchasesVendor;
+                  setInspectPurchasesVendor(null);
+                  setStatementVendor(v);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-sky-400 rounded-lg text-xs font-medium cursor-pointer transition-colors"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>{isNepali ? "पूर्ण खाता विवरण (Statement)" : "Full Statement"}</span>
+              </button>
+              {(inspectPurchasesVendor?.total_due || 0) > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const v = inspectPurchasesVendor;
+                    setInspectPurchasesVendor(null);
+                    setSettleVendor(v);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                >
+                  <DollarSign className="w-3.5 h-3.5" />
+                  <span>{isNepali ? "हिसाब चुक्ता गर्नुहोस्" : "Settle Due"}</span>
+                </button>
+              )}
+            </div>
             <button
               onClick={() => setInspectPurchasesVendor(null)}
-              className="px-4 py-2 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors cursor-pointer"
+              className="px-4 py-1.5 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors cursor-pointer"
             >
               {isNepali ? "बन्द गर्नुहोस्" : "Close"}
             </button>
           </div>
         </div>
       </Modal>
+
+      {/* Vendor Statement of Account Modal */}
+      {statementVendor && (
+        <StatementModal
+          isOpen={statementVendor !== null}
+          onClose={() => setStatementVendor(null)}
+          partyType="vendor"
+          partyId={statementVendor.id}
+          currencySymbol={currencySymbol}
+        />
+      )}
+
+      {/* Settle Due Balance Modal */}
+      {settleVendor && (
+        <SettleBalanceModal
+          isOpen={settleVendor !== null}
+          onClose={() => setSettleVendor(null)}
+          partyType="vendor"
+          partyId={settleVendor.id}
+          partyName={settleVendor.name}
+          partyPhone={settleVendor.phone}
+          currentDue={settleVendor.total_due || 0}
+          currencySymbol={currencySymbol}
+          onSuccess={loadVendors}
+        />
+      )}
 
       {/* Print Purchase Bill Modal */}
       <PrintPurchaseBillModal
@@ -633,4 +697,5 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
       />
     </div>
   );
+
 };

@@ -195,6 +195,36 @@ CREATE TABLE IF NOT EXISTS salary_payments (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS customer_payments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  sale_id INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+  amount INTEGER NOT NULL,
+  payment_method TEXT DEFAULT 'Cash',
+  payment_date TEXT NOT NULL,
+  receipt_number TEXT,
+  note TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS vendor_payments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  vendor_id INTEGER NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
+  purchase_id INTEGER REFERENCES purchases(id) ON DELETE SET NULL,
+  amount INTEGER NOT NULL,
+  payment_method TEXT DEFAULT 'Cash',
+  payment_date TEXT NOT NULL,
+  receipt_number TEXT,
+  note TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_customer_payments_customer_id ON customer_payments(customer_id);
+CREATE INDEX IF NOT EXISTS idx_customer_payments_sale_id ON customer_payments(sale_id);
+CREATE INDEX IF NOT EXISTS idx_customer_payments_date ON customer_payments(payment_date);
+CREATE INDEX IF NOT EXISTS idx_vendor_payments_vendor_id ON vendor_payments(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_vendor_payments_purchase_id ON vendor_payments(purchase_id);
+CREATE INDEX IF NOT EXISTS idx_vendor_payments_date ON vendor_payments(payment_date);
 CREATE INDEX IF NOT EXISTS idx_sale_items_sale_id ON sale_items(sale_id);
 CREATE INDEX IF NOT EXISTS idx_sale_items_product_id ON sale_items(product_id);
 CREATE INDEX IF NOT EXISTS idx_stock_movements_product_id ON stock_movements(product_id);

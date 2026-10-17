@@ -12,6 +12,8 @@ import {
   getCustomerById,
   updateCustomer,
   getCustomerPreviousDueForSale,
+  getCustomerTotalDue,
+  recordCustomerPayment,
 } from './customerService.ts';
 import { capitalizeWords } from '../utils/format.ts';
 
@@ -202,11 +204,29 @@ export function processSale(
       }
     }
 
-    // 1. Calculate paid amount and due amount
-    const paidAmount = customerInfo?.paidAmount !== undefined
+    // 1. Calculate paid amount and due amount for this specific sale
+    const totalPaidInput = customerInfo?.paidAmount !== undefined
       ? Math.max(0, Math.floor(customerInfo.paidAmount))
       : grandTotal;
-    const dueAmount = Math.max(0, grandTotal - paidAmount);
+
+    const thisSalePaid = Math.min(totalPaidInput, grandTotal);
+    const thisSaleDue = Math.max(0, grandTotal - totalPaidInput);
+
+    // If customer paid more than this sale total and has previous outstanding due, settle previous dues
+    if (resolvedCustomerId && totalPaidInput > grandTotal) {
+      const excess = totalPaidInput - grandTotal;
+      const prevDue = getCustomerTotalDue(resolvedCustomerId);
+      if (prevDue > 0) {
+        const settleAmount = Math.min(excess, prevDue);
+        recordCustomerPayment({
+          customerId: resolvedCustomerId,
+          amount: settleAmount,
+          paymentMethod: 'Cash',
+          paymentDate: transactionCreatedAt,
+          note: `Settled with sale ${billNumber}`,
+        });
+      }
+    }
 
     // 2. Insert Sales Record (including customer reference and details)
     run(
@@ -230,11 +250,12 @@ export function processSale(
         vatAmount,
         grandTotal,
         grandTotal,
-        paidAmount,
-        dueAmount,
+        thisSalePaid,
+        thisSaleDue,
         transactionCreatedAt,
       ]
     );
+
 
     const saleIdRes = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
     const saleId = saleIdRes?.id ?? 0;

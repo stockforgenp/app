@@ -25,6 +25,8 @@ import { formatCurrency, formatDateTime } from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { PrintBillModal } from "../components/common/PrintBillModal.tsx";
+import { StatementModal } from "../components/common/StatementModal.tsx";
+import { SettleBalanceModal } from "../components/common/SettleBalanceModal.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
 import { getCustomerColumns } from "../columns/index.ts";
 import { useToast } from "../context/ToastContext.tsx";
@@ -61,6 +63,12 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
   // Print Bill Modal from history inspect
   const [printSaleId, setPrintSaleId] = useState<number | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
+  // Statement & Settle Dues Modals
+  const [statementCustomer, setStatementCustomer] = useState<Customer | null>(
+    null,
+  );
+  const [settleCustomer, setSettleCustomer] = useState<Customer | null>(null);
 
   const loadCustomers = useCallback(() => {
     try {
@@ -169,6 +177,8 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
         formatNumberByLang,
         onCopyPan: handleCopyPan,
         onViewSales: handleViewSales,
+        onViewStatement: (c) => setStatementCustomer(c),
+        onSettleDue: (c) => setSettleCustomer(c),
         onEdit: handleOpenEdit,
         onDelete: (c) => setDeletingCustomer(c),
         onCopyPhone: (phone) => {
@@ -490,17 +500,75 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
             </div>
           )}
 
-          <div className="flex justify-end pt-2">
+          <div className="flex items-center justify-between pt-2 border-t border-neutral-800">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const c = inspectCustomer;
+                  setInspectCustomer(null);
+                  setStatementCustomer(c);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-sky-400 rounded-lg text-xs font-medium cursor-pointer transition-colors"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>
+                  {isNepali ? "पूर्ण खाता विवरण (Statement)" : "Full Statement"}
+                </span>
+              </button>
+              {(inspectCustomer?.total_due || 0) > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const c = inspectCustomer;
+                    setInspectCustomer(null);
+                    setSettleCustomer(c);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                >
+                  <DollarSign className="w-3.5 h-3.5" />
+                  <span>
+                    {isNepali ? "हिसाब चुक्ता गर्नुहोस्" : "Settle Due"}
+                  </span>
+                </button>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => setInspectCustomer(null)}
-              className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded-lg text-xs font-medium cursor-pointer"
+              className="px-4 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded-lg text-xs font-medium cursor-pointer transition-colors"
             >
               {isNepali ? "बन्द गर्नुहोस्" : "Close"}
             </button>
           </div>
         </div>
       </Modal>
+
+      {/* Statement of Account Modal */}
+      {statementCustomer && (
+        <StatementModal
+          isOpen={statementCustomer !== null}
+          onClose={() => setStatementCustomer(null)}
+          partyType="customer"
+          partyId={statementCustomer.id}
+          currencySymbol={currencySymbol}
+        />
+      )}
+
+      {/* Settle Due Balance Modal */}
+      {settleCustomer && (
+        <SettleBalanceModal
+          isOpen={settleCustomer !== null}
+          onClose={() => setSettleCustomer(null)}
+          partyType="customer"
+          partyId={settleCustomer.id}
+          partyName={settleCustomer.name}
+          partyPhone={settleCustomer.phone}
+          currentDue={settleCustomer.total_due || 0}
+          currencySymbol={currencySymbol}
+          onSuccess={loadCustomers}
+        />
+      )}
 
       {/* Print Bill Modal */}
       <PrintBillModal

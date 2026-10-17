@@ -11,7 +11,10 @@ import {
   Edit2,
   Trash2,
   Eye,
+  FileText,
+  DollarSign,
 } from "lucide-react";
+
 import { Column } from "../components/common/DataTable.tsx";
 import { Customer } from "../types/index.ts";
 import { ActionMenu } from "../components/common/ActionMenu.tsx";
@@ -25,9 +28,12 @@ export interface CustomerColumnsOptions {
   onEdit: (customer: Customer) => void;
   onDelete: (customer: Customer) => void;
   onViewSales?: (customer: Customer) => void;
+  onViewStatement?: (customer: Customer) => void;
+  onSettleDue?: (customer: Customer) => void;
   onCopyPan: (pan: string) => void;
   onCopyPhone?: (phone: string) => void;
 }
+
 
 export function getCustomerColumns(
   options: CustomerColumnsOptions,
@@ -40,6 +46,8 @@ export function getCustomerColumns(
     onEdit,
     onDelete,
     onViewSales,
+    onViewStatement,
+    onSettleDue,
     onCopyPan,
     onCopyPhone,
   } = options;
@@ -177,7 +185,17 @@ export function getCustomerColumns(
       align: "right",
       accessor: (c: Customer) => {
         const due = c.total_due || 0;
-        return (
+        return due > 0 && onSettleDue ? (
+          <button
+            type="button"
+            onClick={() => onSettleDue(c)}
+            className="inline-flex items-center gap-1 font-mono text-xs tabular-nums text-rose-400 font-bold hover:underline cursor-pointer"
+            title={isNepali ? "हिसाब चुक्ता गर्नुहोस्" : "Click to settle due balance"}
+          >
+            <span>{formatCurrency(due, currencySymbol)}</span>
+            <DollarSign className="w-3 h-3 text-emerald-400" />
+          </button>
+        ) : (
           <span
             className={`font-mono text-xs tabular-nums ${
               due > 0 ? "text-rose-400 font-medium" : "text-neutral-500"
@@ -197,16 +215,37 @@ export function getCustomerColumns(
       accessor: (c: Customer) => (
         <ActionMenu
           items={[
+            onViewStatement
+              ? {
+                  label: isNepali
+                    ? "खाता स्टेटमेन्ट (Statement)"
+                    : "Statement / Ledger",
+                  icon: FileText,
+                  color: "sky",
+                  onClick: () => onViewStatement(c),
+                }
+              : null,
+            (c.total_due || 0) > 0 && onSettleDue
+              ? {
+                  label: isNepali
+                    ? "हिसाब चुक्ता (Settle Due)"
+                    : "Settle Due Balance",
+                  icon: DollarSign,
+                  color: "emerald",
+                  onClick: () => onSettleDue(c),
+                }
+              : null,
             onViewSales
               ? {
                   label: isNepali
                     ? "कारोबार इतिहास हेर्नुहोस्"
                     : "View Purchases",
                   icon: Eye,
-                  color: "sky",
+                  color: "default",
                   onClick: () => onViewSales(c),
                 }
               : null,
+
             {
               label: isNepali ? "सम्पादन गर्नुहोस्" : "Edit Customer",
               icon: Edit2,

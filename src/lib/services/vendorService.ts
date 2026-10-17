@@ -8,6 +8,9 @@ import {
   Product,
   StockMovement,
   Purchase,
+  VendorPayment,
+  RecordVendorPaymentInput,
+  StatementRow,
 } from "../../types/index.ts";
 import { query, queryOne, run, transaction } from "../db/sqliteEngine.ts";
 import { capitalizeWords } from "../utils/format.ts";
@@ -376,3 +379,208 @@ export function getVendorCount(): number {
   const row = queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM vendors`);
   return row?.count ?? 0;
 }
+
+/**
+ * Records a payment made to a vendor to settle outstanding bills (FIFO or specific purchase).
+ */
+export function recordVendorPayment(input: RecordVendorPaymentInput): VendorPayment {
+  const { vendorId, amount, paymentMethod = 'Cash', paymentDate, note, purchaseId } = input;
+
+  if (!vendorId) {
+    throw new Error('Vendor ID is required to record payment');
+  }
+  if (!amount || amount <= 0) {
+    throw new Error('Payment amount must be greater than zero');
+  }
+
+  const vendor = getVendorById(vendorId);
+  if (!vendor) {
+    throw new Error('Vendor not found');
+  }
+
+  const now = new Date().toISOString();
+  const dateToRecord = paymentDate ? new Date(paymentDate).toISOString() : now;
+
+  return transaction(() => {
+    // Generate sequential receipt/voucher number
+    const lastPay = queryOne<{ id: number }>('SELECT id FROM vendor_payments ORDER BY id DESC LIMIT 1');
+    const nextPayId = (lastPay?.id ?? 0) + 1;
+    const receiptNumber = `VCH-V-${nextPayId.toString().padStart(5, '0')}`;
+
+    // 1. Insert vendor payment record
+    run(
+      `INSERT INTO vendor_payments (
+        vendor_id, purchase_id, amount, payment_method, payment_date, receipt_number, note, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [vendorId, purchaseId ?? null, amount, paymentMethod, dateToRecord, receiptNumber, note?.trim() || null, now]
+    );
+
+    let remainingToAllocate = amount;
+
+    // 2. If a specific purchase was targeted, apply to it first
+    if (purchaseId) {
+      const targetPurchase = queryOne<Purchase>(
+        `SELECT * FROM purchases WHERE id = ? AND vendor_id = ? AND (status IS NULL OR status != 'RETURNED')`,
+        [purchaseId, vendorId]
+      );
+      if (targetPurchase && (targetPurchase.due_amount ?? 0) > 0) {
+        const currentDue = targetPurchase.due_amount ?? 0;
+        const currentPaid = targetPurchase.paid_amount ?? (targetPurchase.grand_total ?? targetPurchase.total) - currentDue;
+        const apply = Math.min(remainingToAllocate, currentDue);
+        
+        run(
+          `UPDATE purchases SET paid_amount = ?, due_amount = ? WHERE id = ?`,
+          [currentPaid + apply, currentDue - apply, purchaseId]
+        );
+        remainingToAllocate -= apply;
+      }
+    }
+
+    // 3. Allocate remaining amount FIFO across other unpaid purchases
+    if (remainingToAllocate > 0) {
+      const unpaidPurchases = query<Purchase>(
+        `SELECT * FROM purchases 
+         WHERE vendor_id = ? AND due_amount > 0 AND (status IS NULL OR status != 'RETURNED')
+         ORDER BY created_at ASC, id ASC`,
+        [vendorId]
+      );
+
+      for (const p of unpaidPurchases) {
+        if (remainingToAllocate <= 0) break;
+        if (purchaseId && p.id === purchaseId) continue;
+
+        const currentDue = p.due_amount ?? 0;
+        const currentPaid = p.paid_amount ?? (p.grand_total ?? p.total) - currentDue;
+        const apply = Math.min(remainingToAllocate, currentDue);
+
+        run(
+          `UPDATE purchases SET paid_amount = ?, due_amount = ? WHERE id = ?`,
+          [currentPaid + apply, currentDue - apply, p.id]
+        );
+        remainingToAllocate -= apply;
+      }
+    }
+
+    const created = queryOne<VendorPayment>(
+      `SELECT vp.*, v.name as vendor_name, p.bill_number as purchase_bill_number
+       FROM vendor_payments vp
+       LEFT JOIN vendors v ON vp.vendor_id = v.id
+       LEFT JOIN purchases p ON vp.purchase_id = p.id
+       WHERE vp.id = ?`,
+      [nextPayId]
+    );
+
+    if (!created) {
+      throw new Error('Failed to retrieve recorded vendor payment');
+    }
+
+    return created;
+  });
+}
+
+/**
+ * Returns all payment records made to a vendor.
+ */
+export function getVendorPayments(vendorId: number): VendorPayment[] {
+  return query<VendorPayment>(
+    `SELECT vp.*, v.name as vendor_name, p.bill_number as purchase_bill_number
+     FROM vendor_payments vp
+     LEFT JOIN vendors v ON vp.vendor_id = v.id
+     LEFT JOIN purchases p ON vp.purchase_id = p.id
+     WHERE vp.vendor_id = ?
+     ORDER BY vp.payment_date DESC, vp.id DESC`,
+    [vendorId]
+  );
+}
+
+/**
+ * Builds chronological Statement of Account (Ledger) for a vendor.
+ */
+export function getVendorStatement(vendorId: number): {
+  vendor: Vendor;
+  purchases: Purchase[];
+  payments: VendorPayment[];
+  totalInvoiced: number;
+  totalPaid: number;
+  totalDue: number;
+  rows: StatementRow[];
+} {
+  const vendor = getVendorById(vendorId);
+  if (!vendor) {
+    throw new Error('Vendor not found');
+  }
+
+  const purchases = getVendorPurchases(vendorId);
+  const payments = getVendorPayments(vendorId);
+
+  const activePurchases = purchases.filter((p) => p.status !== 'RETURNED');
+  const totalInvoiced = activePurchases.reduce((acc, p) => acc + (p.grand_total ?? p.total), 0);
+  const totalPaid = activePurchases.reduce((acc, p) => acc + (p.paid_amount ?? p.grand_total ?? p.total), 0);
+  const totalDue = activePurchases.reduce((acc, p) => acc + (p.due_amount ?? 0), 0);
+
+  // Build unified chronological statement rows (oldest first for running balance)
+  const unsortedRows: Omit<StatementRow, 'runningBalance'>[] = [];
+
+  for (const p of purchases) {
+    const isReturned = p.status === 'RETURNED';
+    const billTotal = p.grand_total ?? p.total;
+    const paid = p.paid_amount ?? billTotal;
+    const due = p.due_amount ?? 0;
+
+    unsortedRows.push({
+      id: `purchase-${p.id}`,
+      date: p.created_at,
+      type: isReturned ? 'RETURN' : 'BILL',
+      refNumber: p.bill_number || `PUR-${p.id.toString().padStart(5, '0')}`,
+      description: isReturned ? 'Purchase Return (Voided Bill)' : `Purchase Invoice (${p.item_count || 1} items)`,
+      amount: billTotal,
+      paidAmount: paid,
+      dueAmount: isReturned ? 0 : due,
+      status: p.status || 'COMPLETED',
+    });
+  }
+
+  for (const v of payments) {
+    unsortedRows.push({
+      id: `payment-${v.id}`,
+      date: v.payment_date || v.created_at,
+      type: 'PAYMENT',
+      refNumber: v.receipt_number || `VCH-${v.id.toString().padStart(5, '0')}`,
+      description: v.note ? `Payment to Vendor: ${v.note}` : 'Payment Paid (Balance Settlement)',
+      amount: v.amount,
+      paidAmount: v.amount,
+      dueAmount: 0,
+      paymentMethod: v.payment_method,
+      status: 'PAID',
+    });
+  }
+
+  // Sort chronological ascending (oldest to newest) to calculate running balance
+  unsortedRows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  let runningBalance = 0;
+  const rows: StatementRow[] = unsortedRows.map((r) => {
+    if (r.type === 'BILL') {
+      // Bill increases outstanding due to vendor
+      runningBalance += r.dueAmount;
+    } else if (r.type === 'PAYMENT') {
+      // Payment reduces outstanding balance
+      runningBalance = Math.max(0, runningBalance - r.amount);
+    }
+    return {
+      ...r,
+      runningBalance,
+    };
+  });
+
+  return {
+    vendor,
+    purchases,
+    payments,
+    totalInvoiced,
+    totalPaid,
+    totalDue,
+    rows,
+  };
+}
+

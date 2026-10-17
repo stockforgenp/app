@@ -10,6 +10,8 @@ import {
   Eye,
   Edit2,
   Trash2,
+  FileText,
+  DollarSign,
 } from "lucide-react";
 import { Vendor } from "../types/index.ts";
 import { Column } from "../components/common/DataTable.tsx";
@@ -24,10 +26,13 @@ export interface VendorColumnOptions {
   onCopyPan: (pan: string) => void;
   onViewProducts: (vendor: Vendor) => void;
   onViewPurchases: (vendor: Vendor) => void;
+  onViewStatement?: (vendor: Vendor) => void;
+  onSettleDue?: (vendor: Vendor) => void;
   onEdit: (vendor: Vendor) => void;
   onDelete: (vendor: Vendor) => void;
   onCopyPhone?: (phone: string) => void;
 }
+
 
 export function getVendorColumns(options: VendorColumnOptions): Column<Vendor>[] {
   const {
@@ -38,6 +43,8 @@ export function getVendorColumns(options: VendorColumnOptions): Column<Vendor>[]
     onCopyPan,
     onViewProducts,
     onViewPurchases,
+    onViewStatement,
+    onSettleDue,
     onEdit,
     onDelete,
     onCopyPhone,
@@ -177,7 +184,17 @@ export function getVendorColumns(options: VendorColumnOptions): Column<Vendor>[]
       align: "right",
       accessor: (vendor) => {
         const due = vendor.total_due || 0;
-        return (
+        return due > 0 && onSettleDue ? (
+          <button
+            type="button"
+            onClick={() => onSettleDue(vendor)}
+            className="inline-flex items-center gap-1 font-mono text-xs tabular-nums text-rose-400 font-bold hover:underline cursor-pointer"
+            title={isNepali ? "बक्यौता भुक्तानी गर्नुहोस्" : "Click to settle payable due"}
+          >
+            <span>{formatCurrency(due, currencySymbol)}</span>
+            <DollarSign className="w-3 h-3 text-emerald-400" />
+          </button>
+        ) : (
           <span
             className={`font-mono text-xs tabular-nums ${
               due > 0 ? "text-rose-400 font-medium" : "text-neutral-500"
@@ -197,18 +214,39 @@ export function getVendorColumns(options: VendorColumnOptions): Column<Vendor>[]
       accessor: (vendor) => (
         <ActionMenu
           items={[
-            {
-              label: isNepali ? "सामानहरू हेर्नुहोस्" : "View Products",
-              icon: Eye,
-              color: "amber",
-              onClick: () => onViewProducts(vendor),
-            },
+            onViewStatement
+              ? {
+                  label: isNepali
+                    ? "खाता स्टेटमेन्ट (Statement)"
+                    : "Statement / Ledger",
+                  icon: FileText,
+                  color: "sky",
+                  onClick: () => onViewStatement(vendor),
+                }
+              : null,
+            (vendor.total_due || 0) > 0 && onSettleDue
+              ? {
+                  label: isNepali
+                    ? "हिसाब चुक्ता (Settle Due)"
+                    : "Settle Payable Due",
+                  icon: DollarSign,
+                  color: "emerald",
+                  onClick: () => onSettleDue(vendor),
+                }
+              : null,
             {
               label: isNepali ? "खरिद बिलहरू हेर्नुहोस्" : "Purchase Bills",
               icon: Receipt,
-              color: "emerald",
+              color: "amber",
               onClick: () => onViewPurchases(vendor),
             },
+            {
+              label: isNepali ? "सामानहरू हेर्नुहोस्" : "View Products",
+              icon: Eye,
+              color: "default",
+              onClick: () => onViewProducts(vendor),
+            },
+
             {
               label: isNepali ? "सम्पादन गर्नुहोस्" : "Edit Vendor",
               icon: Edit2,

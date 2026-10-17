@@ -419,13 +419,22 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     return toMinorUnits(parsed);
   }, [isCustomPaid, paidAmountInput, calculations.grandTotal]);
 
-  const currentBillDue = useMemo(() => {
-    return Math.max(0, calculations.grandTotal - effectivePaidAmount);
-  }, [calculations.grandTotal, effectivePaidAmount]);
+  const totalPayableOverall = calculations.grandTotal + vendorPreviousDue;
+  const settlePreviousDue =
+    vendorPreviousDue > 0 && effectivePaidAmount > calculations.grandTotal
+      ? Math.min(effectivePaidAmount - calculations.grandTotal, vendorPreviousDue)
+      : 0;
+  const remainingPreviousDue = vendorPreviousDue - settlePreviousDue;
+  const currentBillDue = Math.max(
+    0,
+    calculations.grandTotal - effectivePaidAmount,
+  );
+  const changeToReturn = Math.max(
+    0,
+    effectivePaidAmount - totalPayableOverall,
+  );
+  const totalVendorDue = currentBillDue + remainingPreviousDue;
 
-  const totalVendorDue = useMemo(() => {
-    return vendorPreviousDue + currentBillDue;
-  }, [vendorPreviousDue, currentBillDue]);
 
   // Execute Purchase Transaction
   const handleCompletePurchase = () => {
@@ -1093,25 +1102,58 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                           {currencySymbol}
                         </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsCustomPaid(false);
-                          setPaidAmountInput("");
-                        }}
-                        className={`text-[10px] px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer border ${
-                          !isCustomPaid
-                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                            : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
-                        }`}
-                      >
-                        {isNepali ? "पूरा भुक्तानी" : "Paid in Full"}
-                      </button>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCustomPaid(false);
+                            setPaidAmountInput("");
+                          }}
+                          className={`text-[10px] px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer border ${
+                            !isCustomPaid
+                              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                              : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
+                          }`}
+                        >
+                          {isNepali ? "खरिद चुक्ता" : "Current Bill"}
+                        </button>
+                        {vendorPreviousDue > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsCustomPaid(true);
+                              setPaidAmountInput(fromMinorUnits(totalPayableOverall).toString());
+                            }}
+                            className={`text-[10px] px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer border ${
+                              isCustomPaid && effectivePaidAmount === totalPayableOverall
+                                ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                                : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
+                            }`}
+                            title={isNepali ? "साविक बक्यौता सहित सबै चुक्ता" : "Settle current bill + all previous vendor due"}
+                          >
+                            {isNepali ? "सबै चुक्ता" : "Settle All"}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
                   {/* Due Breakdown */}
                   <div className="space-y-1 text-xs">
+                    {changeToReturn > 0 && (
+                      <div className="flex items-center justify-between text-emerald-400">
+                        <span>
+                          {isNepali
+                            ? "फिर्ता गर्नुपर्ने रकम"
+                            : "Change to Return"}
+                          :
+                        </span>
+                        <span className="font-mono font-bold">
+                          {formatCurrency(changeToReturn, currencySymbol)}
+                        </span>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between text-neutral-300">
                       <span>
                         {isNepali ? "यस खरिदको बाँकी" : "Current Purchase Due"}:
@@ -1123,6 +1165,20 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                       </span>
                     </div>
 
+                    {settlePreviousDue > 0 && (
+                      <div className="flex items-center justify-between text-emerald-400">
+                        <span>
+                          {isNepali
+                            ? "साविक बक्यौता भुक्तानी (Settled)"
+                            : "Prev. Due Settled"}
+                          :
+                        </span>
+                        <span className="font-mono font-bold">
+                          - {formatCurrency(settlePreviousDue, currencySymbol)}
+                        </span>
+                      </div>
+                    )}
+
                     {vendorPreviousDue > 0 && (
                       <div className="flex items-center justify-between text-amber-400">
                         <span>
@@ -1132,13 +1188,13 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                           :
                         </span>
                         <span className="font-mono font-bold">
-                          {formatCurrency(vendorPreviousDue, currencySymbol)}
+                          {formatCurrency(remainingPreviousDue, currencySymbol)}
                         </span>
                       </div>
                     )}
 
-                    {(vendorPreviousDue > 0 || currentBillDue > 0) && (
-                      <div className="flex items-center justify-between text-neutral-100 font-bold">
+                    {(remainingPreviousDue > 0 || currentBillDue > 0) && (
+                      <div className="flex items-center justify-between text-neutral-100 font-bold border-t border-neutral-800 pt-1 mt-1">
                         <span className="text-xs">
                           {isNepali ? "कुल तिर्न बाँकी" : "Total Payable Due"}:
                         </span>
@@ -1148,6 +1204,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                       </div>
                     )}
                   </div>
+
                 </div>
               )}
 

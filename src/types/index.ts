@@ -504,3 +504,64 @@ export interface CreateCustomerInput {
   address?: string | null;
   notes?: string | null;
 }
+
+export interface CustomerPayment {
+  id: number;
+  customer_id: number;
+  customer_name?: string;
+  sale_id?: number | null;
+  sale_bill_number?: string | null;
+  amount: number; // minor units (paisa)
+  payment_method: string;
+  payment_date: string;
+  receipt_number?: string | null;
+  note?: string | null;
+  created_at: string;
+}
+
+export interface VendorPayment {
+  id: number;
+  vendor_id: number;
+  vendor_name?: string;
+  purchase_id?: number | null;
+  purchase_bill_number?: string | null;
+  amount: number; // minor units (paisa)
+  payment_method: string;
+  payment_date: string;
+  receipt_number?: string | null;
+  note?: string | null;
+  created_at: string;
+}
+
+export interface RecordCustomerPaymentInput {
+  customerId: number;
+  amount: number; // in minor units
+  paymentMethod?: string;
+  paymentDate?: string;
+  note?: string;
+  saleId?: number;
+}
+
+export interface RecordVendorPaymentInput {
+  vendorId: number;
+  amount: number; // in minor units
+  paymentMethod?: string;
+  paymentDate?: string;
+  note?: string;
+  purchaseId?: number;
+}
+
+export interface StatementRow {
+  id: string; // e.g. "bill-10", "pay-4"
+  date: string;
+  type: 'BILL' | 'PAYMENT' | 'RETURN';
+  refNumber: string;
+  description: string;
+  amount: number; // total amount of bill or payment
+  paidAmount: number;
+  dueAmount: number;
+  paymentMethod?: string;
+  status?: string;
+  runningBalance: number;
+}
+

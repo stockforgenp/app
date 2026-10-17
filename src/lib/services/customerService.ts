@@ -2,7 +2,14 @@
  * Customer Management Service
  * Supports customer directory, search autocomplete, auto-fill, and auto-creation during sales.
  */
-import { Customer, CreateCustomerInput, Sale } from '../../types/index.ts';
+import {
+  Customer,
+  CreateCustomerInput,
+  Sale,
+  CustomerPayment,
+  RecordCustomerPaymentInput,
+  StatementRow,
+} from '../../types/index.ts';
 import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
 import { capitalizeWords } from '../utils/format.ts';
 
@@ -335,4 +342,209 @@ export function getCustomerSales(customerId: number): Sale[] {
 export function getCustomerCount(): number {
   const row = queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM customers`);
   return row?.count ?? 0;
+}
+
+/**
+ * Records a customer payment / debt settlement receipt.
+ * Automatically allocates the paid amount to unsettled sales (FIFO or specific sale).
+ */
+export function recordCustomerPayment(input: RecordCustomerPaymentInput): CustomerPayment {
+  const { customerId, amount, paymentMethod = 'Cash', paymentDate, note, saleId } = input;
+
+  if (!customerId) {
+    throw new Error('Customer ID is required to record payment');
+  }
+  if (!amount || amount <= 0) {
+    throw new Error('Payment amount must be greater than zero');
+  }
+
+  const customer = getCustomerById(customerId);
+  if (!customer) {
+    throw new Error('Customer not found');
+  }
+
+  const now = new Date().toISOString();
+  const dateToRecord = paymentDate ? new Date(paymentDate).toISOString() : now;
+
+  return transaction(() => {
+    // Generate sequential receipt number
+    const lastPay = queryOne<{ id: number }>('SELECT id FROM customer_payments ORDER BY id DESC LIMIT 1');
+    const nextPayId = (lastPay?.id ?? 0) + 1;
+    const receiptNumber = `RCP-C-${nextPayId.toString().padStart(5, '0')}`;
+
+    // 1. Insert customer payment record
+    run(
+      `INSERT INTO customer_payments (
+        customer_id, sale_id, amount, payment_method, payment_date, receipt_number, note, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [customerId, saleId ?? null, amount, paymentMethod, dateToRecord, receiptNumber, note?.trim() || null, now]
+    );
+
+    let remainingToAllocate = amount;
+
+    // 2. If a specific sale was targeted, apply to it first
+    if (saleId) {
+      const targetSale = queryOne<Sale>(
+        `SELECT * FROM sales WHERE id = ? AND customer_id = ? AND (status IS NULL OR status != 'RETURNED')`,
+        [saleId, customerId]
+      );
+      if (targetSale && (targetSale.due_amount ?? 0) > 0) {
+        const currentDue = targetSale.due_amount ?? 0;
+        const currentPaid = targetSale.paid_amount ?? (targetSale.grand_total ?? targetSale.total) - currentDue;
+        const apply = Math.min(remainingToAllocate, currentDue);
+        
+        run(
+          `UPDATE sales SET paid_amount = ?, due_amount = ? WHERE id = ?`,
+          [currentPaid + apply, currentDue - apply, saleId]
+        );
+        remainingToAllocate -= apply;
+      }
+    }
+
+    // 3. Allocate remaining amount FIFO across other unpaid sales
+    if (remainingToAllocate > 0) {
+      const unpaidSales = query<Sale>(
+        `SELECT * FROM sales 
+         WHERE customer_id = ? AND due_amount > 0 AND (status IS NULL OR status != 'RETURNED')
+         ORDER BY created_at ASC, id ASC`,
+        [customerId]
+      );
+
+      for (const s of unpaidSales) {
+        if (remainingToAllocate <= 0) break;
+        if (saleId && s.id === saleId) continue; // already handled
+
+        const currentDue = s.due_amount ?? 0;
+        const currentPaid = s.paid_amount ?? (s.grand_total ?? s.total) - currentDue;
+        const apply = Math.min(remainingToAllocate, currentDue);
+
+        run(
+          `UPDATE sales SET paid_amount = ?, due_amount = ? WHERE id = ?`,
+          [currentPaid + apply, currentDue - apply, s.id]
+        );
+        remainingToAllocate -= apply;
+      }
+    }
+
+    const created = queryOne<CustomerPayment>(
+      `SELECT cp.*, c.name as customer_name, s.bill_number as sale_bill_number
+       FROM customer_payments cp
+       LEFT JOIN customers c ON cp.customer_id = c.id
+       LEFT JOIN sales s ON cp.sale_id = s.id
+       WHERE cp.id = ?`,
+      [nextPayId]
+    );
+
+    if (!created) {
+      throw new Error('Failed to retrieve recorded payment');
+    }
+
+    return created;
+  });
+}
+
+/**
+ * Returns all payment records for a customer.
+ */
+export function getCustomerPayments(customerId: number): CustomerPayment[] {
+  return query<CustomerPayment>(
+    `SELECT cp.*, c.name as customer_name, s.bill_number as sale_bill_number
+     FROM customer_payments cp
+     LEFT JOIN customers c ON cp.customer_id = c.id
+     LEFT JOIN sales s ON cp.sale_id = s.id
+     WHERE cp.customer_id = ?
+     ORDER BY cp.payment_date DESC, cp.id DESC`,
+    [customerId]
+  );
+}
+
+/**
+ * Builds chronological Statement of Account (Ledger) for a customer.
+ */
+export function getCustomerStatement(customerId: number): {
+  customer: Customer;
+  sales: Sale[];
+  payments: CustomerPayment[];
+  totalInvoiced: number;
+  totalPaid: number;
+  totalDue: number;
+  rows: StatementRow[];
+} {
+  const customer = getCustomerById(customerId);
+  if (!customer) {
+    throw new Error('Customer not found');
+  }
+
+  const sales = getCustomerSales(customerId);
+  const payments = getCustomerPayments(customerId);
+
+  const activeSales = sales.filter((s) => s.status !== 'RETURNED');
+  const totalInvoiced = activeSales.reduce((acc, s) => acc + (s.grand_total ?? s.total), 0);
+  const totalPaid = activeSales.reduce((acc, s) => acc + (s.paid_amount ?? s.grand_total ?? s.total), 0);
+  const totalDue = activeSales.reduce((acc, s) => acc + (s.due_amount ?? 0), 0);
+
+  // Build unified chronological statement rows (oldest first for running balance)
+  const unsortedRows: Omit<StatementRow, 'runningBalance'>[] = [];
+
+  for (const s of sales) {
+    const isReturned = s.status === 'RETURNED';
+    const billTotal = s.grand_total ?? s.total;
+    const paid = s.paid_amount ?? billTotal;
+    const due = s.due_amount ?? 0;
+
+    unsortedRows.push({
+      id: `sale-${s.id}`,
+      date: s.created_at,
+      type: isReturned ? 'RETURN' : 'BILL',
+      refNumber: s.bill_number || `INV-${s.id.toString().padStart(5, '0')}`,
+      description: isReturned ? 'Sales Return (Voided Bill)' : `Sales Invoice (${s.item_count || 1} items)`,
+      amount: billTotal,
+      paidAmount: paid,
+      dueAmount: isReturned ? 0 : due,
+      status: s.status || 'COMPLETED',
+    });
+  }
+
+  for (const p of payments) {
+    unsortedRows.push({
+      id: `payment-${p.id}`,
+      date: p.payment_date || p.created_at,
+      type: 'PAYMENT',
+      refNumber: p.receipt_number || `REC-${p.id.toString().padStart(5, '0')}`,
+      description: p.note ? `Payment Settlement: ${p.note}` : 'Payment Received (Balance Settlement)',
+      amount: p.amount,
+      paidAmount: p.amount,
+      dueAmount: 0,
+      paymentMethod: p.payment_method,
+      status: 'PAID',
+    });
+  }
+
+  // Sort chronological ascending (oldest to newest) to calculate running balance
+  unsortedRows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  let runningBalance = 0;
+  const rows: StatementRow[] = unsortedRows.map((r) => {
+    if (r.type === 'BILL') {
+      // Bill increases outstanding due by bill's due amount (or total if unpaid)
+      runningBalance += r.dueAmount;
+    } else if (r.type === 'PAYMENT') {
+      // Direct payment reduces outstanding balance
+      runningBalance = Math.max(0, runningBalance - r.amount);
+    }
+    return {
+      ...r,
+      runningBalance,
+    };
+  });
+
+  return {
+    customer,
+    sales,
+    payments,
+    totalInvoiced,
+    totalPaid,
+    totalDue,
+    rows,
+  };
 }

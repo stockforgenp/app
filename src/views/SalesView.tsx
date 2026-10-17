@@ -644,15 +644,22 @@ export const SalesView: React.FC<SalesViewProps> = ({
     return toMinorUnits(val);
   }, [isCustomPaid, paidAmountInput, calculations.grandTotal]);
 
-  const changeToReturn = Math.max(
-    0,
-    effectivePaidAmount - calculations.grandTotal,
-  );
+  const totalPayableOverall = calculations.grandTotal + customerPreviousDue;
+  const settlePreviousDue =
+    customerPreviousDue > 0 && effectivePaidAmount > calculations.grandTotal
+      ? Math.min(effectivePaidAmount - calculations.grandTotal, customerPreviousDue)
+      : 0;
+  const remainingPreviousDue = customerPreviousDue - settlePreviousDue;
   const currentBillDue = Math.max(
     0,
     calculations.grandTotal - effectivePaidAmount,
   );
-  const totalCustomerDue = customerPreviousDue + currentBillDue;
+  const changeToReturn = Math.max(
+    0,
+    effectivePaidAmount - totalPayableOverall,
+  );
+  const totalCustomerDue = currentBillDue + remainingPreviousDue;
+
 
   const handleCompleteSale = () => {
     if (cart.length === 0) {
@@ -1632,20 +1639,39 @@ export const SalesView: React.FC<SalesViewProps> = ({
                           {currencySymbol}
                         </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsCustomPaid(false);
-                          setPaidAmountInput("");
-                        }}
-                        className={`text-[10px] px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer border ${
-                          !isCustomPaid
-                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                            : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
-                        }`}
-                      >
-                        {isNepali ? "पूरा चुक्ता" : "Paid in Full"}
-                      </button>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCustomPaid(false);
+                            setPaidAmountInput("");
+                          }}
+                          className={`text-[10px] px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer border ${
+                            !isCustomPaid
+                              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                              : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
+                          }`}
+                        >
+                          {isNepali ? "बिल चुक्ता" : "Current Bill"}
+                        </button>
+                        {customerPreviousDue > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsCustomPaid(true);
+                              setPaidAmountInput(fromMinorUnits(totalPayableOverall).toString());
+                            }}
+                            className={`text-[10px] px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer border ${
+                              isCustomPaid && effectivePaidAmount === totalPayableOverall
+                                ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                                : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
+                            }`}
+                            title={isNepali ? "साविक बक्यौता सहित सबै चुक्ता" : "Settle current bill + all previous due"}
+                          >
+                            {isNepali ? "सबै चुक्ता" : "Settle All"}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -1676,6 +1702,20 @@ export const SalesView: React.FC<SalesViewProps> = ({
                       </span>
                     </div>
 
+                    {settlePreviousDue > 0 && (
+                      <div className="flex items-center justify-between text-emerald-400">
+                        <span>
+                          {isNepali
+                            ? "साविक बक्यौता चुक्ता (Settled)"
+                            : "Prev. Due Settled"}
+                          :
+                        </span>
+                        <span className="font-mono font-bold">
+                          - {formatCurrency(settlePreviousDue, currencySymbol)}
+                        </span>
+                      </div>
+                    )}
+
                     {customerPreviousDue > 0 && (
                       <div className="flex items-center justify-between text-amber-400">
                         <span>
@@ -1685,13 +1725,13 @@ export const SalesView: React.FC<SalesViewProps> = ({
                           :
                         </span>
                         <span className="font-mono font-bold">
-                          {formatCurrency(customerPreviousDue, currencySymbol)}
+                          {formatCurrency(remainingPreviousDue, currencySymbol)}
                         </span>
                       </div>
                     )}
 
-                    {(customerPreviousDue > 0 || currentBillDue > 0) && (
-                      <div className="flex items-center justify-between text-neutral-100 font-bold">
+                    {(remainingPreviousDue > 0 || currentBillDue > 0) && (
+                      <div className="flex items-center justify-between text-neutral-100 font-bold border-t border-neutral-800 pt-1 mt-1">
                         <span className="text-xs">
                           {isNepali
                             ? "कुल बाँकी बक्यौता"

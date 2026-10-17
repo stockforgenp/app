@@ -959,7 +959,75 @@ export async function runBusinessLogicTests(): Promise<TestResultItem[]> {
     });
   }
 
+  // Test 27: Customer Due Accumulation, Standalone Settlement & FIFO Due Deduction
+  try {
+    testDb.run(
+      `INSERT INTO customers (id, name, phone, created_at, updated_at) VALUES (101, 'Ayub Tester', '9811111111', ?, ?)`,
+      [now, now]
+    );
+
+    // Bill 1: 1000, paid 600, due 400
+    testDb.run(
+      `INSERT INTO sales (id, bill_number, customer_id, customer_name, subtotal, total, grand_total, paid_amount, due_amount, created_at)
+       VALUES (101, 'BILL-C101', 101, 'Ayub Tester', 100000, 100000, 100000, 60000, 40000, ?)`,
+      ['2026-10-01T10:00:00.000Z']
+    );
+
+    // Bill 2: 800, paid 600, due 200
+    testDb.run(
+      `INSERT INTO sales (id, bill_number, customer_id, customer_name, subtotal, total, grand_total, paid_amount, due_amount, created_at)
+       VALUES (102, 'BILL-C102', 101, 'Ayub Tester', 80000, 80000, 80000, 60000, 20000, ?)`,
+      ['2026-10-02T10:00:00.000Z']
+    );
+
+    const initialDueRow = testDb.exec(`SELECT SUM(due_amount) FROM sales WHERE customer_id = 101`);
+    const initialDue = (initialDueRow[0]?.values[0]?.[0] as number) || 0;
+
+    // Direct Settlement of 600 (400 to Bill 101, 200 to Bill 102)
+    testDb.run(
+      `INSERT INTO customer_payments (customer_id, amount, payment_method, payment_date, receipt_number, note, created_at)
+       VALUES (101, 60000, 'Cash', '2026-10-03', 'RCP-C-00001', 'Full Account Settlement', ?)`,
+      [now]
+    );
+    testDb.run(`UPDATE sales SET paid_amount = paid_amount + 40000, due_amount = due_amount - 40000 WHERE id = 101`);
+    testDb.run(`UPDATE sales SET paid_amount = paid_amount + 20000, due_amount = due_amount - 20000 WHERE id = 102`);
+
+    const finalDueRow = testDb.exec(`SELECT SUM(due_amount) FROM sales WHERE customer_id = 101`);
+    const finalDue = (finalDueRow[0]?.values[0]?.[0] as number) || 0;
+
+    const billsRow = testDb.exec(`SELECT id, paid_amount, due_amount FROM sales WHERE customer_id = 101 ORDER BY id ASC`);
+    const bill1Paid = billsRow[0]?.values[0]?.[1] as number;
+    const bill1Due = billsRow[0]?.values[0]?.[2] as number;
+    const bill2Paid = billsRow[0]?.values[1]?.[1] as number;
+    const bill2Due = billsRow[0]?.values[1]?.[2] as number;
+
+    const test27Passed =
+      initialDue === 60000 &&
+      finalDue === 0 &&
+      bill1Paid === 100000 &&
+      bill1Due === 0 &&
+      bill2Paid === 80000 &&
+      bill2Due === 0;
+
+    results.push({
+      name: '27. Customer Due Accumulation, Standalone Settlement & FIFO Due Deduction',
+      passed: test27Passed,
+      message: test27Passed
+        ? 'Customer accumulated 600 due across 2 bills, settled 600, both bills updated to 0 due and total customer due became 0.'
+        : 'Failed customer due accumulation and settlement verification.',
+      expected: 'Initial Due: 60000, Final Due: 0, Bill 1: Paid 100000 Due 0, Bill 2: Paid 80000 Due 0',
+      actual: `Initial Due: ${initialDue}, Final Due: ${finalDue}, Bill 1: Paid ${bill1Paid} Due ${bill1Due}, Bill 2: Paid ${bill2Paid} Due ${bill2Due}`,
+    });
+  } catch (err: unknown) {
+    results.push({
+      name: '27. Customer Due Accumulation, Standalone Settlement & FIFO Due Deduction',
+      passed: false,
+      message: (err as Error).message,
+    });
+  }
+
   testDb.close();
   return results;
+
 }
 
