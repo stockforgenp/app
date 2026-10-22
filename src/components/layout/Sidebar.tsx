@@ -4,17 +4,12 @@ import { motion } from "framer-motion";
 import stockforgeLogo from "@/src-tauri/icons/icon.png";
 import {
   ShieldCheck,
-  Keyboard,
-  Sun,
-  Moon,
   PanelLeftOpen,
   PanelLeftClose,
-  Languages,
   Store,
   LogOut,
   Clock,
 } from "lucide-react";
-import { useTheme } from "../../context/ThemeContext.tsx";
 import { useLanguage } from "../../context/LanguageContext.tsx";
 import { useAuth } from "../../context/AuthContext.tsx";
 import { getSubscriptionDaysRemaining } from "../../lib/services/authService.ts";
@@ -30,7 +25,6 @@ export type { NavTab, NavItem, NavGroup };
 interface SidebarProps {
   onSelectTab: (tab: NavTab) => void;
   lowStockCount: number;
-  onOpenShortcuts?: () => void;
   toggleSidebar: boolean;
   setToggleSidebar: () => void;
 }
@@ -38,15 +32,13 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTab,
   lowStockCount,
-  onOpenShortcuts,
   toggleSidebar,
   setToggleSidebar,
 }) => {
   const location = useLocation();
   const activeTab =
     location.pathname.replace(/^\//, "").split("/")[0] || "dashboard";
-  const { toggleTheme, isDark } = useTheme();
-  const { t, toggleLanguage, isNepali } = useLanguage();
+  const { t, isNepali } = useLanguage();
   const { currentShop, logout } = useAuth();
 
   const daysRemaining = useMemo(
@@ -194,88 +186,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         ))}
       </nav>
-
-      {/* Language Switcher (EN <-> NP) */}
-      <div className="px-3 py-1.5 border-t border-neutral-800/80 bg-neutral-950 shrink-0">
-        <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={toggleLanguage}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-neutral-300 hover:text-neutral-100 hover:bg-neutral-900 border border-neutral-800/60 hover:border-neutral-700 transition-colors cursor-pointer group"
-          title={isNepali ? "Switch to English" : "नेपाली भाषामा बदल्नुहोस्"}
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <Languages className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            {toggleSidebar && (
-              <span className="truncate font-medium">
-                {isNepali ? "नेपाली (NP)" : "English (EN)"}
-              </span>
-            )}
-          </div>
-          {toggleSidebar ? (
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0">
-              {isNepali ? "EN" : "नेपाली"}
-            </span>
-          ) : (
-            <span className="text-[9px] font-mono font-bold text-emerald-400">
-              {isNepali ? "NP" : "EN"}
-            </span>
-          )}
-        </motion.button>
-      </div>
-
-      {/* Theme Toggle Button */}
-      <div className="px-3 py-1.5 border-t border-neutral-800/80 bg-neutral-950 shrink-0">
-        <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={toggleTheme}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900 border border-neutral-800/60 hover:border-neutral-700 transition-colors cursor-pointer"
-          title={isDark ? "Switch to Light Theme" : "Switch to Dark Theme"}
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            {isDark ? (
-              <Sun className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            ) : (
-              <Moon className="w-3.5 h-3.5 text-neutral-500 shrink-0" />
-            )}
-            {toggleSidebar && (
-              <span className="truncate">
-                {isDark ? "Light Theme" : "Dark Theme"}
-              </span>
-            )}
-          </div>
-          {toggleSidebar && (
-            <span className="text-[10px] text-neutral-500 font-medium shrink-0">
-              Switch
-            </span>
-          )}
-        </motion.button>
-      </div>
-
-      {/* Keyboard Shortcuts Trigger Button */}
-      {onOpenShortcuts && (
-        <div className="px-3 py-2 border-t border-neutral-800/80 bg-neutral-950 shrink-0">
-          <motion.button
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={onOpenShortcuts}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900 border border-neutral-800/60 hover:border-neutral-700 transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <Keyboard className="w-3.5 h-3.5 text-neutral-500 shrink-0" />
-              {toggleSidebar && (
-                <span className="truncate">{t("nav_shortcuts")}</span>
-              )}
-            </div>
-            {toggleSidebar && (
-              <kbd className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-neutral-900 text-neutral-400 border border-neutral-800 shrink-0">
-                ?
-              </kbd>
-            )}
-          </motion.button>
-        </div>
-      )}
 
       {/* Shop Account & Subscription Expiry Countdown */}
       {currentShop && (

@@ -16,12 +16,18 @@ import {
   recordCustomerPayment,
 } from './customerService.ts';
 import { capitalizeWords } from '../utils/format.ts';
+import { getBatchById, depleteBatchStock, getBatchesForFEFO } from './batchService.ts';
+import { getPackagingById } from './packagingService.ts';
 
 export interface ProcessSaleItemInput {
   productId: number;
   quantity: number;
   actualSellingPrice: number; // in minor units
   discount: number; // in minor units
+  batchId?: number | null;
+  pricingTier?: 'RETAIL' | 'WHOLESALE';
+  packagingId?: number | null;
+  packageMultiplier?: number;
 }
 
 export interface ProcessSaleCustomerInfo {
@@ -32,6 +38,7 @@ export interface ProcessSaleCustomerInfo {
   customerAddress?: string | null;
   applyVat?: boolean;
   paidAmount?: number;
+  paymentMethod?: string;
   createdAt?: string | null;
   customerInput?: {
     name: string;
@@ -67,12 +74,18 @@ export function processSale(
       productId: number;
       productName: string;
       quantity: number;
+      baseUnits: number;
       costPrice: number;
       actualSellingPrice: number;
       discount: number;
       itemGross: number;
       itemTotal: number;
       currentStock: number;
+      batchId?: number | null;
+      pricingTier?: 'RETAIL' | 'WHOLESALE';
+      packagingId?: number | null;
+      packageMultiplier: number;
+      packagingName?: string | null;
     }> = [];
 
     for (const item of items) {
@@ -86,10 +99,23 @@ export function processSale(
         throw new Error(`Product with ID ${item.productId} was not found`);
       }
 
+      let mult = 1;
+      let pkgName: string | null = null;
+      if (item.packagingId) {
+        const pkg = getPackagingById(item.packagingId);
+        if (pkg) {
+          mult = Math.max(1, pkg.multiplier);
+          pkgName = pkg.package_name;
+        }
+      } else if (item.packageMultiplier && item.packageMultiplier > 1) {
+        mult = item.packageMultiplier;
+      }
+      const baseUnits = qty * mult;
+
       // Check stock limit if negative stock is disallowed
-      if (!settings.allow_negative_stock && product.current_stock < qty) {
+      if (!settings.allow_negative_stock && product.current_stock < baseUnits) {
         throw new Error(
-          `Insufficient stock for "${product.name}". Available: ${product.current_stock}, Requested: ${qty}`
+          `Insufficient stock for "${product.name}". Available: ${product.current_stock} ${product.unit || 'pcs'}, Requested: ${baseUnits} ${product.unit || 'pcs'}`
         );
       }
 
@@ -109,12 +135,18 @@ export function processSale(
         productId: product.id,
         productName: product.name,
         quantity: qty,
+        baseUnits,
         costPrice: product.cost_price, // SNAPSHOT current cost price at this instant
         actualSellingPrice: sellingPrice,
         discount,
         itemGross: gross,
         itemTotal: netTotal,
         currentStock: product.current_stock,
+        batchId: item.batchId || null,
+        pricingTier: item.pricingTier || 'RETAIL',
+        packagingId: item.packagingId || null,
+        packageMultiplier: mult,
+        packagingName: pkgName,
       });
     }
 
@@ -211,6 +243,7 @@ export function processSale(
 
     const thisSalePaid = Math.min(totalPaidInput, grandTotal);
     const thisSaleDue = Math.max(0, grandTotal - totalPaidInput);
+    const paymentMethod = customerInfo?.paymentMethod?.trim() || 'Cash';
 
     // If customer paid more than this sale total and has previous outstanding due, settle previous dues
     if (resolvedCustomerId && totalPaidInput > grandTotal) {
@@ -221,7 +254,7 @@ export function processSale(
         recordCustomerPayment({
           customerId: resolvedCustomerId,
           amount: settleAmount,
-          paymentMethod: 'Cash',
+          paymentMethod: paymentMethod,
           paymentDate: transactionCreatedAt,
           note: `Settled with sale ${billNumber}`,
         });
@@ -234,8 +267,8 @@ export function processSale(
         bill_number, customer_id, customer_name, customer_phone,
         customer_pan_vat, customer_address,
         subtotal, discount, taxable_amount, vat_rate, vat_amount,
-        grand_total, total, paid_amount, due_amount, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        grand_total, total, paid_amount, due_amount, payment_method, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         billNumber,
         resolvedCustomerId,
@@ -252,6 +285,7 @@ export function processSale(
         grandTotal,
         thisSalePaid,
         thisSaleDue,
+        paymentMethod,
         transactionCreatedAt,
       ]
     );
@@ -264,12 +298,54 @@ export function processSale(
 
     // 2. Insert Sale Items, Reduce Stock & Record Movements
     for (const item of verifiedItems) {
+      let resolvedBatchId: number | null = null;
+      let resolvedBatchNum: string | null = null;
+      let resolvedExpiry: string | null = null;
+
+      if (item.batchId) {
+        const batch = getBatchById(item.batchId);
+        if (batch) {
+          resolvedBatchId = batch.id;
+          resolvedBatchNum = batch.batch_number;
+          resolvedExpiry = batch.expiry_date;
+          try {
+            depleteBatchStock(batch.id, item.baseUnits);
+          } catch (e) {
+            console.error('Error depleting batch:', e);
+          }
+        }
+      } else {
+        // Automatically check for available batches using FEFO
+        const fefoBatches = getBatchesForFEFO(item.productId);
+        if (fefoBatches.length > 0) {
+          const earliest = fefoBatches[0];
+          resolvedBatchId = earliest.id;
+          resolvedBatchNum = earliest.batch_number;
+          resolvedExpiry = earliest.expiry_date;
+          try {
+            depleteBatchStock(earliest.id, item.baseUnits);
+          } catch (e) {
+            console.error('Error auto-depleting FEFO batch:', e);
+          }
+        }
+      }
+
       run(
-        `INSERT INTO sale_items (sale_id, product_id, quantity, cost_price, selling_price, discount, total)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO sale_items (
+          sale_id, product_id, batch_id, batch_number, expiry_date, pricing_tier,
+          packaging_id, package_multiplier, packaging_name,
+          quantity, cost_price, selling_price, discount, total
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           saleId,
           item.productId,
+          resolvedBatchId,
+          resolvedBatchNum,
+          resolvedExpiry,
+          item.pricingTier || 'RETAIL',
+          item.packagingId || null,
+          item.packageMultiplier,
+          item.packagingName || null,
           item.quantity,
           item.costPrice,
           item.actualSellingPrice,
@@ -278,8 +354,8 @@ export function processSale(
         ]
       );
 
-      // Reduce product stock
-      const remainingStock = item.currentStock - item.quantity;
+      // Reduce product stock by base units
+      const remainingStock = item.currentStock - item.baseUnits;
       run(
         `UPDATE products 
          SET current_stock = ?, updated_at = ?
@@ -288,10 +364,13 @@ export function processSale(
       );
 
       // Record stock movement
+      const pkgNote = item.packageMultiplier > 1 && item.packagingName
+        ? ` (${item.quantity} ${item.packagingName} = ${item.baseUnits} ${item.product.unit || 'pcs'})`
+        : '';
       run(
         `INSERT INTO stock_movements (product_id, type, quantity, reference_id, note, created_at)
          VALUES (?, 'SALE', ?, ?, ?, ?)`,
-        [item.productId, -item.quantity, saleId, `Completed Sale #${saleId}`, transactionCreatedAt]
+        [item.productId, -item.baseUnits, saleId, `Completed Sale #${saleId}${pkgNote}`, transactionCreatedAt]
       );
 
       // Check if product's stock levels fall to or below its specific 'minimum alert threshold'
@@ -621,6 +700,9 @@ export function updateSale(
           ? existing.sale.paid_amount
           : grandTotal);
     const dueAmount = Math.max(0, grandTotal - paidAmount);
+    const paymentMethod = customerInfo?.paymentMethod !== undefined
+      ? (customerInfo.paymentMethod.trim() || 'Cash')
+      : (existing.sale.payment_method || 'Cash');
 
     // 5. Update sales record
     run(
@@ -639,6 +721,7 @@ export function updateSale(
         total = ?,
         paid_amount = ?,
         due_amount = ?,
+        payment_method = ?,
         created_at = ?
       WHERE id = ?`,
       [
@@ -656,6 +739,7 @@ export function updateSale(
         grandTotal,
         paidAmount,
         dueAmount,
+        paymentMethod,
         transactionCreatedAt,
         saleId,
       ]

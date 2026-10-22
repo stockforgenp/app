@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   User,
   Search,
-  Check,
   Plus,
   X,
   UserCheck,
@@ -27,6 +26,7 @@ export interface CustomerInputData {
   pan_vat: string;
   address: string;
   notes?: string;
+  customer_type?: 'RETAIL' | 'WHOLESALE';
   isNew: boolean;
 }
 
@@ -90,6 +90,7 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
       pan_vat: customer.pan_vat || "",
       address: customer.address || "",
       notes: customer.notes || "",
+      customer_type: customer.customer_type || 'RETAIL',
       isNew: false,
     });
   };
@@ -115,6 +116,7 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
         pan_vat: isExactMatch.pan_vat || value.pan_vat,
         address: isExactMatch.address || value.address,
         notes: isExactMatch.notes || value.notes,
+        customer_type: isExactMatch.customer_type || 'RETAIL',
         isNew: false,
       });
     } else {

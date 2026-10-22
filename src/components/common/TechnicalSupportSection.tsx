@@ -176,7 +176,7 @@ export const TechnicalSupportSection: React.FC<
             </span>
           </div>
           <p className="text-xs text-neutral-400 font-medium">
-            {isNepali ? "विकासकर्ता" : "Lead Developer"}:{" "}
+            {isNepali ? "सम्पर्क तथा सहयोग" : "Contact & Support"}:{" "}
             <span className="text-neutral-200 font-semibold">
               {supportContacts.developerName}
             </span>{" "}

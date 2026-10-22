@@ -230,7 +230,7 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
       text += `Total Items:    ${displayItems.length} (${totalUnits} units)\n`;
       text += `${doubleSeparator}\n`;
       text += `*GRAND TOTAL:   ${formatCurrency(displayGrandTotal, currencySymbol)}*\n`;
-      text += `Paid Amount:    ${formatCurrency(paidAmount, currencySymbol)}\n`;
+      text += `Paid Amount:    ${formatCurrency(paidAmount, currencySymbol)} (${sale.payment_method || 'Cash'})\n`;
       if (currentDue > 0) {
         text += `Current Due:    ${formatCurrency(currentDue, currencySymbol)}\n`;
       }
@@ -551,6 +551,16 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
                                   </span>
                                 )}
                               </div>
+                              {it.batch_number && (
+                                <div className="text-[9px] text-gray-500 font-mono">
+                                  B: {it.batch_number} {it.expiry_date ? `| Exp: ${it.expiry_date}` : ""}
+                                </div>
+                              )}
+                              {it.packaging_name && (
+                                <div className="text-[9px] text-cyan-800 font-mono">
+                                  Pkg: {it.packaging_name} (×{it.package_multiplier})
+                                </div>
+                              )}
                             </td>
                             <td className="py-1.5 px-1 text-center font-bold text-gray-800 whitespace-nowrap">
                               {it.quantity}{" "}
@@ -688,6 +698,9 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
                             {isNepali
                               ? "प्राप्त रकम (Paid Amount):"
                               : "Paid Amount:"}
+                            <span className="text-xs font-normal text-gray-500 ml-1.5">
+                              ({sale.payment_method || "Cash"})
+                            </span>
                           </span>
                           <span className="font-mono font-bold text-gray-900">
                             {formatCurrency(paidAmount, currencySymbol)}

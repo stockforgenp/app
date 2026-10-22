@@ -13,16 +13,16 @@ import {
   StaffMonthlyPayrollStatus,
   MonthlyPayrollSummary,
   TodayPayrollStatus,
-} from '../../types/index.ts';
-import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
-import { getTodayISODate, capitalizeWords } from '../utils/format.ts';
+} from "../../types/index.ts";
+import { query, queryOne, run, transaction } from "../db/sqliteEngine.ts";
+import { getTodayISODate, capitalizeWords } from "../utils/format.ts";
 
 import {
   DEFAULT_STAFF_ROLES,
   SALARY_PAYMENT_METHODS,
   MONTH_NAMES,
   NEPALI_MONTH_NAMES,
-} from '../../constants/finance.ts';
+} from "../../constants/finance.ts";
 
 export {
   DEFAULT_STAFF_ROLES,
@@ -35,7 +35,7 @@ export {
  * Retrieve all staff members with aggregated payment stats
  */
 export function getAllStaff(filter?: {
-  status?: 'all' | 'active' | 'inactive';
+  status?: "all" | "active" | "inactive";
   search?: string;
 }): Staff[] {
   let sql = `
@@ -49,22 +49,24 @@ export function getAllStaff(filter?: {
   const whereClauses: string[] = [];
   const params: (string | number)[] = [];
 
-  if (filter?.status && filter.status !== 'all') {
-    whereClauses.push('s.status = ?');
+  if (filter?.status && filter.status !== "all") {
+    whereClauses.push("s.status = ?");
     params.push(filter.status);
   }
 
   if (filter?.search && filter.search.trim()) {
-    whereClauses.push('(s.name LIKE ? OR s.role LIKE ? OR s.phone LIKE ? OR s.email LIKE ?)');
+    whereClauses.push(
+      "(s.name LIKE ? OR s.role LIKE ? OR s.phone LIKE ? OR s.email LIKE ?)",
+    );
     const term = `%${filter.search.trim()}%`;
     params.push(term, term, term, term);
   }
 
   if (whereClauses.length > 0) {
-    sql += ' WHERE ' + whereClauses.join(' AND ');
+    sql += " WHERE " + whereClauses.join(" AND ");
   }
 
-  sql += ' ORDER BY s.status ASC, s.name ASC';
+  sql += " ORDER BY s.status ASC, s.name ASC";
 
   return query<Staff>(sql, params);
 }
@@ -80,7 +82,7 @@ export function getStaffById(id: number): Staff | null {
        (SELECT MAX(payment_date) FROM salary_payments WHERE staff_id = s.id) as last_payment_date
      FROM staff s
      WHERE s.id = ?`,
-    [id]
+    [id],
   );
 }
 
@@ -90,13 +92,13 @@ export function getStaffById(id: number): Staff | null {
 export function createStaff(input: CreateStaffInput): Staff {
   const name = capitalizeWords(input.name);
   if (!name) {
-    throw new Error('Staff member name is required');
+    throw new Error("Staff member name is required");
   }
 
-  const role = capitalizeWords(input.role) || 'Sales Associate';
+  const role = capitalizeWords(input.role) || "Sales Associate";
   const baseSalary = Math.max(0, Math.floor(input.base_salary || 0));
-  const salaryType = input.salary_type || 'monthly';
-  const status = input.status || 'active';
+  const salaryType = input.salary_type || "monthly";
+  const status = input.status || "active";
   const joinDate = input.join_date?.trim() || getTodayISODate();
   const now = new Date().toISOString();
 
@@ -116,15 +118,15 @@ export function createStaff(input: CreateStaffInput): Staff {
         input.notes?.trim() || null,
         now,
         now,
-      ]
+      ],
     );
 
-    const row = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
+    const row = queryOne<{ id: number }>("SELECT last_insert_rowid() as id");
     const id = row?.id ?? 0;
 
     const created = getStaffById(id);
     if (!created) {
-      throw new Error('Failed to retrieve newly created staff record');
+      throw new Error("Failed to retrieve newly created staff record");
     }
 
     return created;
@@ -141,26 +143,66 @@ export function updateStaff(id: number, input: UpdateStaffInput): Staff {
       throw new Error(`Staff member #${id} not found`);
     }
 
-    const name = input.name !== undefined ? capitalizeWords(input.name) : existing.name;
+    const name =
+      input.name !== undefined ? capitalizeWords(input.name) : existing.name;
     if (!name) {
-      throw new Error('Staff name cannot be empty');
+      throw new Error("Staff name cannot be empty");
     }
 
-    const role = input.role !== undefined ? capitalizeWords(input.role) : existing.role;
-    const phone = input.phone !== undefined ? (input.phone ? input.phone.trim() : null) : existing.phone;
-    const email = input.email !== undefined ? (input.email ? input.email.trim() : null) : existing.email;
-    const baseSalary = input.base_salary !== undefined ? Math.max(0, Math.floor(input.base_salary)) : existing.base_salary;
-    const salaryType = input.salary_type !== undefined ? input.salary_type : existing.salary_type;
+    const role =
+      input.role !== undefined ? capitalizeWords(input.role) : existing.role;
+    const phone =
+      input.phone !== undefined
+        ? input.phone
+          ? input.phone.trim()
+          : null
+        : existing.phone;
+    const email =
+      input.email !== undefined
+        ? input.email
+          ? input.email.trim()
+          : null
+        : existing.email;
+    const baseSalary =
+      input.base_salary !== undefined
+        ? Math.max(0, Math.floor(input.base_salary))
+        : existing.base_salary;
+    const salaryType =
+      input.salary_type !== undefined
+        ? input.salary_type
+        : existing.salary_type;
     const status = input.status !== undefined ? input.status : existing.status;
-    const joinDate = input.join_date !== undefined ? (input.join_date ? input.join_date.trim() : existing.join_date) : existing.join_date;
-    const notes = input.notes !== undefined ? (input.notes ? input.notes.trim() : null) : existing.notes;
+    const joinDate =
+      input.join_date !== undefined
+        ? input.join_date
+          ? input.join_date.trim()
+          : existing.join_date
+        : existing.join_date;
+    const notes =
+      input.notes !== undefined
+        ? input.notes
+          ? input.notes.trim()
+          : null
+        : existing.notes;
     const now = new Date().toISOString();
 
     run(
       `UPDATE staff
        SET name = ?, role = ?, phone = ?, email = ?, base_salary = ?, salary_type = ?, status = ?, join_date = ?, notes = ?, updated_at = ?
        WHERE id = ?`,
-      [name, role, phone, email, baseSalary, salaryType, status, joinDate, notes, now, id]
+      [
+        name,
+        role,
+        phone,
+        email,
+        baseSalary,
+        salaryType,
+        status,
+        joinDate,
+        notes,
+        now,
+        id,
+      ],
     );
 
     const updated = getStaffById(id);
@@ -179,18 +221,18 @@ export function deleteStaff(id: number): boolean {
   return transaction(() => {
     // Delete linked expenses from salary payments first
     const payments = query<{ expense_id: number | null }>(
-      'SELECT expense_id FROM salary_payments WHERE staff_id = ? AND expense_id IS NOT NULL',
-      [id]
+      "SELECT expense_id FROM salary_payments WHERE staff_id = ? AND expense_id IS NOT NULL",
+      [id],
     );
 
     for (const p of payments) {
       if (p.expense_id) {
-        run('DELETE FROM expenses WHERE id = ?', [p.expense_id]);
+        run("DELETE FROM expenses WHERE id = ?", [p.expense_id]);
       }
     }
 
-    run('DELETE FROM salary_payments WHERE staff_id = ?', [id]);
-    run('DELETE FROM staff WHERE id = ?', [id]);
+    run("DELETE FROM salary_payments WHERE staff_id = ?", [id]);
+    run("DELETE FROM staff WHERE id = ?", [id]);
     return true;
   });
 }
@@ -206,7 +248,7 @@ export function recordSalaryPayment(input: RecordSalaryInput): SalaryPayment {
 
   const amount = Math.floor(input.amount);
   if (isNaN(amount) || amount <= 0) {
-    throw new Error('Base salary amount must be greater than zero');
+    throw new Error("Base salary amount must be greater than zero");
   }
 
   const bonus = Math.max(0, Math.floor(input.bonus || 0));
@@ -214,16 +256,16 @@ export function recordSalaryPayment(input: RecordSalaryInput): SalaryPayment {
   const netPaid = Math.max(0, amount + bonus - deductions);
 
   if (netPaid <= 0) {
-    throw new Error('Net salary payment must be greater than zero');
+    throw new Error("Net salary payment must be greater than zero");
   }
 
   const paymentDate = input.payment_date?.trim() || getTodayISODate();
   const paymentPeriod = input.payment_period?.trim();
   if (!paymentPeriod) {
-    throw new Error('Payment period (e.g. Month / Year) is required');
+    throw new Error("Payment period (e.g. Month / Year) is required");
   }
 
-  const paymentMethod = input.payment_method?.trim() || 'Cash';
+  const paymentMethod = input.payment_method?.trim() || "Cash";
   const reference = input.reference?.trim() || null;
   const note = input.note?.trim() || null;
   const now = new Date().toISOString();
@@ -233,12 +275,12 @@ export function recordSalaryPayment(input: RecordSalaryInput): SalaryPayment {
 
     // Synchronize to overhead expenses if enabled (default true)
     if (input.syncWithExpenses !== false) {
-      const expenseNote = `Salary disbursement for ${staff.name} (${staff.role}) - Period: ${paymentPeriod}${note ? ` · ${note}` : ''}`;
+      const expenseNote = `Salary disbursement for ${staff.name} (${staff.role}) - Period: ${paymentPeriod}${note ? ` · ${note}` : ""}`;
       run(
         `INSERT INTO expenses (category, amount, date, payment_method, note, receipt_reference, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          'Salaries & Wages',
+          "Salaries & Wages",
           netPaid,
           paymentDate,
           paymentMethod,
@@ -246,10 +288,12 @@ export function recordSalaryPayment(input: RecordSalaryInput): SalaryPayment {
           reference || `PAY-${staff.id}-${Date.now().toString().slice(-4)}`,
           now,
           now,
-        ]
+        ],
       );
 
-      const expRow = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
+      const expRow = queryOne<{ id: number }>(
+        "SELECT last_insert_rowid() as id",
+      );
       expenseId = expRow?.id ?? null;
     }
 
@@ -270,15 +314,17 @@ export function recordSalaryPayment(input: RecordSalaryInput): SalaryPayment {
         note,
         expenseId,
         now,
-      ]
+      ],
     );
 
-    const paymentRow = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
+    const paymentRow = queryOne<{ id: number }>(
+      "SELECT last_insert_rowid() as id",
+    );
     const paymentId = paymentRow?.id ?? 0;
 
     const payment = getSalaryPaymentById(paymentId);
     if (!payment) {
-      throw new Error('Failed to retrieve newly recorded salary payment');
+      throw new Error("Failed to retrieve newly recorded salary payment");
     }
 
     return payment;
@@ -307,33 +353,33 @@ export function getSalaryPayments(options?: {
   const params: (string | number)[] = [];
 
   if (options?.staffId) {
-    whereClauses.push('sp.staff_id = ?');
+    whereClauses.push("sp.staff_id = ?");
     params.push(options.staffId);
   }
 
   if (options?.startDate) {
-    whereClauses.push('sp.payment_date >= ?');
+    whereClauses.push("sp.payment_date >= ?");
     params.push(options.startDate);
   }
 
   if (options?.endDate) {
-    whereClauses.push('sp.payment_date <= ?');
+    whereClauses.push("sp.payment_date <= ?");
     params.push(options.endDate);
   }
 
   if (options?.search && options.search.trim()) {
     whereClauses.push(
-      '(s.name LIKE ? OR sp.payment_period LIKE ? OR sp.reference LIKE ? OR sp.note LIKE ?)'
+      "(s.name LIKE ? OR sp.payment_period LIKE ? OR sp.reference LIKE ? OR sp.note LIKE ?)",
     );
     const term = `%${options.search.trim()}%`;
     params.push(term, term, term, term);
   }
 
   if (whereClauses.length > 0) {
-    sql += ' WHERE ' + whereClauses.join(' AND ');
+    sql += " WHERE " + whereClauses.join(" AND ");
   }
 
-  sql += ' ORDER BY sp.payment_date DESC, sp.id DESC';
+  sql += " ORDER BY sp.payment_date DESC, sp.id DESC";
 
   return query<SalaryPayment>(sql, params);
 }
@@ -350,7 +396,7 @@ export function getSalaryPaymentById(id: number): SalaryPayment | null {
      FROM salary_payments sp
      JOIN staff s ON sp.staff_id = s.id
      WHERE sp.id = ?`,
-    [id]
+    [id],
   );
 }
 
@@ -364,10 +410,10 @@ export function deleteSalaryPayment(id: number): boolean {
 
     // If synced with expenses, delete the linked expense
     if (payment.expense_id) {
-      run('DELETE FROM expenses WHERE id = ?', [payment.expense_id]);
+      run("DELETE FROM expenses WHERE id = ?", [payment.expense_id]);
     }
 
-    run('DELETE FROM salary_payments WHERE id = ?', [id]);
+    run("DELETE FROM salary_payments WHERE id = ?", [id]);
     return true;
   });
 }
@@ -376,16 +422,20 @@ export function deleteSalaryPayment(id: number): boolean {
  * Get aggregated summary metrics for staff and payroll
  */
 export function getStaffSummary(): StaffSummary {
-  const staffStats = queryOne<{ total: number; active: number; monthly_sum: number }>(
+  const staffStats = queryOne<{
+    total: number;
+    active: number;
+    monthly_sum: number;
+  }>(
     `SELECT 
        COUNT(*) as total,
        COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0) as active,
        COALESCE(SUM(CASE WHEN status = 'active' AND salary_type = 'monthly' THEN base_salary ELSE 0 END), 0) as monthly_sum
-     FROM staff`
+     FROM staff`,
   );
 
   const today = new Date();
-  const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 
   const currentMonthPayments = queryOne<{ total_paid: number; count: number }>(
     `SELECT 
@@ -393,7 +443,7 @@ export function getStaffSummary(): StaffSummary {
        COUNT(*) as count
      FROM salary_payments
      WHERE payment_date LIKE ?`,
-    [`${currentYearMonth}%`]
+    [`${currentYearMonth}%`],
   );
 
   return {
@@ -411,22 +461,25 @@ export function getStaffSummary(): StaffSummary {
  */
 export function getMonthlyPayrollSummary(
   yearParam?: number,
-  monthParam?: number
+  monthParam?: number,
 ): MonthlyPayrollSummary {
   const now = new Date();
   const year = yearParam ?? now.getFullYear();
-  const month = monthParam ?? (now.getMonth() + 1); // 1-12
-  const monthName = MONTH_NAMES[month - 1] || 'Current Month';
+  const month = monthParam ?? now.getMonth() + 1; // 1-12
+  const monthName = MONTH_NAMES[month - 1] || "Current Month";
   const periodLabel = `${monthName} ${year}`;
-  const datePrefix = `${year}-${String(month).padStart(2, '0')}`;
-  const isCurrentMonth = year === now.getFullYear() && month === (now.getMonth() + 1);
+  const datePrefix = `${year}-${String(month).padStart(2, "0")}`;
+  const isCurrentMonth =
+    year === now.getFullYear() && month === now.getMonth() + 1;
 
   // Fetch all staff members
   const staffList = getAllStaff();
-  const activeStaff = staffList.filter((s) => s.status === 'active');
+  const activeStaff = staffList.filter((s) => s.status === "active");
 
   // Query all payments matching this period label or payment date prefix
-  const payments = query<SalaryPayment & { staff_name: string; staff_role: string }>(
+  const payments = query<
+    SalaryPayment & { staff_name: string; staff_role: string }
+  >(
     `SELECT 
        sp.*,
        s.name as staff_name,
@@ -436,49 +489,61 @@ export function getMonthlyPayrollSummary(
      WHERE sp.payment_period LIKE ? 
         OR sp.payment_date LIKE ?
      ORDER BY sp.payment_date DESC, sp.id DESC`,
-    [`%${periodLabel}%`, `${datePrefix}%`]
+    [`%${periodLabel}%`, `${datePrefix}%`],
   );
 
   // Map each active staff to their payment for this month if any
-  const staffStatuses: StaffMonthlyPayrollStatus[] = activeStaff.map((staff) => {
-    // Find payment for this staff
-    const match = payments.find((p) => p.staff_id === staff.id);
-    if (match) {
-      return {
-        staff_id: staff.id,
-        staff_name: staff.name,
-        staff_role: staff.role,
-        salary_type: staff.salary_type,
-        base_salary: staff.base_salary,
-        status: staff.status,
-        is_paid: true,
-        payment: match,
-        amount_paid: match.net_paid,
-        payment_date: match.payment_date,
-        payment_method: match.payment_method,
-        payment_period: match.payment_period,
-      };
-    } else {
-      return {
-        staff_id: staff.id,
-        staff_name: staff.name,
-        staff_role: staff.role,
-        salary_type: staff.salary_type,
-        base_salary: staff.base_salary,
-        status: staff.status,
-        is_paid: false,
-        amount_paid: 0,
-      };
-    }
-  });
+  const staffStatuses: StaffMonthlyPayrollStatus[] = activeStaff.map(
+    (staff) => {
+      // Find payment for this staff
+      const match = payments.find((p) => p.staff_id === staff.id);
+      if (match) {
+        return {
+          staff_id: staff.id,
+          staff_name: staff.name,
+          staff_role: staff.role,
+          salary_type: staff.salary_type,
+          base_salary: staff.base_salary,
+          status: staff.status,
+          is_paid: true,
+          payment: match,
+          amount_paid: match.net_paid,
+          payment_date: match.payment_date,
+          payment_method: match.payment_method,
+          payment_period: match.payment_period,
+        };
+      } else {
+        return {
+          staff_id: staff.id,
+          staff_name: staff.name,
+          staff_role: staff.role,
+          salary_type: staff.salary_type,
+          base_salary: staff.base_salary,
+          status: staff.status,
+          is_paid: false,
+          amount_paid: 0,
+        };
+      }
+    },
+  );
 
   const totalActive = activeStaff.length;
   const paidCount = staffStatuses.filter((s) => s.is_paid).length;
   const unpaidCount = totalActive - paidCount;
-  const percentPaid = totalActive > 0 ? Math.round((paidCount / totalActive) * 100) : 0;
-  const totalCommitment = activeStaff.reduce((sum, s) => sum + s.base_salary, 0);
-  const totalPaid = staffStatuses.reduce((sum, s) => sum + (s.amount_paid || 0), 0);
-  const totalDeductions = payments.reduce((sum, p) => sum + (p.deductions || 0), 0);
+  const percentPaid =
+    totalActive > 0 ? Math.round((paidCount / totalActive) * 100) : 0;
+  const totalCommitment = activeStaff.reduce(
+    (sum, s) => sum + s.base_salary,
+    0,
+  );
+  const totalPaid = staffStatuses.reduce(
+    (sum, s) => sum + (s.amount_paid || 0),
+    0,
+  );
+  const totalDeductions = payments.reduce(
+    (sum, p) => sum + (p.deductions || 0),
+    0,
+  );
   const totalBonus = payments.reduce((sum, p) => sum + (p.bonus || 0), 0);
 
   // Pending dues: calculated per staff member.
@@ -489,23 +554,26 @@ export function getMonthlyPayrollSummary(
       return sum + s.base_salary;
     }
     // If paid, pending due is only any remaining un-disbursed base salary portion
-    const remainingUnpaidBase = Math.max(0, s.base_salary - (s.payment.amount || 0));
+    const remainingUnpaidBase = Math.max(
+      0,
+      s.base_salary - (s.payment.amount || 0),
+    );
     return sum + remainingUnpaidBase;
   }, 0);
 
-  let overallStatus: 'fully_paid' | 'partially_paid' | 'unpaid' = 'unpaid';
+  let overallStatus: "fully_paid" | "partially_paid" | "unpaid" = "unpaid";
   if (totalActive > 0 && paidCount === totalActive && totalPending === 0) {
-    overallStatus = 'fully_paid';
+    overallStatus = "fully_paid";
   } else if (paidCount > 0) {
-    overallStatus = 'partially_paid';
+    overallStatus = "partially_paid";
   }
 
   // Today's date payroll status
-  const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  const todayFormatted = now.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
+  const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const todayFormatted = now.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
   });
 
   const todayPayments = queryOne<{ total_paid: number; count: number }>(
@@ -514,7 +582,7 @@ export function getMonthlyPayrollSummary(
        COUNT(*) as count
      FROM salary_payments
      WHERE payment_date = ?`,
-    [todayISO]
+    [todayISO],
   );
 
   const todayCount = todayPayments?.count ?? 0;
@@ -552,6 +620,8 @@ export function getMonthlyPayrollSummary(
  * Total count of staff members registered in the database.
  */
 export function getStaffCount(): number {
-  const row = queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM staff`);
+  const row = queryOne<{ count: number }>(
+    `SELECT COUNT(*) as count FROM staff`,
+  );
   return row?.count ?? 0;
 }

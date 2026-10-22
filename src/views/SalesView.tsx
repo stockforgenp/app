@@ -28,9 +28,11 @@ import {
   X,
   Calendar,
 } from "lucide-react";
-import { Product, CartItem } from "../types/index.ts";
+import { Product, CartItem, ProductBatch, ProductPackaging } from "../types/index.ts";
 import { getAllProducts } from "../lib/services/productService.ts";
 import { processSale } from "../lib/services/salesService.ts";
+import { getAllBatches } from "../lib/services/batchService.ts";
+import { getAllPackagings } from "../lib/services/packagingService.ts";
 import { getCustomerTotalDue } from "../lib/services/customerService.ts";
 import { calculateProportionalDiscounts } from "../helpers/index.ts";
 import {
@@ -46,6 +48,9 @@ import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 import { MODIFIER_LABEL } from "../lib/hooks/useGlobalShortcuts.ts";
 import { Modal } from "../components/common/Modal.tsx";
 import { PrintBillModal } from "../components/common/PrintBillModal.tsx";
+import { ReturnsModal } from "../components/common/ReturnsModal.tsx";
+import { ShiftManagementModal } from "../components/common/ShiftManagementModal.tsx";
+import { getCurrentOpenShift } from "../lib/services/shiftService.ts";
 import { Input } from "../components/common/Input.tsx";
 import {
   CustomerInputSection,
@@ -82,6 +87,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
     "all" | "inStock" | "lowStock"
   >("all");
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [batchesByProduct, setBatchesByProduct] = useState<Record<number, ProductBatch[]>>({});
+  const [packagingsByProduct, setPackagingsByProduct] = useState<Record<number, ProductPackaging[]>>({});
   const [customerData, setCustomerData] = useState<CustomerInputData>({
     customerId: null,
     name: "",
@@ -109,6 +116,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
     grandTotal?: number;
     total: number;
     paidAmount?: number;
+    paymentMethod?: string | null;
     dueAmount?: number;
     previousDue?: number;
     totalDue?: number;
@@ -120,6 +128,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
   // Partial Payment & Dues State
   const [paidAmountInput, setPaidAmountInput] = useState("");
   const [isCustomPaid, setIsCustomPaid] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<string>("Cash");
 
   // Bill Printing modal
   const [printSaleId, setPrintSaleId] = useState<number | null>(null);
@@ -148,6 +157,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
   // Multi-Product Batch Mode States
   const [isBatchMode, setIsBatchMode] = useState(false);
   const [isMultiProductModalOpen, setIsMultiProductModalOpen] = useState(false);
+  const [isReturnsModalOpen, setIsReturnsModalOpen] = useState(false);
+  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+  const [activeShift, setActiveShift] = useState<any>(() => {
+    try {
+      return getCurrentOpenShift();
+    } catch {
+      return null;
+    }
+  });
   const [batchQuantities, setBatchQuantities] = useState<
     Record<number, number>
   >({});
@@ -158,9 +176,67 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const loadCatalog = () => {
     try {
       setProducts(getAllProducts());
+      const allBatches = getAllBatches({ includeEmpty: false });
+      const bMap: Record<number, ProductBatch[]> = {};
+      for (const b of allBatches) {
+        if (!bMap[b.product_id]) bMap[b.product_id] = [];
+        bMap[b.product_id].push(b);
+      }
+      setBatchesByProduct(bMap);
+
+      const allPkgs = getAllPackagings();
+      const pMap: Record<number, ProductPackaging[]> = {};
+      for (const p of allPkgs) {
+        if (!pMap[p.product_id]) pMap[p.product_id] = [];
+        pMap[p.product_id].push(p);
+      }
+      setPackagingsByProduct(pMap);
+
+      try {
+        setActiveShift(getCurrentOpenShift());
+      } catch {}
     } catch (e) {
       console.error("Error fetching catalog:", e);
     }
+  };
+
+  const handleSelectPackaging = (index: number, packagingId: number | null) => {
+    const updated = [...cart];
+    const item = updated[index];
+    if (!item) return;
+
+    if (packagingId === null) {
+      item.packaging_id = null;
+      item.package_multiplier = 1;
+      item.packaging_name = null;
+      item.actual_selling_price = item.product.selling_price;
+    } else {
+      const pkg = packagingsByProduct[item.product.id]?.find((x) => x.id === packagingId);
+      if (pkg) {
+        item.packaging_id = pkg.id;
+        item.package_multiplier = pkg.multiplier;
+        item.packaging_name = pkg.package_name;
+        item.actual_selling_price = pkg.selling_price || item.product.selling_price * pkg.multiplier;
+      }
+    }
+    setCart(updated);
+  };
+
+  const handleSelectBatch = (index: number, batchId: number | null) => {
+    const updated = [...cart];
+    if (batchId === null) {
+      updated[index].batch_id = null;
+      updated[index].batch_number = null;
+      updated[index].expiry_date = null;
+    } else {
+      const b = batchesByProduct[updated[index].product.id]?.find((x) => x.id === batchId);
+      if (b) {
+        updated[index].batch_id = b.id;
+        updated[index].batch_number = b.batch_number;
+        updated[index].expiry_date = b.expiry_date;
+      }
+    }
+    setCart(updated);
   };
 
   useEffect(() => {
@@ -218,9 +294,30 @@ export const SalesView: React.FC<SalesViewProps> = ({
       }
 
       const updated = [...cart];
+      const isWholesaleQualifying =
+        customerData.customer_type === "WHOLESALE" ||
+        (product.wholesale_min_qty !== null &&
+          product.wholesale_min_qty !== undefined &&
+          newQty >= product.wholesale_min_qty);
+
+      let price = existing.actual_selling_price;
+      let tier = existing.pricing_tier || "RETAIL";
+
+      if (
+        isWholesaleQualifying &&
+        product.wholesale_price &&
+        product.wholesale_price > 0 &&
+        (price === product.selling_price || tier === "RETAIL")
+      ) {
+        price = product.wholesale_price;
+        tier = "WHOLESALE";
+      }
+
       updated[existingIndex] = {
         ...existing,
         quantity: newQty,
+        actual_selling_price: price,
+        pricing_tier: tier,
       };
       setCart(updated);
     } else {
@@ -230,13 +327,33 @@ export const SalesView: React.FC<SalesViewProps> = ({
         return;
       }
 
+      const isWholesale =
+        customerData.customer_type === "WHOLESALE" ||
+        (product.wholesale_min_qty !== null &&
+          product.wholesale_min_qty !== undefined &&
+          1 >= product.wholesale_min_qty);
+
+      const hasWholesalePrice =
+        product.wholesale_price !== null &&
+        product.wholesale_price !== undefined &&
+        product.wholesale_price > 0;
+
+      const initialPrice =
+        isWholesale && hasWholesalePrice
+          ? product.wholesale_price!
+          : product.selling_price;
+
+      const initialTier: "RETAIL" | "WHOLESALE" =
+        isWholesale && hasWholesalePrice ? "WHOLESALE" : "RETAIL";
+
       setCart([
         ...cart,
         {
           product,
           quantity: 1,
-          actual_selling_price: product.selling_price, // default selling price
-          discount: 0, // 0 discount
+          actual_selling_price: initialPrice,
+          discount: 0,
+          pricing_tier: initialTier,
         },
       ]);
     }
@@ -503,6 +620,38 @@ export const SalesView: React.FC<SalesViewProps> = ({
     } else {
       item.quantity = rawQty;
     }
+
+    // Auto-evaluate Wholesale pricing tier threshold
+    const p = item.product;
+    if (p.wholesale_price && p.wholesale_price > 0 && p.wholesale_min_qty) {
+      if (item.quantity >= p.wholesale_min_qty) {
+        if (item.pricing_tier !== "WHOLESALE" && item.actual_selling_price === p.selling_price) {
+          item.pricing_tier = "WHOLESALE";
+          item.actual_selling_price = p.wholesale_price;
+        }
+      } else if (customerData.customer_type !== "WHOLESALE") {
+        if (item.pricing_tier === "WHOLESALE" && item.actual_selling_price === p.wholesale_price) {
+          item.pricing_tier = "RETAIL";
+          item.actual_selling_price = p.selling_price;
+        }
+      }
+    }
+
+    setCart(updated);
+  };
+
+  const handleTogglePricingTier = (index: number) => {
+    const updated = [...cart];
+    const item = updated[index];
+    if (!item || !item.product.wholesale_price || item.product.wholesale_price <= 0) return;
+
+    if (item.pricing_tier === "WHOLESALE") {
+      item.pricing_tier = "RETAIL";
+      item.actual_selling_price = item.product.selling_price;
+    } else {
+      item.pricing_tier = "WHOLESALE";
+      item.actual_selling_price = item.product.wholesale_price;
+    }
     setCart(updated);
   };
 
@@ -545,9 +694,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
       subtotal += gross;
       totalUnits += item.quantity;
 
-      if (!allowNegativeStock && item.quantity > item.product.current_stock) {
+      const multiplier = item.package_multiplier || 1;
+      const baseUnitsNeeded = item.quantity * multiplier;
+      if (!allowNegativeStock && baseUnitsNeeded > item.product.current_stock) {
         hasStockViolation = true;
-        violationMessage = `Item "${item.product.name}" exceeds current stock (${item.quantity} > ${item.product.current_stock})`;
+        violationMessage = `Item "${item.product.name}" exceeds current stock (${baseUnitsNeeded} > ${item.product.current_stock} ${item.product.unit || "pcs"})`;
       }
 
       return {
@@ -677,6 +828,10 @@ export const SalesView: React.FC<SalesViewProps> = ({
         quantity: item.quantity,
         actualSellingPrice: item.actual_selling_price,
         discount: item.effectiveTotalDiscount,
+        batchId: item.batch_id,
+        pricingTier: item.pricing_tier,
+        packagingId: item.packaging_id,
+        packageMultiplier: item.package_multiplier,
       }));
 
       const sale = processSale(itemsInput, {
@@ -687,6 +842,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
         customerAddress: customerData.address.trim() || undefined,
         applyVat: applyVat,
         paidAmount: effectivePaidAmount,
+        paymentMethod: paymentMethod,
         createdAt: parseDateTimeLocalToIso(saleDateTime),
         customerInput: {
           name: customerData.name.trim(),
@@ -742,6 +898,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
         grandTotal: sale.grand_total,
         total: sale.grand_total ?? sale.total,
         paidAmount: sale.paid_amount ?? effectivePaidAmount,
+        paymentMethod: sale.payment_method || paymentMethod,
         dueAmount: sale.due_amount ?? currentBillDue,
         previousDue: customerPreviousDue,
         totalDue: totalCustomerDue,
@@ -753,6 +910,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
       setCart([]);
       setPaidAmountInput("");
       setIsCustomPaid(false);
+      setPaymentMethod("Cash");
       setCustomerData({
         customerId: null,
         name: "",
@@ -1002,10 +1160,16 @@ export const SalesView: React.FC<SalesViewProps> = ({
                           <div className="text-xs font-semibold text-neutral-200 truncate capitalize">
                             {p.name}
                           </div>
-                          <div className="text-[10px] text-neutral-500 font-mono mt-0.5 flex items-center gap-1.5">
+                          <div className="text-[10px] text-neutral-500 font-mono mt-0.5 flex items-center gap-1.5 flex-wrap">
                             <span className="font-semibold text-neutral-300">
                               {formatCurrency(p.selling_price, currencySymbol)}
                             </span>
+                            {p.wholesale_price && p.wholesale_price > 0 && (
+                              <span className="text-amber-400 font-normal">
+                                · W: {formatCurrency(p.wholesale_price, currencySymbol)}
+                                {p.wholesale_min_qty ? ` (≥${p.wholesale_min_qty})` : ""}
+                              </span>
+                            )}
                             <span>·</span>
                             <span>{p.sku || "No SKU"}</span>
                             <span>·</span>
@@ -1170,6 +1334,30 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   </div>
                 )}
                 <button
+                  type="button"
+                  onClick={() => setIsShiftModalOpen(true)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer border ${
+                    activeShift
+                      ? "text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30"
+                      : "text-neutral-400 bg-neutral-800 hover:bg-neutral-700 border-neutral-700"
+                  }`}
+                  title={isNepali ? "काउन्टर सिफ्ट तथा क्यास ड्रयर" : "Cash Drawer & Shift Management"}
+                >
+                  <span className={`w-2 h-2 rounded-full ${activeShift ? "bg-emerald-400 animate-pulse" : "bg-neutral-500"}`} />
+                  <span>{activeShift ? (isNepali ? "सिफ्ट खुला" : "Till Open") : (isNepali ? "सिफ्ट बन्द" : "Open Till")}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsReturnsModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg shadow-xs transition-colors cursor-pointer"
+                  title={isNepali ? "बिक्री फिर्ता तथा क्रेडिट नोट" : "Customer Returns & Credit Note"}
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-rose-400" />
+                  <span>{isNepali ? "फिर्ता / Credit Note" : "Returns"}</span>
+                </button>
+
+                <button
                   onClick={() => {
                     setBatchQuantities({});
                     setIsMultiProductModalOpen(true);
@@ -1223,9 +1411,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   </thead>
                   <tbody className="divide-y divide-neutral-800/60">
                     {calculations.itemsWithDiscounts.map((item, index) => {
+                      const multiplier = item.package_multiplier || 1;
+                      const baseQtyNeeded = item.quantity * multiplier;
                       const isOverStock =
                         !allowNegativeStock &&
-                        item.quantity > item.product.current_stock;
+                        baseQtyNeeded > item.product.current_stock;
 
                       return (
                         <tr
@@ -1243,6 +1433,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-neutral-800 text-neutral-300 border border-neutral-700/60">
                                 {item.product.unit || "pcs"}
                               </span>
+                              {item.packaging_name && (
+                                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-semibold">
+                                  {item.packaging_name} (×{item.package_multiplier})
+                                </span>
+                              )}
                             </div>
                             <div className="text-[10px] text-neutral-400 font-mono mt-0.5 flex items-center gap-1.5">
                               <span>
@@ -1268,12 +1463,69 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               <div className="text-[10px] text-rose-400 mt-1 flex items-center gap-1 font-semibold">
                                 <AlertTriangle className="w-3 h-3" />
                                 <span>
-                                  Exceeds available stock (
-                                  {item.product.current_stock}{" "}
-                                  {item.product.unit || "pcs"})
+                                  Exceeds available stock (Needs {baseQtyNeeded} {item.product.unit || "pcs"}, Available: {item.product.current_stock})
                                 </span>
                               </div>
                             )}
+
+                            {/* Packaging & Batch Controls */}
+                            <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                              {/* Packaging Selection */}
+                              {packagingsByProduct[item.product.id]?.length > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-neutral-400 font-medium">
+                                    {isNepali ? "एकाइ:" : "Unit:"}
+                                  </span>
+                                  <select
+                                    value={item.packaging_id ?? ""}
+                                    onChange={(e) => {
+                                      const val = e.target.value
+                                        ? parseInt(e.target.value, 10)
+                                        : null;
+                                      handleSelectPackaging(index, val);
+                                    }}
+                                    className="bg-neutral-900 border border-neutral-700/80 rounded px-1.5 py-0.5 text-[10px] text-cyan-300 font-mono focus:outline-none focus:border-cyan-500"
+                                  >
+                                    <option value="">
+                                      Base ({item.product.unit || "pcs"})
+                                    </option>
+                                    {packagingsByProduct[item.product.id].map((pkg) => (
+                                      <option key={pkg.id} value={pkg.id}>
+                                        {pkg.package_name} (×{pkg.multiplier})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+
+                              {/* Batch Selection / FEFO Indicator */}
+                              {batchesByProduct[item.product.id]?.length > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-neutral-400 font-medium">
+                                    {isNepali ? "ब्याच:" : "Batch:"}
+                                  </span>
+                                  <select
+                                    value={item.batch_id ?? ""}
+                                    onChange={(e) => {
+                                      const val = e.target.value
+                                        ? parseInt(e.target.value, 10)
+                                        : null;
+                                      handleSelectBatch(index, val);
+                                    }}
+                                    className="bg-neutral-900 border border-neutral-700/80 rounded px-1.5 py-0.5 text-[10px] text-amber-300 font-mono focus:outline-none focus:border-amber-500"
+                                  >
+                                    <option value="">
+                                      Auto FEFO ({batchesByProduct[item.product.id][0].batch_number})
+                                    </option>
+                                    {batchesByProduct[item.product.id].map((b) => (
+                                      <option key={b.id} value={b.id}>
+                                        {b.batch_number} (Exp: {b.expiry_date}, Stk: {b.quantity})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+                            </div>
                           </td>
 
                           {/* Quantity with in-line stepper */}
@@ -1344,6 +1596,26 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               containerClassName="w-24 ml-auto"
                               className="px-2 py-1 text-xs text-right font-mono text-neutral-100"
                             />
+                            {item.product.wholesale_price && item.product.wholesale_price > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePricingTier(index)}
+                                className={`mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono cursor-pointer transition-colors ${
+                                  item.pricing_tier === "WHOLESALE"
+                                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold"
+                                    : "bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-700/60"
+                                }`}
+                                title="Click to toggle Retail / Wholesale rate"
+                              >
+                                {item.pricing_tier === "WHOLESALE"
+                                  ? isNepali
+                                    ? "थोक"
+                                    : "Wholesale"
+                                  : isNepali
+                                    ? "खुदरा"
+                                    : "Retail"}
+                              </button>
+                            )}
                           </td>
 
                           {/* Line Total */}
@@ -1677,6 +1949,34 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             {isNepali ? "सबै चुक्ता" : "Settle All"}
                           </button>
                         )}
+                      </div>
+                    </div>
+
+                    {/* Payment Mode Selector */}
+                    <div className="flex items-center justify-between pt-2 border-t border-neutral-800/60">
+                      <span className="text-[11px] font-semibold text-neutral-300">
+                        {isNepali ? "भुक्तानी माध्यम (Mode)" : "Payment Mode"}
+                      </span>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {[
+                          { id: "Cash", labelEn: "Cash", labelNp: "नगद" },
+                          { id: "Online", labelEn: "Online/QR", labelNp: "अनलाइन" },
+                          { id: "Cheque", labelEn: "Cheque", labelNp: "चेक" },
+                          { id: "Bank Transfer", labelEn: "Bank", labelNp: "बैंक" },
+                        ].map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => setPaymentMethod(m.id)}
+                            className={`px-2 py-0.5 text-[10px] font-medium rounded border transition-all cursor-pointer ${
+                              paymentMethod === m.id
+                                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 shadow-xs"
+                                : "bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-neutral-200"
+                            }`}
+                          >
+                            {isNepali ? m.labelNp : m.labelEn}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -2235,6 +2535,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
                         currencySymbol,
                       )}
                     </span>
+                    <span className="text-neutral-400 text-[11px] ml-1">
+                      ({completedSaleInfo.paymentMethod || "Cash"})
+                    </span>
                   </span>
                 )}
                 {completedSaleInfo.dueAmount !== undefined &&
@@ -2306,6 +2609,24 @@ export const SalesView: React.FC<SalesViewProps> = ({
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}
         saleId={printSaleId}
+        currencySymbol={currencySymbol}
+      />
+
+      {/* Returns & Credit/Debit Notes Modal */}
+      <ReturnsModal
+        isOpen={isReturnsModalOpen}
+        onClose={() => setIsReturnsModalOpen(false)}
+        currencySymbol={currencySymbol}
+        initialMode="SALE"
+      />
+
+      {/* Cash Drawer & Shift Management Modal */}
+      <ShiftManagementModal
+        isOpen={isShiftModalOpen}
+        onClose={() => {
+          setIsShiftModalOpen(false);
+          loadCatalog();
+        }}
         currencySymbol={currencySymbol}
       />
     </div>

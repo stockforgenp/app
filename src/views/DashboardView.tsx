@@ -14,6 +14,7 @@ import {
   ReceiptText,
   ShoppingCart,
   Tag,
+  BookOpen,
 } from "lucide-react";
 import {
   DateFilterPreset,
@@ -423,7 +424,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* Quick Launchpad Buttons */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
         <button
           onClick={() => onNavigateToTab("sales")}
           className="p-5 rounded-xl bg-gradient-to-r from-emerald-950/60 to-neutral-900 border border-emerald-500/30 hover:border-emerald-500/50 flex items-center justify-between transition-all group text-left cursor-pointer"
@@ -431,14 +432,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-emerald-300">
               <ShoppingCart className="w-4 h-4" />
-              <span>Launch New Sale Checkout</span>
+              <span>{isNepali ? "नयाँ बिक्री बिलिङ" : "Launch New Sale"}</span>
             </div>
-            <div className="text-xs text-neutral-400 mt-1">
-              Scan or select items, configure prices, apply discounts
+            <div className="text-xs text-neutral-400 mt-1 line-clamp-2">
+              {isNepali ? "सामान स्क्यान/छनोट, छुट र भुक्तानी" : "Scan or select items, configure prices, apply discounts"}
             </div>
           </div>
-          <span className="text-xs text-emerald-400 group-hover:translate-x-1 transition-transform">
-            Sale →
+          <span className="text-xs text-emerald-400 group-hover:translate-x-1 transition-transform shrink-0 ml-2">
+            →
+          </span>
+        </button>
+
+        <button
+          onClick={() => onNavigateToTab("daybook")}
+          className="p-5 rounded-xl bg-gradient-to-r from-cyan-950/40 to-neutral-900 border border-cyan-500/30 hover:border-cyan-500/50 flex items-center justify-between transition-all group text-left cursor-pointer"
+        >
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-cyan-300">
+              <BookOpen className="w-4 h-4" />
+              <span>{isNepali ? "रोजिन्दा हिसाब (Day Book)" : "Daily Book (Day Book)"}</span>
+            </div>
+            <div className="text-xs text-neutral-400 mt-1 line-clamp-2">
+              {isNepali ? "दैनिक नगद, बिक्री, खरिद, खर्च र बाँकी अडिट" : "Audit daily cash flow, payment modes, and dues"}
+            </div>
+          </div>
+          <span className="text-xs text-cyan-400 group-hover:translate-x-1 transition-transform shrink-0 ml-2">
+            →
           </span>
         </button>
 
@@ -449,14 +468,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-rose-300">
               <ReceiptText className="w-4 h-4" />
-              <span>Track Store Expenses</span>
+              <span>{isNepali ? "खर्च प्रविष्टि" : "Track Store Expenses"}</span>
             </div>
-            <div className="text-xs text-neutral-400 mt-1">
-              Record shop rent, utility bills, packaging, and operating costs
+            <div className="text-xs text-neutral-400 mt-1 line-clamp-2">
+              {isNepali ? "भाडा, बिजुली, ढुवानी र अन्य खर्च" : "Record shop rent, utility bills, packaging, and operating costs"}
             </div>
           </div>
-          <span className="text-xs text-rose-400 group-hover:translate-x-1 transition-transform">
-            Expenses →
+          <span className="text-xs text-rose-400 group-hover:translate-x-1 transition-transform shrink-0 ml-2">
+            →
           </span>
         </button>
 
@@ -467,14 +486,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-neutral-200">
               <Receipt className="w-4 h-4 text-neutral-400" />
-              <span>View Historical Transactions</span>
+              <span>{isNepali ? "बिक्री इतिहास" : "Sales History"}</span>
             </div>
-            <div className="text-xs text-neutral-400 mt-1">
-              Inspect snapshot item costs, receipts, and sales logs
+            <div className="text-xs text-neutral-400 mt-1 line-clamp-2">
+              {isNepali ? "बिल रसिद, नाफा र कारोबार विवरण" : "Inspect snapshot item costs, receipts, and sales logs"}
             </div>
           </div>
-          <span className="text-xs text-neutral-400 group-hover:translate-x-1 transition-transform">
-            Sales Log →
+          <span className="text-xs text-neutral-400 group-hover:translate-x-1 transition-transform shrink-0 ml-2">
+            →
           </span>
         </button>
       </div>

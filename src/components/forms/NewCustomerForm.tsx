@@ -40,6 +40,7 @@ export const NewCustomerForm: React.FC<CustomerFormProps> = ({
     pan_vat: editingCustomer?.pan_vat ?? initialValues?.pan_vat ?? "",
     address: editingCustomer?.address ?? initialValues?.address ?? "",
     notes: editingCustomer?.notes ?? initialValues?.notes ?? "",
+    customer_type: editingCustomer?.customer_type ?? initialValues?.customer_type ?? "RETAIL",
   });
 
   const handleSubmitForm = (e: React.FormEvent) => {
@@ -173,6 +174,36 @@ export const NewCustomerForm: React.FC<CustomerFormProps> = ({
           setFormData({ ...formData, address: e.target.value })
         }
       />
+
+      <div className="space-y-1.5">
+        <label className="block text-xs font-semibold text-neutral-300">
+          {isNepali ? "ग्राहकको प्रकार (मूल्य दर)" : "Customer Tier (Pricing)"}
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setFormData({ ...formData, customer_type: "RETAIL" })}
+            className={`py-2 px-3 rounded-lg border text-xs font-medium transition-all ${
+              formData.customer_type !== "WHOLESALE"
+                ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400 font-bold"
+                : "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-neutral-200"
+            }`}
+          >
+            {isNepali ? "खुदरा ग्राहक (Retail)" : "Retail Customer"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormData({ ...formData, customer_type: "WHOLESALE" })}
+            className={`py-2 px-3 rounded-lg border text-xs font-medium transition-all ${
+              formData.customer_type === "WHOLESALE"
+                ? "bg-amber-500/10 border-amber-500/40 text-amber-400 font-bold"
+                : "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-neutral-200"
+            }`}
+          >
+            {isNepali ? "थोक ग्राहक (Wholesale)" : "Wholesale Customer"}
+          </button>
+        </div>
+      </div>
 
       <div>
         <label className="block text-xs font-semibold text-neutral-300 mb-1">

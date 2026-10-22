@@ -25,6 +25,8 @@ import {
 import { capitalizeWords } from '../utils/format.ts';
 import { getSettings } from './settingsService.ts';
 import { getProductById } from './productService.ts';
+import { createOrAddBatch } from './batchService.ts';
+import { getPackagingById } from './packagingService.ts';
 
 export function processPurchase(
   items: ProcessPurchaseItemInput[],
@@ -117,6 +119,12 @@ export function processPurchase(
       discount: number;
       lineGross: number;
       lineNet: number;
+      batchNumber?: string;
+      expiryDate?: string;
+      mfgDate?: string;
+      packagingId?: number | null;
+      packageMultiplier: number;
+      packagingName?: string | null;
     }> = [];
 
     for (const it of items) {
@@ -128,6 +136,18 @@ export function processPurchase(
       const product = getProductById(it.productId);
       if (!product) {
         throw new Error(`Product with ID ${it.productId} was not found`);
+      }
+
+      let mult = 1;
+      let pkgName: string | null = null;
+      if (it.packagingId) {
+        const pkg = getPackagingById(it.packagingId);
+        if (pkg) {
+          mult = Math.max(1, pkg.multiplier);
+          pkgName = pkg.package_name;
+        }
+      } else if (it.packageMultiplier && it.packageMultiplier > 1) {
+        mult = it.packageMultiplier;
       }
 
       const costPrice = Math.max(0, Math.floor(it.costPrice));
@@ -149,6 +169,12 @@ export function processPurchase(
         discount,
         lineGross,
         lineNet,
+        batchNumber: it.batchNumber?.trim() || undefined,
+        expiryDate: it.expiryDate?.trim() || undefined,
+        mfgDate: it.mfgDate?.trim() || undefined,
+        packagingId: it.packagingId || null,
+        packageMultiplier: mult,
+        packagingName: pkgName,
       });
     }
 
@@ -174,6 +200,7 @@ export function processPurchase(
 
     const thisPurchasePaid = Math.min(totalPaidInput, grandTotal);
     const thisPurchaseDue = Math.max(0, grandTotal - totalPaidInput);
+    const paymentMethod = vendorInfo?.paymentMethod?.trim() || 'Cash';
 
     // If paid more than this purchase total and vendor has previous outstanding due, settle previous dues
     if (resolvedVendorId && totalPaidInput > grandTotal) {
@@ -184,7 +211,7 @@ export function processPurchase(
         recordVendorPayment({
           vendorId: resolvedVendorId,
           amount: settleAmount,
-          paymentMethod: 'Cash',
+          paymentMethod: paymentMethod,
           paymentDate: transactionCreatedAt,
           note: `Settled with purchase ${billNumber}`,
         });
@@ -196,8 +223,8 @@ export function processPurchase(
       `INSERT INTO purchases (
         bill_number, invoice_number, vendor_id, vendor_name, vendor_phone,
         vendor_email, vendor_pan_vat, vendor_address, subtotal, discount,
-        taxable_amount, vat_rate, vat_amount, grand_total, total, paid_amount, due_amount, notes, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        taxable_amount, vat_rate, vat_amount, grand_total, total, paid_amount, due_amount, payment_method, notes, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         billNumber,
         vendorInfo?.invoiceNumber?.trim() || null,
@@ -216,6 +243,7 @@ export function processPurchase(
         grandTotal,
         thisPurchasePaid,
         thisPurchaseDue,
+        paymentMethod,
         vendorInfo?.notes?.trim() || null,
         transactionCreatedAt,
       ]
@@ -227,16 +255,44 @@ export function processPurchase(
 
     // 5. Insert line items, update stock & log stock movements
     for (const it of verifiedItems) {
+      const baseUnits = it.quantity * it.packageMultiplier;
+      let linkedBatchId: number | null = null;
+      if (it.batchNumber && it.expiryDate) {
+        try {
+          const batch = createOrAddBatch({
+            productId: it.product.id,
+            batchNumber: it.batchNumber,
+            expiryDate: it.expiryDate,
+            mfgDate: it.mfgDate,
+            costPrice: it.costPrice,
+            sellingPrice: it.sellingPrice,
+            quantity: baseUnits,
+          });
+          linkedBatchId = batch.id;
+        } catch (e) {
+          console.error('Error creating batch for purchase:', e);
+        }
+      }
+
       run(
         `INSERT INTO purchase_items (
           purchase_id, product_id, product_name, product_sku,
+          batch_id, batch_number, expiry_date, mfg_date,
+          packaging_id, package_multiplier, packaging_name,
           quantity, cost_price, selling_price, discount, total
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           purchaseId,
           it.product.id,
           it.product.name,
           it.product.sku,
+          linkedBatchId,
+          it.batchNumber || null,
+          it.expiryDate || null,
+          it.mfgDate || null,
+          it.packagingId || null,
+          it.packageMultiplier,
+          it.packagingName || null,
           it.quantity,
           it.costPrice,
           it.sellingPrice !== undefined ? it.sellingPrice : null,
@@ -245,8 +301,8 @@ export function processPurchase(
         ]
       );
 
-      // Inflow Stock into inventory: increase current_stock, update cost_price and selling_price if provided
-      const newStock = it.product.current_stock + it.quantity;
+      // Inflow Stock into inventory: increase current_stock by baseUnits
+      const newStock = it.product.current_stock + baseUnits;
       if (it.sellingPrice !== undefined && it.sellingPrice > 0) {
         run(
           `UPDATE products 
@@ -280,6 +336,9 @@ export function processPurchase(
       }
 
       // Record Stock Inflow Movement
+      const pkgNote = it.packageMultiplier > 1 && it.packagingName
+        ? ` (${it.quantity} ${it.packagingName} = ${baseUnits} ${it.product.unit || 'pcs'})`
+        : '';
       run(
         `INSERT INTO stock_movements (
           product_id, type, quantity, reference_id,
@@ -287,13 +346,13 @@ export function processPurchase(
         ) VALUES (?, 'RESTOCK', ?, ?, ?, ?, ?, ?)`,
         [
           it.product.id,
-          it.quantity,
+          baseUnits,
           purchaseId,
           resolvedVendorId,
           resolvedVendorName,
           `Purchase Order #${billNumber}${
             vendorInfo?.invoiceNumber ? ` (Inv: ${vendorInfo.invoiceNumber})` : ''
-          }`,
+          }${pkgNote}`,
           transactionCreatedAt,
         ]
       );
@@ -440,6 +499,10 @@ export function getPurchaseWithItems(
        pi.product_name,
        pi.product_sku,
        pr.unit as product_unit,
+       pi.batch_id,
+       pi.batch_number,
+       pi.expiry_date,
+       pi.mfg_date,
        pi.quantity,
        pi.cost_price,
        pi.selling_price,
@@ -543,6 +606,12 @@ export function updatePurchase(
       discount: number;
       lineGross: number;
       lineNet: number;
+      batchNumber?: string;
+      expiryDate?: string;
+      mfgDate?: string;
+      packagingId?: number | null;
+      packageMultiplier: number;
+      packagingName?: string | null;
     }> = [];
 
     for (const it of items) {
@@ -554,6 +623,18 @@ export function updatePurchase(
       const product = getProductById(it.productId);
       if (!product) {
         throw new Error(`Product with ID ${it.productId} was not found`);
+      }
+
+      let mult = 1;
+      let pkgName: string | null = null;
+      if (it.packagingId) {
+        const pkg = getPackagingById(it.packagingId);
+        if (pkg) {
+          mult = Math.max(1, pkg.multiplier);
+          pkgName = pkg.package_name;
+        }
+      } else if (it.packageMultiplier && it.packageMultiplier > 1) {
+        mult = it.packageMultiplier;
       }
 
       const costPrice = Math.max(0, Math.floor(it.costPrice));
@@ -575,6 +656,12 @@ export function updatePurchase(
         discount,
         lineGross,
         lineNet,
+        batchNumber: it.batchNumber?.trim() || undefined,
+        expiryDate: it.expiryDate?.trim() || undefined,
+        mfgDate: it.mfgDate?.trim() || undefined,
+        packagingId: it.packagingId || null,
+        packageMultiplier: mult,
+        packagingName: pkgName,
       });
     }
 
@@ -593,6 +680,9 @@ export function updatePurchase(
           ? existing.purchase.paid_amount
           : grandTotal);
     const dueAmount = Math.max(0, grandTotal - paidAmount);
+    const paymentMethod = vendorInfo?.paymentMethod !== undefined
+      ? (vendorInfo.paymentMethod.trim() || 'Cash')
+      : (existing.purchase.payment_method || 'Cash');
 
     // 4. Update purchases record
     run(
@@ -613,6 +703,7 @@ export function updatePurchase(
         total = ?,
         paid_amount = ?,
         due_amount = ?,
+        payment_method = ?,
         notes = ?,
         created_at = ?
       WHERE id = ?`,
@@ -633,6 +724,7 @@ export function updatePurchase(
         grandTotal,
         paidAmount,
         dueAmount,
+        paymentMethod,
         (vendorInfo?.notes?.trim()) || existing.purchase.notes || null,
         transactionCreatedAt,
         purchaseId,

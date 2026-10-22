@@ -28,6 +28,7 @@ import {
   FileText,
   Headphones,
   Database,
+  BookOpen,
 } from 'lucide-react';
 import { NavTab } from '../layout/Sidebar.tsx';
 import { Input } from './Input.tsx';
@@ -211,6 +212,18 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         category: 'Screens',
         action: () => {
           onNavigate('history');
+          onClose();
+        },
+      },
+      {
+        id: 'nav-daybook',
+        title: 'Daily Book (Day Book)',
+        subtitle: 'Daily cash journal, sales, purchases, expenses & dues ledger',
+        icon: BookOpen,
+        shortcut: `${MODIFIER_LABEL}+J`,
+        category: 'Screens',
+        action: () => {
+          onNavigate('daybook');
           onClose();
         },
       },

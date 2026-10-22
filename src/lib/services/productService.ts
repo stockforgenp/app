@@ -137,6 +137,8 @@ export function createProduct(data: {
   unit?: string | null;
   cost_price: number;
   selling_price: number;
+  wholesale_price?: number | null;
+  wholesale_min_qty?: number | null;
   current_stock: number;
   min_stock_alert?: number | null;
 }): Product {
@@ -154,17 +156,27 @@ export function createProduct(data: {
   const initialStock = Math.max(0, Math.floor(data.current_stock));
   const minStockAlert =
     data.min_stock_alert !== undefined ? data.min_stock_alert : null;
+  const wholesalePrice =
+    data.wholesale_price !== undefined && data.wholesale_price !== null && data.wholesale_price > 0
+      ? Math.floor(data.wholesale_price)
+      : null;
+  const wholesaleMinQty =
+    data.wholesale_min_qty !== undefined && data.wholesale_min_qty !== null && data.wholesale_min_qty > 0
+      ? Math.floor(data.wholesale_min_qty)
+      : null;
 
   return transaction(() => {
     run(
-      `INSERT INTO products (name, sku, unit, cost_price, selling_price, current_stock, min_stock_alert, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (name, sku, unit, cost_price, selling_price, wholesale_price, wholesale_min_qty, current_stock, min_stock_alert, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         name,
         sku,
         unit,
         data.cost_price,
         data.selling_price,
+        wholesalePrice,
+        wholesaleMinQty,
         initialStock,
         minStockAlert,
         now,
@@ -198,6 +210,8 @@ export function createProductsBatch(
     unit?: string | null;
     cost_price: number;
     selling_price: number;
+    wholesale_price?: number | null;
+    wholesale_min_qty?: number | null;
     current_stock: number;
     min_stock_alert?: number | null;
   }>,
@@ -216,6 +230,8 @@ export function updateProduct(
     unit?: string | null;
     cost_price: number;
     selling_price: number;
+    wholesale_price?: number | null;
+    wholesale_min_qty?: number | null;
     min_stock_alert?: number | null;
   },
 ): void {
@@ -232,10 +248,18 @@ export function updateProduct(
 
   const minStockAlert =
     data.min_stock_alert !== undefined ? data.min_stock_alert : null;
+  const wholesalePrice =
+    data.wholesale_price !== undefined && data.wholesale_price !== null && data.wholesale_price > 0
+      ? Math.floor(data.wholesale_price)
+      : null;
+  const wholesaleMinQty =
+    data.wholesale_min_qty !== undefined && data.wholesale_min_qty !== null && data.wholesale_min_qty > 0
+      ? Math.floor(data.wholesale_min_qty)
+      : null;
 
   run(
     `UPDATE products 
-     SET name = ?, sku = ?, unit = ?, cost_price = ?, selling_price = ?, min_stock_alert = ?, updated_at = ?
+     SET name = ?, sku = ?, unit = ?, cost_price = ?, selling_price = ?, wholesale_price = ?, wholesale_min_qty = ?, min_stock_alert = ?, updated_at = ?
      WHERE id = ?`,
     [
       name,
@@ -243,6 +267,8 @@ export function updateProduct(
       unit,
       data.cost_price,
       data.selling_price,
+      wholesalePrice,
+      wholesaleMinQty,
       minStockAlert,
       now,
       id,

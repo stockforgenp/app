@@ -9,6 +9,8 @@ export interface Product {
   unit?: string | null; // e.g. 'pcs', 'kg', 'ltr', 'g', 'ml', 'box', 'packet', 'dozen', 'm'
   cost_price: number; // Stored in minor units (e.g. paisa/cents) or standard currency units
   selling_price: number; // Default selling price
+  wholesale_price?: number | null; // Wholesale tier price in minor units
+  wholesale_min_qty?: number | null; // Minimum qty threshold to trigger wholesale rate
   current_stock: number;
   min_stock_alert?: number | null; // Specific minimum alert threshold (defaults to app low_stock_threshold if null)
   created_at: string;
@@ -60,15 +62,44 @@ export interface Sale {
   total: number;
   paid_amount?: number;
   due_amount?: number;
+  payment_method?: string | null;
   previous_due?: number;
   total_due?: number;
   cost_total?: number;
   gross_profit?: number;
   item_count?: number;
-  status?: 'COMPLETED' | 'RETURNED';
+  status?: 'COMPLETED' | 'RETURNED' | 'PARTIAL_RETURN';
   returned_at?: string | null;
   created_at: string;
   lowStockAlerts?: LowStockAlertItem[];
+}
+
+export interface ProductBatch {
+  id: number;
+  product_id: number;
+  product_name?: string;
+  product_sku?: string | null;
+  product_unit?: string | null;
+  batch_number: string;
+  mfg_date?: string | null;
+  expiry_date: string;
+  cost_price: number;
+  selling_price?: number | null;
+  quantity: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductPackaging {
+  id: number;
+  product_id: number;
+  package_name: string; // e.g. 'Carton', 'Sack', 'Box', 'Strip', 'Dozen'
+  package_unit: string; // e.g. 'ctn', 'sack', 'box', 'strip', 'dzn'
+  multiplier: number; // Conversion factor, e.g. 24, 25, 10, 12
+  selling_price?: number | null; // Optional package-level selling price
+  barcode?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SaleItem {
@@ -78,6 +109,13 @@ export interface SaleItem {
   product_name?: string;
   product_sku?: string | null;
   product_unit?: string | null;
+  batch_id?: number | null;
+  batch_number?: string | null;
+  expiry_date?: string | null;
+  pricing_tier?: 'RETAIL' | 'WHOLESALE';
+  packaging_id?: number | null;
+  package_multiplier?: number;
+  packaging_name?: string | null;
   quantity: number;
   cost_price: number; // Snapshot of cost price at time of sale
   selling_price: number; // Actual selling price for this sale
@@ -92,6 +130,13 @@ export interface CartItem {
   quantity: number;
   actual_selling_price: number;
   discount: number; // Monetary discount
+  batch_id?: number | null;
+  batch_number?: string | null;
+  expiry_date?: string | null;
+  pricing_tier?: 'RETAIL' | 'WHOLESALE';
+  packaging_id?: number | null;
+  package_multiplier?: number;
+  packaging_name?: string | null;
 }
 
 export interface ProcessSaleItemInput {
@@ -99,6 +144,10 @@ export interface ProcessSaleItemInput {
   quantity: number;
   actualSellingPrice: number; // in minor units
   discount: number; // in minor units
+  batchId?: number | null;
+  pricingTier?: 'RETAIL' | 'WHOLESALE';
+  packagingId?: number | null;
+  packageMultiplier?: number;
 }
 
 export interface ProcessSaleCustomerInfo {
@@ -109,6 +158,7 @@ export interface ProcessSaleCustomerInfo {
   customerAddress?: string | null;
   applyVat?: boolean;
   paidAmount?: number;
+  paymentMethod?: string;
   createdAt?: string | null;
   customerInput?: {
     name: string;
@@ -138,12 +188,13 @@ export interface Purchase {
   total: number;
   paid_amount?: number;
   due_amount?: number;
+  payment_method?: string | null;
   previous_due?: number;
   total_due?: number;
   notes?: string | null;
   item_count?: number;
   total_units?: number;
-  status?: 'COMPLETED' | 'RETURNED';
+  status?: 'COMPLETED' | 'RETURNED' | 'PARTIAL_RETURN';
   returned_at?: string | null;
   created_at: string;
 }
@@ -155,6 +206,13 @@ export interface PurchaseItem {
   product_name?: string;
   product_sku?: string | null;
   product_unit?: string | null;
+  batch_id?: number | null;
+  batch_number?: string | null;
+  expiry_date?: string | null;
+  mfg_date?: string | null;
+  packaging_id?: number | null;
+  package_multiplier?: number;
+  packaging_name?: string | null;
   quantity: number;
   cost_price: number; // Inflow purchase unit price
   selling_price?: number | null; // Retail selling price if modified
@@ -168,6 +226,12 @@ export interface PurchaseCartItem {
   cost_price: number; // Unit purchase price
   selling_price?: number; // Retail selling price
   discount: number; // Item discount
+  batch_number?: string;
+  expiry_date?: string;
+  mfg_date?: string;
+  packaging_id?: number | null;
+  package_multiplier?: number;
+  packaging_name?: string | null;
 }
 
 export interface ProcessPurchaseItemInput {
@@ -176,6 +240,11 @@ export interface ProcessPurchaseItemInput {
   costPrice: number;
   sellingPrice?: number;
   discount: number;
+  batchNumber?: string;
+  expiryDate?: string;
+  mfgDate?: string;
+  packagingId?: number | null;
+  packageMultiplier?: number;
 }
 
 export interface ProcessPurchaseVendorInfo {
@@ -189,6 +258,7 @@ export interface ProcessPurchaseVendorInfo {
   notes?: string | null;
   applyVat?: boolean;
   paidAmount?: number;
+  paymentMethod?: string;
   createdAt?: string | null;
   vendorInput?: {
     name: string;
@@ -490,6 +560,7 @@ export interface Customer {
   pan_vat?: string | null;
   address?: string | null;
   notes?: string | null;
+  customer_type?: 'RETAIL' | 'WHOLESALE';
   created_at: string;
   updated_at: string;
   sales_count?: number;
@@ -503,6 +574,7 @@ export interface CreateCustomerInput {
   pan_vat?: string | null;
   address?: string | null;
   notes?: string | null;
+  customer_type?: 'RETAIL' | 'WHOLESALE';
 }
 
 export interface CustomerPayment {
@@ -563,5 +635,206 @@ export interface StatementRow {
   paymentMethod?: string;
   status?: string;
   runningBalance: number;
+}
+
+export type ReturnReason = 'DEFECTIVE' | 'WRONG_ITEM' | 'CUSTOMER_CANCELLED' | 'EXPIRED' | 'OTHER';
+export type ReturnAction = 'RESTOCK' | 'DAMAGED';
+export type ReturnRefundMethod = 'CASH' | 'CREDIT_NOTE' | 'BANK';
+
+export interface SaleReturn {
+  id: number;
+  return_number: string; // e.g. CN-20261022-0001 (Credit Note)
+  sale_id: number | null;
+  bill_number: string | null;
+  customer_id: number | null;
+  customer_name: string | null;
+  total_refund: number; // minor units
+  refund_method: ReturnRefundMethod;
+  reason: ReturnReason;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface SaleReturnItem {
+  id: number;
+  return_id: number;
+  product_id: number;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+  batch_id?: number | null;
+  batch_number?: string | null;
+  action: ReturnAction;
+  created_at: string;
+}
+
+export interface PurchaseReturn {
+  id: number;
+  return_number: string; // e.g. DN-20261022-0001 (Debit Note)
+  purchase_id: number | null;
+  bill_number: string | null;
+  vendor_id: number | null;
+  vendor_name: string | null;
+  total_refund: number;
+  refund_method: 'CASH' | 'VENDOR_CREDIT' | 'BANK';
+  reason: ReturnReason;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface PurchaseReturnItem {
+  id: number;
+  return_id: number;
+  product_id: number;
+  product_name: string;
+  quantity: number;
+  cost_price: number;
+  total: number;
+  batch_id?: number | null;
+  batch_number?: string | null;
+  created_at: string;
+}
+
+export type ShiftStatus = 'OPEN' | 'CLOSED';
+
+export interface ShiftSession {
+  id: number;
+  cashier_name: string;
+  staff_id?: number | null;
+  opening_float: number; // minor units (paisa)
+  closing_cash?: number | null; // physically counted in minor units
+  system_cash?: number | null; // calculated expected cash in drawer
+  cash_sales?: number;
+  online_sales?: number;
+  credit_sales?: number;
+  cash_refunds?: number;
+  cash_expenses?: number;
+  variance?: number | null; // closing_cash - system_cash
+  status: ShiftStatus;
+  notes?: string | null;
+  opened_at: string;
+  closed_at?: string | null;
+  created_at: string;
+}
+
+export interface OpenShiftInput {
+  cashierName: string;
+  staffId?: number | null;
+  openingFloat: number; // in minor units
+  notes?: string;
+  openedAt?: string;
+}
+
+export interface CloseShiftInput {
+  shiftId: number;
+  closingCash: number; // physically counted in minor units
+  notes?: string;
+  closedAt?: string;
+}
+
+export type WriteOffReason =
+  | 'EXPIRED'
+  | 'DAMAGED'
+  | 'SPOILED_LEAKED'
+  | 'LOST_STOLEN'
+  | 'DEFECTIVE'
+  | 'DEAD_STOCK';
+
+export type WriteOffAction = 'DISPOSAL' | 'VENDOR_RETURN_PENDING' | 'SALVAGE_CLEARANCE';
+
+export interface StockWriteOff {
+  id: number;
+  voucher_number: string; // e.g. WO-00001
+  product_id: number;
+  product_name: string;
+  quantity: number;
+  unit_cost: number; // in minor units
+  total_loss: number; // in minor units
+  batch_id?: number | null;
+  batch_number?: string | null;
+  reason: WriteOffReason;
+  action: WriteOffAction;
+  approved_by?: string | null;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface CreateWriteOffInput {
+  productId: number;
+  quantity: number;
+  unitCost?: number; // optional, defaults to product/batch cost
+  batchId?: number | null;
+  batchNumber?: string | null;
+  reason: WriteOffReason;
+  action?: WriteOffAction; // default 'DISPOSAL'
+  approvedBy?: string;
+  notes?: string;
+  recordAsExpense?: boolean; // if true, records as 'Inventory Loss & Spoilage' expense
+  createdAt?: string;
+}
+
+// ==========================================
+// Day Book / Daily Cash & Transaction Book
+// ==========================================
+
+export type DayBookTransactionType =
+  | 'SALE'
+  | 'PURCHASE'
+  | 'EXPENSE'
+  | 'CUSTOMER_PAYMENT'
+  | 'VENDOR_PAYMENT'
+  | 'SALARY'
+  | 'SALE_RETURN'
+  | 'PURCHASE_RETURN';
+
+export interface DayBookEntry {
+  id: string; // e.g. "sale-10", "exp-4"
+  time: string; // ISO string
+  type: DayBookTransactionType;
+  refNumber: string; // Bill #, Receipt #, Voucher #
+  partyName: string; // Customer, Vendor, Expense category, Staff name
+  paymentMethod: string; // 'Cash' | 'Online' | 'Cheque' | 'Bank Transfer' | ...
+  billAmount: number; // In minor units (total bill / invoice value)
+  inflow: number; // In minor units (cash/money received)
+  outflow: number; // In minor units (cash/money disbursed)
+  dueAmount: number; // In minor units (credit remaining on this bill)
+  notes?: string | null;
+  status?: string | null;
+}
+
+export interface DayBookPaymentModeSummary {
+  mode: string;
+  inflow: number;
+  outflow: number;
+  net: number;
+}
+
+export interface DayBookSummary {
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  openingBalance: number; // Cash balance at start of date range
+  closingBalance: number; // Cash balance at end of date range
+  totalInflow: number; // Total money received (all modes)
+  totalOutflow: number; // Total money paid out (all modes)
+  netCashFlow: number; // totalInflow - totalOutflow
+  cashInflow: number; // Cash received
+  cashOutflow: number; // Cash paid
+  netCash: number; // cashInflow - cashOutflow
+  // Dues & Credit Breakdown for the period
+  salesInvoiced: number; // Total sales invoiced
+  salesPaid: number; // Total sales paid at checkout
+  newCustomerDue: number; // New customer credit given
+  customerDueCollected: number; // Previous customer dues collected
+  purchasesInvoiced: number; // Total purchases invoiced
+  purchasesPaid: number; // Total purchases paid
+  newVendorDue: number; // New vendor payable created
+  vendorDuePaid: number; // Vendor dues settled
+  expensesPaid: number; // Operational expenses paid
+  salariesPaid: number; // Staff salaries paid
+  refundsGiven: number; // Customer sales return refunds given
+  refundsReceived: number; // Vendor purchase return refunds received
+  entries: DayBookEntry[];
+  modeSummaries: DayBookPaymentModeSummary[];
 }
 

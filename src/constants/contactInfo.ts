@@ -44,8 +44,8 @@ const WHATSAPP_DEFAULT_MSG_NP =
   "नमस्ते! म StockForge अफलाइन रिटेल POS सफ्टवेयर, हार्डवेयर र प्राविधिक सहयोगबारे बुझ्न चाहन्छु।";
 
 export const CONTACT_INFO: ContactInfo = {
-  name: "Ayub Alam",
-  nameNp: "अयुब आलम",
+  name: "StockForge",
+  nameNp: "स्टकफोर्ज",
   phone: {
     display: "+977 9809167106",
     clean: "+9779809167106",
@@ -64,8 +64,8 @@ export const CONTACT_INFO: ContactInfo = {
     },
   },
   email: {
-    address: "imayubalam@gmail.com",
-    mailtoLink: "mailto:imayubalam@gmail.com",
+    address: "stockforge.np@gmail.com",
+    mailtoLink: "mailto:stockforge.np@gmail.com",
   },
   address: {
     street: "Main Road",

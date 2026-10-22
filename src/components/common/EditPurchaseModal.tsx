@@ -93,6 +93,7 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
   const [applyVat, setApplyVat] = useState(true);
   const [paidAmountInput, setPaidAmountInput] = useState("");
   const [wholeDiscountInput, setWholeDiscountInput] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<string>("Cash");
 
   // Lines State
   const [lines, setLines] = useState<EditablePurchaseLine[]>([]);
@@ -148,6 +149,7 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
             ? details.purchase.paid_amount
             : (details.purchase.grand_total || details.purchase.total);
         setPaidAmountInput(fromMinorUnits(initialPaid).toString());
+        setPaymentMethod(details.purchase.payment_method || "Cash");
         setWholeDiscountInput(
           details.purchase.discount
             ? fromMinorUnits(details.purchase.discount).toString()
@@ -336,6 +338,7 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
         notes: purchaseNotes.trim() || null,
         applyVat,
         paidAmount: parsedPaid,
+        paymentMethod,
         createdAt: parseDateTimeLocalToIso(purchaseDateTime),
       });
 
@@ -755,6 +758,32 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
                 >
                   {isNepali ? "पूरा चुक्ता" : "Full Paid"}
                 </button>
+              </div>
+
+              {/* Payment Mode Selector */}
+              <div className="flex justify-end items-center gap-1.5 pt-1">
+                <span className="text-[11px] text-neutral-400">
+                  {isNepali ? "माध्यम" : "Mode"}:
+                </span>
+                {[
+                  { id: "Cash", label: isNepali ? "नगद" : "Cash" },
+                  { id: "Bank Transfer", label: isNepali ? "बैंक" : "Bank" },
+                  { id: "Online", label: isNepali ? "अनलाइन" : "Online" },
+                  { id: "Cheque", label: isNepali ? "चेक" : "Cheque" },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setPaymentMethod(m.id)}
+                    className={`px-2 py-0.5 text-[10px] rounded border transition-colors cursor-pointer ${
+                      paymentMethod === m.id
+                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                        : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
               </div>
 
               {(() => {

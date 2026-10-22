@@ -61,7 +61,7 @@ export const StatementModal: React.FC<StatementModalProps> = ({
     rows: StatementRow[];
   } | null>(null);
 
-  const [activeTab, setActiveTab] = useState<"all" | "bills" | "payments">(
+  const [activeTab, setActiveTab] = useState<"all" | "bills" | "payments" | "returns">(
     "all",
   );
   const [search, setSearch] = useState("");
@@ -128,9 +128,11 @@ export const StatementModal: React.FC<StatementModalProps> = ({
     statementData;
 
   // Filtered rows
+  const returnRows = rows.filter((r) => r.type === "RETURN");
   const filteredRows = rows.filter((r) => {
-    if (activeTab === "bills" && r.type === "PAYMENT") return false;
+    if (activeTab === "bills" && r.type !== "BILL") return false;
     if (activeTab === "payments" && r.type !== "PAYMENT") return false;
+    if (activeTab === "returns" && r.type !== "RETURN") return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       return (
@@ -321,6 +323,18 @@ export const StatementModal: React.FC<StatementModalProps> = ({
               >
                 {isNepali ? "भुक्तानी रसिद (Payments)" : "Payment Receipts"} (
                 {payments.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("returns")}
+                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
+                  activeTab === "returns"
+                    ? "bg-neutral-800 text-neutral-100 shadow-sm"
+                    : "text-neutral-400 hover:text-neutral-200"
+                }`}
+              >
+                {isNepali ? "फिर्ता / नोट (Returns)" : "Returns / Notes"} (
+                {returnRows.length})
               </button>
             </div>
 

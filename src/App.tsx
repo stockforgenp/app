@@ -29,6 +29,7 @@ import { VendorsView } from "./views/VendorsView.tsx";
 import { CustomersView } from "./views/CustomersView.tsx";
 import { SalesHistoryView } from "./views/SalesHistoryView.tsx";
 import { ExpensesView } from "./views/ExpensesView.tsx";
+import { DayBookView } from "./views/DayBookView.tsx";
 import { StaffView } from "./views/StaffView.tsx";
 import { PayrollView } from "./views/PayrollView.tsx";
 import { AnalyticsView } from "./views/AnalyticsView.tsx";
@@ -300,7 +301,6 @@ export default function App() {
           toggleSidebar={toggleSidebar}
           setToggleSidebar={() => setToggleSidebar((prev) => !prev)}
           lowStockCount={lowStockCount}
-          onOpenShortcuts={() => setIsShortcutsHelpOpen(true)}
         />
 
         {/* Main Content Area */}
@@ -441,6 +441,20 @@ export default function App() {
                     element={
                       <ExpensesView currencySymbol={effectiveCurrencySymbol} />
                     }
+                  />
+                  <Route
+                    path="/daybook"
+                    element={
+                      <DayBookView currencySymbol={effectiveCurrencySymbol} />
+                    }
+                  />
+                  <Route
+                    path="/daily-book"
+                    element={<Navigate to="/daybook" replace />}
+                  />
+                  <Route
+                    path="/day-book"
+                    element={<Navigate to="/daybook" replace />}
                   />
                   <Route
                     path="/staff"

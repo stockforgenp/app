@@ -91,6 +91,14 @@ export const SHORTCUT_REGISTRY: ShortcutDefinition[] = [
     displayKeys: `${MODIFIER_LABEL}+H`,
   },
   {
+    id: 'nav-daybook',
+    category: 'Navigation',
+    label: 'Daily Book (Day Book)',
+    description: 'Daily cash journal, sales, purchases, expenses & dues ledger',
+    keys: ['ctrl+j', 'cmd+j', 'alt+j'],
+    displayKeys: `${MODIFIER_LABEL}+J`,
+  },
+  {
     id: 'nav-expenses',
     category: 'Navigation',
     label: 'Expenses & Overheads',

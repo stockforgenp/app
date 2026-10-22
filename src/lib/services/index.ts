@@ -7,6 +7,7 @@ export * from './analyticsService.ts';
 export * from './authService.ts';
 export * from './backupService.ts';
 export * from './customerService.ts';
+export * from './dayBookService.ts';
 export * from './expenseService.ts';
 export * from './inventoryService.ts';
 export * from './productService.ts';

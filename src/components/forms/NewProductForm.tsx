@@ -57,6 +57,8 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
     unit: "pcs",
     costPrice: "",
     sellingPrice: "",
+    wholesalePrice: "",
+    wholesaleMinQty: "",
     initialStock: "0",
     minStockAlert: "",
   });
@@ -70,6 +72,16 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
         unit: editingProduct.unit || "pcs",
         costPrice: fromMinorUnits(editingProduct.cost_price).toString(),
         sellingPrice: fromMinorUnits(editingProduct.selling_price).toString(),
+        wholesalePrice:
+          editingProduct.wholesale_price !== null &&
+          editingProduct.wholesale_price !== undefined
+            ? fromMinorUnits(editingProduct.wholesale_price).toString()
+            : "",
+        wholesaleMinQty:
+          editingProduct.wholesale_min_qty !== null &&
+          editingProduct.wholesale_min_qty !== undefined
+            ? editingProduct.wholesale_min_qty.toString()
+            : "",
         initialStock: editingProduct.current_stock.toString(),
         minStockAlert:
           editingProduct.min_stock_alert !== null &&
@@ -84,6 +96,8 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
         unit: "pcs",
         costPrice: "",
         sellingPrice: "",
+        wholesalePrice: "",
+        wholesaleMinQty: "",
         initialStock: "0",
         minStockAlert: "",
       });
@@ -102,6 +116,19 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
 
     const cost = toMinorUnits(formData.costPrice);
     const selling = toMinorUnits(formData.sellingPrice);
+    const wholesale =
+      formData.wholesalePrice.trim() !== ""
+        ? toMinorUnits(formData.wholesalePrice)
+        : null;
+    const parsedMinWholesaleQty =
+      formData.wholesaleMinQty.trim() !== ""
+        ? parseInt(formData.wholesaleMinQty, 10)
+        : null;
+    const wholesaleMinQty =
+      parsedMinWholesaleQty !== null && !isNaN(parsedMinWholesaleQty)
+        ? Math.max(1, parsedMinWholesaleQty)
+        : null;
+
     const parsedMinAlert =
       formData.minStockAlert.trim() !== ""
         ? parseInt(formData.minStockAlert, 10)
@@ -120,6 +147,8 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
           unit: formData.unit.trim() || "pcs",
           cost_price: cost,
           selling_price: selling,
+          wholesale_price: wholesale,
+          wholesale_min_qty: wholesaleMinQty,
           min_stock_alert: minStockAlert,
         });
 
@@ -145,6 +174,8 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
           unit: formData.unit.trim() || "pcs",
           cost_price: cost,
           selling_price: selling,
+          wholesale_price: wholesale,
+          wholesale_min_qty: wholesaleMinQty,
           current_stock: stock,
           min_stock_alert: minStockAlert,
         });
@@ -367,6 +398,48 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
               value={formData.sellingPrice}
               onChange={(e) =>
                 setFormData({ ...formData, sellingPrice: e.target.value })
+              }
+              className="font-mono"
+            />
+          </div>
+        </div>
+
+        {/* Wholesale Dual Pricing (Optional) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-lg bg-neutral-950/60 border border-neutral-800/80">
+          <div>
+            <Input
+              label={
+                <>
+                  <DollarSign className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{`${isNepali ? "थोक मूल्य (ऐच्छिक)" : "Wholesale Price"} (${currencySymbol})`}</span>
+                </>
+              }
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="52.00"
+              value={formData.wholesalePrice}
+              onChange={(e) =>
+                setFormData({ ...formData, wholesalePrice: e.target.value })
+              }
+              className="font-mono"
+            />
+          </div>
+
+          <div>
+            <Input
+              label={
+                <>
+                  <Scale className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{isNepali ? "थोक न्यूनतम परिमाण" : "Min Wholesale Qty"}</span>
+                </>
+              }
+              type="number"
+              min="1"
+              placeholder="10"
+              value={formData.wholesaleMinQty}
+              onChange={(e) =>
+                setFormData({ ...formData, wholesaleMinQty: e.target.value })
               }
               className="font-mono"
             />

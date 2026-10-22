@@ -20,10 +20,12 @@ import {
   Package,
   FileText,
   Calendar,
+  RotateCcw,
 } from "lucide-react";
-import { Product, PurchaseCartItem } from "../types/index.ts";
+import { Product, PurchaseCartItem, ProductPackaging } from "../types/index.ts";
 import { getAllProducts } from "../lib/services/productService.ts";
 import { processPurchase } from "../lib/services/purchaseService.ts";
+import { getAllPackagings } from "../lib/services/packagingService.ts";
 import { getVendorTotalDue } from "../lib/services/vendorService.ts";
 import { calculateProportionalDiscounts } from "../helpers/index.ts";
 import {
@@ -31,6 +33,7 @@ import {
   VendorInputData,
 } from "../components/common/VendorInputSection.tsx";
 import { PrintPurchaseBillModal } from "../components/common/PrintPurchaseBillModal.tsx";
+import { ReturnsModal } from "../components/common/ReturnsModal.tsx";
 import { Modal } from "../components/common/Modal.tsx";
 import { Input } from "../components/common/Input.tsx";
 import {
@@ -103,6 +106,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
   // Partial Payment & Dues State
   const [paidAmountInput, setPaidAmountInput] = useState("");
   const [isCustomPaid, setIsCustomPaid] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<string>("Cash");
 
   // Quick Barcode / SKU Input
   const [quickSkuInput, setQuickSkuInput] = useState("");
@@ -140,6 +144,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     vatAmount?: number;
     grandTotal?: number;
     paidAmount?: number;
+    paymentMethod?: string | null;
     dueAmount?: number;
     previousDue?: number;
     totalDue?: number;
@@ -149,13 +154,46 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
 
   const [printPurchaseId, setPrintPurchaseId] = useState<number | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [isReturnsModalOpen, setIsReturnsModalOpen] = useState(false);
+  const [packagingsByProduct, setPackagingsByProduct] = useState<
+    Record<number, ProductPackaging[]>
+  >({});
 
   const loadCatalog = () => {
     try {
       setProducts(getAllProducts());
+      const allPkgs = getAllPackagings();
+      const pMap: Record<number, ProductPackaging[]> = {};
+      for (const p of allPkgs) {
+        if (!pMap[p.product_id]) pMap[p.product_id] = [];
+        pMap[p.product_id].push(p);
+      }
+      setPackagingsByProduct(pMap);
     } catch (e) {
       console.error("Error fetching catalog:", e);
     }
+  };
+
+  const handleSelectPackaging = (index: number, packagingId: number | null) => {
+    const updated = [...cart];
+    const item = updated[index];
+    if (!item) return;
+
+    if (packagingId === null) {
+      item.packaging_id = null;
+      item.package_multiplier = 1;
+      item.packaging_name = null;
+      item.cost_price = item.product.cost_price;
+    } else {
+      const pkg = packagingsByProduct[item.product.id]?.find((x) => x.id === packagingId);
+      if (pkg) {
+        item.packaging_id = pkg.id;
+        item.package_multiplier = pkg.multiplier;
+        item.packaging_name = pkg.package_name;
+        item.cost_price = item.product.cost_price * pkg.multiplier;
+      }
+    }
+    setCart(updated);
   };
 
   useEffect(() => {
@@ -234,6 +272,18 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     setCart(updated);
   };
 
+  const handleUpdateBatchNumber = (index: number, batchNo: string) => {
+    const updated = [...cart];
+    updated[index].batch_number = batchNo;
+    setCart(updated);
+  };
+
+  const handleUpdateExpiryDate = (index: number, expiry: string) => {
+    const updated = [...cart];
+    updated[index].expiry_date = expiry;
+    setCart(updated);
+  };
+
   const handleRemoveFromCart = (index: number) => {
     setCart(cart.filter((_, i) => i !== index));
   };
@@ -244,6 +294,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     setPurchaseNotes("");
     setPaidAmountInput("");
     setIsCustomPaid(false);
+    setPaymentMethod("Cash");
     setWholeDiscountValue("");
     setWholeDiscountType("fixed");
     setVendorData({
@@ -450,6 +501,12 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         costPrice: item.cost_price,
         sellingPrice: item.selling_price,
         discount: item.allocatedWholeDiscount,
+        batchNumber: item.batch_number,
+        expiryDate: item.expiry_date,
+        mfgDate: item.mfg_date,
+        packagingId: item.packaging_id,
+        packageMultiplier: item.package_multiplier,
+        packagingName: item.packaging_name,
       }));
 
       const purchase = processPurchase(itemsInput, {
@@ -460,6 +517,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         vendorPanVat: vendorData.pan_vat.trim() || undefined,
         vendorAddress: vendorData.address.trim() || undefined,
         paidAmount: effectivePaidAmount,
+        paymentMethod: paymentMethod,
         invoiceNumber: supplierInvoiceNo.trim() || undefined,
         notes: purchaseNotes.trim() || undefined,
         applyVat: applyVat,
@@ -488,6 +546,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         vatAmount: purchase.vat_amount,
         grandTotal: purchase.grand_total,
         paidAmount: purchase.paid_amount ?? effectivePaidAmount,
+        paymentMethod: purchase.payment_method || paymentMethod,
         dueAmount: purchase.due_amount ?? currentBillDue,
         previousDue: vendorPreviousDue,
         totalDue: totalVendorDue,
@@ -705,8 +764,19 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                 </span>
               </div>
 
-              {cart.length > 0 && (
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsReturnsModalOpen(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg shadow-xs transition-colors cursor-pointer"
+                  title={isNepali ? "खरिद फिर्ता तथा डेबिट नोट" : "Vendor Returns & Debit Note"}
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{isNepali ? "खरिद फिर्ता / Debit Note" : "Vendor Return"}</span>
+                </button>
+
+                {cart.length > 0 && (
+                  <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -755,6 +825,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                 </div>
               )}
             </div>
+          </div>
 
             {/* Cart Table */}
             {cart.length === 0 ? (
@@ -793,12 +864,73 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                         >
                           {/* Product */}
                           <td className="py-3 px-4">
-                            <div className="font-semibold text-neutral-200 capitalize">
-                              {item.product.name}
+                            <div className="font-semibold text-neutral-200 capitalize flex items-center gap-1.5">
+                              <span>{item.product.name}</span>
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-neutral-800 text-neutral-300 border border-neutral-700/60">
+                                {item.product.unit || "pcs"}
+                              </span>
+                              {item.packaging_name && (
+                                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-semibold">
+                                  {item.packaging_name} (×{item.package_multiplier})
+                                </span>
+                              )}
                             </div>
                             <div className="text-[10px] text-neutral-400 font-mono mt-0.5">
                               Current Stock: {item.product.current_stock}{" "}
                               {item.product.unit || "pcs"}
+                            </div>
+
+                            {/* Packaging & Batch Controls */}
+                            <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                              {/* Packaging Selection */}
+                              {packagingsByProduct[item.product.id]?.length > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-neutral-400 font-medium">
+                                    {isNepali ? "एकाइ:" : "Unit:"}
+                                  </span>
+                                  <select
+                                    value={item.packaging_id ?? ""}
+                                    onChange={(e) => {
+                                      const val = e.target.value
+                                        ? parseInt(e.target.value, 10)
+                                        : null;
+                                      handleSelectPackaging(index, val);
+                                    }}
+                                    className="bg-neutral-900 border border-neutral-700/80 rounded px-1.5 py-0.5 text-[10px] text-cyan-300 font-mono focus:outline-none focus:border-cyan-500"
+                                  >
+                                    <option value="">
+                                      Base ({item.product.unit || "pcs"})
+                                    </option>
+                                    {packagingsByProduct[item.product.id].map((pkg) => (
+                                      <option key={pkg.id} value={pkg.id}>
+                                        {pkg.package_name} (×{pkg.multiplier})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+
+                              {/* Batch Inputs */}
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  type="text"
+                                  placeholder={isNepali ? "ब्याच नं." : "Batch #"}
+                                  value={item.batch_number || ""}
+                                  onChange={(e) =>
+                                    handleUpdateBatchNumber(index, e.target.value)
+                                  }
+                                  className="bg-neutral-900 border border-neutral-700/80 rounded px-2 py-0.5 text-[11px] text-neutral-200 placeholder:text-neutral-500 font-mono w-28 uppercase focus:border-amber-500/80 focus:outline-none"
+                                />
+                                <input
+                                  type="date"
+                                  value={item.expiry_date || ""}
+                                  onChange={(e) =>
+                                    handleUpdateExpiryDate(index, e.target.value)
+                                  }
+                                  className="bg-neutral-900 border border-neutral-700/80 rounded px-1.5 py-0.5 text-[11px] text-neutral-300 font-mono focus:border-amber-500/80 focus:outline-none"
+                                  title={isNepali ? "म्याद सकिने मिति" : "Expiry Date"}
+                                />
+                              </div>
                             </div>
                           </td>
 
@@ -1136,6 +1268,34 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                         )}
                       </div>
                     </div>
+
+                    {/* Payment Mode Selector */}
+                    <div className="flex items-center justify-between pt-2 border-t border-neutral-800/60">
+                      <span className="text-[11px] font-semibold text-neutral-300">
+                        {isNepali ? "भुक्तानी माध्यम (Mode)" : "Payment Mode"}
+                      </span>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {[
+                          { id: "Cash", labelEn: "Cash", labelNp: "नगद" },
+                          { id: "Bank Transfer", labelEn: "Bank", labelNp: "बैंक" },
+                          { id: "Online", labelEn: "Online/QR", labelNp: "अनलाइन" },
+                          { id: "Cheque", labelEn: "Cheque", labelNp: "चेक" },
+                        ].map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => setPaymentMethod(m.id)}
+                            className={`px-2 py-0.5 text-[10px] font-medium rounded border transition-all cursor-pointer ${
+                              paymentMethod === m.id
+                                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 shadow-xs"
+                                : "bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-neutral-200"
+                            }`}
+                          >
+                            {isNepali ? m.labelNp : m.labelEn}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Due Breakdown */}
@@ -1281,6 +1441,9 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                             completedPurchaseInfo.paidAmount,
                             currencySymbol,
                           )}
+                        </span>
+                        <span className="text-neutral-400 text-[11px] ml-1">
+                          ({completedPurchaseInfo.paymentMethod || "Cash"})
                         </span>
                       </span>
                     )}
@@ -1616,6 +1779,14 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         }}
         purchaseId={printPurchaseId}
         currencySymbol={currencySymbol}
+      />
+
+      {/* Returns & Credit/Debit Notes Modal */}
+      <ReturnsModal
+        isOpen={isReturnsModalOpen}
+        onClose={() => setIsReturnsModalOpen(false)}
+        currencySymbol={currencySymbol}
+        initialMode="PURCHASE"
       />
     </div>
   );

@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS customers (
   pan_vat TEXT,
   address TEXT,
   notes TEXT,
+  customer_type TEXT NOT NULL DEFAULT 'RETAIL',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -54,6 +55,8 @@ CREATE TABLE IF NOT EXISTS products (
   unit TEXT DEFAULT 'pcs',
   cost_price INTEGER NOT NULL,
   selling_price INTEGER NOT NULL,
+  wholesale_price INTEGER DEFAULT NULL,
+  wholesale_min_qty INTEGER DEFAULT NULL,
   current_stock INTEGER NOT NULL DEFAULT 0,
   min_stock_alert INTEGER DEFAULT NULL,
   created_at TEXT NOT NULL,
@@ -77,15 +80,48 @@ CREATE TABLE IF NOT EXISTS sales (
   total INTEGER NOT NULL,
   paid_amount INTEGER DEFAULT NULL,
   due_amount INTEGER DEFAULT 0,
+  payment_method TEXT DEFAULT 'Cash',
   status TEXT NOT NULL DEFAULT 'COMPLETED',
   returned_at TEXT,
   created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS product_batches (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  batch_number TEXT NOT NULL,
+  mfg_date TEXT,
+  expiry_date TEXT NOT NULL,
+  cost_price INTEGER NOT NULL,
+  selling_price INTEGER,
+  quantity INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS product_packagings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  package_name TEXT NOT NULL,
+  package_unit TEXT NOT NULL,
+  multiplier REAL NOT NULL,
+  selling_price INTEGER,
+  barcode TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS sale_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
   product_id INTEGER NOT NULL REFERENCES products(id),
+  batch_id INTEGER REFERENCES product_batches(id) ON DELETE SET NULL,
+  batch_number TEXT,
+  expiry_date TEXT,
+  pricing_tier TEXT DEFAULT 'RETAIL',
+  packaging_id INTEGER REFERENCES product_packagings(id) ON DELETE SET NULL,
+  package_multiplier REAL DEFAULT 1,
+  packaging_name TEXT,
   quantity INTEGER NOT NULL,
   cost_price INTEGER NOT NULL,
   selling_price INTEGER NOT NULL,
@@ -112,6 +148,7 @@ CREATE TABLE IF NOT EXISTS purchases (
   total INTEGER NOT NULL,
   paid_amount INTEGER DEFAULT NULL,
   due_amount INTEGER DEFAULT 0,
+  payment_method TEXT DEFAULT 'Cash',
   status TEXT NOT NULL DEFAULT 'COMPLETED',
   returned_at TEXT,
   notes TEXT,
@@ -124,6 +161,13 @@ CREATE TABLE IF NOT EXISTS purchase_items (
   product_id INTEGER NOT NULL REFERENCES products(id),
   product_name TEXT,
   product_sku TEXT,
+  batch_id INTEGER REFERENCES product_batches(id) ON DELETE SET NULL,
+  batch_number TEXT,
+  expiry_date TEXT,
+  mfg_date TEXT,
+  packaging_id INTEGER REFERENCES product_packagings(id) ON DELETE SET NULL,
+  package_multiplier REAL DEFAULT 1,
+  packaging_name TEXT,
   quantity INTEGER NOT NULL,
   cost_price INTEGER NOT NULL,
   selling_price INTEGER,
@@ -250,4 +294,114 @@ CREATE INDEX IF NOT EXISTS idx_purchases_bill_number ON purchases(bill_number);
 CREATE INDEX IF NOT EXISTS idx_purchases_created_at ON purchases(created_at);
 CREATE INDEX IF NOT EXISTS idx_purchase_items_purchase_id ON purchase_items(purchase_id);
 CREATE INDEX IF NOT EXISTS idx_purchase_items_product_id ON purchase_items(product_id);
+CREATE INDEX IF NOT EXISTS idx_batches_product_id ON product_batches(product_id);
+CREATE INDEX IF NOT EXISTS idx_batches_expiry ON product_batches(expiry_date);
+CREATE INDEX IF NOT EXISTS idx_sale_items_batch_id ON sale_items(batch_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_items_batch_id ON purchase_items(batch_id);
+
+CREATE TABLE IF NOT EXISTS sale_returns (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  return_number TEXT NOT NULL UNIQUE,
+  sale_id INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+  bill_number TEXT,
+  customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+  customer_name TEXT,
+  total_refund INTEGER NOT NULL,
+  refund_method TEXT NOT NULL DEFAULT 'CASH',
+  reason TEXT NOT NULL DEFAULT 'CUSTOMER_CANCELLED',
+  notes TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sale_return_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  return_id INTEGER NOT NULL REFERENCES sale_returns(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id),
+  product_name TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  unit_price INTEGER NOT NULL,
+  total INTEGER NOT NULL,
+  batch_id INTEGER REFERENCES product_batches(id),
+  batch_number TEXT,
+  action TEXT NOT NULL DEFAULT 'RESTOCK',
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS purchase_returns (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  return_number TEXT NOT NULL UNIQUE,
+  purchase_id INTEGER REFERENCES purchases(id) ON DELETE SET NULL,
+  bill_number TEXT,
+  vendor_id INTEGER REFERENCES vendors(id) ON DELETE SET NULL,
+  vendor_name TEXT,
+  total_refund INTEGER NOT NULL,
+  refund_method TEXT NOT NULL DEFAULT 'VENDOR_CREDIT',
+  reason TEXT NOT NULL DEFAULT 'DEFECTIVE',
+  notes TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS purchase_return_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  return_id INTEGER NOT NULL REFERENCES purchase_returns(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id),
+  product_name TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  cost_price INTEGER NOT NULL,
+  total INTEGER NOT NULL,
+  batch_id INTEGER REFERENCES product_batches(id),
+  batch_number TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sale_returns_sale_id ON sale_returns(sale_id);
+CREATE INDEX IF NOT EXISTS idx_sale_returns_customer_id ON sale_returns(customer_id);
+CREATE INDEX IF NOT EXISTS idx_sale_return_items_return_id ON sale_return_items(return_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_returns_purchase_id ON purchase_returns(purchase_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_returns_vendor_id ON purchase_returns(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_return_items_return_id ON purchase_return_items(return_id);
+
+CREATE TABLE IF NOT EXISTS shift_sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  cashier_name TEXT NOT NULL,
+  staff_id INTEGER REFERENCES staff(id) ON DELETE SET NULL,
+  opening_float INTEGER NOT NULL DEFAULT 0,
+  closing_cash INTEGER,
+  system_cash INTEGER,
+  cash_sales INTEGER NOT NULL DEFAULT 0,
+  online_sales INTEGER NOT NULL DEFAULT 0,
+  credit_sales INTEGER NOT NULL DEFAULT 0,
+  cash_refunds INTEGER NOT NULL DEFAULT 0,
+  cash_expenses INTEGER NOT NULL DEFAULT 0,
+  variance INTEGER DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'OPEN',
+  notes TEXT,
+  opened_at TEXT NOT NULL,
+  closed_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_shift_sessions_status ON shift_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_shift_sessions_opened_at ON shift_sessions(opened_at);
+
+CREATE TABLE IF NOT EXISTS stock_write_offs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  voucher_number TEXT NOT NULL UNIQUE,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  product_name TEXT NOT NULL,
+  quantity REAL NOT NULL,
+  unit_cost INTEGER NOT NULL,
+  total_loss INTEGER NOT NULL,
+  batch_id INTEGER REFERENCES product_batches(id) ON DELETE SET NULL,
+  batch_number TEXT,
+  reason TEXT NOT NULL,
+  action TEXT NOT NULL DEFAULT 'DISPOSAL',
+  approved_by TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_stock_write_offs_product_id ON stock_write_offs(product_id);
+CREATE INDEX IF NOT EXISTS idx_stock_write_offs_reason ON stock_write_offs(reason);
+CREATE INDEX IF NOT EXISTS idx_stock_write_offs_created_at ON stock_write_offs(created_at);
 `;

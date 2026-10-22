@@ -61,10 +61,16 @@ export function getSalesHistoryColumns(
       sortable: true,
       accessor: (s: Sale) => {
         const isReturned = s.status === 'RETURNED';
+        const isPartialReturn = s.status === 'PARTIAL_RETURN';
         return isReturned ? (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
             <RotateCcw className="w-3 h-3" />
             <span>{t('status_returned', 'Returned')}</span>
+          </span>
+        ) : isPartialReturn ? (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <RotateCcw className="w-3 h-3" />
+            <span>{t('status_partial_return', 'Partial Return')}</span>
           </span>
         ) : (
           <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -190,6 +196,28 @@ export function getSalesHistoryColumns(
             }`}
           >
             {formatCurrency(due, currencySymbol)}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'payment_method',
+      header: t('hist_col_payment_mode', 'Mode'),
+      align: 'center',
+      sortable: true,
+      sortKey: (s: Sale) => s.payment_method || 'Cash',
+      accessor: (s: Sale) => {
+        const m = s.payment_method || 'Cash';
+        const isCash = m.toLowerCase() === 'cash';
+        return (
+          <span
+            className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${
+              isCash
+                ? 'bg-neutral-800 text-neutral-300 border-neutral-700'
+                : 'bg-sky-500/10 text-sky-400 border-sky-500/20'
+            }`}
+          >
+            {m}
           </span>
         );
       },

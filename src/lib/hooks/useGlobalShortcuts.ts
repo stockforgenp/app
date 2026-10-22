@@ -204,6 +204,16 @@ export function useGlobalShortcuts({
         return;
       }
 
+      // Ctrl+J / Cmd+J or Alt+J: Day Book
+      if (
+        (isModifier && !e.shiftKey && key === "j") ||
+        (isAlt && key === "j")
+      ) {
+        e.preventDefault();
+        onNavigate("daybook");
+        return;
+      }
+
       // Ctrl+E / Cmd+E or Alt+E: Expenses
       if (
         (isModifier && !e.shiftKey && key === "e") ||

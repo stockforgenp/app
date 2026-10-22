@@ -9,6 +9,7 @@ import {
   CustomerPayment,
   RecordCustomerPaymentInput,
   StatementRow,
+  SaleReturn,
 } from '../../types/index.ts';
 import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
 import { capitalizeWords } from '../utils/format.ts';
@@ -95,7 +96,12 @@ export function getCustomerTotalDue(customerId?: number | null, phone?: string |
       `SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) as total_due FROM sales WHERE customer_id = ? AND (status IS NULL OR status != 'RETURNED')`,
       [customerId]
     );
-    return row?.total_due ?? 0;
+    const unallocatedCredit = queryOne<{ total_credit: number }>(
+      `SELECT COALESCE(SUM(total_refund), 0) as total_credit FROM sale_returns WHERE customer_id = ? AND refund_method = 'CREDIT_NOTE' AND sale_id IS NULL`,
+      [customerId]
+    );
+    const totalDue = (row?.total_due ?? 0) - (unallocatedCredit?.total_credit ?? 0);
+    return Math.max(0, totalDue);
   }
   if (phone && phone.trim()) {
     const row = queryOne<{ total_due: number }>(
@@ -143,12 +149,13 @@ export function createCustomer(data: CreateCustomerInput): Customer {
   const panVat = data.pan_vat && data.pan_vat.trim() ? data.pan_vat.trim() : null;
   const address = data.address && data.address.trim() ? data.address.trim() : null;
   const notes = data.notes && data.notes.trim() ? data.notes.trim() : null;
+  const customerType = data.customer_type === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL';
 
   return transaction(() => {
     run(
-      `INSERT INTO customers (name, phone, pan_vat, address, notes, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [trimmedName, phone, panVat, address, notes, now, now]
+      `INSERT INTO customers (name, phone, pan_vat, address, notes, customer_type, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [trimmedName, phone, panVat, address, notes, customerType, now, now]
     );
 
     const idRes = queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
@@ -178,13 +185,14 @@ export function updateCustomer(id: number, data: Partial<CreateCustomerInput>): 
   const panVat = (data.pan_vat !== undefined ? data.pan_vat?.trim() : existing.pan_vat) ?? null;
   const address = (data.address !== undefined ? data.address?.trim() : existing.address) ?? null;
   const notes = (data.notes !== undefined ? data.notes?.trim() : existing.notes) ?? null;
+  const customerType = data.customer_type !== undefined ? data.customer_type : (existing.customer_type ?? 'RETAIL');
 
   transaction(() => {
     run(
       `UPDATE customers 
-       SET name = ?, phone = ?, pan_vat = ?, address = ?, notes = ?, updated_at = ?
+       SET name = ?, phone = ?, pan_vat = ?, address = ?, notes = ?, customer_type = ?, updated_at = ?
        WHERE id = ?`,
-      [name, phone, panVat, address, notes, now, id]
+      [name, phone, panVat, address, notes, customerType, now, id]
     );
 
     // Keep denormalized customer_name in sales up-to-date
@@ -465,6 +473,7 @@ export function getCustomerStatement(customerId: number): {
   customer: Customer;
   sales: Sale[];
   payments: CustomerPayment[];
+  returns: SaleReturn[];
   totalInvoiced: number;
   totalPaid: number;
   totalDue: number;
@@ -477,6 +486,10 @@ export function getCustomerStatement(customerId: number): {
 
   const sales = getCustomerSales(customerId);
   const payments = getCustomerPayments(customerId);
+  const returns = query<SaleReturn>(
+    `SELECT * FROM sale_returns WHERE customer_id = ? ORDER BY created_at DESC, id DESC`,
+    [customerId]
+  );
 
   const activeSales = sales.filter((s) => s.status !== 'RETURNED');
   const totalInvoiced = activeSales.reduce((acc, s) => acc + (s.grand_total ?? s.total), 0);
@@ -488,19 +501,38 @@ export function getCustomerStatement(customerId: number): {
 
   for (const s of sales) {
     const isReturned = s.status === 'RETURNED';
+    const isPartialReturn = s.status === 'PARTIAL_RETURN';
     const billTotal = s.grand_total ?? s.total;
-    const paid = s.paid_amount ?? billTotal;
-    const due = s.due_amount ?? 0;
+
+    // Check subsequent payments applied to this specific sale
+    const subsequentPayments = queryOne<{ total: number }>(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM customer_payments WHERE sale_id = ?`,
+      [s.id]
+    )?.total ?? 0;
+
+    // Check credit notes applied to this sale
+    const creditNotesApplied = queryOne<{ total: number }>(
+      `SELECT COALESCE(SUM(total_refund), 0) as total FROM sale_returns WHERE sale_id = ? AND refund_method = 'CREDIT_NOTE'`,
+      [s.id]
+    )?.total ?? 0;
+
+    // The initial due at invoice time
+    const initialDue = isReturned ? 0 : ((s.due_amount ?? 0) + subsequentPayments + creditNotesApplied);
+    const paidAtSale = Math.max(0, billTotal - initialDue);
 
     unsortedRows.push({
       id: `sale-${s.id}`,
       date: s.created_at,
       type: isReturned ? 'RETURN' : 'BILL',
       refNumber: s.bill_number || `INV-${s.id.toString().padStart(5, '0')}`,
-      description: isReturned ? 'Sales Return (Voided Bill)' : `Sales Invoice (${s.item_count || 1} items)`,
+      description: isReturned
+        ? 'Sales Invoice (Fully Returned / Voided)'
+        : isPartialReturn
+          ? `Sales Invoice (${s.item_count || 1} items - Partially Returned)`
+          : `Sales Invoice (${s.item_count || 1} items)`,
       amount: billTotal,
-      paidAmount: paid,
-      dueAmount: isReturned ? 0 : due,
+      paidAmount: paidAtSale,
+      dueAmount: initialDue,
       status: s.status || 'COMPLETED',
     });
   }
@@ -520,17 +552,40 @@ export function getCustomerStatement(customerId: number): {
     });
   }
 
+  for (const r of returns) {
+    const isCreditNote = r.refund_method === 'CREDIT_NOTE';
+    unsortedRows.push({
+      id: `return-${r.id}`,
+      date: r.created_at,
+      type: 'RETURN',
+      refNumber: r.return_number,
+      description: isCreditNote
+        ? `Credit Note (${r.reason || 'Goods Return'})`
+        : `Sales Return (${r.refund_method} Refund - ${r.reason || 'Goods Return'})`,
+      amount: r.total_refund,
+      paidAmount: r.total_refund,
+      dueAmount: 0,
+      paymentMethod: r.refund_method,
+      status: isCreditNote ? 'CREDIT_NOTE' : 'REFUNDED',
+    });
+  }
+
   // Sort chronological ascending (oldest to newest) to calculate running balance
   unsortedRows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   let runningBalance = 0;
   const rows: StatementRow[] = unsortedRows.map((r) => {
     if (r.type === 'BILL') {
-      // Bill increases outstanding due by bill's due amount (or total if unpaid)
+      // Bill increases outstanding due by bill's initial due amount
       runningBalance += r.dueAmount;
     } else if (r.type === 'PAYMENT') {
       // Direct payment reduces outstanding balance
       runningBalance = Math.max(0, runningBalance - r.amount);
+    } else if (r.type === 'RETURN') {
+      // Credit note reduces running balance
+      if (r.paymentMethod === 'CREDIT_NOTE') {
+        runningBalance = Math.max(0, runningBalance - r.amount);
+      }
     }
     return {
       ...r,
@@ -542,6 +597,7 @@ export function getCustomerStatement(customerId: number): {
     customer,
     sales,
     payments,
+    returns,
     totalInvoiced,
     totalPaid,
     totalDue,

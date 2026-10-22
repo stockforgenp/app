@@ -20,6 +20,7 @@ import {
   Settings,
   Headphones,
   Database,
+  BookOpen,
 } from 'lucide-react';
 import { MODIFIER_LABEL } from './shortcuts.ts';
 
@@ -33,6 +34,7 @@ export type NavTab =
   | 'vendors'
   | 'customers'
   | 'history'
+  | 'daybook'
   | 'expenses'
   | 'staff'
   | 'payroll'
@@ -51,6 +53,7 @@ export const NAV_TABS: readonly NavTab[] = [
   'vendors',
   'customers',
   'history',
+  'daybook',
   'expenses',
   'staff',
   'payroll',
@@ -172,6 +175,12 @@ export const getNavGroups = (
     id: 'finance_hr',
     title: t('nav_group_finance_hr', 'FINANCE & HR'),
     items: [
+      {
+        id: 'daybook',
+        label: isNepali ? 'दैनिक हिसाब (Day Book)' : t('nav_daybook', 'Daily Book'),
+        icon: BookOpen,
+        shortcut: `${MODIFIER_LABEL}+J`,
+      },
       {
         id: 'expenses',
         label: t('nav_expenses'),

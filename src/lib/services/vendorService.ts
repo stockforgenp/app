@@ -11,6 +11,7 @@ import {
   VendorPayment,
   RecordVendorPaymentInput,
   StatementRow,
+  PurchaseReturn,
 } from "../../types/index.ts";
 import { query, queryOne, run, transaction } from "../db/sqliteEngine.ts";
 import { capitalizeWords } from "../utils/format.ts";
@@ -136,7 +137,12 @@ export function getVendorTotalDue(vendorId?: number | null): number {
     `SELECT COALESCE(SUM(COALESCE(due_amount, 0)), 0) as total_due FROM purchases WHERE vendor_id = ? AND (status IS NULL OR status != 'RETURNED')`,
     [vendorId]
   );
-  return row?.total_due ?? 0;
+  const unallocatedCredit = queryOne<{ total_credit: number }>(
+    `SELECT COALESCE(SUM(total_refund), 0) as total_credit FROM purchase_returns WHERE vendor_id = ? AND refund_method = 'VENDOR_CREDIT' AND purchase_id IS NULL`,
+    [vendorId]
+  );
+  const totalDue = (row?.total_due ?? 0) - (unallocatedCredit?.total_credit ?? 0);
+  return Math.max(0, totalDue);
 }
 
 /**
@@ -500,6 +506,7 @@ export function getVendorStatement(vendorId: number): {
   vendor: Vendor;
   purchases: Purchase[];
   payments: VendorPayment[];
+  returns: PurchaseReturn[];
   totalInvoiced: number;
   totalPaid: number;
   totalDue: number;
@@ -512,6 +519,10 @@ export function getVendorStatement(vendorId: number): {
 
   const purchases = getVendorPurchases(vendorId);
   const payments = getVendorPayments(vendorId);
+  const returns = query<PurchaseReturn>(
+    `SELECT * FROM purchase_returns WHERE vendor_id = ? ORDER BY created_at DESC, id DESC`,
+    [vendorId]
+  );
 
   const activePurchases = purchases.filter((p) => p.status !== 'RETURNED');
   const totalInvoiced = activePurchases.reduce((acc, p) => acc + (p.grand_total ?? p.total), 0);
@@ -523,19 +534,38 @@ export function getVendorStatement(vendorId: number): {
 
   for (const p of purchases) {
     const isReturned = p.status === 'RETURNED';
+    const isPartialReturn = p.status === 'PARTIAL_RETURN';
     const billTotal = p.grand_total ?? p.total;
-    const paid = p.paid_amount ?? billTotal;
-    const due = p.due_amount ?? 0;
+
+    // Check subsequent payments applied to this specific purchase
+    const subsequentPayments = queryOne<{ total: number }>(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM vendor_payments WHERE purchase_id = ?`,
+      [p.id]
+    )?.total ?? 0;
+
+    // Check debit notes applied to this purchase
+    const debitNotesApplied = queryOne<{ total: number }>(
+      `SELECT COALESCE(SUM(total_refund), 0) as total FROM purchase_returns WHERE purchase_id = ? AND refund_method = 'VENDOR_CREDIT'`,
+      [p.id]
+    )?.total ?? 0;
+
+    // Initial due at purchase time
+    const initialDue = isReturned ? 0 : ((p.due_amount ?? 0) + subsequentPayments + debitNotesApplied);
+    const paidAtPur = Math.max(0, billTotal - initialDue);
 
     unsortedRows.push({
       id: `purchase-${p.id}`,
       date: p.created_at,
       type: isReturned ? 'RETURN' : 'BILL',
       refNumber: p.bill_number || `PUR-${p.id.toString().padStart(5, '0')}`,
-      description: isReturned ? 'Purchase Return (Voided Bill)' : `Purchase Invoice (${p.item_count || 1} items)`,
+      description: isReturned
+        ? 'Purchase Invoice (Fully Returned / Voided)'
+        : isPartialReturn
+          ? `Purchase Invoice (${p.item_count || 1} items - Partially Returned)`
+          : `Purchase Invoice (${p.item_count || 1} items)`,
       amount: billTotal,
-      paidAmount: paid,
-      dueAmount: isReturned ? 0 : due,
+      paidAmount: paidAtPur,
+      dueAmount: initialDue,
       status: p.status || 'COMPLETED',
     });
   }
@@ -555,6 +585,24 @@ export function getVendorStatement(vendorId: number): {
     });
   }
 
+  for (const r of returns) {
+    const isCredit = r.refund_method === 'VENDOR_CREDIT';
+    unsortedRows.push({
+      id: `return-${r.id}`,
+      date: r.created_at,
+      type: 'RETURN',
+      refNumber: r.return_number,
+      description: isCredit
+        ? `Debit Note (${r.reason || 'Goods Return'})`
+        : `Purchase Return (${r.refund_method} Refund - ${r.reason || 'Goods Return'})`,
+      amount: r.total_refund,
+      paidAmount: r.total_refund,
+      dueAmount: 0,
+      paymentMethod: r.refund_method,
+      status: isCredit ? 'DEBIT_NOTE' : 'REFUNDED',
+    });
+  }
+
   // Sort chronological ascending (oldest to newest) to calculate running balance
   unsortedRows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -566,6 +614,10 @@ export function getVendorStatement(vendorId: number): {
     } else if (r.type === 'PAYMENT') {
       // Payment reduces outstanding balance
       runningBalance = Math.max(0, runningBalance - r.amount);
+    } else if (r.type === 'RETURN') {
+      if (r.paymentMethod === 'VENDOR_CREDIT') {
+        runningBalance = Math.max(0, runningBalance - r.amount);
+      }
     }
     return {
       ...r,
@@ -577,6 +629,7 @@ export function getVendorStatement(vendorId: number): {
     vendor,
     purchases,
     payments,
+    returns,
     totalInvoiced,
     totalPaid,
     totalDue,

@@ -205,7 +205,7 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
       text += `Total Items:    ${displayItems.length} (${totalUnits} units)\n`;
       text += `${doubleSeparator}\n`;
       text += `*GRAND TOTAL:   ${formatCurrency(grandTotal, currencySymbol)}*\n`;
-      text += `Paid Amount:    ${formatCurrency(paidAmount, currencySymbol)}\n`;
+      text += `Paid Amount:    ${formatCurrency(paidAmount, currencySymbol)} (${purchase.payment_method || 'Cash'})\n`;
       if (currentDue > 0) {
         text += `Current Due:    ${formatCurrency(currentDue, currencySymbol)}\n`;
       }
@@ -486,6 +486,16 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
                                   </span>
                                 )}
                               </div>
+                              {it.batch_number && (
+                                <div className="text-[9px] text-gray-500 font-mono">
+                                  B: {it.batch_number} {it.expiry_date ? `| Exp: ${it.expiry_date}` : ''}
+                                </div>
+                              )}
+                              {it.packaging_name && (
+                                <div className="text-[9px] text-cyan-800 font-mono">
+                                  Pkg: {it.packaging_name} (×{it.package_multiplier})
+                                </div>
+                              )}
                             </td>
                             <td className="py-1.5 px-1 text-center font-bold text-gray-800 whitespace-nowrap">
                               {it.quantity} {it.product_unit ? <span className="font-normal text-[10px] text-gray-500">{it.product_unit}</span> : ''}
@@ -581,7 +591,12 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
                     return (
                       <div className="pt-2 border-t border-dashed border-gray-300 space-y-1">
                         <div className="flex justify-between text-gray-700">
-                          <span className="font-semibold">{isNepali ? 'भुक्तान गरिएको रकम (Paid Amount):' : 'Paid Amount:'}</span>
+                          <span className="font-semibold">
+                            {isNepali ? 'भुक्तान गरिएको रकम (Paid Amount):' : 'Paid Amount:'}
+                            <span className="text-xs font-normal text-gray-500 ml-1.5">
+                              ({purchase.payment_method || 'Cash'})
+                            </span>
+                          </span>
                           <span className="font-mono font-bold text-gray-900">{formatCurrency(paidAmount, currencySymbol)}</span>
                         </div>
                         {currentDue > 0 && (

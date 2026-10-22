@@ -8,6 +8,8 @@ import {
   SlidersHorizontal,
   Edit2,
   Trash2,
+  Barcode,
+  AlertOctagon,
 } from "lucide-react";
 import { Column } from "../components/common/DataTable.tsx";
 import { Product } from "../types/index.ts";
@@ -29,6 +31,8 @@ export interface ProductColumnsOptions {
   onAdjust: (product: Product) => void;
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
+  onPrintBarcode?: (product: Product) => void;
+  onWriteOff?: (product: Product) => void;
 }
 
 export function getProductColumns(
@@ -44,6 +48,8 @@ export function getProductColumns(
     onAdjust,
     onEdit,
     onDelete,
+    onPrintBarcode,
+    onWriteOff,
   } = options;
 
   return [
@@ -122,6 +128,11 @@ export function getProductColumns(
             <div className="text-[10px] text-neutral-500 font-sans">
               {marginPct}% margin
             </div>
+            {p.wholesale_price && p.wholesale_price > 0 && (
+              <div className="text-[10px] text-amber-400 font-sans font-medium">
+                W: {formatCurrency(p.wholesale_price, currencySymbol)}
+              </div>
+            )}
           </div>
         );
       },
@@ -212,12 +223,32 @@ export function getProductColumns(
                 color: "emerald" as const,
                 action: () => onRestock(p),
               },
+              ...(onPrintBarcode
+                ? [
+                    {
+                      label: isNepali ? "बारकोड प्रिन्ट (Barcode)" : "Print Barcode",
+                      icon: Barcode,
+                      color: "sky" as const,
+                      action: () => onPrintBarcode(p),
+                    },
+                  ]
+                : []),
               {
                 label: isNepali ? "मौज्दात मिलान (Adjust)" : "Adjust Count",
                 icon: SlidersHorizontal,
                 color: "amber" as const,
                 action: () => onAdjust(p),
               },
+              ...(onWriteOff
+                ? [
+                    {
+                      label: isNepali ? "ड्यामेज / नष्ट (Write-Off)" : "Scrap / Write-Off",
+                      icon: AlertOctagon,
+                      color: "rose" as const,
+                      action: () => onWriteOff(p),
+                    },
+                  ]
+                : []),
               {
                 label: isNepali ? "चलान इतिहास (Ledger)" : "Movement History",
                 icon: History,
