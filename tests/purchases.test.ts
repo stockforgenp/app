@@ -48,6 +48,8 @@ const { findOrCreateVendor, getVendorTotalDue } =
 const { processPurchaseReturn } =
   await import("../src/lib/services/returnsService.ts");
 
+const { queryOne, query } = await import("../src/lib/db/sqliteEngine.ts");
+
 const { updateSettings } =
   await import("../src/lib/services/settingsService.ts");
 const { run } = await import("../src/lib/db/sqliteEngine.ts");
@@ -589,5 +591,90 @@ describe("Feature 4: Purchases & Restocking", () => {
       65,
       "Returned stock must be deducted from inventory",
     );
+  });
+
+  test("13. Real CRUD on Purchases: INSERT into db, FETCH purchase & items, UPDATE purchase, and RETURN with stock reversal", () => {
+    const p1 = createProduct({ name: "Rice 25kg Bag", cost_price: 200000, selling_price: 250000, current_stock: 10 });
+    const p2 = createProduct({ name: "Sunflower Oil 5L", cost_price: 110000, selling_price: 140000, current_stock: 15 });
+
+    // 1. CREATE / INSERT into db
+    const purchase = processPurchase(
+      [
+        makeItem({ productId: p1.id, quantity: 5, costPrice: 200000 }),
+        makeItem({ productId: p2.id, quantity: 10, costPrice: 110000 }),
+      ],
+      { paymentMethod: "Cash", paidAmount: 2100000, applyVat: false }
+    );
+
+    // 2. READ / FETCH directly from SQLite purchases table
+    const dbPurchase = queryOne<{
+      id: number;
+      bill_number: string;
+      subtotal: number;
+      total: number;
+      paid_amount: number;
+      payment_method: string;
+      status: string;
+    }>("SELECT * FROM purchases WHERE id = ?", [purchase.id]);
+
+    assert.ok(dbPurchase);
+    assert.equal(dbPurchase.id, purchase.id);
+    assert.equal(dbPurchase.subtotal, 2100000); // (5*200000) + (10*110000) = 2100000
+    assert.equal(dbPurchase.total, 2100000);
+    assert.equal(dbPurchase.paid_amount, 2100000);
+    assert.equal(dbPurchase.status, "COMPLETED");
+
+    // Fetch purchase items directly from purchase_items table
+    const dbItems = query<{
+      purchase_id: number;
+      product_id: number;
+      quantity: number;
+      cost_price: number;
+      total: number;
+    }>("SELECT * FROM purchase_items WHERE purchase_id = ? ORDER BY product_id ASC", [purchase.id]);
+
+    assert.equal(dbItems.length, 2);
+    assert.equal(dbItems[0].product_id, p1.id);
+    assert.equal(dbItems[0].quantity, 5);
+    assert.equal(dbItems[0].cost_price, 200000);
+    assert.equal(dbItems[1].product_id, p2.id);
+    assert.equal(dbItems[1].quantity, 10);
+    assert.equal(dbItems[1].cost_price, 110000);
+
+    // Stocks in products table were incremented
+    assert.equal(getProductById(p1.id)?.current_stock, 15);
+    assert.equal(getProductById(p2.id)?.current_stock, 25);
+
+    // 3. UPDATE in SQLite database
+    updatePurchase(
+      purchase.id,
+      [makeItem({ productId: p1.id, quantity: 8, costPrice: 200000 })],
+      { paymentMethod: "Cash", paidAmount: 1600000, applyVat: false }
+    );
+
+    const updatedDbPurchase = queryOne<{ total: number; paid_amount: number }>(
+      "SELECT total, paid_amount FROM purchases WHERE id = ?",
+      [purchase.id]
+    );
+    assert.ok(updatedDbPurchase);
+    assert.equal(updatedDbPurchase.total, 1600000);
+    assert.equal(updatedDbPurchase.paid_amount, 1600000);
+
+    const updatedDbItems = query("SELECT * FROM purchase_items WHERE purchase_id = ?", [purchase.id]);
+    assert.equal(updatedDbItems.length, 1);
+
+    // Reverted p2 stock to 15, and p1 stock became 10 + 8 = 18
+    assert.equal(getProductById(p1.id)?.current_stock, 18);
+    assert.equal(getProductById(p2.id)?.current_stock, 15);
+
+    // 4. RETURN / VOID in SQLite database
+    returnPurchase(purchase.id);
+
+    const returnedDbPurchase = queryOne<{ status: string }>("SELECT status FROM purchases WHERE id = ?", [purchase.id]);
+    assert.ok(returnedDbPurchase);
+    assert.equal(returnedDbPurchase.status, "RETURNED");
+
+    // Stock for p1 is fully reversed back to 10
+    assert.equal(getProductById(p1.id)?.current_stock, 10);
   });
 });

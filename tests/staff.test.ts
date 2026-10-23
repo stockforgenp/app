@@ -498,3 +498,93 @@ test("Staff: getMonthlyPayrollSummary tracks paid vs pending staff members accur
   assert.equal(fullSummary.total_pending, 0);
   assert.equal(fullSummary.overall_status, "fully_paid");
 });
+
+test("Staff: Real CRUD on Staff: INSERT into db, FETCH all columns, UPDATE staff, and DELETE with cascade cleanup", () => {
+  // 1. CREATE / INSERT into db
+  const staff = createStaff({
+    name: "narayan ghimire",
+    role: "Warehouse Incharge",
+    phone: "9841223344",
+    email: "narayan@ghimire.np",
+    base_salary: 32000,
+    salary_type: "monthly",
+    status: "active",
+    join_date: "2026-02-01",
+    notes: "Main warehouse shift lead",
+  });
+
+  // 2. READ / FETCH directly from SQLite staff table
+  const dbStaff = queryOne<{
+    id: number;
+    name: string;
+    role: string;
+    phone: string;
+    email: string;
+    base_salary: number;
+    salary_type: string;
+    status: string;
+    join_date: string;
+    notes: string;
+    created_at: string;
+    updated_at: string;
+  }>("SELECT * FROM staff WHERE id = ?", [staff.id]);
+
+  assert.ok(dbStaff);
+  assert.equal(dbStaff.id, staff.id);
+  assert.equal(dbStaff.name, "Narayan Ghimire");
+  assert.equal(dbStaff.role, "Warehouse Incharge");
+  assert.equal(dbStaff.phone, "9841223344");
+  assert.equal(dbStaff.email, "narayan@ghimire.np");
+  assert.equal(dbStaff.base_salary, 32000);
+  assert.equal(dbStaff.salary_type, "monthly");
+  assert.equal(dbStaff.status, "active");
+  assert.equal(dbStaff.join_date, "2026-02-01");
+  assert.equal(dbStaff.notes, "Main warehouse shift lead");
+  assert.ok(dbStaff.created_at);
+  assert.ok(dbStaff.updated_at);
+
+  // 3. UPDATE in SQLite database
+  const updated = updateStaff(staff.id, {
+    name: "Narayan Prasad Ghimire",
+    role: "Senior Operations Lead",
+    base_salary: 38000,
+    notes: "Promoted after Q1 performance",
+  });
+  assert.equal(updated.name, "Narayan Prasad Ghimire");
+
+  const updatedDbStaff = queryOne<{
+    name: string;
+    role: string;
+    base_salary: number;
+    notes: string;
+  }>("SELECT name, role, base_salary, notes FROM staff WHERE id = ?", [staff.id]);
+  assert.ok(updatedDbStaff);
+  assert.equal(updatedDbStaff.name, "Narayan Prasad Ghimire");
+  assert.equal(updatedDbStaff.role, "Senior Operations Lead");
+  assert.equal(updatedDbStaff.base_salary, 38000);
+  assert.equal(updatedDbStaff.notes, "Promoted after Q1 performance");
+
+  // Create salary payment linked to this staff to test cascade deletion
+  const payment = recordSalaryPayment({
+    staff_id: staff.id,
+    amount: 38000,
+    payment_period: "Falgun 2082",
+    syncWithExpenses: true,
+  });
+  assert.ok(payment.expense_id);
+  assert.equal(query("SELECT * FROM salary_payments WHERE staff_id = ?", [staff.id]).length, 1);
+  assert.equal(query("SELECT * FROM expenses WHERE id = ?", [payment.expense_id]).length, 1);
+
+  // 4. DELETE from SQLite database with cascading cleanup
+  const deleted = deleteStaff(staff.id);
+  assert.equal(deleted, true);
+
+  const deletedStaff = queryOne("SELECT * FROM staff WHERE id = ?", [staff.id]);
+  assert.equal(deletedStaff, null, "Staff row must be deleted from database");
+
+  const deletedPayments = query("SELECT * FROM salary_payments WHERE staff_id = ?", [staff.id]);
+  assert.equal(deletedPayments.length, 0, "Salary payments must be cascade deleted");
+
+  const deletedExpenses = query("SELECT * FROM expenses WHERE id = ?", [payment.expense_id]);
+  assert.equal(deletedExpenses.length, 0, "Linked overhead expenses must be cascade deleted");
+});

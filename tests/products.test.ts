@@ -686,4 +686,91 @@ describe("Feature 2: Stock Ledger & Product Management", () => {
       "Product must remain intact",
     );
   });
+
+  test("17. Real CRUD on Products: INSERT into db, FETCH all columns, UPDATE product, and DELETE from db", () => {
+    // 1. CREATE / INSERT
+    const product = createProduct({
+      name: "Organic Green Tea 100g",
+      sku: "TEA-ORG-100",
+      unit: "pack",
+      cost_price: 25000,
+      selling_price: 35000,
+      wholesale_price: 30000,
+      wholesale_min_qty: 10,
+      current_stock: 50,
+      min_stock_alert: 10,
+    });
+
+    // 2. READ / FETCH directly from SQLite products table
+    const dbProduct = query<{
+      id: number;
+      name: string;
+      sku: string;
+      unit: string;
+      cost_price: number;
+      selling_price: number;
+      wholesale_price: number;
+      wholesale_min_qty: number;
+      current_stock: number;
+      min_stock_alert: number;
+      created_at: string;
+      updated_at: string;
+    }>("SELECT * FROM products WHERE id = ?", [product.id])[0];
+
+    assert.ok(dbProduct, "Product row must exist in SQLite database");
+    assert.equal(dbProduct.id, product.id);
+    assert.equal(dbProduct.name, "Organic Green Tea 100g");
+    assert.equal(dbProduct.sku, "TEA-ORG-100");
+    assert.equal(dbProduct.unit, "pack");
+    assert.equal(dbProduct.cost_price, 25000);
+    assert.equal(dbProduct.selling_price, 35000);
+    assert.equal(dbProduct.wholesale_price, 30000);
+    assert.equal(dbProduct.wholesale_min_qty, 10);
+    assert.equal(dbProduct.current_stock, 50);
+    assert.equal(dbProduct.min_stock_alert, 10);
+    assert.ok(dbProduct.created_at);
+    assert.ok(dbProduct.updated_at);
+
+    // Verify initial stock movement directly in stock_movements table
+    const dbMovement = query<{
+      product_id: number;
+      type: string;
+      quantity: number;
+      note: string;
+    }>("SELECT product_id, type, quantity, note FROM stock_movements WHERE product_id = ?", [product.id])[0];
+    assert.ok(dbMovement);
+    assert.equal(dbMovement.product_id, product.id);
+    assert.equal(dbMovement.type, "RESTOCK");
+    assert.equal(dbMovement.quantity, 50);
+
+    // 3. UPDATE in SQLite database
+    updateProduct(product.id, {
+      name: "Premium Organic Green Tea 100g",
+      cost_price: 25000,
+      selling_price: 38000,
+      wholesale_price: 32000,
+      min_stock_alert: 15,
+    });
+
+    const updatedDbProduct = query<{
+      name: string;
+      selling_price: number;
+      wholesale_price: number;
+      min_stock_alert: number;
+    }>("SELECT name, selling_price, wholesale_price, min_stock_alert FROM products WHERE id = ?", [product.id])[0];
+    assert.ok(updatedDbProduct);
+    assert.equal(updatedDbProduct.name, "Premium Organic Green Tea 100g");
+    assert.equal(updatedDbProduct.selling_price, 38000);
+    assert.equal(updatedDbProduct.wholesale_price, 32000);
+    assert.equal(updatedDbProduct.min_stock_alert, 15);
+
+    // 4. DELETE from SQLite database
+    deleteProduct(product.id);
+
+    const deletedRows = query("SELECT * FROM products WHERE id = ?", [product.id]);
+    assert.equal(deletedRows.length, 0, "Product must be deleted from products table");
+
+    const deletedMovements = query("SELECT * FROM stock_movements WHERE product_id = ?", [product.id]);
+    assert.equal(deletedMovements.length, 0, "Stock movements must be removed on cascade");
+  });
 });

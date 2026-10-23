@@ -62,6 +62,8 @@ const {
   processPurchaseReturn,
 } = await import('../src/lib/services/returnsService.ts');
 
+const { queryOne, query, run } = await import('../src/lib/db/sqliteEngine.ts');
+
 // Helper to construct purchase item with discount = 0
 function makePurchaseItem(input: {
   productId: number;
@@ -375,6 +377,61 @@ describe('Feature 8: Dues, Settlements & Day Book', () => {
 
     // Overall cash reconciliation integrity
     assert.equal(dayBook.closingBalance, dayBook.openingBalance + dayBook.netCash);
+  });
+
+  test('9. Real CRUD on Cash Drawer Shifts: INSERT shift into db, FETCH shift, UPDATE on close, and verify db record', () => {
+    // 1. CREATE / INSERT into shift_sessions table
+    const shift = openShift({
+      cashierName: 'Rita Karki',
+      openingFloat: 50000, // Rs. 500
+      notes: 'Morning shift opening float',
+    });
+
+    // 2. READ / FETCH directly from SQLite shift_sessions table
+    const dbShift = queryOne<{
+      id: number;
+      cashier_name: string;
+      opening_float: number;
+      status: string;
+      notes: string;
+      opened_at: string;
+      closed_at: string | null;
+      closing_cash_actual: number | null;
+      closing_cash_expected: number | null;
+      cash_difference: number | null;
+    }>('SELECT * FROM shift_sessions WHERE id = ?', [shift.id]);
+
+    assert.ok(dbShift);
+    assert.equal(dbShift.id, shift.id);
+    assert.equal(dbShift.cashier_name, 'Rita Karki');
+    assert.equal(dbShift.opening_float, 50000);
+    assert.equal(dbShift.status, 'OPEN');
+    assert.equal(dbShift.notes, 'Morning shift opening float');
+    assert.ok(dbShift.opened_at);
+    assert.equal(dbShift.closed_at, null);
+
+    // 3. UPDATE in SQLite database (Close shift)
+    const closed = closeShift({
+      shiftId: shift.id,
+      closingCash: 52000,
+      notes: 'Shift ended smoothly with Rs. 20 overage',
+    });
+
+    assert.equal(closed.status, 'CLOSED');
+    assert.equal(closed.closing_cash, 52000);
+
+    const updatedDbShift = queryOne<{
+      status: string;
+      closing_cash: number;
+      closed_at: string;
+      notes: string;
+    }>('SELECT status, closing_cash, closed_at, notes FROM shift_sessions WHERE id = ?', [shift.id]);
+
+    assert.ok(updatedDbShift);
+    assert.equal(updatedDbShift.status, 'CLOSED');
+    assert.equal(updatedDbShift.closing_cash, 52000);
+    assert.ok(updatedDbShift.closed_at);
+    assert.ok(updatedDbShift.notes.includes('Shift ended smoothly'));
   });
 });
 

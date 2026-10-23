@@ -2,7 +2,7 @@
  * Navigation Constants & Menu Hierarchy Definitions
  * Groups, tabs, icons, and keyboard shortcuts for application sidebar navigation.
  */
-import React from 'react';
+import React from "react";
 import {
   LayoutDashboard,
   BarChart3,
@@ -21,46 +21,46 @@ import {
   Headphones,
   Database,
   BookOpen,
-} from 'lucide-react';
-import { MODIFIER_LABEL } from './shortcuts.ts';
+} from "lucide-react";
+import { MODIFIER_LABEL } from "./shortcuts.ts";
 
 export type NavTab =
-  | 'dashboard'
-  | 'sales'
-  | 'purchases'
-  | 'purchase-history'
-  | 'inventory'
-  | 'movements'
-  | 'vendors'
-  | 'customers'
-  | 'history'
-  | 'daybook'
-  | 'expenses'
-  | 'staff'
-  | 'payroll'
-  | 'analytics'
-  | 'settings'
-  | 'backup'
-  | 'support';
+  | "dashboard"
+  | "sales"
+  | "purchases"
+  | "purchase-history"
+  | "inventory"
+  | "movements"
+  | "vendors"
+  | "customers"
+  | "history"
+  | "daybook"
+  | "expenses"
+  | "staff"
+  | "payroll"
+  | "analytics"
+  | "settings"
+  | "backup"
+  | "support";
 
 export const NAV_TABS: readonly NavTab[] = [
-  'dashboard',
-  'sales',
-  'purchases',
-  'purchase-history',
-  'inventory',
-  'movements',
-  'vendors',
-  'customers',
-  'history',
-  'daybook',
-  'expenses',
-  'staff',
-  'payroll',
-  'analytics',
-  'settings',
-  'backup',
-  'support',
+  "dashboard",
+  "sales",
+  "purchases",
+  "purchase-history",
+  "inventory",
+  "movements",
+  "vendors",
+  "customers",
+  "history",
+  "daybook",
+  "expenses",
+  "staff",
+  "payroll",
+  "analytics",
+  "settings",
+  "backup",
+  "support",
 ] as const;
 
 export interface NavItem {
@@ -83,153 +83,154 @@ export const getNavGroups = (
   isNepali: boolean = false,
 ): NavGroup[] => [
   {
-    id: 'overview',
-    title: t('nav_group_overview', 'OVERVIEW'),
+    id: "overview",
+    title: t("nav_group_overview", "OVERVIEW"),
     items: [
       {
-        id: 'dashboard',
-        label: t('nav_dashboard'),
+        id: "dashboard",
+        label: t("nav_dashboard"),
         icon: LayoutDashboard,
         shortcut: `${MODIFIER_LABEL}+D`,
       },
       {
-        id: 'analytics',
-        label: t('nav_analytics'),
+        id: "analytics",
+        label: t("nav_analytics"),
         icon: BarChart3,
-        shortcut: 'Alt+A',
+        shortcut: "Alt+A",
       },
     ],
   },
   {
-    id: 'sales',
-    title: t('nav_group_sales', 'SALES'),
+    id: "sales",
+    title: t("nav_group_sales", "SALES"),
     items: [
       {
-        id: 'sales',
-        label: t('nav_sales'),
+        id: "sales",
+        label: t("nav_sales"),
         icon: ShoppingCart,
         shortcut: `${MODIFIER_LABEL}+N`,
       },
       {
-        id: 'history',
-        label: t('nav_history'),
+        id: "history",
+        label: t("nav_history"),
         icon: Receipt,
         shortcut: `${MODIFIER_LABEL}+H`,
       },
       {
-        id: 'customers',
-        label: t('nav_customers', 'Customers'),
+        id: "customers",
+        label: t("nav_customers", "Customers"),
         icon: UserCheck,
         shortcut: `${MODIFIER_LABEL}+C`,
       },
     ],
   },
   {
-    id: 'inventory',
-    title: t('nav_group_inventory', 'INVENTORY'),
+    id: "inventory",
+    title: t("nav_group_inventory", "INVENTORY"),
     items: [
       {
-        id: 'inventory',
+        id: "inventory",
         label: isNepali
-          ? 'सामान तथा मौज्दात'
-          : t('nav_inventory', 'Stock Ledger'),
+          ? "सामान तथा मौज्दात"
+          : t("nav_inventory", "Stock Ledger"),
         icon: Boxes,
         shortcut: `${MODIFIER_LABEL}+I`,
         badge: lowStockCount > 0 ? lowStockCount : undefined,
       },
       {
-        id: 'movements',
-        label: isNepali ? 'चलान अडिट लग' : t('nav_movements', 'Movement Log'),
+        id: "movements",
+        label: isNepali ? "चलान अडिट लग" : t("nav_movements", "Movement Log"),
         icon: History,
         shortcut: `${MODIFIER_LABEL}+M`,
       },
     ],
   },
   {
-    id: 'procurement',
-    title: t('nav_group_procurement', 'PROCUREMENT'),
+    id: "procurement",
+    title: t("nav_group_procurement", "PROCUREMENT"),
     items: [
       {
-        id: 'purchases',
-        label: t('nav_purchases', 'New Purchase'),
+        id: "purchases",
+        label: t("nav_purchases", "New Purchase"),
         icon: Truck,
         shortcut: `${MODIFIER_LABEL}+B`,
       },
       {
-        id: 'purchase-history',
+        id: "purchase-history",
         label: isNepali
-          ? 'खरिद बिल इतिहास'
-          : t('nav_purchase_history', 'Purchase History'),
+          ? "खरिद बिल इतिहास"
+          : t("nav_purchase_history", "Purchase History"),
         icon: FileText,
         shortcut: `${MODIFIER_LABEL}+⇧+B`,
       },
       {
-        id: 'vendors',
-        label: t('nav_vendors', 'Vendors'),
+        id: "vendors",
+        label: t("nav_vendors", "Vendors"),
         icon: Building2,
         shortcut: `${MODIFIER_LABEL}+V`,
       },
     ],
   },
   {
-    id: 'finance_hr',
-    title: t('nav_group_finance_hr', 'FINANCE & HR'),
+    id: "finance_hr",
+    title: t("nav_group_finance_hr", "FINANCE & HR"),
     items: [
       {
-        id: 'daybook',
-        label: isNepali ? 'दैनिक हिसाब (Day Book)' : t('nav_daybook', 'Daily Book'),
+        id: "daybook",
+        label: isNepali
+          ? "दैनिक हिसाब (Day Book)"
+          : t("nav_daybook", "Daily Book"),
         icon: BookOpen,
         shortcut: `${MODIFIER_LABEL}+J`,
       },
       {
-        id: 'expenses',
-        label: t('nav_expenses'),
+        id: "expenses",
+        label: t("nav_expenses"),
         icon: ReceiptText,
         shortcut: `${MODIFIER_LABEL}+E`,
       },
       {
-        id: 'staff',
-        label: t('nav_staff'),
+        id: "staff",
+        label: t("nav_staff"),
         icon: Users,
         shortcut: `${MODIFIER_LABEL}+U`,
       },
       {
-        id: 'payroll',
-        label: t('nav_payroll'),
+        id: "payroll",
+        label: t("nav_payroll"),
         icon: CreditCard,
         shortcut: `${MODIFIER_LABEL}+Y`,
       },
     ],
   },
   {
-    id: 'system',
-    title: t('nav_group_system', 'SYSTEM'),
+    id: "system",
+    title: t("nav_group_system", "SYSTEM"),
     items: [
       {
-        id: 'settings',
-        label: t('nav_settings'),
+        id: "settings",
+        label: t("nav_settings"),
         icon: Settings,
         shortcut: `${MODIFIER_LABEL}+,`,
       },
       {
-        id: 'backup',
+        id: "backup",
         label: isNepali
-          ? 'ब्याकअप र पुनर्स्थापना'
-          : t('nav_backup', 'Backup & Restore'),
+          ? "ब्याकअप र पुनर्स्थापना"
+          : t("nav_backup", "Backup & Restore"),
         icon: Database,
         shortcut: `${MODIFIER_LABEL}+Shift+D`,
       },
       {
-        id: 'support',
+        id: "support",
         label: isNepali
-          ? 'प्राविधिक सहयोग'
-          : t('nav_support', 'Technical Support'),
+          ? "प्राविधिक सहयोग"
+          : t("nav_support", "Technical Support"),
         icon: Headphones,
-        shortcut: 'Alt+H',
+        shortcut: "Alt+H",
       },
     ],
   },
 ];
 
 export const NAV_GROUPS = getNavGroups;
-

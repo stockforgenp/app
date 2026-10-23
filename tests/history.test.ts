@@ -77,6 +77,8 @@ const {
   getOpeningCashBalance,
 } = await import('../src/lib/services/dayBookService.ts');
 
+const { queryOne, query } = await import('../src/lib/db/sqliteEngine.ts');
+
 describe('Feature 5: History, Day Book & Audit Logs', () => {
   beforeEach(async () => {
     await setupTestEnvironment();
@@ -431,5 +433,67 @@ describe('Feature 5: History, Day Book & Audit Logs', () => {
     assert.equal(dayBook.salesPaid, 250000); // Updated to 250000 upon receiving payment
     assert.equal(dayBook.newCustomerDue, 200000); // Remaining due reduced to 200000
     assert.equal(dayBook.customerDueCollected, 100000);
+  });
+
+  test('10. Real CRUD on Expenses: INSERT into db, FETCH all columns, UPDATE expense, and DELETE from db', () => {
+    // 1. CREATE / INSERT into db
+    const expense = createExpense({
+      category: 'Rent',
+      amount: 45000,
+      date: '2026-03-01',
+      payment_method: 'Bank Transfer',
+      receipt_reference: 'RENT-2026-03',
+      note: 'Main showroom monthly rent',
+    });
+
+    // 2. READ / FETCH directly from SQLite expenses table
+    const dbExpense = queryOne<{
+      id: number;
+      category: string;
+      amount: number;
+      date: string;
+      payment_method: string;
+      receipt_reference: string;
+      note: string;
+      created_at: string;
+      updated_at: string;
+    }>('SELECT * FROM expenses WHERE id = ?', [expense.id]);
+
+    assert.ok(dbExpense);
+    assert.equal(dbExpense.id, expense.id);
+    assert.equal(dbExpense.category, 'Rent');
+    assert.equal(dbExpense.amount, 45000);
+    assert.equal(dbExpense.date, '2026-03-01');
+    assert.equal(dbExpense.payment_method, 'Bank Transfer');
+    assert.equal(dbExpense.receipt_reference, 'RENT-2026-03');
+    assert.equal(dbExpense.note, 'Main showroom monthly rent');
+    assert.ok(dbExpense.created_at);
+    assert.ok(dbExpense.updated_at);
+
+    // 3. UPDATE in SQLite database
+    const updated = updateExpense(expense.id, {
+      category: 'Rent & Lease',
+      amount: 48000,
+      note: 'Adjusted with building maintenance charges',
+    });
+
+    assert.equal(updated.amount, 48000);
+
+    const updatedDbExpense = queryOne<{
+      category: string;
+      amount: number;
+      note: string;
+    }>('SELECT category, amount, note FROM expenses WHERE id = ?', [expense.id]);
+    assert.ok(updatedDbExpense);
+    assert.equal(updatedDbExpense.category, 'Rent & Lease');
+    assert.equal(updatedDbExpense.amount, 48000);
+    assert.equal(updatedDbExpense.note, 'Adjusted with building maintenance charges');
+
+    // 4. DELETE from SQLite database
+    const deleted = deleteExpense(expense.id);
+    assert.equal(deleted, true);
+
+    const deletedRow = queryOne('SELECT * FROM expenses WHERE id = ?', [expense.id]);
+    assert.equal(deletedRow, null, 'Expense row must be deleted from database');
   });
 });

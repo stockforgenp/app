@@ -28,7 +28,12 @@ export interface LowStockAlertItem {
   quantitySold: number;
 }
 
-export type StockMovementType = 'RESTOCK' | 'PURCHASE' | 'SALE' | 'ADJUSTMENT' | 'RETURN';
+export type StockMovementType =
+  | "RESTOCK"
+  | "PURCHASE"
+  | "SALE"
+  | "ADJUSTMENT"
+  | "RETURN";
 
 export interface StockMovement {
   id: number;
@@ -68,7 +73,7 @@ export interface Sale {
   cost_total?: number;
   gross_profit?: number;
   item_count?: number;
-  status?: 'COMPLETED' | 'RETURNED' | 'PARTIAL_RETURN';
+  status?: "COMPLETED" | "RETURNED" | "PARTIAL_RETURN";
   returned_at?: string | null;
   created_at: string;
   lowStockAlerts?: LowStockAlertItem[];
@@ -112,7 +117,7 @@ export interface SaleItem {
   batch_id?: number | null;
   batch_number?: string | null;
   expiry_date?: string | null;
-  pricing_tier?: 'RETAIL' | 'WHOLESALE';
+  pricing_tier?: "RETAIL" | "WHOLESALE";
   packaging_id?: number | null;
   package_multiplier?: number;
   packaging_name?: string | null;
@@ -133,7 +138,7 @@ export interface CartItem {
   batch_id?: number | null;
   batch_number?: string | null;
   expiry_date?: string | null;
-  pricing_tier?: 'RETAIL' | 'WHOLESALE';
+  pricing_tier?: "RETAIL" | "WHOLESALE";
   packaging_id?: number | null;
   package_multiplier?: number;
   packaging_name?: string | null;
@@ -145,7 +150,7 @@ export interface ProcessSaleItemInput {
   actualSellingPrice: number; // in minor units
   discount: number; // in minor units
   batchId?: number | null;
-  pricingTier?: 'RETAIL' | 'WHOLESALE';
+  pricingTier?: "RETAIL" | "WHOLESALE";
   packagingId?: number | null;
   packageMultiplier?: number;
 }
@@ -194,7 +199,7 @@ export interface Purchase {
   notes?: string | null;
   item_count?: number;
   total_units?: number;
-  status?: 'COMPLETED' | 'RETURNED' | 'PARTIAL_RETURN';
+  status?: "COMPLETED" | "RETURNED" | "PARTIAL_RETURN";
   returned_at?: string | null;
   created_at: string;
 }
@@ -288,9 +293,13 @@ export interface AppSettings {
   calendar_system?: CalendarSystem;
 }
 
-export type CalendarSystem = 'BS' | 'AD';
+export type CalendarSystem = "BS" | "AD";
 
-export type SubscriptionStatus = 'active' | 'expired' | 'trial' | 'grace_period';
+export type SubscriptionStatus =
+  | "active"
+  | "expired"
+  | "trial"
+  | "grace_period";
 
 export interface Shop {
   id: number;
@@ -394,18 +403,18 @@ export interface TestResultItem {
 }
 
 export type StaffRole =
-  | 'Store Manager'
-  | 'Cashier'
-  | 'Sales Associate'
-  | 'Inventory Manager'
-  | 'Delivery Person'
-  | 'Accountant'
-  | 'Security Guard'
-  | 'Cleaner'
-  | 'Other';
+  | "Store Manager"
+  | "Cashier"
+  | "Sales Associate"
+  | "Inventory Manager"
+  | "Delivery Person"
+  | "Accountant"
+  | "Security Guard"
+  | "Cleaner"
+  | "Other";
 
-export type SalaryType = 'monthly' | 'daily' | 'hourly';
-export type StaffStatus = 'active' | 'inactive';
+export type SalaryType = "monthly" | "daily" | "hourly";
+export type StaffStatus = "active" | "inactive";
 
 export interface Staff {
   id: number;
@@ -524,7 +533,7 @@ export interface MonthlyPayrollSummary {
   total_pending: number; // minor units
   total_deductions: number; // minor units
   total_bonus: number; // minor units
-  overall_status: 'fully_paid' | 'partially_paid' | 'unpaid';
+  overall_status: "fully_paid" | "partially_paid" | "unpaid";
   staff_statuses: StaffMonthlyPayrollStatus[];
   today_status: TodayPayrollStatus;
 }
@@ -560,7 +569,7 @@ export interface Customer {
   pan_vat?: string | null;
   address?: string | null;
   notes?: string | null;
-  customer_type?: 'RETAIL' | 'WHOLESALE';
+  customer_type?: "RETAIL" | "WHOLESALE";
   created_at: string;
   updated_at: string;
   sales_count?: number;
@@ -574,7 +583,7 @@ export interface CreateCustomerInput {
   pan_vat?: string | null;
   address?: string | null;
   notes?: string | null;
-  customer_type?: 'RETAIL' | 'WHOLESALE';
+  customer_type?: "RETAIL" | "WHOLESALE";
 }
 
 export interface CustomerPayment {
@@ -626,7 +635,7 @@ export interface RecordVendorPaymentInput {
 export interface StatementRow {
   id: string; // e.g. "bill-10", "pay-4"
   date: string;
-  type: 'BILL' | 'PAYMENT' | 'RETURN';
+  type: "BILL" | "PAYMENT" | "RETURN";
   refNumber: string;
   description: string;
   amount: number; // total amount of bill or payment
@@ -637,9 +646,14 @@ export interface StatementRow {
   runningBalance: number;
 }
 
-export type ReturnReason = 'DEFECTIVE' | 'WRONG_ITEM' | 'CUSTOMER_CANCELLED' | 'EXPIRED' | 'OTHER';
-export type ReturnAction = 'RESTOCK' | 'DAMAGED';
-export type ReturnRefundMethod = 'CASH' | 'CREDIT_NOTE' | 'BANK';
+export type ReturnReason =
+  | "DEFECTIVE"
+  | "WRONG_ITEM"
+  | "CUSTOMER_CANCELLED"
+  | "EXPIRED"
+  | "OTHER";
+export type ReturnAction = "RESTOCK" | "DAMAGED";
+export type ReturnRefundMethod = "CASH" | "CREDIT_NOTE" | "BANK";
 
 export interface SaleReturn {
   id: number;
@@ -677,7 +691,7 @@ export interface PurchaseReturn {
   vendor_id: number | null;
   vendor_name: string | null;
   total_refund: number;
-  refund_method: 'CASH' | 'VENDOR_CREDIT' | 'BANK';
+  refund_method: "CASH" | "VENDOR_CREDIT" | "BANK";
   reason: ReturnReason;
   notes?: string | null;
   created_at: string;
@@ -696,7 +710,7 @@ export interface PurchaseReturnItem {
   created_at: string;
 }
 
-export type ShiftStatus = 'OPEN' | 'CLOSED';
+export type ShiftStatus = "OPEN" | "CLOSED";
 
 export interface ShiftSession {
   id: number;
@@ -734,14 +748,17 @@ export interface CloseShiftInput {
 }
 
 export type WriteOffReason =
-  | 'EXPIRED'
-  | 'DAMAGED'
-  | 'SPOILED_LEAKED'
-  | 'LOST_STOLEN'
-  | 'DEFECTIVE'
-  | 'DEAD_STOCK';
+  | "EXPIRED"
+  | "DAMAGED"
+  | "SPOILED_LEAKED"
+  | "LOST_STOLEN"
+  | "DEFECTIVE"
+  | "DEAD_STOCK";
 
-export type WriteOffAction = 'DISPOSAL' | 'VENDOR_RETURN_PENDING' | 'SALVAGE_CLEARANCE';
+export type WriteOffAction =
+  | "DISPOSAL"
+  | "VENDOR_RETURN_PENDING"
+  | "SALVAGE_CLEARANCE";
 
 export interface StockWriteOff {
   id: number;
@@ -779,14 +796,14 @@ export interface CreateWriteOffInput {
 // ==========================================
 
 export type DayBookTransactionType =
-  | 'SALE'
-  | 'PURCHASE'
-  | 'EXPENSE'
-  | 'CUSTOMER_PAYMENT'
-  | 'VENDOR_PAYMENT'
-  | 'SALARY'
-  | 'SALE_RETURN'
-  | 'PURCHASE_RETURN';
+  | "SALE"
+  | "PURCHASE"
+  | "EXPENSE"
+  | "CUSTOMER_PAYMENT"
+  | "VENDOR_PAYMENT"
+  | "SALARY"
+  | "SALE_RETURN"
+  | "PURCHASE_RETURN";
 
 export interface DayBookEntry {
   id: string; // e.g. "sale-10", "exp-4"
@@ -837,4 +854,3 @@ export interface DayBookSummary {
   entries: DayBookEntry[];
   modeSummaries: DayBookPaymentModeSummary[];
 }
-

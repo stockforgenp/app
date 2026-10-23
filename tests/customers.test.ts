@@ -21,14 +21,12 @@ const {
   createCustomer,
   updateCustomer,
   deleteCustomer,
-  getAllCustomers,
   getCustomerById,
   searchCustomers,
   findOrCreateCustomer,
   getCustomerTotalDue,
   getCustomerPreviousDueForSale,
   recordCustomerPayment,
-  getCustomerPayments,
   getCustomerStatement,
   getCustomerCount,
 } = await import("../src/lib/services/customerService.ts");
@@ -40,6 +38,8 @@ const { processSale, getSaleWithItems } =
 
 const { processSaleReturn } =
   await import("../src/lib/services/returnsService.ts");
+
+const { query, queryOne, run } = await import("../src/lib/db/sqliteEngine.ts");
 
 describe("Feature 6: Customers & Khata Ledger", () => {
   beforeEach(async () => {
@@ -519,5 +519,72 @@ describe("Feature 6: Customers & Khata Ledger", () => {
 
     // Current total outstanding due must equal latest running balance (240000)
     assert.equal(getCustomerTotalDue(customer.id), 240000);
+  });
+
+  test("10. Real CRUD on Customers: INSERT into db, FETCH all columns, UPDATE customer, and DELETE from db", () => {
+    // 1. CREATE / INSERT into db
+    const customer = createCustomer({
+      name: "rameshwor yadav",
+      phone: "9845999888",
+      pan_vat: "609876543",
+      address: "Birgunj-12, Murli",
+      customer_type: "WHOLESALE",
+      notes: "Wholesale beverage dealer",
+    });
+
+    // 2. READ / FETCH directly from SQLite customers table
+    const dbCustomer = queryOne<{
+      id: number;
+      name: string;
+      phone: string;
+      pan_vat: string;
+      address: string;
+      customer_type: string;
+      notes: string;
+      created_at: string;
+      updated_at: string;
+    }>("SELECT * FROM customers WHERE id = ?", [customer.id]);
+
+    assert.ok(dbCustomer);
+    assert.equal(dbCustomer.id, customer.id);
+    assert.equal(dbCustomer.name, "Rameshwor Yadav");
+    assert.equal(dbCustomer.phone, "9845999888");
+    assert.equal(dbCustomer.pan_vat, "609876543");
+    assert.equal(dbCustomer.address, "Birgunj-12, Murli");
+    assert.equal(dbCustomer.customer_type, "WHOLESALE");
+    assert.equal(dbCustomer.notes, "Wholesale beverage dealer");
+    assert.ok(dbCustomer.created_at);
+    assert.ok(dbCustomer.updated_at);
+
+    // 3. UPDATE in SQLite database
+    updateCustomer(customer.id, {
+      name: "Rameshwor Kumar Yadav",
+      phone: "9845999777",
+      address: "Birgunj-10, Adarshnagar",
+      notes: "Updated credit terms to 15 days",
+    });
+
+    const updated = getCustomerById(customer.id);
+    assert.ok(updated);
+    assert.equal(updated.name, "Rameshwor Kumar Yadav");
+
+    const updatedDbCustomer = queryOne<{
+      name: string;
+      phone: string;
+      address: string;
+      notes: string;
+    }>("SELECT name, phone, address, notes FROM customers WHERE id = ?", [customer.id]);
+    assert.ok(updatedDbCustomer);
+    assert.equal(updatedDbCustomer.name, "Rameshwor Kumar Yadav");
+    assert.equal(updatedDbCustomer.phone, "9845999777");
+    assert.equal(updatedDbCustomer.address, "Birgunj-10, Adarshnagar");
+    assert.equal(updatedDbCustomer.notes, "Updated credit terms to 15 days");
+
+    // 4. DELETE from SQLite database
+    deleteCustomer(customer.id);
+
+    const deletedRow = queryOne("SELECT * FROM customers WHERE id = ?", [customer.id]);
+    assert.equal(deletedRow, null, "Customer row must be deleted from database");
+    assert.equal(getCustomerById(customer.id), null);
   });
 });

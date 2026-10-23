@@ -53,6 +53,7 @@ const { processSale } = await import("../src/lib/services/salesService.ts");
 const { processPurchase } = await import("../src/lib/services/purchaseService.ts");
 const { createExpense } = await import("../src/lib/services/expenseService.ts");
 const { createStaff } = await import("../src/lib/services/staffService.ts");
+const { queryOne, query, run } = await import("../src/lib/db/sqliteEngine.ts");
 
 function makePurchaseItem(input: {
   productId: number;
@@ -429,6 +430,40 @@ describe("Feature 10: Settings, Backup & Analytics", () => {
     assert.equal(dashboard.totalInventoryValuation, 900); // 3 * 300
     assert.equal(dashboard.lowStockCount, 1);
     assert.equal(dashboard.lowStockProducts[0].name, "Emergency Torch");
+  });
+
+  test("14. Real CRUD on App Settings: INSERT key-value, FETCH directly from table, UPDATE setting, and DELETE record", () => {
+    // 1. CREATE / INSERT into app_settings
+    setAppSetting("thermal_printer_paper_width", "80mm");
+
+    // 2. READ / FETCH directly from app_settings table
+    const dbSetting = queryOne<{ key: string; value: string }>(
+      "SELECT key, value FROM app_settings WHERE key = ?",
+      ["thermal_printer_paper_width"]
+    );
+    assert.ok(dbSetting);
+    assert.equal(dbSetting.key, "thermal_printer_paper_width");
+    assert.equal(dbSetting.value, "80mm");
+
+    // 3. UPDATE in app_settings table
+    setAppSetting("thermal_printer_paper_width", "58mm");
+
+    const updatedDbSetting = queryOne<{ key: string; value: string }>(
+      "SELECT key, value FROM app_settings WHERE key = ?",
+      ["thermal_printer_paper_width"]
+    );
+    assert.ok(updatedDbSetting);
+    assert.equal(updatedDbSetting.value, "58mm");
+
+    // 4. DELETE from app_settings table
+    run("DELETE FROM app_settings WHERE key = ?", ["thermal_printer_paper_width"]);
+
+    const deletedSetting = queryOne(
+      "SELECT * FROM app_settings WHERE key = ?",
+      ["thermal_printer_paper_width"]
+    );
+    assert.equal(deletedSetting, null);
+    assert.equal(getAppSetting("thermal_printer_paper_width"), null);
   });
 });
 

@@ -52,6 +52,8 @@ const { processSaleReturn } =
 const { updateSettings } =
   await import("../src/lib/services/settingsService.ts");
 
+const { queryOne, query } = await import("../src/lib/db/sqliteEngine.ts");
+
 describe("Feature 3: Sales & Billing", () => {
   beforeEach(async () => {
     await setupTestEnvironment();
@@ -735,5 +737,91 @@ describe("Feature 3: Sales & Billing", () => {
       17,
       "Returned quantity must be restocked into inventory",
     );
+  });
+
+  test("15. Real CRUD on Sales: INSERT into db, FETCH sale & items, UPDATE sale, and RETURN with stock reversal", () => {
+    const p1 = createProduct({ name: "Digestive Biscuit", cost_price: 3000, selling_price: 5000, current_stock: 40 });
+    const p2 = createProduct({ name: "Real Apple Juice 1L", cost_price: 15000, selling_price: 22000, current_stock: 30 });
+
+    // 1. CREATE / INSERT into db
+    const sale = processSale(
+      [
+        { productId: p1.id, quantity: 2, actualSellingPrice: 5000, discount: 0 },
+        { productId: p2.id, quantity: 1, actualSellingPrice: 22000, discount: 0 },
+      ],
+      { paymentMethod: "Cash", paidAmount: 32000, applyVat: false }
+    );
+
+    // 2. READ / FETCH directly from SQLite sales table
+    const dbSale = queryOne<{
+      id: number;
+      bill_number: string;
+      subtotal: number;
+      total: number;
+      paid_amount: number;
+      payment_method: string;
+      status: string;
+    }>("SELECT * FROM sales WHERE id = ?", [sale.id]);
+
+    assert.ok(dbSale);
+    assert.equal(dbSale.id, sale.id);
+    assert.equal(dbSale.subtotal, 32000); // (2*5000) + (1*22000) = 32000
+    assert.equal(dbSale.total, 32000);
+    assert.equal(dbSale.paid_amount, 32000);
+    assert.equal(dbSale.status, "COMPLETED");
+
+    // Fetch sale items directly from sale_items table
+    const dbItems = query<{
+      sale_id: number;
+      product_id: number;
+      quantity: number;
+      cost_price: number;
+      selling_price: number;
+      total: number;
+    }>("SELECT * FROM sale_items WHERE sale_id = ? ORDER BY product_id ASC", [sale.id]);
+
+    assert.equal(dbItems.length, 2);
+    assert.equal(dbItems[0].product_id, p1.id);
+    assert.equal(dbItems[0].quantity, 2);
+    assert.equal(dbItems[0].cost_price, 3000);
+    assert.equal(dbItems[1].product_id, p2.id);
+    assert.equal(dbItems[1].quantity, 1);
+    assert.equal(dbItems[1].cost_price, 15000);
+
+    // Stocks in products table were decremented
+    assert.equal(getProductById(p1.id)?.current_stock, 38);
+    assert.equal(getProductById(p2.id)?.current_stock, 29);
+
+    // 3. UPDATE in SQLite database
+    updateSale(
+      sale.id,
+      [{ productId: p1.id, quantity: 3, actualSellingPrice: 5000, discount: 0 }],
+      { paymentMethod: "Cash", paidAmount: 15000, applyVat: false }
+    );
+
+    const updatedDbSale = queryOne<{ total: number; paid_amount: number }>(
+      "SELECT total, paid_amount FROM sales WHERE id = ?",
+      [sale.id]
+    );
+    assert.ok(updatedDbSale);
+    assert.equal(updatedDbSale.total, 15000);
+    assert.equal(updatedDbSale.paid_amount, 15000);
+
+    const updatedDbItems = query("SELECT * FROM sale_items WHERE sale_id = ?", [sale.id]);
+    assert.equal(updatedDbItems.length, 1);
+
+    // Reverted p2 stock to 30, and p1 stock became 40 - 3 = 37
+    assert.equal(getProductById(p1.id)?.current_stock, 37);
+    assert.equal(getProductById(p2.id)?.current_stock, 30);
+
+    // 4. RETURN / VOID in SQLite database
+    returnSale(sale.id);
+
+    const returnedDbSale = queryOne<{ status: string }>("SELECT status FROM sales WHERE id = ?", [sale.id]);
+    assert.ok(returnedDbSale);
+    assert.equal(returnedDbSale.status, "RETURNED");
+
+    // Stock for p1 is fully restored back to 40
+    assert.equal(getProductById(p1.id)?.current_stock, 40);
   });
 });

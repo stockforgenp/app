@@ -52,6 +52,8 @@ const {
   getStockMovements,
 } = await import('../src/lib/services/inventoryService.ts');
 
+const { queryOne, query } = await import('../src/lib/db/sqliteEngine.ts');
+
 // Helper to construct purchase item with discount = 0
 function makePurchaseItem(input: {
   productId: number;
@@ -370,5 +372,68 @@ describe('Feature 7: Vendors & Supplier Ledger', () => {
 
     // Current total outstanding payable due must equal latest running balance (350000)
     assert.equal(getVendorTotalDue(vendor.id), 350000);
+  });
+
+  test('10. Real CRUD on Vendors: INSERT into db, FETCH all columns, UPDATE vendor, and DELETE from db', () => {
+    // 1. CREATE / INSERT into db
+    const vendor = createVendor({
+      name: 'himalayan grains suppliers',
+      phone: '9851088888',
+      email: 'himalayan@grains.com',
+      pan_vat: '608889999',
+      address: 'Kalimati, Kathmandu',
+      notes: 'Bulk grain importer',
+    });
+
+    // 2. READ / FETCH directly from SQLite vendors table
+    const dbVendor = queryOne<{
+      id: number;
+      name: string;
+      phone: string;
+      email: string;
+      pan_vat: string;
+      address: string;
+      notes: string;
+      created_at: string;
+      updated_at: string;
+    }>('SELECT * FROM vendors WHERE id = ?', [vendor.id]);
+
+    assert.ok(dbVendor);
+    assert.equal(dbVendor.id, vendor.id);
+    assert.equal(dbVendor.name, 'Himalayan Grains Suppliers');
+    assert.equal(dbVendor.phone, '9851088888');
+    assert.equal(dbVendor.email, 'himalayan@grains.com');
+    assert.equal(dbVendor.pan_vat, '608889999');
+    assert.equal(dbVendor.address, 'Kalimati, Kathmandu');
+    assert.equal(dbVendor.notes, 'Bulk grain importer');
+    assert.ok(dbVendor.created_at);
+    assert.ok(dbVendor.updated_at);
+
+    // 3. UPDATE in SQLite database
+    updateVendor(vendor.id, {
+      name: 'Himalayan Agro & Grains Pvt Ltd',
+      phone: '9851088777',
+      address: 'Balkhu, Kathmandu',
+      notes: 'Net 30 days payment terms',
+    });
+
+    const updatedDbVendor = queryOne<{
+      name: string;
+      phone: string;
+      address: string;
+      notes: string;
+    }>('SELECT name, phone, address, notes FROM vendors WHERE id = ?', [vendor.id]);
+    assert.ok(updatedDbVendor);
+    assert.equal(updatedDbVendor.name, 'Himalayan Agro & Grains Pvt Ltd');
+    assert.equal(updatedDbVendor.phone, '9851088777');
+    assert.equal(updatedDbVendor.address, 'Balkhu, Kathmandu');
+    assert.equal(updatedDbVendor.notes, 'Net 30 days payment terms');
+
+    // 4. DELETE from SQLite database
+    deleteVendor(vendor.id);
+
+    const deletedRow = queryOne('SELECT * FROM vendors WHERE id = ?', [vendor.id]);
+    assert.equal(deletedRow, null, 'Vendor row must be deleted from database');
+    assert.equal(getVendorById(vendor.id), null);
   });
 });

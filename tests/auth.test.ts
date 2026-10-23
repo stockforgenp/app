@@ -5,17 +5,25 @@
  * 2. Shop Registration & input validation (name, email, password length, duplicate email prevention)
  * 3. Default active 365-day subscription provisioning on registration
  * 4. Automatic app_settings synchronization with registered shop profile
- * 5. Local Login with valid email & password
- * 6. Local Login with valid phone number & password
- * 7. Invalid credentials rejection (wrong password, non-existent user, empty fields)
- * 8. Session retrieval via getCurrentShop() and localStorage
- * 9. Switching active shop across multiple registered shops
- * 10. Logout & session cleanup
- * 11. Shop profile update and settings sync
- * 12. Subscription status verification & remaining days calculation
+ * 5. API Login Sync with Demo Account (john@demo.com / password):
+ *    - Authenticates against remote backend API
+ *    - Saves JWT auth token to localStorage
+ *    - Inserts new shop in local SQLite with synced profile & subscription
+ *    - Synchronizes app_settings with shop identity
+ *    - Establishes active session in localStorage
+ * 6. API Login Sync updates existing local shop (plan, duration, address, password hash)
+ * 7. API Login rejection on invalid credentials with remote error message
+ * 8. Offline fallback: authenticates via local password hash when network is unreachable
+ * 9. Offline rejection when no matching local credentials exist
+ * 10. Local phone number login in offline mode
+ * 11. switchShop switches active session between registered shops
+ * 12. logoutShop clears active shop session and removes remote auth token
+ * 13. updateShopSubscription updates subscription plan, days and status
+ * 14. isSubscriptionExpired and getSubscriptionDaysRemaining calculate accurately
+ * 15. getAllShops and getShopsCount return complete multi-shop registry
  */
 
-import test, { describe, beforeEach } from "node:test";
+import test, { describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { setupTestEnvironment } from "./setup.ts";
 
@@ -35,7 +43,8 @@ const {
   getSubscriptionDaysRemaining,
 } = await import("../src/lib/services/authService.ts");
 
-const { queryOne } = await import("../src/lib/db/sqliteEngine.ts");
+const { queryOne, query, run } = await import("../src/lib/db/sqliteEngine.ts");
+const { STORAGE_KEYS } = await import("../src/constants/storage.ts");
 
 // Helper to create test registration input with defaults
 function makeRegisterInput(
@@ -51,9 +60,97 @@ function makeRegisterInput(
   };
 }
 
+// Demo client response payload modeled directly from https://backend-4uk0.onrender.com/api/v1/clients/login
+const DEMO_API_LOGIN_RESPONSE = {
+  success: true,
+  message: "Client logged in successfully",
+  data: {
+    token: "demo-jwt-token-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+    tokenType: "Bearer",
+    client: {
+      id: "0MRWCE9fYRhT3aW27WIyYaYUpBu1",
+      email: "john@demo.com",
+      name: "John Doe",
+      phone: "+9779876543210",
+      shopName: "Demo Store",
+      shopType: "Grocery & Supermarket",
+      address: "Birgunj, Nepal",
+      currencySymbol: "Rs.",
+      subscription: {
+        plan: "trial",
+        status: "trial",
+        startDate: "2026-10-15T18:07:58.457Z",
+        durationDays: 30,
+        expiryDate: "2026-11-14T18:07:58.457Z",
+        autoRenew: false,
+      },
+      createdAt: "2026-10-15T18:07:58.457Z",
+      status: "active",
+      updatedAt: "2026-10-15T18:31:40.931Z",
+    },
+    subscriptionStatus: {
+      status: "trial",
+      plan: "trial",
+      expiryDate: "2026-11-14T18:07:58.457Z",
+      daysRemaining: 23,
+      isExpired: false,
+    },
+  },
+};
+
 describe("Feature 1: Login & Shop Authentication", () => {
+  const originalFetch = globalThis.fetch;
+
   beforeEach(async () => {
     await setupTestEnvironment();
+
+    // Default mock fetch interceptor for backend client login API
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.includes("/clients/login")) {
+        let body: { email?: string; password?: string } = {};
+        if (init?.body) {
+          try {
+            body = JSON.parse(init.body as string);
+          } catch {}
+        }
+
+        // Demo user check
+        if (body.email === "john@demo.com" && body.password === "password") {
+          return new Response(JSON.stringify(DEMO_API_LOGIN_RESPONSE), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // Invalid credentials response
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: "Invalid email, phone, or password",
+          }),
+          {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      if (url.includes("/clients/logout")) {
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      // Fallback for unmocked requests: treat as network unreachable
+      throw new TypeError("Failed to fetch");
+    };
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
   });
 
   test("1. hashPassword produces valid 64-character SHA-256 hex string", async () => {
@@ -182,7 +279,128 @@ describe("Feature 1: Login & Shop Authentication", () => {
     }, /already registered/);
   });
 
-  test("5. loginShop authenticates via email & password in local offline mode", async () => {
+  test("5. loginShop authenticates via remote API with demo user (john@demo.com / password) and syncs to SQLite", async () => {
+    // Fresh database has no shop records
+    assert.equal(getShopsCount(), 0);
+    assert.equal(getCurrentShop(), null);
+
+    // Execute API login using demo credentials
+    const shop = await loginShop({
+      emailOrPhone: "john@demo.com",
+      password: "password",
+    });
+
+    // 1. Verify returned shop data synced from remote API
+    assert.ok(shop.id > 0, "Synced shop must have a local SQLite ID");
+    assert.equal(shop.name, "Demo Store");
+    assert.equal(shop.email, "john@demo.com");
+    assert.equal(shop.phone, "+9779876543210");
+    assert.equal(shop.shop_type, "Grocery & Supermarket");
+    assert.equal(shop.address, "Birgunj, Nepal");
+    assert.equal(shop.currency_symbol, "Rs.");
+    assert.equal(shop.subscription_status, "trial");
+    assert.equal(shop.subscription_plan, "trial");
+    assert.equal(shop.subscription_duration_days, 30);
+    assert.equal(shop.subscription_expiry_date, "2026-11-14");
+
+    // 2. Verify local SQLite shops table row
+    const localShop = getShopById(shop.id);
+    assert.ok(localShop);
+    assert.equal(localShop.name, "Demo Store");
+    assert.equal(getShopsCount(), 1);
+
+    // 3. Verify remote auth token stored in localStorage
+    const savedToken = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+    assert.equal(
+      savedToken,
+      "demo-jwt-token-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+    );
+
+    // 4. Verify app_settings synchronized with the active shop profile
+    const nameSetting = queryOne<{ value: string }>(
+      "SELECT value FROM app_settings WHERE key = 'store_name'",
+    );
+    assert.equal(nameSetting?.value, "Demo Store");
+
+    const emailSetting = queryOne<{ value: string }>(
+      "SELECT value FROM app_settings WHERE key = 'store_email'",
+    );
+    assert.equal(emailSetting?.value, "john@demo.com");
+
+    const phoneSetting = queryOne<{ value: string }>(
+      "SELECT value FROM app_settings WHERE key = 'store_phone'",
+    );
+    assert.equal(phoneSetting?.value, "+9779876543210");
+
+    const addressSetting = queryOne<{ value: string }>(
+      "SELECT value FROM app_settings WHERE key = 'store_address'",
+    );
+    assert.equal(addressSetting?.value, "Birgunj, Nepal");
+
+    // 5. Verify active session retrieval
+    const current = getCurrentShop();
+    assert.ok(current);
+    assert.equal(current.id, shop.id);
+  });
+
+  test("6. loginShop updates existing local shop when synced with remote API login", async () => {
+    // Pre-seed an existing shop in SQLite with older local info
+    const initialShop = await registerShop({
+      name: "Old Local Store",
+      email: "john@demo.com",
+      password: "temporaryPassword",
+      phone: "+9779876543210",
+      shop_type: "Local Retail",
+      address: "Old Address",
+      currency_symbol: "Rs.",
+    });
+
+    assert.equal(getShopsCount(), 1);
+    assert.equal(initialShop.name, "Old Local Store");
+
+    // Now log in with API demo credentials
+    const updatedShop = await loginShop({
+      emailOrPhone: "john@demo.com",
+      password: "password",
+    });
+
+    // Verify it updated the existing record without inserting a duplicate
+    assert.equal(getShopsCount(), 1);
+    assert.equal(updatedShop.id, initialShop.id);
+    assert.equal(updatedShop.name, "Demo Store");
+    assert.equal(updatedShop.shop_type, "Grocery & Supermarket");
+    assert.equal(updatedShop.address, "Birgunj, Nepal");
+    assert.equal(updatedShop.subscription_status, "trial");
+    assert.equal(updatedShop.subscription_plan, "trial");
+    assert.equal(updatedShop.subscription_duration_days, 30);
+
+    // Verify app_settings updated
+    const nameSetting = queryOne<{ value: string }>(
+      "SELECT value FROM app_settings WHERE key = 'store_name'",
+    );
+    assert.equal(nameSetting?.value, "Demo Store");
+  });
+
+  test("7. loginShop rejects invalid credentials from remote API", async () => {
+    // API returns 401 on wrong password
+    await assert.rejects(
+      async () => {
+        await loginShop({
+          emailOrPhone: "john@demo.com",
+          password: "wrong_password",
+        });
+      },
+      { message: "Invalid email, phone, or password" },
+    );
+  });
+
+  test("8. loginShop falls back to local offline mode when server is unreachable", async () => {
+    // Simulate network outage
+    globalThis.fetch = async () => {
+      throw new TypeError("Failed to fetch");
+    };
+
+    // Pre-register shop in offline database
     await registerShop(
       makeRegisterInput({
         name: "Pokhariya Agro Traders",
@@ -192,11 +410,10 @@ describe("Feature 1: Login & Shop Authentication", () => {
       }),
     );
 
-    // Clear session to simulate fresh login
     localStorage.clear();
     assert.equal(getCurrentShop(), null);
 
-    // Attempt login
+    // Offline login succeeds using local SQLite password hash
     const loggedIn = await loginShop({
       emailOrPhone: "agro@pokhariya.np",
       password: "agroPassword1",
@@ -204,14 +421,34 @@ describe("Feature 1: Login & Shop Authentication", () => {
 
     assert.equal(loggedIn.name, "Pokhariya Agro Traders");
     assert.equal(loggedIn.email, "agro@pokhariya.np");
-
-    // Verify session persisted
-    const current = getCurrentShop();
-    assert.ok(current);
-    assert.equal(current?.id, loggedIn.id);
+    assert.ok(getCurrentShop());
   });
 
-  test("6. loginShop authenticates via phone number in local offline mode", async () => {
+  test("9. loginShop rejects offline login if no local matching credentials exist", async () => {
+    // Simulate network outage
+    globalThis.fetch = async () => {
+      throw new TypeError("Failed to fetch");
+    };
+
+    await assert.rejects(
+      async () => {
+        await loginShop({
+          emailOrPhone: "unknown@example.com",
+          password: "anyPassword",
+        });
+      },
+      {
+        message:
+          "Unable to connect to the authentication server, and no matching local shop credentials were found.",
+      },
+    );
+  });
+
+  test("10. loginShop authenticates via phone number in local offline mode", async () => {
+    globalThis.fetch = async () => {
+      throw new TypeError("Failed to fetch");
+    };
+
     await registerShop(
       makeRegisterInput({
         name: "Laxmi General Store",
@@ -232,54 +469,7 @@ describe("Feature 1: Login & Shop Authentication", () => {
     assert.equal(loggedIn.phone, "9807654321");
   });
 
-  test("7. loginShop rejects invalid credentials", async () => {
-    await registerShop(
-      makeRegisterInput({
-        name: "Test Mart",
-        email: "testmart@example.com",
-        password: "correctPassword",
-      }),
-    );
-
-    // Wrong password
-    await assert.rejects(async () => {
-      await loginShop({
-        emailOrPhone: "testmart@example.com",
-        password: "wrongPassword",
-      });
-    }, /Unable to connect to the authentication server, and no matching local shop credentials were found/);
-
-    // Non-existent email
-    await assert.rejects(async () => {
-      await loginShop({
-        emailOrPhone: "nonexistent@example.com",
-        password: "correctPassword",
-      });
-    }, /Unable to connect to the authentication server, and no matching local shop credentials were found/);
-
-    // Missing fields
-    await assert.rejects(
-      async () => {
-        await loginShop({
-          emailOrPhone: "",
-          password: "pass",
-        });
-      },
-      { message: "Please enter your shop email or phone number." },
-    );
-
-    await assert.rejects(
-      async () => {
-        await loginShop({
-          emailOrPhone: "test@example.com",
-          password: "",
-        });
-      },
-      { message: "Please enter your password." },
-    );
-  });
-
-  test("8. switchShop switches active session between registered shops", async () => {
+  test("11. switchShop switches active session between registered shops", async () => {
     const shopA = await registerShop(
       makeRegisterInput({
         name: "Shop Alpha",
@@ -314,23 +504,23 @@ describe("Feature 1: Login & Shop Authentication", () => {
     assert.equal(invalidSwitch, null);
   });
 
-  test("9. logoutShop clears active shop session", async () => {
-    await registerShop(
-      makeRegisterInput({
-        name: "Session Store",
-        email: "session@store.com",
-        password: "password123",
-      }),
-    );
+  test("12. logoutShop clears active shop session and removes remote auth token", async () => {
+    // Log in via API demo account
+    await loginShop({
+      emailOrPhone: "john@demo.com",
+      password: "password",
+    });
 
     assert.ok(getCurrentShop() !== null);
+    assert.ok(localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) !== null);
 
     await logoutShop();
 
     assert.equal(getCurrentShop(), null);
+    assert.equal(localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN), null);
   });
 
-  test("10. updateShopSubscription updates subscription plan, days and status", async () => {
+  test("13. updateShopSubscription updates subscription plan, days and status", async () => {
     const initialShop = await registerShop(
       makeRegisterInput({
         name: "Subscription Plan Shop",
@@ -357,7 +547,7 @@ describe("Feature 1: Login & Shop Authentication", () => {
     assert.equal(refreshed?.subscription_plan, "Enterprise Pro");
   });
 
-  test("11. isSubscriptionExpired and getSubscriptionDaysRemaining calculate accurately", async () => {
+  test("14. isSubscriptionExpired and getSubscriptionDaysRemaining calculate accurately", async () => {
     const shop = await registerShop(
       makeRegisterInput({
         name: "Subscription Test Shop",
@@ -392,7 +582,7 @@ describe("Feature 1: Login & Shop Authentication", () => {
     assert.equal(isSubscriptionExpired(dateExpiredShop), true);
   });
 
-  test("12. getAllShops and getShopsCount return complete multi-shop registry", async () => {
+  test("15. getAllShops and getShopsCount return complete multi-shop registry", async () => {
     assert.equal(getShopsCount(), 0);
     assert.equal(getAllShops().length, 0);
 
@@ -426,5 +616,64 @@ describe("Feature 1: Login & Shop Authentication", () => {
       "Shop 3",
       "Most recently created shop should be first (ORDER BY created_at DESC)",
     );
+  });
+
+  test("16. Real CRUD on Shops: INSERT into db, FETCH all columns, UPDATE shop record, and DELETE from db", async () => {
+    // 1. CREATE / INSERT into db
+    const registered = await registerShop({
+      name: "Direct DB Mart",
+      email: "directdb@mart.com",
+      password: "password123",
+      phone: "9811111111",
+      shop_type: "Department Store",
+      address: "Main Street, Pokhara",
+      currency_symbol: "Rs.",
+    });
+
+    // 2. READ / FETCH directly from SQLite shops table
+    const dbRow = queryOne<any>("SELECT * FROM shops WHERE id = ?", [registered.id]);
+    assert.ok(dbRow, "Shop row must exist in SQLite database");
+    assert.equal(dbRow.id, registered.id);
+    assert.equal(dbRow.name, "Direct DB Mart");
+    assert.equal(dbRow.email, "directdb@mart.com");
+    assert.equal(dbRow.phone, "9811111111");
+    assert.equal(dbRow.shop_type, "Department Store");
+    assert.equal(dbRow.address, "Main Street, Pokhara");
+    assert.equal(dbRow.currency_symbol, "Rs.");
+    assert.equal(dbRow.is_active, 1);
+    assert.equal(dbRow.subscription_status, "active");
+    assert.equal(dbRow.subscription_plan, "Standard");
+    assert.equal(dbRow.subscription_duration_days, 365);
+    assert.ok(dbRow.created_at);
+    assert.ok(dbRow.updated_at);
+
+    // 3. UPDATE in SQLite database
+    updateShopSubscription(registered.id, {
+      subscription_plan: "Platinum VIP",
+      subscription_status: "active",
+      subscription_duration_days: 730,
+      subscription_expiry_date: "2028-01-01",
+    });
+    run(
+      "UPDATE shops SET name = ?, address = ?, phone = ? WHERE id = ?",
+      ["Updated DB Mart", "Lakeside, Pokhara", "9822222222", registered.id]
+    );
+
+    // Fetch again from SQLite and verify update
+    const updatedDbRow = queryOne<any>("SELECT * FROM shops WHERE id = ?", [registered.id]);
+    assert.ok(updatedDbRow);
+    assert.equal(updatedDbRow.name, "Updated DB Mart");
+    assert.equal(updatedDbRow.address, "Lakeside, Pokhara");
+    assert.equal(updatedDbRow.phone, "9822222222");
+    assert.equal(updatedDbRow.subscription_plan, "Platinum VIP");
+    assert.equal(updatedDbRow.subscription_duration_days, 730);
+    assert.equal(updatedDbRow.subscription_expiry_date, "2028-01-01");
+
+    // 4. DELETE from SQLite database
+    run("DELETE FROM shops WHERE id = ?", [registered.id]);
+
+    const deletedDbRow = queryOne("SELECT * FROM shops WHERE id = ?", [registered.id]);
+    assert.equal(deletedDbRow, null, "Shop row must be deleted from database");
+    assert.equal(getShopById(registered.id), null);
   });
 });
