@@ -13,7 +13,16 @@
  */
 import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Plus, Boxes, Building2, Table2, Printer, Layers, Barcode, AlertOctagon } from "lucide-react";
+import {
+  Plus,
+  Boxes,
+  Building2,
+  Table2,
+  Printer,
+  Layers,
+  Barcode,
+  AlertOctagon,
+} from "lucide-react";
 import { Product, StockMovement, Vendor } from "../types/index.ts";
 import {
   getAllProducts,
@@ -25,7 +34,11 @@ import {
   getStockMovements,
 } from "../lib/services/inventoryService.ts";
 import { getAllVendors } from "../lib/services/vendorService.ts";
-import { formatCurrency, formatDateTime, capitalizeWords } from "../lib/utils/format.ts";
+import {
+  formatCurrency,
+  formatDateTime,
+  capitalizeWords,
+} from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
@@ -116,12 +129,14 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   );
 
   // Stock Ledger Print Modals State
-  const [isPrintCatalogLedgerOpen, setIsPrintCatalogLedgerOpen] = useState(false);
+  const [isPrintCatalogLedgerOpen, setIsPrintCatalogLedgerOpen] =
+    useState(false);
   const [isPrintItemLedgerOpen, setIsPrintItemLedgerOpen] = useState(false);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [isPackagingModalOpen, setIsPackagingModalOpen] = useState(false);
   const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
-  const [barcodeModalProduct, setBarcodeModalProduct] = useState<Product | null>(null);
+  const [barcodeModalProduct, setBarcodeModalProduct] =
+    useState<Product | null>(null);
   const [isWriteOffModalOpen, setIsWriteOffModalOpen] = useState(false);
 
   // Restock Form
@@ -611,7 +626,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               type="button"
               onClick={() => setIsWriteOffModalOpen(true)}
               className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
-              title={isNepali ? "म्याद नाघेका तथा ड्यामेज सामान (Scrap & Write-Off)" : "Quarantine & Spoilage Write-Off"}
+              title={
+                isNepali
+                  ? "म्याद नाघेका तथा ड्यामेज सामान (Scrap & Write-Off)"
+                  : "Quarantine & Spoilage Write-Off"
+              }
             >
               <AlertOctagon className="w-3.5 h-3.5 text-rose-400" />
               <span>{isNepali ? "ड्यामेज / नष्ट" : "Write-Off / Scrap"}</span>
@@ -623,7 +642,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 setIsBarcodeModalOpen(true);
               }}
               className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
-              title={isNepali ? "बारकोड तथा सेल्फ ट्याग प्रिन्ट" : "Print Barcodes & Shelf Tags"}
+              title={
+                isNepali
+                  ? "बारकोड तथा सेल्फ ट्याग प्रिन्ट"
+                  : "Print Barcodes & Shelf Tags"
+              }
             >
               <Barcode className="w-3.5 h-3.5 text-emerald-400" />
               <span>{isNepali ? "बारकोड प्रिन्ट" : "Barcodes"}</span>
@@ -632,7 +655,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               type="button"
               onClick={() => setIsPackagingModalOpen(true)}
               className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
-              title={isNepali ? "प्याकेजिङ र एकाइ रूपान्तरण (Multi-UOM)" : "Multi-UOM packaging conversions"}
+              title={
+                isNepali
+                  ? "प्याकेजिङ र एकाइ रूपान्तरण (Multi-UOM)"
+                  : "Multi-UOM packaging conversions"
+              }
             >
               <Layers className="w-3.5 h-3.5 text-cyan-400" />
               <span>{isNepali ? "प्याकेजिङ एकाइ" : "Multi-UOM Units"}</span>
@@ -641,7 +668,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               type="button"
               onClick={() => setIsBatchModalOpen(true)}
               className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
-              title={isNepali ? "ब्याच अनुसार स्टक र म्याद" : "Batch tracking and expiry dates"}
+              title={
+                isNepali
+                  ? "ब्याच अनुसार स्टक र म्याद"
+                  : "Batch tracking and expiry dates"
+              }
             >
               <Boxes className="w-3.5 h-3.5 text-amber-400" />
               <span>{isNepali ? "ब्याच र म्याद" : "Batches & Expiry"}</span>

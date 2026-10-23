@@ -4,10 +4,6 @@
  */
 import React from "react";
 import {
-  Headphones,
-  Phone,
-  MessageCircle,
-  Mail,
   HelpCircle,
   Printer,
   Database,
@@ -18,34 +14,9 @@ import {
 import { Link } from "react-router-dom";
 import { TechnicalSupportSection } from "../components/common/TechnicalSupportSection.tsx";
 import { useLanguage } from "../context/LanguageContext.tsx";
-import { useAuth } from "../context/AuthContext.tsx";
-import { SUPPORT_CONTACTS } from "../constants/index.ts";
 
 export const TechnicalSupportView: React.FC = () => {
   const { isNepali } = useLanguage();
-  const { currentShop } = useAuth();
-
-  const handleWhatsApp = () => {
-    const shopName = currentShop ? currentShop.name : "StockForge Retail";
-    const text = encodeURIComponent(
-      `Namaste StockForge Support, I need assistance with our shop: ${shopName}.`,
-    );
-    window.open(
-      `https://wa.me/${SUPPORT_CONTACTS.whatsappRaw}?text=${text}`,
-      "_blank",
-    );
-  };
-
-  const handleEmail = () => {
-    const shopName = currentShop ? currentShop.name : "StockForge Retail";
-    const subject = encodeURIComponent(
-      `[StockForge Support] Support Request - ${shopName}`,
-    );
-    window.open(
-      `mailto:${SUPPORT_CONTACTS.email}?subject=${subject}`,
-      "_blank",
-    );
-  };
 
   const faqs = [
     {

@@ -5,13 +5,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import {
-  Users,
-  UserPlus,
-  Briefcase,
-  UserCheck,
-  UserX,
-} from "lucide-react";
+import { Users, UserPlus, Briefcase, UserCheck, UserX } from "lucide-react";
 import { Staff, StaffSummary } from "../types/index.ts";
 import {
   getAllStaff,
@@ -19,7 +13,6 @@ import {
   deleteStaff,
   getStaffSummary,
 } from "../lib/services/staffService.ts";
-import { formatCurrency } from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { Select } from "../components/common/Select.tsx";
@@ -327,9 +320,7 @@ export const StaffView: React.FC<StaffViewProps> = ({ currencySymbol }) => {
           </button>
         }
         emptyIcon={Users}
-        emptyTitle={
-          isNepali ? "कुनै कर्मचारी फेला परेन" : "No employees found"
-        }
+        emptyTitle={isNepali ? "कुनै कर्मचारी फेला परेन" : "No employees found"}
         emptyMessage={
           isNepali
             ? "खोज मापदण्डसँग मेल खाने कुनै कर्मचारी छैन।"

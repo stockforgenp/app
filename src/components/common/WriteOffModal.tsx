@@ -43,6 +43,7 @@ import {
 import { formatCurrency, fromMinorUnits, toMinorUnits } from '../../lib/utils/format.ts';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
+import { Select } from './Select.tsx';
 
 export interface WriteOffModalProps {
   isOpen: boolean;
@@ -361,43 +362,52 @@ export const WriteOffModal: React.FC<WriteOffModalProps> = ({
               <form onSubmit={handleCreateWriteOff} className="space-y-4 max-w-2xl mx-auto">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">
-                      {isNepali ? 'सामान (Product)' : 'Select Product'} *
-                    </label>
-                    <select
+                    <Select
+                      label={
+                        <>
+                          <span>{isNepali ? 'सामान (Product)' : 'Select Product'}</span>
+                          <span className="text-rose-400">*</span>
+                        </>
+                      }
                       value={selectedProductId}
                       onChange={(e) => {
                         setSelectedProductId(e.target.value ? Number(e.target.value) : '');
                         setSelectedBatchId('');
                       }}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 focus:outline-none focus:border-rose-500"
-                    >
-                      <option value="">-- {isNepali ? 'सामान रोज्नुहोस्' : 'Select Product'} --</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} (Stock: {p.current_stock} {p.unit || 'pcs'})
-                        </option>
-                      ))}
-                    </select>
+                      placeholder={`-- ${isNepali ? 'सामान रोज्नुहोस्' : 'Select Product'} --`}
+                      searchable={true}
+                      portal={true}
+                      sizeVariant="sm"
+                      options={[
+                        { value: '', label: `-- ${isNepali ? 'सामान रोज्नुहोस्' : 'Select Product'} --` },
+                        ...products.map((p) => ({
+                          value: p.id,
+                          label: `${p.name} (Stock: ${p.current_stock} ${p.unit || 'pcs'})`,
+                          searchLabel: `${p.name} ${p.sku || ''}`,
+                        })),
+                      ]}
+                    />
                   </div>
 
                   {availableBatches.length > 0 && (
                     <div>
-                      <label className="block text-xs font-medium text-neutral-300 mb-1">
-                        {isNepali ? 'ब्याच नं. (ऐच्छिक)' : 'Batch Number (Optional)'}
-                      </label>
-                      <select
+                      <Select
+                        label={isNepali ? 'ब्याच नं. (ऐच्छिक)' : 'Batch Number (Optional)'}
                         value={selectedBatchId}
                         onChange={(e) => setSelectedBatchId(e.target.value ? Number(e.target.value) : '')}
-                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-amber-300 font-mono focus:outline-none focus:border-rose-500"
-                      >
-                        <option value="">-- Non-Batch / All Lots --</option>
-                        {availableBatches.map((b) => (
-                          <option key={b.id} value={b.id}>
-                            {b.batch_number} (Exp: {b.expiry_date}, Stk: {b.quantity})
-                          </option>
-                        ))}
-                      </select>
+                        placeholder={isNepali ? '-- कुनै पनि ब्याच / सबै --' : '-- Non-Batch / All Lots --'}
+                        searchable={true}
+                        portal={true}
+                        sizeVariant="sm"
+                        options={[
+                          { value: '', label: isNepali ? '-- कुनै पनि ब्याच / सबै --' : '-- Non-Batch / All Lots --' },
+                          ...availableBatches.map((b) => ({
+                            value: b.id,
+                            label: `${b.batch_number} (Exp: ${b.expiry_date}, Stk: ${b.quantity})`,
+                            searchLabel: `${b.batch_number} ${b.expiry_date}`,
+                          })),
+                        ]}
+                      />
                     </div>
                   )}
                 </div>
@@ -418,36 +428,46 @@ export const WriteOffModal: React.FC<WriteOffModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">
-                      {isNepali ? 'कारण (Reason)' : 'Loss Reason'} *
-                    </label>
-                    <select
+                    <Select
+                      label={
+                        <>
+                          <span>{isNepali ? 'कारण (Reason)' : 'Loss Reason'}</span>
+                          <span className="text-rose-400">*</span>
+                        </>
+                      }
                       value={reason}
                       onChange={(e) => setReason(e.target.value as WriteOffReason)}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 focus:outline-none focus:border-rose-500"
-                    >
-                      <option value="EXPIRED">{isNepali ? 'म्याद समाप्त (Expired)' : 'Expired Goods'}</option>
-                      <option value="DAMAGED">{isNepali ? 'फुटफुट / ड्यामेज (Damaged)' : 'Physical Damage'}</option>
-                      <option value="SPOILED_LEAKED">{isNepali ? 'कुहिएको / चुहिएको (Spoiled/Leaked)' : 'Spoiled / Leaked'}</option>
-                      <option value="LOST_STOLEN">{isNepali ? 'हराएको वा चोरी (Lost/Stolen)' : 'Lost or Stolen'}</option>
-                      <option value="DEFECTIVE">{isNepali ? 'निर्माण त्रुटि (Defective)' : 'Manufacturing Defect'}</option>
-                      <option value="DEAD_STOCK">{isNepali ? 'नबिकेको डम्प (Dead Stock)' : 'Dead / Obsolete Stock'}</option>
-                    </select>
+                      portal={true}
+                      sizeVariant="sm"
+                      options={[
+                        { value: 'EXPIRED', label: isNepali ? 'म्याद समाप्त (Expired)' : 'Expired Goods' },
+                        { value: 'DAMAGED', label: isNepali ? 'फुटफुट / ड्यामेज (Damaged)' : 'Physical Damage' },
+                        { value: 'SPOILED_LEAKED', label: isNepali ? 'कुहिएको / चुहिएको (Spoiled/Leaked)' : 'Spoiled / Leaked' },
+                        { value: 'LOST_STOLEN', label: isNepali ? 'हराएको वा चोरी (Lost/Stolen)' : 'Lost or Stolen' },
+                        { value: 'DEFECTIVE', label: isNepali ? 'निर्माण त्रुटि (Defective)' : 'Manufacturing Defect' },
+                        { value: 'DEAD_STOCK', label: isNepali ? 'नबिकेको डम्प (Dead Stock)' : 'Dead / Obsolete Stock' },
+                      ]}
+                    />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">
-                      {isNepali ? 'कारबाही (Action)' : 'Disposal Action'} *
-                    </label>
-                    <select
+                    <Select
+                      label={
+                        <>
+                          <span>{isNepali ? 'कारबाही (Action)' : 'Disposal Action'}</span>
+                          <span className="text-rose-400">*</span>
+                        </>
+                      }
                       value={action}
                       onChange={(e) => setAction(e.target.value as WriteOffAction)}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 focus:outline-none focus:border-rose-500"
-                    >
-                      <option value="DISPOSAL">{isNepali ? 'नष्ट / फालिने (Complete Disposal)' : 'Destroy / Dispose'}</option>
-                      <option value="VENDOR_RETURN_PENDING">{isNepali ? 'सप्लायर फिर्ता बाँकी (Vendor Return)' : 'Pending Return to Vendor'}</option>
-                      <option value="SALVAGE_CLEARANCE">{isNepali ? 'सस्तोमा बेच्ने (Salvage Clearance)' : 'Salvage at Deep Discount'}</option>
-                    </select>
+                      portal={true}
+                      sizeVariant="sm"
+                      options={[
+                        { value: 'DISPOSAL', label: isNepali ? 'नष्ट / फालिने (Complete Disposal)' : 'Destroy / Dispose' },
+                        { value: 'VENDOR_RETURN_PENDING', label: isNepali ? 'सप्लायर फिर्ता बाँकी (Vendor Return)' : 'Pending Return to Vendor' },
+                        { value: 'SALVAGE_CLEARANCE', label: isNepali ? 'सस्तोमा बेच्ने (Salvage Clearance)' : 'Salvage at Deep Discount' },
+                      ]}
+                    />
                   </div>
                 </div>
 

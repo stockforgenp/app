@@ -8,8 +8,16 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Receipt, User, Phone, Printer, Edit3, Trash2 } from "lucide-react";
 import { Sale, SaleItem } from "../types/index.ts";
-import { getSales, getSaleWithItems, deleteSale } from "../lib/services/salesService.ts";
-import { formatCurrency, formatDateTime, capitalizeWords } from "../lib/utils/format.ts";
+import {
+  getSales,
+  getSaleWithItems,
+  deleteSale,
+} from "../lib/services/salesService.ts";
+import {
+  formatCurrency,
+  formatDateTime,
+  capitalizeWords,
+} from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { PrintBillModal } from "../components/common/PrintBillModal.tsx";
@@ -432,7 +440,9 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
               </div>
 
               <div className="flex justify-between text-emerald-400 font-medium pt-1.5 border-t border-neutral-900">
-                <span>{isNepali ? "भुक्तानी रकम (Paid):" : "Paid Amount:"}</span>
+                <span>
+                  {isNepali ? "भुक्तानी रकम (Paid):" : "Paid Amount:"}
+                </span>
                 <span className="font-mono">
                   {formatCurrency(
                     selectedSaleDetail.sale.paid_amount !== undefined &&
@@ -446,7 +456,13 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
               </div>
 
               <div className="flex justify-between font-medium">
-                <span className={(selectedSaleDetail.sale.due_amount ?? 0) > 0 ? "text-rose-400" : "text-neutral-400"}>
+                <span
+                  className={
+                    (selectedSaleDetail.sale.due_amount ?? 0) > 0
+                      ? "text-rose-400"
+                      : "text-neutral-400"
+                  }
+                >
                   {isNepali ? "बाँकी बक्यौता (Current Due):" : "Current Due:"}
                 </span>
                 <span className="font-mono">
@@ -467,7 +483,11 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
 
               {(selectedSaleDetail.sale.previous_due ?? 0) > 0 && (
                 <div className="flex justify-between text-amber-400/90 font-medium">
-                  <span>{isNepali ? "साविक बाँकी (Previous Due):" : "Previous Balance / Due:"}</span>
+                  <span>
+                    {isNepali
+                      ? "साविक बाँकी (Previous Due):"
+                      : "Previous Balance / Due:"}
+                  </span>
                   <span className="font-mono">
                     {formatCurrency(
                       selectedSaleDetail.sale.previous_due ?? 0,
@@ -480,7 +500,11 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
               {((selectedSaleDetail.sale.total_due ?? 0) > 0 ||
                 (selectedSaleDetail.sale.due_amount ?? 0) > 0) && (
                 <div className="flex justify-between text-xs font-bold text-rose-300 pt-1 border-t border-neutral-800">
-                  <span>{isNepali ? "कुल ग्राहक बाँकी (Total Customer Due):" : "Total Customer Due:"}</span>
+                  <span>
+                    {isNepali
+                      ? "कुल ग्राहक बाँकी (Total Customer Due):"
+                      : "Total Customer Due:"}
+                  </span>
                   <span className="font-mono">
                     {formatCurrency(
                       selectedSaleDetail.sale.total_due ??
@@ -525,7 +549,9 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                       className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-neutral-200 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 rounded-lg transition-colors cursor-pointer"
                     >
                       <Edit3 className="w-4 h-4 text-amber-400" />
-                      <span>{isNepali ? "कारोबार सच्याउनुहोस्" : "Edit Sale"}</span>
+                      <span>
+                        {isNepali ? "कारोबार सच्याउनुहोस्" : "Edit Sale"}
+                      </span>
                     </button>
 
                     <button
@@ -537,7 +563,9 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
                       className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
-                      <span>{isNepali ? "बिक्री फिर्ता गर्नुहोस्" : "Return Sale"}</span>
+                      <span>
+                        {isNepali ? "बिक्री फिर्ता गर्नुहोस्" : "Return Sale"}
+                      </span>
                     </button>
                   </>
                 )}
@@ -597,7 +625,7 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
               isNepali
                 ? `बिक्री #${res.billNumber || returningSaleId} फिर्ता गरियो र मौज्दात गोदाममा पुनर्स्थापना गरियो!`
                 : `Sale #${res.billNumber || returningSaleId} marked as returned and inventory restored!`,
-              "success"
+              "success",
             );
             if (selectedSaleDetail?.sale.id === returningSaleId) {
               setSelectedSaleDetail(null);
@@ -608,13 +636,19 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
             showToast((err as Error).message, "error");
           }
         }}
-        title={isNepali ? "बिक्री फिर्ता पुष्टि" : t("hist_return_sale_confirm_title", "Confirm Sale Return")}
+        title={
+          isNepali
+            ? "बिक्री फिर्ता पुष्टि"
+            : t("hist_return_sale_confirm_title", "Confirm Sale Return")
+        }
         message={
           isNepali
             ? "के तपाईं यो बिक्री फिर्ता गर्न निश्चित हुनुहुन्छ? यो रेकर्ड इतिहासमा 'फिर्ता' (Returned) को रूपमा रहनेछ, बिक्री भएका सामानहरूको मौज्दात गोदाममा पुनर्स्थापना गरिनेछ र यसको रकम आम्दानी वा बक्यौतामा जोडिने छैन।"
             : "Are you sure you want to return this sale? The record will remain in history marked as 'Returned', sold items will be restored to your inventory, and it will be excluded from revenue and dues."
         }
-        confirmText={isNepali ? "फिर्ता गर्नुहोस्" : t("hist_return_sale", "Return Sale")}
+        confirmText={
+          isNepali ? "फिर्ता गर्नुहोस्" : t("hist_return_sale", "Return Sale")
+        }
         cancelText={isNepali ? "रद्द" : "Cancel"}
         isDestructive={true}
       />

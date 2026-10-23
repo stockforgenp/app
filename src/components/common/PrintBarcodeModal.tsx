@@ -24,6 +24,7 @@ import { BarcodeSvg } from '../../lib/utils/barcode.tsx';
 import { formatCurrency } from '../../lib/utils/format.ts';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { getAllBatches } from '../../lib/services/batchService.ts';
+import { Select } from './Select.tsx';
 
 export type LabelFormat = 'THERMAL_50X25' | 'THERMAL_38X25' | 'SHELF_TAG' | 'A4_SHEET';
 
@@ -136,16 +137,20 @@ export const PrintBarcodeModal: React.FC<PrintBarcodeModalProps> = ({
               <span className="text-xs text-neutral-400 font-medium">
                 {isNepali ? 'ढाँचा (Format):' : 'Label Type:'}
               </span>
-              <select
-                value={labelFormat}
-                onChange={(e) => setLabelFormat(e.target.value as LabelFormat)}
-                className="bg-neutral-900 border border-neutral-700 rounded-lg px-2.5 py-1 text-xs text-neutral-200 font-medium focus:outline-none focus:border-cyan-500"
-              >
-                <option value="THERMAL_50X25">Thermal Roll (50mm × 25mm)</option>
-                <option value="THERMAL_38X25">Compact Roll (38mm × 25mm)</option>
-                <option value="SHELF_TAG">Shelf Edge Tag (70mm × 35mm)</option>
-                <option value="A4_SHEET">A4 Sheet (24 Labels Grid)</option>
-              </select>
+              <div className="w-56">
+                <Select
+                  value={labelFormat}
+                  onChange={(e) => setLabelFormat(e.target.value as LabelFormat)}
+                  portal={true}
+                  sizeVariant="sm"
+                  options={[
+                    { value: 'THERMAL_50X25', label: 'Thermal Roll (50mm × 25mm)' },
+                    { value: 'THERMAL_38X25', label: 'Compact Roll (38mm × 25mm)' },
+                    { value: 'SHELF_TAG', label: 'Shelf Edge Tag (70mm × 35mm)' },
+                    { value: 'A4_SHEET', label: 'A4 Sheet (24 Labels Grid)' },
+                  ]}
+                />
+              </div>
             </div>
 
             {/* Copies */}

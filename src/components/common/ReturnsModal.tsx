@@ -47,6 +47,7 @@ import {
 import { formatCurrency, toMinorUnits, fromMinorUnits } from '../../lib/utils/format.ts';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
+import { Select } from './Select.tsx';
 
 export interface ReturnsModalProps {
   isOpen: boolean;
@@ -359,37 +360,37 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-medium text-neutral-300 mb-1">
-                      {isNepali ? 'फिर्ता कारण' : 'Return Reason'}
-                    </label>
-                    <select
+                    <Select
+                      label={isNepali ? 'फिर्ता कारण' : 'Return Reason'}
                       value={saleReason}
                       onChange={(e) => setSaleReason(e.target.value as ReturnReason)}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-2.5 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-rose-500"
-                    >
-                      <option value="CUSTOMER_CANCELLED">{isNepali ? 'ग्राहक रद्द / फिर्ता' : 'Customer Cancelled'}</option>
-                      <option value="DEFECTIVE">{isNepali ? 'खराब / बिग्रेको (Defective)' : 'Defective / Damaged'}</option>
-                      <option value="WRONG_ITEM">{isNepali ? 'गलत सामान (Wrong Item)' : 'Wrong Item'}</option>
-                      <option value="EXPIRED">{isNepali ? 'म्याद नाघेको (Expired)' : 'Expired Goods'}</option>
-                      <option value="OTHER">{isNepali ? 'अन्य' : 'Other'}</option>
-                    </select>
+                      portal={true}
+                      sizeVariant="sm"
+                      options={[
+                        { value: 'CUSTOMER_CANCELLED', label: isNepali ? 'ग्राहक रद्द / फिर्ता' : 'Customer Cancelled' },
+                        { value: 'DEFECTIVE', label: isNepali ? 'खराब / बिग्रेको (Defective)' : 'Defective / Damaged' },
+                        { value: 'WRONG_ITEM', label: isNepali ? 'गलत सामान (Wrong Item)' : 'Wrong Item' },
+                        { value: 'EXPIRED', label: isNepali ? 'म्याद नाघेको (Expired)' : 'Expired Goods' },
+                        { value: 'OTHER', label: isNepali ? 'अन्य' : 'Other' },
+                      ]}
+                    />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-medium text-neutral-300 mb-1">
-                      {isNepali ? 'फिर्ता भुक्तानी विधि' : 'Refund Method'}
-                    </label>
-                    <select
+                    <Select
+                      label={isNepali ? 'फिर्ता भुक्तानी विधि' : 'Refund Method'}
                       value={saleRefundMethod}
                       onChange={(e) => setSaleRefundMethod(e.target.value as ReturnRefundMethod)}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-2.5 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-rose-500"
-                    >
-                      <option value="CASH">{isNepali ? 'नगद फिर्ता (Cash Refund)' : 'Cash Refund'}</option>
-                      <option value="CREDIT_NOTE">{isNepali ? 'क्रेडिट नोट / खाता समायोजन' : 'Credit Note (Store Credit)'}</option>
-                      <option value="BANK">{isNepali ? 'बैंक / eSewa फिर्ता' : 'Bank / Online Refund'}</option>
-                    </select>
+                      portal={true}
+                      sizeVariant="sm"
+                      options={[
+                        { value: 'CASH', label: isNepali ? 'नगद फिर्ता (Cash Refund)' : 'Cash Refund' },
+                        { value: 'CREDIT_NOTE', label: isNepali ? 'क्रेडिट नोट / खाता समायोजन' : 'Credit Note (Store Credit)' },
+                        { value: 'BANK', label: isNepali ? 'बैंक / eSewa फिर्ता' : 'Bank / Online Refund' },
+                      ]}
+                    />
                   </div>
 
                   <div>
@@ -408,26 +409,30 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
                 {/* Items selection bar */}
                 <div className="pt-2 border-t border-neutral-800">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                     <span className="text-xs font-bold text-neutral-200">
                       {isNepali ? 'फिर्ता हुने सामानहरू' : 'Return Items'}
                     </span>
                     <div className="flex items-center gap-2">
-                      <select
-                        value={selectedProductId}
-                        onChange={(e) => setSelectedProductId(e.target.value ? Number(e.target.value) : '')}
-                        className="bg-neutral-950 border border-neutral-800 rounded-lg px-2 py-1 text-xs text-neutral-200 focus:outline-none"
-                      >
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} ({p.unit || 'pcs'})
-                          </option>
-                        ))}
-                      </select>
+                      <div className="w-56">
+                        <Select
+                          value={selectedProductId}
+                          onChange={(e) => setSelectedProductId(e.target.value ? Number(e.target.value) : '')}
+                          placeholder={isNepali ? 'सामान छान्नुहोस्...' : 'Select product...'}
+                          searchable={true}
+                          portal={true}
+                          sizeVariant="sm"
+                          options={products.map((p) => ({
+                            value: p.id,
+                            label: `${p.name} (${p.unit || 'pcs'})`,
+                            searchLabel: `${p.name} ${p.sku || ''}`,
+                          }))}
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={handleAddSaleItem}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold"
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shrink-0"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>{isNepali ? 'सामान थप्नुहोस्' : 'Add Item'}</span>
@@ -574,36 +579,36 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-medium text-neutral-300 mb-1">
-                      {isNepali ? 'फिर्ता कारण' : 'Return Reason'}
-                    </label>
-                    <select
+                    <Select
+                      label={isNepali ? 'फिर्ता कारण' : 'Return Reason'}
                       value={purchaseReason}
                       onChange={(e) => setPurchaseReason(e.target.value as ReturnReason)}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-2.5 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-amber-500"
-                    >
-                      <option value="DEFECTIVE">{isNepali ? 'खराब / बिग्रेको (Defective)' : 'Defective / Damaged'}</option>
-                      <option value="EXPIRED">{isNepali ? 'म्याद नाघेको (Expired)' : 'Expired Goods'}</option>
-                      <option value="WRONG_ITEM">{isNepali ? 'गलत सामान (Wrong Item)' : 'Wrong Item'}</option>
-                      <option value="OTHER">{isNepali ? 'अन्य' : 'Other'}</option>
-                    </select>
+                      portal={true}
+                      sizeVariant="sm"
+                      options={[
+                        { value: 'DEFECTIVE', label: isNepali ? 'खराब / बिग्रेको (Defective)' : 'Defective / Damaged' },
+                        { value: 'EXPIRED', label: isNepali ? 'म्याद नाघेको (Expired)' : 'Expired Goods' },
+                        { value: 'WRONG_ITEM', label: isNepali ? 'गलत सामान (Wrong Item)' : 'Wrong Item' },
+                        { value: 'OTHER', label: isNepali ? 'अन्य' : 'Other' },
+                      ]}
+                    />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-medium text-neutral-300 mb-1">
-                      {isNepali ? 'भुक्तानी समायोजन विधि' : 'Adjustment Method'}
-                    </label>
-                    <select
+                    <Select
+                      label={isNepali ? 'भुक्तानी समायोजन विधि' : 'Adjustment Method'}
                       value={purchaseRefundMethod}
                       onChange={(e) => setPurchaseRefundMethod(e.target.value as any)}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-2.5 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-amber-500"
-                    >
-                      <option value="VENDOR_CREDIT">{isNepali ? 'भेन्डर खाता क्रेडिट (Vendor Credit)' : 'Vendor Credit Note'}</option>
-                      <option value="CASH">{isNepali ? 'नगद फिर्ता (Cash Refund)' : 'Cash Refund'}</option>
-                      <option value="BANK">{isNepali ? 'बैंक फिर्ता (Bank Refund)' : 'Bank Refund'}</option>
-                    </select>
+                      portal={true}
+                      sizeVariant="sm"
+                      options={[
+                        { value: 'VENDOR_CREDIT', label: isNepali ? 'भेन्डर खाता क्रेडिट (Vendor Credit)' : 'Vendor Credit Note' },
+                        { value: 'CASH', label: isNepali ? 'नगद फिर्ता (Cash Refund)' : 'Cash Refund' },
+                        { value: 'BANK', label: isNepali ? 'बैंक फिर्ता (Bank Refund)' : 'Bank Refund' },
+                      ]}
+                    />
                   </div>
 
                   <div>
@@ -622,26 +627,30 @@ export const ReturnsModal: React.FC<ReturnsModalProps> = ({
 
                 {/* Items selection bar */}
                 <div className="pt-2 border-t border-neutral-800">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                     <span className="text-xs font-bold text-neutral-200">
                       {isNepali ? 'आपूर्तिकर्तालाई फिर्ता हुने सामानहरू' : 'Vendor Return Items'}
                     </span>
                     <div className="flex items-center gap-2">
-                      <select
-                        value={selectedProductId}
-                        onChange={(e) => setSelectedProductId(e.target.value ? Number(e.target.value) : '')}
-                        className="bg-neutral-950 border border-neutral-800 rounded-lg px-2 py-1 text-xs text-neutral-200 focus:outline-none"
-                      >
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} (Stk: {p.current_stock} {p.unit || 'pcs'})
-                          </option>
-                        ))}
-                      </select>
+                      <div className="w-56">
+                        <Select
+                          value={selectedProductId}
+                          onChange={(e) => setSelectedProductId(e.target.value ? Number(e.target.value) : '')}
+                          placeholder={isNepali ? 'सामान छान्नुहोस्...' : 'Select product...'}
+                          searchable={true}
+                          portal={true}
+                          sizeVariant="sm"
+                          options={products.map((p) => ({
+                            value: p.id,
+                            label: `${p.name} (Stk: ${p.current_stock} ${p.unit || 'pcs'})`,
+                            searchLabel: `${p.name} ${p.sku || ''}`,
+                          }))}
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={handleAddPurchaseItem}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold"
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shrink-0"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>{isNepali ? 'सामान थप्नुहोस्' : 'Add Item'}</span>

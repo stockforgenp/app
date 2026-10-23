@@ -28,6 +28,7 @@ import {
 import { formatCurrency, toMinorUnits, fromMinorUnits } from '../../lib/utils/format.ts';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
+import { Select } from './Select.tsx';
 
 export interface PackagingManagementModalProps {
   isOpen: boolean;
@@ -211,21 +212,28 @@ export const PackagingManagementModal: React.FC<PackagingManagementModalProps> =
                 <div className="space-y-3">
                   {/* Product Selector */}
                   <div>
-                    <label className="block text-[11px] font-medium text-neutral-300 mb-1">
-                      {isNepali ? 'वस्तु (Product)' : 'Select Product'} *
-                    </label>
-                    <select
+                    <Select
+                      label={
+                        <>
+                          <span>{isNepali ? 'वस्तु (Product)' : 'Select Product'}</span>
+                          <span className="text-rose-400">*</span>
+                        </>
+                      }
                       value={selectedProductId}
                       onChange={(e) => setSelectedProductId(e.target.value ? Number(e.target.value) : '')}
-                      className="w-full bg-neutral-900 border border-neutral-700/80 rounded-lg px-3 py-2 text-xs text-neutral-100 focus:outline-none focus:border-cyan-500"
-                    >
-                      <option value="">-- {isNepali ? 'वस्तु रोज्नुहोस्' : 'Choose a product'} --</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} (Base: {p.unit || 'pcs'}, Stk: {p.current_stock})
-                        </option>
-                      ))}
-                    </select>
+                      placeholder={`-- ${isNepali ? 'वस्तु रोज्नुहोस्' : 'Choose a product'} --`}
+                      searchable={true}
+                      portal={true}
+                      sizeVariant="sm"
+                      options={[
+                        { value: '', label: `-- ${isNepali ? 'वस्तु रोज्नुहोस्' : 'Choose a product'} --` },
+                        ...products.map((p) => ({
+                          value: p.id,
+                          label: `${p.name} (Base: ${p.unit || 'pcs'}, Stk: ${p.current_stock})`,
+                          searchLabel: `${p.name} ${p.sku || ''}`,
+                        })),
+                      ]}
+                    />
                   </div>
 
                   {/* Packaging Name & Unit */}

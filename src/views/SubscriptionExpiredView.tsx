@@ -4,7 +4,7 @@
  * Reassures the user that their local offline SQLite database is 100% safe,
  * presents subscription metadata, and offers one-click support channels to renew.
  */
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   AlertTriangle,
   ShieldCheck,
@@ -15,7 +15,6 @@ import {
   LogOut,
   Copy,
   Check,
-  Calendar,
   Clock,
   Store,
   Layers,
@@ -23,13 +22,13 @@ import {
   Moon,
   Sun,
   Languages,
-} from 'lucide-react';
-import { useAuth } from '../context/AuthContext.tsx';
-import { useLanguage } from '../context/LanguageContext.tsx';
-import { useTheme } from '../context/ThemeContext.tsx';
-import { useToast } from '../context/ToastContext.tsx';
-import { SUPPORT_CONTACTS, APP_VERSION } from '../constants/support.ts';
-import stockforgeLogo from '@/src-tauri/icons/icon.png';
+} from "lucide-react";
+import { useAuth } from "../context/AuthContext.tsx";
+import { useLanguage } from "../context/LanguageContext.tsx";
+import { useTheme } from "../context/ThemeContext.tsx";
+import { useToast } from "../context/ToastContext.tsx";
+import { SUPPORT_CONTACTS, APP_VERSION } from "../constants/support.ts";
+import stockforgeLogo from "@/src-tauri/icons/icon.png";
 
 export const SubscriptionExpiredView: React.FC = () => {
   const { currentShop, refreshShops, logout } = useAuth();
@@ -40,16 +39,16 @@ export const SubscriptionExpiredView: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const isNp = language === 'np';
+  const isNp = language === "np";
 
   const copyToClipboard = async (text: string, label: string, key: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedKey(key);
-      showToast(`${label} copied to clipboard`, 'success');
+      showToast(`${label} copied to clipboard`, "success");
       setTimeout(() => setCopiedKey(null), 2500);
     } catch {
-      showToast(`Failed to copy ${label}`, 'error');
+      showToast(`Failed to copy ${label}`, "error");
     }
   };
 
@@ -59,9 +58,9 @@ export const SubscriptionExpiredView: React.FC = () => {
       refreshShops();
       showToast(
         isNp
-          ? 'सदस्यता स्थिति पुनः जाँच गरियो।'
-          : 'Subscription status rechecked from database.',
-        'info'
+          ? "सदस्यता स्थिति पुनः जाँच गरियो।"
+          : "Subscription status rechecked from database.",
+        "info",
       );
     } finally {
       setTimeout(() => setIsRefreshing(false), 600);
@@ -69,22 +68,30 @@ export const SubscriptionExpiredView: React.FC = () => {
   };
 
   const handleWhatsApp = () => {
-    const shopName = currentShop?.name || 'StockForge Store';
-    const shopId = currentShop?.id ? `ID #${currentShop.id}` : '';
+    const shopName = currentShop?.name || "StockForge Store";
+    const shopId = currentShop?.id ? `ID #${currentShop.id}` : "";
     const message = encodeURIComponent(
-      `Namaste StockForge Support Team,\n\nOur shop subscription for "${shopName}" (${shopId}) has expired.\nWe would like to renew our subscription plan. Please provide payment and renewal instructions.\n\nThank you!`
+      `Namaste StockForge Support Team,\n\nOur shop subscription for "${shopName}" (${shopId}) has expired.\nWe would like to renew our subscription plan. Please provide payment and renewal instructions.\n\nThank you!`,
     );
-    window.open(`https://wa.me/${SUPPORT_CONTACTS.whatsappRaw}?text=${message}`, '_blank');
+    window.open(
+      `https://wa.me/${SUPPORT_CONTACTS.whatsappRaw}?text=${message}`,
+      "_blank",
+    );
   };
 
   const handleEmail = () => {
-    const shopName = currentShop?.name || 'StockForge Store';
-    const shopId = currentShop?.id ? `ID #${currentShop.id}` : '';
-    const subject = encodeURIComponent(`[StockForge Renewal] Subscription Renewal for ${shopName}`);
-    const body = encodeURIComponent(
-      `Hello StockForge Support,\n\nOur subscription for "${shopName}" (${shopId}) has expired.\n\nShop Name: ${shopName}\nShop Email: ${currentShop?.email || '-'}\nShop Phone: ${currentShop?.phone || '-'}\nExpiry Date: ${currentShop?.subscription_expiry_date || '-'}\n\nPlease help us renew our account.\n\nBest regards,\n${shopName}`
+    const shopName = currentShop?.name || "StockForge Store";
+    const shopId = currentShop?.id ? `ID #${currentShop.id}` : "";
+    const subject = encodeURIComponent(
+      `[StockForge Renewal] Subscription Renewal for ${shopName}`,
     );
-    window.open(`mailto:${SUPPORT_CONTACTS.email}?subject=${subject}&body=${body}`, '_blank');
+    const body = encodeURIComponent(
+      `Hello StockForge Support,\n\nOur subscription for "${shopName}" (${shopId}) has expired.\n\nShop Name: ${shopName}\nShop Email: ${currentShop?.email || "-"}\nShop Phone: ${currentShop?.phone || "-"}\nExpiry Date: ${currentShop?.subscription_expiry_date || "-"}\n\nPlease help us renew our account.\n\nBest regards,\n${shopName}`,
+    );
+    window.open(
+      `mailto:${SUPPORT_CONTACTS.email}?subject=${subject}&body=${body}`,
+      "_blank",
+    );
   };
 
   return (
@@ -110,8 +117,8 @@ export const SubscriptionExpiredView: React.FC = () => {
             </div>
             <p className="text-[11px] text-neutral-400">
               {isNp
-                ? 'अफलाइन इन्भेन्टरी व्यवस्थापन'
-                : 'Offline Retail & Inventory Management'}
+                ? "अफलाइन इन्भेन्टरी व्यवस्थापन"
+                : "Offline Retail & Inventory Management"}
             </p>
           </div>
         </div>
@@ -125,16 +132,20 @@ export const SubscriptionExpiredView: React.FC = () => {
             title="Switch Language"
           >
             <Languages className="w-3.5 h-3.5 text-neutral-400" />
-            <span>{isNp ? 'English' : 'नेपाली'}</span>
+            <span>{isNp ? "English" : "नेपाली"}</span>
           </button>
 
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
             className="p-2 rounded-lg border border-neutral-800 bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 transition-colors cursor-pointer"
-            title={isDark ? 'Light Mode' : 'Dark Mode'}
+            title={isDark ? "Light Mode" : "Dark Mode"}
           >
-            {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+            {isDark ? (
+              <Sun className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Moon className="w-4 h-4" />
+            )}
           </button>
 
           {/* Logout / Switch Shop */}
@@ -145,7 +156,7 @@ export const SubscriptionExpiredView: React.FC = () => {
           >
             <LogOut className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">
-              {isNp ? 'पसल परिवर्तन / बाहिरिनुहोस्' : 'Switch Store / Log Out'}
+              {isNp ? "पसल परिवर्तन / बाहिरिनुहोस्" : "Switch Store / Log Out"}
             </span>
           </button>
         </div>
@@ -164,20 +175,20 @@ export const SubscriptionExpiredView: React.FC = () => {
             <div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 border border-amber-500/30 text-amber-400 mb-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                {isNp ? 'सदस्यता समाप्त भयो' : 'Subscription Expired'}
+                {isNp ? "सदस्यता समाप्त भयो" : "Subscription Expired"}
               </div>
               <h1 className="text-xl sm:text-2xl font-black text-neutral-100 tracking-tight">
                 {isNp
-                  ? 'तपाईंको स्टकफोर्ज सदस्यता समाप्त भएको छ'
-                  : 'Your StockForge Plan Has Expired'}
+                  ? "तपाईंको स्टकफोर्ज सदस्यता समाप्त भएको छ"
+                  : "Your StockForge Plan Has Expired"}
               </h1>
             </div>
           </div>
 
           <p className="text-sm text-neutral-300 leading-relaxed max-w-2xl">
             {isNp
-              ? `पसल "${currentShop?.name || 'StockForge'}" को सक्रिय योजनाको समयावधि पूरा भएको छ। सफ्टवेयर सुचारु राख्न कृपया नवीकरण गर्नुहोस् वा प्राविधिक सहयोग टोलीलाई सम्पर्क गर्नुहोस्।`
-              : `The subscription license for "${currentShop?.name || 'StockForge'}" has reached its expiration date. To renew your plan and continue using StockForge for billing and stock management, please contact our support team.`}
+              ? `पसल "${currentShop?.name || "StockForge"}" को सक्रिय योजनाको समयावधि पूरा भएको छ। सफ्टवेयर सुचारु राख्न कृपया नवीकरण गर्नुहोस् वा प्राविधिक सहयोग टोलीलाई सम्पर्क गर्नुहोस्।`
+              : `The subscription license for "${currentShop?.name || "StockForge"}" has reached its expiration date. To renew your plan and continue using StockForge for billing and stock management, please contact our support team.`}
           </p>
 
           {/* Safety Reassurance Card */}
@@ -187,12 +198,14 @@ export const SubscriptionExpiredView: React.FC = () => {
             </div>
             <div>
               <h3 className="text-xs font-bold text-emerald-300 uppercase tracking-wide">
-                {isNp ? 'तपाईंको डाटा १००% सुरक्षित छ' : 'Your Local SQLite Data is 100% Safe'}
+                {isNp
+                  ? "तपाईंको डाटा १००% सुरक्षित छ"
+                  : "Your Local SQLite Data is 100% Safe"}
               </h3>
               <p className="text-xs text-neutral-300 mt-0.5 leading-relaxed">
                 {isNp
-                  ? 'चिन्ता नगर्नुहोस्! तपाईंको सबै मौज्दात, खाता, ग्राहक विवरण, र बिक्री रसिदहरू तपाईंको कम्प्युटरको लोकल SQLite डाटाबेसमा सुरक्षित छन्। कुनै पनि डाटा मेटिएको वा नष्ट भएको छैन।'
-                  : 'Rest assured: All your inventory records, transaction ledgers, vendor accounts, and invoices remain completely safe on your local offline SQLite storage. Nothing is deleted or modified.'}
+                  ? "चिन्ता नगर्नुहोस्! तपाईंको सबै मौज्दात, खाता, ग्राहक विवरण, र बिक्री रसिदहरू तपाईंको कम्प्युटरको लोकल SQLite डाटाबेसमा सुरक्षित छन्। कुनै पनि डाटा मेटिएको वा नष्ट भएको छैन।"
+                  : "Rest assured: All your inventory records, transaction ledgers, vendor accounts, and invoices remain completely safe on your local offline SQLite storage. Nothing is deleted or modified."}
               </p>
             </div>
           </div>
@@ -204,24 +217,40 @@ export const SubscriptionExpiredView: React.FC = () => {
           <div className="bg-neutral-900/60 border border-neutral-800 rounded-xl p-5 space-y-3">
             <div className="flex items-center gap-2 text-xs font-semibold text-neutral-400 uppercase tracking-wider">
               <Store className="w-4 h-4 text-emerald-400" />
-              <span>{isNp ? 'पसल विवरण' : 'Shop Information'}</span>
+              <span>{isNp ? "पसल विवरण" : "Shop Information"}</span>
             </div>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between py-1 border-b border-neutral-800/60">
-                <span className="text-neutral-400">{isNp ? 'पसलको नाम' : 'Shop Name'}:</span>
-                <span className="font-semibold text-neutral-200">{currentShop?.name || '-'}</span>
+                <span className="text-neutral-400">
+                  {isNp ? "पसलको नाम" : "Shop Name"}:
+                </span>
+                <span className="font-semibold text-neutral-200">
+                  {currentShop?.name || "-"}
+                </span>
               </div>
               <div className="flex justify-between py-1 border-b border-neutral-800/60">
-                <span className="text-neutral-400">{isNp ? 'इमेल' : 'Email'}:</span>
-                <span className="font-mono text-neutral-300">{currentShop?.email || '-'}</span>
+                <span className="text-neutral-400">
+                  {isNp ? "इमेल" : "Email"}:
+                </span>
+                <span className="font-mono text-neutral-300">
+                  {currentShop?.email || "-"}
+                </span>
               </div>
               <div className="flex justify-between py-1 border-b border-neutral-800/60">
-                <span className="text-neutral-400">{isNp ? 'फोन' : 'Phone'}:</span>
-                <span className="font-mono text-neutral-300">{currentShop?.phone || '-'}</span>
+                <span className="text-neutral-400">
+                  {isNp ? "फोन" : "Phone"}:
+                </span>
+                <span className="font-mono text-neutral-300">
+                  {currentShop?.phone || "-"}
+                </span>
               </div>
               <div className="flex justify-between py-1">
-                <span className="text-neutral-400">{isNp ? 'पसल प्रकार' : 'Type'}:</span>
-                <span className="capitalize text-neutral-300">{currentShop?.shop_type || 'Retail'}</span>
+                <span className="text-neutral-400">
+                  {isNp ? "पसल प्रकार" : "Type"}:
+                </span>
+                <span className="capitalize text-neutral-300">
+                  {currentShop?.shop_type || "Retail"}
+                </span>
               </div>
             </div>
           </div>
@@ -230,31 +259,40 @@ export const SubscriptionExpiredView: React.FC = () => {
           <div className="bg-neutral-900/60 border border-neutral-800 rounded-xl p-5 space-y-3">
             <div className="flex items-center gap-2 text-xs font-semibold text-neutral-400 uppercase tracking-wider">
               <Layers className="w-4 h-4 text-amber-400" />
-              <span>{isNp ? 'सदस्यता विवरण' : 'Subscription Details'}</span>
+              <span>{isNp ? "सदस्यता विवरण" : "Subscription Details"}</span>
             </div>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between py-1 border-b border-neutral-800/60">
-                <span className="text-neutral-400">{isNp ? 'योजना' : 'Plan'}:</span>
+                <span className="text-neutral-400">
+                  {isNp ? "योजना" : "Plan"}:
+                </span>
                 <span className="font-semibold text-amber-400">
-                  {currentShop?.subscription_plan || 'Standard'}
+                  {currentShop?.subscription_plan || "Standard"}
                 </span>
               </div>
               <div className="flex justify-between py-1 border-b border-neutral-800/60">
-                <span className="text-neutral-400">{isNp ? 'शुरु भएको मिति' : 'Subscribed Date'}:</span>
+                <span className="text-neutral-400">
+                  {isNp ? "शुरु भएको मिति" : "Subscribed Date"}:
+                </span>
                 <span className="font-mono text-neutral-300">
-                  {currentShop?.subscribed_date || '-'}
+                  {currentShop?.subscribed_date || "-"}
                 </span>
               </div>
               <div className="flex justify-between py-1 border-b border-neutral-800/60">
-                <span className="text-neutral-400">{isNp ? 'अवधि' : 'Duration'}:</span>
+                <span className="text-neutral-400">
+                  {isNp ? "अवधि" : "Duration"}:
+                </span>
                 <span className="text-neutral-300">
-                  {currentShop?.subscription_duration_days || 365} {isNp ? 'दिन' : 'Days'}
+                  {currentShop?.subscription_duration_days || 365}{" "}
+                  {isNp ? "दिन" : "Days"}
                 </span>
               </div>
               <div className="flex justify-between py-1">
-                <span className="text-neutral-400">{isNp ? 'म्याद सकिएको मिति' : 'Expiry Date'}:</span>
+                <span className="text-neutral-400">
+                  {isNp ? "म्याद सकिएको मिति" : "Expiry Date"}:
+                </span>
                 <span className="font-mono font-bold text-rose-400">
-                  {currentShop?.subscription_expiry_date || 'Expired'}
+                  {currentShop?.subscription_expiry_date || "Expired"}
                 </span>
               </div>
             </div>
@@ -270,12 +308,14 @@ export const SubscriptionExpiredView: React.FC = () => {
               </div>
               <div>
                 <h2 className="text-base font-bold text-neutral-100">
-                  {isNp ? 'नवीकरण तथा सहायता सम्पर्क' : 'Contact Support For Instant Renewal'}
+                  {isNp
+                    ? "नवीकरण तथा सहायता सम्पर्क"
+                    : "Contact Support For Instant Renewal"}
                 </h2>
                 <p className="text-xs text-neutral-400">
                   {isNp
-                    ? 'हाम्रो टोलीले तत्काल तपाईंको सदस्यता नवीकरण गरी सफ्टवेयर सक्रिय गरिदिनेछ।'
-                    : 'Our technical support team will instantly process your renewal and unlock your system.'}
+                    ? "हाम्रो टोलीले तत्काल तपाईंको सदस्यता नवीकरण गरी सफ्टवेयर सक्रिय गरिदिनेछ।"
+                    : "Our technical support team will instantly process your renewal and unlock your system."}
                 </p>
               </div>
             </div>
@@ -320,13 +360,17 @@ export const SubscriptionExpiredView: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between text-xs text-neutral-400 bg-neutral-950/60 border border-neutral-800/80 rounded-xl p-3 gap-3">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-neutral-300">Email:</span>
-              <span className="font-mono text-neutral-300">{SUPPORT_CONTACTS.email}</span>
+              <span className="font-mono text-neutral-300">
+                {SUPPORT_CONTACTS.email}
+              </span>
               <button
-                onClick={() => copyToClipboard(SUPPORT_CONTACTS.email, 'Email', 'email')}
+                onClick={() =>
+                  copyToClipboard(SUPPORT_CONTACTS.email, "Email", "email")
+                }
                 className="p-1 rounded hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 transition-colors"
                 title="Copy Email"
               >
-                {copiedKey === 'email' ? (
+                {copiedKey === "email" ? (
                   <Check className="w-3.5 h-3.5 text-emerald-400" />
                 ) : (
                   <Copy className="w-3.5 h-3.5" />
@@ -336,13 +380,21 @@ export const SubscriptionExpiredView: React.FC = () => {
 
             <div className="flex items-center gap-2">
               <span className="font-semibold text-neutral-300">Hotline:</span>
-              <span className="font-mono text-neutral-300">{SUPPORT_CONTACTS.phone}</span>
+              <span className="font-mono text-neutral-300">
+                {SUPPORT_CONTACTS.phone}
+              </span>
               <button
-                onClick={() => copyToClipboard(SUPPORT_CONTACTS.phone, 'Phone number', 'phone')}
+                onClick={() =>
+                  copyToClipboard(
+                    SUPPORT_CONTACTS.phone,
+                    "Phone number",
+                    "phone",
+                  )
+                }
                 className="p-1 rounded hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 transition-colors"
                 title="Copy Phone"
               >
-                {copiedKey === 'phone' ? (
+                {copiedKey === "phone" ? (
                   <Check className="w-3.5 h-3.5 text-emerald-400" />
                 ) : (
                   <Copy className="w-3.5 h-3.5" />
@@ -363,9 +415,13 @@ export const SubscriptionExpiredView: React.FC = () => {
             disabled={isRefreshing}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors cursor-pointer disabled:opacity-50 shadow-md"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+            />
             <span>
-              {isNp ? 'नवीकरण स्थिति जाँच गर्नुहोस्' : 'Recheck Subscription Status'}
+              {isNp
+                ? "नवीकरण स्थिति जाँच गर्नुहोस्"
+                : "Recheck Subscription Status"}
             </span>
           </button>
 
@@ -374,14 +430,19 @@ export const SubscriptionExpiredView: React.FC = () => {
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-800 font-semibold text-xs transition-colors cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
-            <span>{isNp ? 'अन्य पसलमा लगइन गर्नुहोस्' : 'Switch Store / Log In to Another Account'}</span>
+            <span>
+              {isNp
+                ? "अन्य पसलमा लगइन गर्नुहोस्"
+                : "Switch Store / Log In to Another Account"}
+            </span>
           </button>
         </div>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-neutral-800/80 bg-neutral-900/40 px-6 py-3 text-center text-[11px] text-neutral-500 font-mono">
-        {SUPPORT_CONTACTS.companyNameEn} · {SUPPORT_CONTACTS.addressEn} · Local SQLite Data Secure
+        {SUPPORT_CONTACTS.companyNameEn} · {SUPPORT_CONTACTS.addressEn} · Local
+        SQLite Data Secure
       </footer>
     </div>
   );

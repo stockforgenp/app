@@ -17,6 +17,7 @@ import { recordCustomerPayment } from "../../lib/services/customerService.ts";
 import { recordVendorPayment } from "../../lib/services/vendorService.ts";
 import { useToast } from "../../context/ToastContext.tsx";
 import { useLanguage } from "../../context/LanguageContext.tsx";
+import { Select } from "./Select.tsx";
 
 interface SettleBalanceModalProps {
   isOpen: boolean;
@@ -295,21 +296,18 @@ export const SettleBalanceModal: React.FC<SettleBalanceModalProps> = ({
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-neutral-300">
-              {isNepali ? "भुक्तानी माध्यम" : "Payment Method"}
-            </label>
-            <select
+          <div>
+            <Select
+              label={isNepali ? "भुक्तानी माध्यम" : "Payment Method"}
               value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-200 focus:outline-none focus:border-emerald-500"
-            >
-              {PAYMENT_METHODS.map((method) => (
-                <option key={method} value={method}>
-                  {method}
-                </option>
-              ))}
-            </select>
+              onChange={(e) => setPaymentMethod(String(e.target.value))}
+              portal={true}
+              sizeVariant="sm"
+              options={PAYMENT_METHODS.map((method) => ({
+                value: method,
+                label: method,
+              }))}
+            />
           </div>
         </div>
 

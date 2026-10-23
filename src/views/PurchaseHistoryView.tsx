@@ -29,7 +29,11 @@ import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
 import { getPurchaseHistoryColumns } from "../columns/index.ts";
 import { DatePreset } from "../lib/utils/dateFilters.ts";
-import { formatCurrency, formatDateTime, capitalizeWords } from "../lib/utils/format.ts";
+import {
+  formatCurrency,
+  formatDateTime,
+  capitalizeWords,
+} from "../lib/utils/format.ts";
 import { useToast } from "../context/ToastContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 import { useLanguage } from "../context/LanguageContext.tsx";
@@ -57,7 +61,9 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
     items: PurchaseItem[];
   } | null>(null);
   const [editPurchaseId, setEditPurchaseId] = useState<number | null>(null);
-  const [returningPurchaseId, setReturningPurchaseId] = useState<number | null>(null);
+  const [returningPurchaseId, setReturningPurchaseId] = useState<number | null>(
+    null,
+  );
   const [printPurchaseId, setPrintPurchaseId] = useState<number | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isPrintHistoryOpen, setIsPrintHistoryOpen] = useState(false);
@@ -91,14 +97,14 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
     let totalUnitsInflow = 0;
 
     for (const p of historyList) {
-      if (p.status === 'RETURNED') continue;
+      if (p.status === "RETURNED") continue;
       totalSpend += p.grand_total || p.total;
       vatTotal += p.vat_amount || 0;
       totalUnitsInflow += p.total_units || 0;
     }
 
     return {
-      totalCount: historyList.filter(p => p.status !== 'RETURNED').length,
+      totalCount: historyList.filter((p) => p.status !== "RETURNED").length,
       totalSpend,
       vatTotal,
       totalUnitsInflow,
@@ -306,7 +312,9 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
                 </span>
                 <span className="font-semibold text-neutral-200 capitalize">
                   {inspectPurchaseDetail.purchase.vendor_name
-                    ? capitalizeWords(inspectPurchaseDetail.purchase.vendor_name)
+                    ? capitalizeWords(
+                        inspectPurchaseDetail.purchase.vendor_name,
+                      )
                     : "Self-Supplied"}
                 </span>
                 {inspectPurchaseDetail.purchase.vendor_pan_vat && (
@@ -426,7 +434,9 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
                   </div>
                 )}
               <div className="flex justify-between text-sm font-bold text-neutral-100 pt-2 border-t border-neutral-800">
-                <span>{isNepali ? "कुल रकम (Grand Total):" : "Grand Total:"}</span>
+                <span>
+                  {isNepali ? "कुल रकम (Grand Total):" : "Grand Total:"}
+                </span>
                 <span className="font-mono text-emerald-400">
                   {formatCurrency(
                     inspectPurchaseDetail.purchase.grand_total ||
@@ -438,7 +448,9 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
 
               {/* Paid Amount */}
               <div className="flex justify-between text-emerald-400 font-medium pt-1.5 border-t border-neutral-900">
-                <span>{isNepali ? "भुक्तानी रकम (Paid):" : "Paid Amount:"}</span>
+                <span>
+                  {isNepali ? "भुक्तानी रकम (Paid):" : "Paid Amount:"}
+                </span>
                 <span>
                   {formatCurrency(
                     inspectPurchaseDetail.purchase.paid_amount !== undefined &&
@@ -453,7 +465,13 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
 
               {/* Current Due */}
               <div className="flex justify-between font-medium">
-                <span className={(inspectPurchaseDetail.purchase.due_amount ?? 0) > 0 ? "text-rose-400" : "text-neutral-400"}>
+                <span
+                  className={
+                    (inspectPurchaseDetail.purchase.due_amount ?? 0) > 0
+                      ? "text-rose-400"
+                      : "text-neutral-400"
+                  }
+                >
                   {isNepali ? "बाँकी बक्यौता (Current Due):" : "Current Due:"}
                 </span>
                 <span className="font-mono">
@@ -475,7 +493,11 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
               {/* Previous Due / Balance if any */}
               {(inspectPurchaseDetail.purchase.previous_due ?? 0) > 0 && (
                 <div className="flex justify-between text-amber-400/90 font-medium">
-                  <span>{isNepali ? "साविक बाँकी (Previous Due):" : "Previous Balance / Due:"}</span>
+                  <span>
+                    {isNepali
+                      ? "साविक बाँकी (Previous Due):"
+                      : "Previous Balance / Due:"}
+                  </span>
                   <span>
                     {formatCurrency(
                       inspectPurchaseDetail.purchase.previous_due ?? 0,
@@ -489,7 +511,11 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
               {((inspectPurchaseDetail.purchase.total_due ?? 0) > 0 ||
                 (inspectPurchaseDetail.purchase.due_amount ?? 0) > 0) && (
                 <div className="flex justify-between text-xs font-bold text-rose-300 pt-1 border-t border-neutral-800">
-                  <span>{isNepali ? "कुल आपूर्तिकर्ता बाँकी (Total Vendor Due):" : "Total Vendor Due:"}</span>
+                  <span>
+                    {isNepali
+                      ? "कुल आपूर्तिकर्ता बाँकी (Total Vendor Due):"
+                      : "Total Vendor Due:"}
+                  </span>
                   <span>
                     {formatCurrency(
                       inspectPurchaseDetail.purchase.total_due ??
@@ -543,7 +569,9 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
-                      <span>{isNepali ? "खरिद फिर्ता गर्नुहोस्" : "Return Purchase"}</span>
+                      <span>
+                        {isNepali ? "खरिद फिर्ता गर्नुहोस्" : "Return Purchase"}
+                      </span>
                     </button>
                   </>
                 )}
@@ -608,7 +636,7 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
               isNepali
                 ? `खरिद #${res.billNumber || returningPurchaseId} फिर्ता गरियो र गोदामबाट सामानको मौज्दात घटाइयो!`
                 : `Purchase #${res.billNumber || returningPurchaseId} marked as returned and inventory updated!`,
-              "success"
+              "success",
             );
             if (inspectPurchaseDetail?.purchase.id === returningPurchaseId) {
               setInspectPurchaseDetail(null);

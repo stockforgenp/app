@@ -4,7 +4,6 @@
  * Comprehensive view of all sales, purchases, expenses, and dues along with opening & closing balances.
  */
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { motion } from "framer-motion";
 import {
   BookOpen,
   Calendar,
@@ -16,20 +15,17 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Wallet,
-  Building2,
-  Receipt,
-  ShoppingCart,
-  Truck,
-  ReceiptText,
   UserCheck,
-  CreditCard,
-  RotateCcw,
   SlidersHorizontal,
 } from "lucide-react";
 import { DayBookSummary, DayBookTransactionType } from "../types/index.ts";
 import { getDayBook } from "../lib/services/dayBookService.ts";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
-import { formatCurrency, formatDateTime, getTodayISODate } from "../helpers/formatHelpers.ts";
+import {
+  formatCurrency,
+  formatDateTime,
+  getTodayISODate,
+} from "../helpers/formatHelpers.ts";
 import { useLanguage } from "../context/LanguageContext.tsx";
 import { PrintDayBookModal } from "../components/common/PrintDayBookModal.tsx";
 
@@ -47,7 +43,9 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
   const [rangeEndDate, setRangeEndDate] = useState<string>(todayStr);
 
   // Filters
-  const [activeTypeTab, setActiveTypeTab] = useState<"all" | DayBookTransactionType | "returns">("all");
+  const [activeTypeTab, setActiveTypeTab] = useState<
+    "all" | DayBookTransactionType | "returns"
+  >("all");
   const [selectedModeFilter, setSelectedModeFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
@@ -56,7 +54,7 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
 
   // Data
   const [summary, setSummary] = useState<DayBookSummary>(() =>
-    getDayBook({ date: todayStr })
+    getDayBook({ date: todayStr }),
   );
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -109,7 +107,8 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
       // Type Tab Filter
       if (activeTypeTab !== "all") {
         if (activeTypeTab === "returns") {
-          if (entry.type !== "SALE_RETURN" && entry.type !== "PURCHASE_RETURN") return false;
+          if (entry.type !== "SALE_RETURN" && entry.type !== "PURCHASE_RETURN")
+            return false;
         } else if (entry.type !== activeTypeTab) {
           return false;
         }
@@ -120,9 +119,26 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
         const entryMode = (entry.paymentMethod || "Cash").toLowerCase();
         const filter = selectedModeFilter.toLowerCase();
         if (filter === "cash" && entryMode !== "cash") return false;
-        if (filter === "online" && !entryMode.includes("qr") && !entryMode.includes("online") && !entryMode.includes("esewa") && !entryMode.includes("fonepay")) return false;
-        if (filter === "bank" && !entryMode.includes("bank") && !entryMode.includes("transfer")) return false;
-        if (filter === "cheque" && !entryMode.includes("cheque") && !entryMode.includes("check")) return false;
+        if (
+          filter === "online" &&
+          !entryMode.includes("qr") &&
+          !entryMode.includes("online") &&
+          !entryMode.includes("esewa") &&
+          !entryMode.includes("fonepay")
+        )
+          return false;
+        if (
+          filter === "bank" &&
+          !entryMode.includes("bank") &&
+          !entryMode.includes("transfer")
+        )
+          return false;
+        if (
+          filter === "cheque" &&
+          !entryMode.includes("cheque") &&
+          !entryMode.includes("check")
+        )
+          return false;
       }
 
       // Search Query
@@ -130,7 +146,9 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
         const q = searchQuery.toLowerCase();
         const matchRef = entry.refNumber.toLowerCase().includes(q);
         const matchParty = entry.partyName.toLowerCase().includes(q);
-        const matchNote = entry.notes ? entry.notes.toLowerCase().includes(q) : false;
+        const matchNote = entry.notes
+          ? entry.notes.toLowerCase().includes(q)
+          : false;
         const matchMode = entry.paymentMethod.toLowerCase().includes(q);
         if (!matchRef && !matchParty && !matchNote && !matchMode) return false;
       }
@@ -228,15 +246,14 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
               </button>
             </div>
           ) : (
-            <div className="flex items-center bg-neutral-950 border border-neutral-800 rounded-xl p-1.5 gap-2 text-xs">
-              <span className="text-neutral-500 text-[11px] pl-1">{isNepali ? "देखि:" : "From:"}</span>
+            <div className="flex items-center bg-neutral-950 border border-neutral-800 rounded-xl py-1.5 px-2.5 gap-2 text-xs">
               <input
                 type="date"
                 value={rangeStartDate}
                 onChange={(e) => setRangeStartDate(e.target.value)}
                 className="bg-transparent font-mono text-neutral-200 text-xs focus:outline-none cursor-pointer"
               />
-              <span className="text-neutral-500 text-[11px]">{isNepali ? "सम्म:" : "To:"}</span>
+              <span className="text-neutral-500 text-[11px]">|</span>
               <input
                 type="date"
                 value={rangeEndDate}
@@ -255,7 +272,13 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
                 : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
             }`}
           >
-            {isRangeMode ? (isNepali ? "एक दिन हेर्नुहोस्" : "Single Date") : (isNepali ? "मिति दायरा" : "Date Range")}
+            {isRangeMode
+              ? isNepali
+                ? "एक दिन हेर्नुहोस्"
+                : "Single Date"
+              : isNepali
+                ? "मिति दायरा"
+                : "Date Range"}
           </button>
 
           <button
@@ -265,7 +288,9 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
             className="p-2 text-neutral-400 hover:text-neutral-100 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-xl transition-colors cursor-pointer"
             title="Refresh"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-emerald-400" : ""}`} />
+            <RefreshCw
+              className={`w-4 h-4 ${isLoading ? "animate-spin text-emerald-400" : ""}`}
+            />
           </button>
 
           <button
@@ -284,7 +309,9 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
         {/* 1. Opening Cash Balance */}
         <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800 flex flex-col justify-between">
           <div className="flex items-center justify-between text-neutral-400 text-xs font-medium">
-            <span>{isNepali ? "सुरुवाती नगद (Opening)" : "Opening Cash Balance"}</span>
+            <span>
+              {isNepali ? "सुरुवाती नगद (Opening)" : "Opening Cash Balance"}
+            </span>
             <Wallet className="w-4 h-4 text-neutral-500" />
           </div>
           <div className="mt-2">
@@ -292,7 +319,9 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
               {formatCurrency(summary.openingBalance, currencySymbol)}
             </span>
             <p className="text-[10px] text-neutral-500 mt-0.5">
-              {isNepali ? "अघिल्लो दिनको बचत मौज्दात" : "Carried forward balance"}
+              {isNepali
+                ? "अघिल्लो दिनको बचत मौज्दात"
+                : "Carried forward balance"}
             </p>
           </div>
         </div>
@@ -300,7 +329,9 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
         {/* 2. Total Inflow (Debit / Received) */}
         <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800 flex flex-col justify-between">
           <div className="flex items-center justify-between text-neutral-400 text-xs font-medium">
-            <span>{isNepali ? "कुल आम्दानी (Inflow)" : "Total Money In (Debit)"}</span>
+            <span>
+              {isNepali ? "कुल आम्दानी (Inflow)" : "Total Money In (Debit)"}
+            </span>
             <div className="p-1 rounded-md bg-emerald-500/10 text-emerald-400">
               <ArrowDownLeft className="w-3.5 h-3.5" />
             </div>
@@ -310,8 +341,16 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
               +{formatCurrency(summary.totalInflow, currencySymbol)}
             </span>
             <div className="flex items-center justify-between text-[10px] text-neutral-500 mt-0.5">
-              <span>Cash: {formatCurrency(summary.cashInflow, currencySymbol)}</span>
-              <span>Online: {formatCurrency(summary.totalInflow - summary.cashInflow, currencySymbol)}</span>
+              <span>
+                Cash: {formatCurrency(summary.cashInflow, currencySymbol)}
+              </span>
+              <span>
+                Online:{" "}
+                {formatCurrency(
+                  summary.totalInflow - summary.cashInflow,
+                  currencySymbol,
+                )}
+              </span>
             </div>
           </div>
         </div>
@@ -319,7 +358,9 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
         {/* 3. Total Outflow (Credit / Paid) */}
         <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800 flex flex-col justify-between">
           <div className="flex items-center justify-between text-neutral-400 text-xs font-medium">
-            <span>{isNepali ? "कुल भुक्तानी (Outflow)" : "Total Money Out (Credit)"}</span>
+            <span>
+              {isNepali ? "कुल भुक्तानी (Outflow)" : "Total Money Out (Credit)"}
+            </span>
             <div className="p-1 rounded-md bg-rose-500/10 text-rose-400">
               <ArrowUpRight className="w-3.5 h-3.5" />
             </div>
@@ -329,8 +370,16 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
               -{formatCurrency(summary.totalOutflow, currencySymbol)}
             </span>
             <div className="flex items-center justify-between text-[10px] text-neutral-500 mt-0.5">
-              <span>Cash: {formatCurrency(summary.cashOutflow, currencySymbol)}</span>
-              <span>Online: {formatCurrency(summary.totalOutflow - summary.cashOutflow, currencySymbol)}</span>
+              <span>
+                Cash: {formatCurrency(summary.cashOutflow, currencySymbol)}
+              </span>
+              <span>
+                Online:{" "}
+                {formatCurrency(
+                  summary.totalOutflow - summary.cashOutflow,
+                  currencySymbol,
+                )}
+              </span>
             </div>
           </div>
         </div>
@@ -338,10 +387,14 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
         {/* 4. Net Cash Flow */}
         <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800 flex flex-col justify-between">
           <div className="flex items-center justify-between text-neutral-400 text-xs font-medium">
-            <span>{isNepali ? "खुद नगद प्रवाह (Net Cash)" : "Net Cash In Hand"}</span>
+            <span>
+              {isNepali ? "खुद नगद प्रवाह (Net Cash)" : "Net Cash In Hand"}
+            </span>
             <div
               className={`p-1 rounded-md ${
-                summary.netCash >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
+                summary.netCash >= 0
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "bg-rose-500/10 text-rose-400"
               }`}
             >
               {summary.netCash >= 0 ? (
@@ -369,7 +422,9 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
         {/* 5. Closing Cash Balance */}
         <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20 flex flex-col justify-between">
           <div className="flex items-center justify-between text-neutral-300 text-xs font-medium">
-            <span>{isNepali ? "अन्तिम नगद (Closing Cash)" : "Closing Cash Balance"}</span>
+            <span>
+              {isNepali ? "अन्तिम नगद (Closing Cash)" : "Closing Cash Balance"}
+            </span>
             <Wallet className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="mt-2">
@@ -377,7 +432,9 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
               {formatCurrency(summary.closingBalance, currencySymbol)}
             </span>
             <p className="text-[10px] text-neutral-400 mt-0.5">
-              {isNepali ? "दराजमा हुनुपर्ने मौज्दात" : "Expected in cash drawer"}
+              {isNepali
+                ? "दराजमा हुनुपर्ने मौज्दात"
+                : "Expected in cash drawer"}
             </p>
           </div>
         </div>
@@ -390,10 +447,15 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-neutral-200 uppercase tracking-wider flex items-center gap-2">
               <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{isNepali ? "भुक्तानी माध्यमगत विभाजन" : "Payment Mode Distribution"}</span>
+              <span>
+                {isNepali
+                  ? "भुक्तानी माध्यमगत विभाजन"
+                  : "Payment Mode Distribution"}
+              </span>
             </h3>
             <span className="text-[11px] text-neutral-500">
-              {summary.modeSummaries.length} {isNepali ? "माध्यमहरू" : "modes active"}
+              {summary.modeSummaries.length}{" "}
+              {isNepali ? "माध्यमहरू" : "modes active"}
             </span>
           </div>
 
@@ -403,7 +465,11 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
               return (
                 <div
                   key={m.mode}
-                  onClick={() => setSelectedModeFilter(selectedModeFilter === m.mode ? "all" : m.mode)}
+                  onClick={() =>
+                    setSelectedModeFilter(
+                      selectedModeFilter === m.mode ? "all" : m.mode,
+                    )
+                  }
                   className={`p-3 rounded-lg border transition-all cursor-pointer ${
                     selectedModeFilter === m.mode
                       ? "bg-emerald-500/10 border-emerald-500/40"
@@ -412,7 +478,9 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
                 >
                   <div className="flex items-center justify-between text-xs font-semibold text-neutral-200">
                     <span className="truncate">{m.mode}</span>
-                    {isCash && <span className="w-2 h-2 rounded-full bg-emerald-400" />}
+                    {isCash && (
+                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    )}
                   </div>
                   <div className="mt-2 space-y-0.5 font-mono text-[11px]">
                     <div className="flex justify-between text-neutral-400">
@@ -429,7 +497,11 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
                     </div>
                     <div className="flex justify-between text-neutral-300 font-bold pt-1 border-t border-neutral-800/80">
                       <span>Net:</span>
-                      <span className={m.net >= 0 ? "text-emerald-300" : "text-rose-300"}>
+                      <span
+                        className={
+                          m.net >= 0 ? "text-emerald-300" : "text-rose-300"
+                        }
+                      >
                         {formatCurrency(m.net, currencySymbol)}
                       </span>
                     </div>
@@ -445,7 +517,11 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-neutral-200 uppercase tracking-wider flex items-center gap-2">
               <UserCheck className="w-3.5 h-3.5 text-amber-400" />
-              <span>{isNepali ? "दैनिक बाँकी बक्यौता (Dues)" : "Dues & Credit Tracking"}</span>
+              <span>
+                {isNepali
+                  ? "दैनिक बाँकी बक्यौता (Dues)"
+                  : "Dues & Credit Tracking"}
+              </span>
             </h3>
           </div>
 
@@ -453,7 +529,9 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
             {/* Customer Dues */}
             <div className="p-2.5 rounded-lg bg-neutral-950/60 border border-neutral-800 space-y-1">
               <span className="text-[11px] font-semibold text-neutral-400">
-                {isNepali ? "ग्राहक बक्यौता (Customer Accounts)" : "Customer Credit"}
+                {isNepali
+                  ? "ग्राहक बक्यौता (Customer Accounts)"
+                  : "Customer Credit"}
               </span>
               <div className="flex justify-between font-mono">
                 <span className="text-neutral-500">New Credit Given:</span>
@@ -478,7 +556,7 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
                 >
                   {formatCurrency(
                     summary.newCustomerDue - summary.customerDueCollected,
-                    currencySymbol
+                    currencySymbol,
                   )}
                 </span>
               </div>
@@ -487,7 +565,9 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
             {/* Vendor Dues */}
             <div className="p-2.5 rounded-lg bg-neutral-950/60 border border-neutral-800 space-y-1">
               <span className="text-[11px] font-semibold text-neutral-400">
-                {isNepali ? "आपूर्तिकर्ता बक्यौता (Vendor Payables)" : "Vendor Payables"}
+                {isNepali
+                  ? "आपूर्तिकर्ता बक्यौता (Vendor Payables)"
+                  : "Vendor Payables"}
               </span>
               <div className="flex justify-between font-mono">
                 <span className="text-neutral-500">New Credit Taken:</span>
@@ -520,7 +600,8 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
                   : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
-              {isNepali ? "सबै कारोबार" : "All"} ({formatNumberByLang(typeCounts.all)})
+              {isNepali ? "सबै कारोबार" : "All"} (
+              {formatNumberByLang(typeCounts.all)})
             </button>
             <button
               type="button"
@@ -531,7 +612,8 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
                   : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
-              {isNepali ? "बिक्री" : "Sales"} ({formatNumberByLang(typeCounts.SALE)})
+              {isNepali ? "बिक्री" : "Sales"} (
+              {formatNumberByLang(typeCounts.SALE)})
             </button>
             <button
               type="button"
@@ -542,7 +624,8 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
                   : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
-              {isNepali ? "खरिद" : "Purchases"} ({formatNumberByLang(typeCounts.PURCHASE)})
+              {isNepali ? "खरिद" : "Purchases"} (
+              {formatNumberByLang(typeCounts.PURCHASE)})
             </button>
             <button
               type="button"
@@ -553,7 +636,8 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
                   : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
-              {isNepali ? "खर्चहरू" : "Expenses"} ({formatNumberByLang(typeCounts.EXPENSE)})
+              {isNepali ? "खर्चहरू" : "Expenses"} (
+              {formatNumberByLang(typeCounts.EXPENSE)})
             </button>
             <button
               type="button"
@@ -564,7 +648,8 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
                   : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
-              {isNepali ? "बक्यौता असुली" : "Due Collections"} ({formatNumberByLang(typeCounts.CUSTOMER_PAYMENT)})
+              {isNepali ? "बक्यौता असुली" : "Due Collections"} (
+              {formatNumberByLang(typeCounts.CUSTOMER_PAYMENT)})
             </button>
             <button
               type="button"
@@ -575,7 +660,8 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
                   : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
-              {isNepali ? "आपूर्तिकर्ता भुक्तानी" : "Vendor Dues Paid"} ({formatNumberByLang(typeCounts.VENDOR_PAYMENT)})
+              {isNepali ? "आपूर्तिकर्ता भुक्तानी" : "Vendor Dues Paid"} (
+              {formatNumberByLang(typeCounts.VENDOR_PAYMENT)})
             </button>
             <button
               type="button"
@@ -586,7 +672,8 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
                   : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
-              {isNepali ? "तलब" : "Salary"} ({formatNumberByLang(typeCounts.SALARY)})
+              {isNepali ? "तलब" : "Salary"} (
+              {formatNumberByLang(typeCounts.SALARY)})
             </button>
             <button
               type="button"
@@ -597,7 +684,8 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
                   : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
-              {isNepali ? "फिर्ता / नोट" : "Returns"} ({formatNumberByLang(typeCounts.returns)})
+              {isNepali ? "फिर्ता / नोट" : "Returns"} (
+              {formatNumberByLang(typeCounts.returns)})
             </button>
           </div>
 
@@ -606,7 +694,11 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
             <Search className="w-3.5 h-3.5 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder={isNepali ? "बिल, पार्टी, माध्यम खोज्नुहोस्..." : "Search ref, party, mode..."}
+              placeholder={
+                isNepali
+                  ? "बिल, पार्टी, माध्यम खोज्नुहोस्..."
+                  : "Search ref, party, mode..."
+              }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 text-xs bg-neutral-900 border border-neutral-800 rounded-xl text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
@@ -621,21 +713,42 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-neutral-800 text-neutral-400 font-semibold uppercase bg-neutral-950/60 text-[11px]">
-                <th className="py-3 px-3.5 whitespace-nowrap">{isNepali ? "समय" : "Time"}</th>
-                <th className="py-3 px-3.5 whitespace-nowrap">{isNepali ? "प्रकार" : "Type"}</th>
-                <th className="py-3 px-3.5 whitespace-nowrap">{isNepali ? "बिल / रसिद नं" : "Ref #"}</th>
-                <th className="py-3 px-3.5">{isNepali ? "पार्टी / विवरण" : "Party / Particulars"}</th>
-                <th className="py-3 px-3.5 text-center whitespace-nowrap">{isNepali ? "माध्यम" : "Mode"}</th>
-                <th className="py-3 px-3.5 text-right whitespace-nowrap">{isNepali ? "बिल रकम" : "Bill Amount"}</th>
-                <th className="py-3 px-3.5 text-right whitespace-nowrap text-emerald-400">{isNepali ? "आम्दानी (+)" : "Inflow (+)"}</th>
-                <th className="py-3 px-3.5 text-right whitespace-nowrap text-rose-400">{isNepali ? "भुक्तानी (-)" : "Outflow (-)"}</th>
-                <th className="py-3 px-3.5 text-right whitespace-nowrap text-amber-400">{isNepali ? "बाँकी (Due)" : "Due"}</th>
+                <th className="py-3 px-3.5 whitespace-nowrap">
+                  {isNepali ? "समय" : "Time"}
+                </th>
+                <th className="py-3 px-3.5 whitespace-nowrap">
+                  {isNepali ? "प्रकार" : "Type"}
+                </th>
+                <th className="py-3 px-3.5 whitespace-nowrap">
+                  {isNepali ? "बिल / रसिद नं" : "Ref #"}
+                </th>
+                <th className="py-3 px-3.5">
+                  {isNepali ? "पार्टी / विवरण" : "Party / Particulars"}
+                </th>
+                <th className="py-3 px-3.5 text-center whitespace-nowrap">
+                  {isNepali ? "माध्यम" : "Mode"}
+                </th>
+                <th className="py-3 px-3.5 text-right whitespace-nowrap">
+                  {isNepali ? "बिल रकम" : "Bill Amount"}
+                </th>
+                <th className="py-3 px-3.5 text-right whitespace-nowrap text-emerald-400">
+                  {isNepali ? "आम्दानी (+)" : "Inflow (+)"}
+                </th>
+                <th className="py-3 px-3.5 text-right whitespace-nowrap text-rose-400">
+                  {isNepali ? "भुक्तानी (-)" : "Outflow (-)"}
+                </th>
+                <th className="py-3 px-3.5 text-right whitespace-nowrap text-amber-400">
+                  {isNepali ? "बाँकी (Due)" : "Due"}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800/60">
               {filteredEntries.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-neutral-500 text-xs">
+                  <td
+                    colSpan={9}
+                    className="py-12 text-center text-neutral-500 text-xs"
+                  >
                     {isNepali
                       ? "छानिएको मिति वा फिल्टरमा कुनै कारोबार भेटिएन।"
                       : "No transaction records found for the selected date or filter."}
@@ -667,32 +780,56 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
                               : "bg-rose-500/15 text-rose-300 border-rose-500/30";
 
                   const typeLabel = isSale
-                    ? isNepali ? "बिक्री" : "Sale"
+                    ? isNepali
+                      ? "बिक्री"
+                      : "Sale"
                     : isPurchase
-                      ? isNepali ? "खरिद" : "Purchase"
+                      ? isNepali
+                        ? "खरिद"
+                        : "Purchase"
                       : isExpense
-                        ? isNepali ? "खर्च" : "Expense"
+                        ? isNepali
+                          ? "खर्च"
+                          : "Expense"
                         : isCustPay
-                          ? isNepali ? "असुली" : "Due Coll"
+                          ? isNepali
+                            ? "असुली"
+                            : "Due Coll"
                           : isVendPay
-                            ? isNepali ? "भुक्तानी" : "Due Paid"
+                            ? isNepali
+                              ? "भुक्तानी"
+                              : "Due Paid"
                             : isSalary
-                              ? isNepali ? "तलब" : "Salary"
+                              ? isNepali
+                                ? "तलब"
+                                : "Salary"
                               : isSaleRet
-                                ? isNepali ? "बिक्री फिर्ता" : "Sale Ret"
-                                : isNepali ? "खरिद फिर्ता" : "Pur Ret";
+                                ? isNepali
+                                  ? "बिक्री फिर्ता"
+                                  : "Sale Ret"
+                                : isNepali
+                                  ? "खरिद फिर्ता"
+                                  : "Pur Ret";
 
                   const timeStr = entry.time.includes("T")
                     ? entry.time.split("T")[1]?.slice(0, 5) || ""
                     : "";
 
                   return (
-                    <tr key={entry.id} className="hover:bg-neutral-800/30 transition-colors">
+                    <tr
+                      key={entry.id}
+                      className="hover:bg-neutral-800/30 transition-colors"
+                    >
                       <td className="py-2.5 px-3.5 font-mono text-[11px] text-neutral-400 whitespace-nowrap">
-                        {timeStr ? timeStr : formatDateTime(entry.time).split(" ")[1] || entry.time.slice(0, 10)}
+                        {timeStr
+                          ? timeStr
+                          : formatDateTime(entry.time).split(" ")[1] ||
+                            entry.time.slice(0, 10)}
                       </td>
                       <td className="py-2.5 px-3.5 whitespace-nowrap">
-                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold border ${badgeClass}`}>
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold border ${badgeClass}`}
+                        >
                           {typeLabel}
                         </span>
                       </td>
@@ -718,13 +855,19 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
                         {formatCurrency(entry.billAmount, currencySymbol)}
                       </td>
                       <td className="py-2.5 px-3.5 text-right font-mono font-bold text-emerald-400 tabular-nums whitespace-nowrap">
-                        {entry.inflow > 0 ? `+${formatCurrency(entry.inflow, currencySymbol)}` : "—"}
+                        {entry.inflow > 0
+                          ? `+${formatCurrency(entry.inflow, currencySymbol)}`
+                          : "—"}
                       </td>
                       <td className="py-2.5 px-3.5 text-right font-mono font-bold text-rose-400 tabular-nums whitespace-nowrap">
-                        {entry.outflow > 0 ? `-${formatCurrency(entry.outflow, currencySymbol)}` : "—"}
+                        {entry.outflow > 0
+                          ? `-${formatCurrency(entry.outflow, currencySymbol)}`
+                          : "—"}
                       </td>
                       <td className="py-2.5 px-3.5 text-right font-mono font-bold text-amber-400 tabular-nums whitespace-nowrap">
-                        {entry.dueAmount > 0 ? formatCurrency(entry.dueAmount, currencySymbol) : "—"}
+                        {entry.dueAmount > 0
+                          ? formatCurrency(entry.dueAmount, currencySymbol)
+                          : "—"}
                       </td>
                     </tr>
                   );
@@ -735,30 +878,35 @@ export const DayBookView: React.FC<DayBookViewProps> = ({ currencySymbol }) => {
               <tfoot>
                 <tr className="border-t-2 border-neutral-700 bg-neutral-950 font-semibold text-xs">
                   <td colSpan={5} className="py-3 px-3.5 text-neutral-300">
-                    {isNepali ? "कुल जम्मा (Filtered Total)" : "Total for Selected Entries"} ({filteredEntries.length} entries)
+                    {isNepali
+                      ? "कुल जम्मा (Filtered Total)"
+                      : "Total for Selected Entries"}{" "}
+                    ({filteredEntries.length} entries)
                   </td>
                   <td className="py-3 px-3.5 text-right font-mono text-neutral-300">
                     {formatCurrency(
                       filteredEntries.reduce((a, b) => a + b.billAmount, 0),
-                      currencySymbol
+                      currencySymbol,
                     )}
                   </td>
                   <td className="py-3 px-3.5 text-right font-mono text-emerald-400 font-bold">
-                    +{formatCurrency(
+                    +
+                    {formatCurrency(
                       filteredEntries.reduce((a, b) => a + b.inflow, 0),
-                      currencySymbol
+                      currencySymbol,
                     )}
                   </td>
                   <td className="py-3 px-3.5 text-right font-mono text-rose-400 font-bold">
-                    -{formatCurrency(
+                    -
+                    {formatCurrency(
                       filteredEntries.reduce((a, b) => a + b.outflow, 0),
-                      currencySymbol
+                      currencySymbol,
                     )}
                   </td>
                   <td className="py-3 px-3.5 text-right font-mono text-amber-400 font-bold">
                     {formatCurrency(
                       filteredEntries.reduce((a, b) => a + b.dueAmount, 0),
-                      currencySymbol
+                      currencySymbol,
                     )}
                   </td>
                 </tr>

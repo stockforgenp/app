@@ -20,7 +20,11 @@ import {
   DateFilterPreset,
   getDashboardOverview,
 } from "../lib/services/analyticsService.ts";
-import { formatCurrency, formatNumber, capitalizeWords } from "../lib/utils/format.ts";
+import {
+  formatCurrency,
+  formatNumber,
+  capitalizeWords,
+} from "../lib/utils/format.ts";
 import { Product } from "../types/index.ts";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 import { NavTab } from "../components/layout/Sidebar.tsx";
@@ -435,7 +439,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <span>{isNepali ? "नयाँ बिक्री बिलिङ" : "Launch New Sale"}</span>
             </div>
             <div className="text-xs text-neutral-400 mt-1 line-clamp-2">
-              {isNepali ? "सामान स्क्यान/छनोट, छुट र भुक्तानी" : "Scan or select items, configure prices, apply discounts"}
+              {isNepali
+                ? "सामान स्क्यान/छनोट, छुट र भुक्तानी"
+                : "Scan or select items, configure prices, apply discounts"}
             </div>
           </div>
           <span className="text-xs text-emerald-400 group-hover:translate-x-1 transition-transform shrink-0 ml-2">
@@ -450,10 +456,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-cyan-300">
               <BookOpen className="w-4 h-4" />
-              <span>{isNepali ? "रोजिन्दा हिसाब (Day Book)" : "Daily Book (Day Book)"}</span>
+              <span>
+                {isNepali
+                  ? "रोजिन्दा हिसाब (Day Book)"
+                  : "Daily Book (Day Book)"}
+              </span>
             </div>
             <div className="text-xs text-neutral-400 mt-1 line-clamp-2">
-              {isNepali ? "दैनिक नगद, बिक्री, खरिद, खर्च र बाँकी अडिट" : "Audit daily cash flow, payment modes, and dues"}
+              {isNepali
+                ? "दैनिक नगद, बिक्री, खरिद, खर्च र बाँकी अडिट"
+                : "Audit daily cash flow, payment modes, and dues"}
             </div>
           </div>
           <span className="text-xs text-cyan-400 group-hover:translate-x-1 transition-transform shrink-0 ml-2">
@@ -468,10 +480,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-rose-300">
               <ReceiptText className="w-4 h-4" />
-              <span>{isNepali ? "खर्च प्रविष्टि" : "Track Store Expenses"}</span>
+              <span>
+                {isNepali ? "खर्च प्रविष्टि" : "Track Store Expenses"}
+              </span>
             </div>
             <div className="text-xs text-neutral-400 mt-1 line-clamp-2">
-              {isNepali ? "भाडा, बिजुली, ढुवानी र अन्य खर्च" : "Record shop rent, utility bills, packaging, and operating costs"}
+              {isNepali
+                ? "भाडा, बिजुली, ढुवानी र अन्य खर्च"
+                : "Record shop rent, utility bills, packaging, and operating costs"}
             </div>
           </div>
           <span className="text-xs text-rose-400 group-hover:translate-x-1 transition-transform shrink-0 ml-2">
@@ -489,7 +505,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <span>{isNepali ? "बिक्री इतिहास" : "Sales History"}</span>
             </div>
             <div className="text-xs text-neutral-400 mt-1 line-clamp-2">
-              {isNepali ? "बिल रसिद, नाफा र कारोबार विवरण" : "Inspect snapshot item costs, receipts, and sales logs"}
+              {isNepali
+                ? "बिल रसिद, नाफा र कारोबार विवरण"
+                : "Inspect snapshot item costs, receipts, and sales logs"}
             </div>
           </div>
           <span className="text-xs text-neutral-400 group-hover:translate-x-1 transition-transform shrink-0 ml-2">

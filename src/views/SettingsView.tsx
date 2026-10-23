@@ -494,7 +494,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
           <div className="flex items-center gap-2 text-sm font-semibold text-neutral-100">
             <Calendar className="w-4 h-4 text-emerald-400" />
-            <span>{isNepali ? "क्यालेन्डर प्रणाली (मिति ढाँचा)" : "Calendar System (Date Format)"}</span>
+            <span>
+              {isNepali
+                ? "क्यालेन्डर प्रणाली (मिति ढाँचा)"
+                : "Calendar System (Date Format)"}
+            </span>
           </div>
           <span className="text-xs text-neutral-400">
             Active:{" "}

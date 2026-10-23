@@ -69,7 +69,6 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
   const [statementVendor, setStatementVendor] = useState<Vendor | null>(null);
   const [settleVendor, setSettleVendor] = useState<Vendor | null>(null);
 
-
   const loadVendors = useCallback(() => {
     try {
       setVendors(getAllVendors());
@@ -207,7 +206,6 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
       }),
     [isNepali, currencySymbol, copiedPan, formatNumberByLang, showToast],
   );
-
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150 p-8">
@@ -620,7 +618,9 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-sky-400 rounded-lg text-xs font-medium cursor-pointer transition-colors"
               >
                 <FileText className="w-3.5 h-3.5" />
-                <span>{isNepali ? "पूर्ण खाता विवरण (Statement)" : "Full Statement"}</span>
+                <span>
+                  {isNepali ? "पूर्ण खाता विवरण (Statement)" : "Full Statement"}
+                </span>
               </button>
               {(inspectPurchasesVendor?.total_due || 0) > 0 && (
                 <button
@@ -633,7 +633,9 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
                 >
                   <DollarSign className="w-3.5 h-3.5" />
-                  <span>{isNepali ? "हिसाब चुक्ता गर्नुहोस्" : "Settle Due"}</span>
+                  <span>
+                    {isNepali ? "हिसाब चुक्ता गर्नुहोस्" : "Settle Due"}
+                  </span>
                 </button>
               )}
             </div>
@@ -697,5 +699,4 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
       />
     </div>
   );
-
 };

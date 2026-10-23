@@ -28,7 +28,12 @@ import {
   X,
   Calendar,
 } from "lucide-react";
-import { Product, CartItem, ProductBatch, ProductPackaging } from "../types/index.ts";
+import {
+  Product,
+  CartItem,
+  ProductBatch,
+  ProductPackaging,
+} from "../types/index.ts";
 import { getAllProducts } from "../lib/services/productService.ts";
 import { processSale } from "../lib/services/salesService.ts";
 import { getAllBatches } from "../lib/services/batchService.ts";
@@ -87,8 +92,12 @@ export const SalesView: React.FC<SalesViewProps> = ({
     "all" | "inStock" | "lowStock"
   >("all");
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [batchesByProduct, setBatchesByProduct] = useState<Record<number, ProductBatch[]>>({});
-  const [packagingsByProduct, setPackagingsByProduct] = useState<Record<number, ProductPackaging[]>>({});
+  const [batchesByProduct, setBatchesByProduct] = useState<
+    Record<number, ProductBatch[]>
+  >({});
+  const [packagingsByProduct, setPackagingsByProduct] = useState<
+    Record<number, ProductPackaging[]>
+  >({});
   const [customerData, setCustomerData] = useState<CustomerInputData>({
     customerId: null,
     name: "",
@@ -211,12 +220,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
       item.packaging_name = null;
       item.actual_selling_price = item.product.selling_price;
     } else {
-      const pkg = packagingsByProduct[item.product.id]?.find((x) => x.id === packagingId);
+      const pkg = packagingsByProduct[item.product.id]?.find(
+        (x) => x.id === packagingId,
+      );
       if (pkg) {
         item.packaging_id = pkg.id;
         item.package_multiplier = pkg.multiplier;
         item.packaging_name = pkg.package_name;
-        item.actual_selling_price = pkg.selling_price || item.product.selling_price * pkg.multiplier;
+        item.actual_selling_price =
+          pkg.selling_price || item.product.selling_price * pkg.multiplier;
       }
     }
     setCart(updated);
@@ -229,7 +241,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
       updated[index].batch_number = null;
       updated[index].expiry_date = null;
     } else {
-      const b = batchesByProduct[updated[index].product.id]?.find((x) => x.id === batchId);
+      const b = batchesByProduct[updated[index].product.id]?.find(
+        (x) => x.id === batchId,
+      );
       if (b) {
         updated[index].batch_id = b.id;
         updated[index].batch_number = b.batch_number;
@@ -625,12 +639,18 @@ export const SalesView: React.FC<SalesViewProps> = ({
     const p = item.product;
     if (p.wholesale_price && p.wholesale_price > 0 && p.wholesale_min_qty) {
       if (item.quantity >= p.wholesale_min_qty) {
-        if (item.pricing_tier !== "WHOLESALE" && item.actual_selling_price === p.selling_price) {
+        if (
+          item.pricing_tier !== "WHOLESALE" &&
+          item.actual_selling_price === p.selling_price
+        ) {
           item.pricing_tier = "WHOLESALE";
           item.actual_selling_price = p.wholesale_price;
         }
       } else if (customerData.customer_type !== "WHOLESALE") {
-        if (item.pricing_tier === "WHOLESALE" && item.actual_selling_price === p.wholesale_price) {
+        if (
+          item.pricing_tier === "WHOLESALE" &&
+          item.actual_selling_price === p.wholesale_price
+        ) {
           item.pricing_tier = "RETAIL";
           item.actual_selling_price = p.selling_price;
         }
@@ -643,7 +663,12 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const handleTogglePricingTier = (index: number) => {
     const updated = [...cart];
     const item = updated[index];
-    if (!item || !item.product.wholesale_price || item.product.wholesale_price <= 0) return;
+    if (
+      !item ||
+      !item.product.wholesale_price ||
+      item.product.wholesale_price <= 0
+    )
+      return;
 
     if (item.pricing_tier === "WHOLESALE") {
       item.pricing_tier = "RETAIL";
@@ -1166,8 +1191,14 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             </span>
                             {p.wholesale_price && p.wholesale_price > 0 && (
                               <span className="text-amber-400 font-normal">
-                                · W: {formatCurrency(p.wholesale_price, currencySymbol)}
-                                {p.wholesale_min_qty ? ` (≥${p.wholesale_min_qty})` : ""}
+                                · W:{" "}
+                                {formatCurrency(
+                                  p.wholesale_price,
+                                  currencySymbol,
+                                )}
+                                {p.wholesale_min_qty
+                                  ? ` (≥${p.wholesale_min_qty})`
+                                  : ""}
                               </span>
                             )}
                             <span>·</span>
@@ -1341,17 +1372,35 @@ export const SalesView: React.FC<SalesViewProps> = ({
                       ? "text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30"
                       : "text-neutral-400 bg-neutral-800 hover:bg-neutral-700 border-neutral-700"
                   }`}
-                  title={isNepali ? "काउन्टर सिफ्ट तथा क्यास ड्रयर" : "Cash Drawer & Shift Management"}
+                  title={
+                    isNepali
+                      ? "काउन्टर सिफ्ट तथा क्यास ड्रयर"
+                      : "Cash Drawer & Shift Management"
+                  }
                 >
-                  <span className={`w-2 h-2 rounded-full ${activeShift ? "bg-emerald-400 animate-pulse" : "bg-neutral-500"}`} />
-                  <span>{activeShift ? (isNepali ? "सिफ्ट खुला" : "Till Open") : (isNepali ? "सिफ्ट बन्द" : "Open Till")}</span>
+                  <span
+                    className={`w-2 h-2 rounded-full ${activeShift ? "bg-emerald-400 animate-pulse" : "bg-neutral-500"}`}
+                  />
+                  <span>
+                    {activeShift
+                      ? isNepali
+                        ? "सिफ्ट खुला"
+                        : "Till Open"
+                      : isNepali
+                        ? "सिफ्ट बन्द"
+                        : "Open Till"}
+                  </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setIsReturnsModalOpen(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg shadow-xs transition-colors cursor-pointer"
-                  title={isNepali ? "बिक्री फिर्ता तथा क्रेडिट नोट" : "Customer Returns & Credit Note"}
+                  title={
+                    isNepali
+                      ? "बिक्री फिर्ता तथा क्रेडिट नोट"
+                      : "Customer Returns & Credit Note"
+                  }
                 >
                   <RotateCcw className="w-3.5 h-3.5 text-rose-400" />
                   <span>{isNepali ? "फिर्ता / Credit Note" : "Returns"}</span>
@@ -1435,7 +1484,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               </span>
                               {item.packaging_name && (
                                 <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-semibold">
-                                  {item.packaging_name} (×{item.package_multiplier})
+                                  {item.packaging_name} (×
+                                  {item.package_multiplier})
                                 </span>
                               )}
                             </div>
@@ -1463,7 +1513,9 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               <div className="text-[10px] text-rose-400 mt-1 flex items-center gap-1 font-semibold">
                                 <AlertTriangle className="w-3 h-3" />
                                 <span>
-                                  Exceeds available stock (Needs {baseQtyNeeded} {item.product.unit || "pcs"}, Available: {item.product.current_stock})
+                                  Exceeds available stock (Needs {baseQtyNeeded}{" "}
+                                  {item.product.unit || "pcs"}, Available:{" "}
+                                  {item.product.current_stock})
                                 </span>
                               </div>
                             )}
@@ -1471,7 +1523,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             {/* Packaging & Batch Controls */}
                             <div className="flex flex-wrap items-center gap-2 mt-1.5">
                               {/* Packaging Selection */}
-                              {packagingsByProduct[item.product.id]?.length > 0 && (
+                              {packagingsByProduct[item.product.id]?.length >
+                                0 && (
                                 <div className="flex items-center gap-1">
                                   <span className="text-[10px] text-neutral-400 font-medium">
                                     {isNepali ? "एकाइ:" : "Unit:"}
@@ -1489,17 +1542,20 @@ export const SalesView: React.FC<SalesViewProps> = ({
                                     <option value="">
                                       Base ({item.product.unit || "pcs"})
                                     </option>
-                                    {packagingsByProduct[item.product.id].map((pkg) => (
-                                      <option key={pkg.id} value={pkg.id}>
-                                        {pkg.package_name} (×{pkg.multiplier})
-                                      </option>
-                                    ))}
+                                    {packagingsByProduct[item.product.id].map(
+                                      (pkg) => (
+                                        <option key={pkg.id} value={pkg.id}>
+                                          {pkg.package_name} (×{pkg.multiplier})
+                                        </option>
+                                      ),
+                                    )}
                                   </select>
                                 </div>
                               )}
 
                               {/* Batch Selection / FEFO Indicator */}
-                              {batchesByProduct[item.product.id]?.length > 0 && (
+                              {batchesByProduct[item.product.id]?.length >
+                                0 && (
                                 <div className="flex items-center gap-1">
                                   <span className="text-[10px] text-neutral-400 font-medium">
                                     {isNepali ? "ब्याच:" : "Batch:"}
@@ -1515,13 +1571,21 @@ export const SalesView: React.FC<SalesViewProps> = ({
                                     className="bg-neutral-900 border border-neutral-700/80 rounded px-1.5 py-0.5 text-[10px] text-amber-300 font-mono focus:outline-none focus:border-amber-500"
                                   >
                                     <option value="">
-                                      Auto FEFO ({batchesByProduct[item.product.id][0].batch_number})
+                                      Auto FEFO (
+                                      {
+                                        batchesByProduct[item.product.id][0]
+                                          .batch_number
+                                      }
+                                      )
                                     </option>
-                                    {batchesByProduct[item.product.id].map((b) => (
-                                      <option key={b.id} value={b.id}>
-                                        {b.batch_number} (Exp: {b.expiry_date}, Stk: {b.quantity})
-                                      </option>
-                                    ))}
+                                    {batchesByProduct[item.product.id].map(
+                                      (b) => (
+                                        <option key={b.id} value={b.id}>
+                                          {b.batch_number} (Exp: {b.expiry_date}
+                                          , Stk: {b.quantity})
+                                        </option>
+                                      ),
+                                    )}
                                   </select>
                                 </div>
                               )}
@@ -1596,26 +1660,27 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               containerClassName="w-24 ml-auto"
                               className="px-2 py-1 text-xs text-right font-mono text-neutral-100"
                             />
-                            {item.product.wholesale_price && item.product.wholesale_price > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => handleTogglePricingTier(index)}
-                                className={`mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono cursor-pointer transition-colors ${
-                                  item.pricing_tier === "WHOLESALE"
-                                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold"
-                                    : "bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-700/60"
-                                }`}
-                                title="Click to toggle Retail / Wholesale rate"
-                              >
-                                {item.pricing_tier === "WHOLESALE"
-                                  ? isNepali
-                                    ? "थोक"
-                                    : "Wholesale"
-                                  : isNepali
-                                    ? "खुदरा"
-                                    : "Retail"}
-                              </button>
-                            )}
+                            {item.product.wholesale_price &&
+                              item.product.wholesale_price > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleTogglePricingTier(index)}
+                                  className={`mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono cursor-pointer transition-colors ${
+                                    item.pricing_tier === "WHOLESALE"
+                                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold"
+                                      : "bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-700/60"
+                                  }`}
+                                  title="Click to toggle Retail / Wholesale rate"
+                                >
+                                  {item.pricing_tier === "WHOLESALE"
+                                    ? isNepali
+                                      ? "थोक"
+                                      : "Wholesale"
+                                    : isNepali
+                                      ? "खुदरा"
+                                      : "Retail"}
+                                </button>
+                              )}
                           </td>
 
                           {/* Line Total */}
@@ -1960,9 +2025,17 @@ export const SalesView: React.FC<SalesViewProps> = ({
                       <div className="flex items-center gap-1 flex-wrap">
                         {[
                           { id: "Cash", labelEn: "Cash", labelNp: "नगद" },
-                          { id: "Online", labelEn: "Online/QR", labelNp: "अनलाइन" },
+                          {
+                            id: "Online",
+                            labelEn: "Online/QR",
+                            labelNp: "अनलाइन",
+                          },
                           { id: "Cheque", labelEn: "Cheque", labelNp: "चेक" },
-                          { id: "Bank Transfer", labelEn: "Bank", labelNp: "बैंक" },
+                          {
+                            id: "Bank Transfer",
+                            labelEn: "Bank",
+                            labelNp: "बैंक",
+                          },
                         ].map((m) => (
                           <button
                             key={m.id}

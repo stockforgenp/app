@@ -35,6 +35,7 @@ import { formatCurrency, toMinorUnits, fromMinorUnits, formatDateTime } from '..
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
 import { getAllStaff } from '../../lib/services/staffService.ts';
+import { Select } from './Select.tsx';
 
 export interface ShiftManagementModalProps {
   isOpen: boolean;
@@ -277,21 +278,22 @@ export const ShiftManagementModal: React.FC<ShiftManagementModalProps> = ({
 
                       {staffList.length > 0 && (
                         <div>
-                          <label className="block text-xs font-medium text-neutral-300 mb-1">
-                            {isNepali ? 'कर्मचारी छान्नुहोस् (ऐच्छिक)' : 'Linked Staff Member (Optional)'}
-                          </label>
-                          <select
+                          <Select
+                            label={isNepali ? 'कर्मचारी छान्नुहोस् (ऐच्छिक)' : 'Linked Staff Member (Optional)'}
                             value={selectedStaffId}
                             onChange={(e) => setSelectedStaffId(e.target.value ? Number(e.target.value) : '')}
-                            className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 focus:outline-none focus:border-emerald-500"
-                          >
-                            <option value="">-- {isNepali ? 'कर्मचारी' : 'Staff Profile'} --</option>
-                            {staffList.map((s) => (
-                              <option key={s.id} value={s.id}>
-                                {s.name}
-                              </option>
-                            ))}
-                          </select>
+                            placeholder={`-- ${isNepali ? 'कर्मचारी' : 'Staff Profile'} --`}
+                            searchable={true}
+                            portal={true}
+                            sizeVariant="sm"
+                            options={[
+                              { value: '', label: `-- ${isNepali ? 'कर्मचारी' : 'Staff Profile'} --` },
+                              ...staffList.map((s) => ({
+                                value: s.id,
+                                label: s.name,
+                              })),
+                            ]}
+                          />
                         </div>
                       )}
 
