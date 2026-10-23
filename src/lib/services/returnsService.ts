@@ -164,7 +164,7 @@ export function processSaleReturn(input: ProcessSaleReturnInput): {
 
         run(
           `INSERT INTO stock_movements (
-            product_id, type, quantity, reason, created_at
+            product_id, type, quantity, note, created_at
           ) VALUES (?, ?, ?, ?, ?)`,
           [
             prod.id,
@@ -341,7 +341,7 @@ export function processPurchaseReturn(input: ProcessPurchaseReturnInput): {
 
       run(
         `INSERT INTO stock_movements (
-          product_id, type, quantity, reason, created_at
+          product_id, type, quantity, note, created_at
         ) VALUES (?, ?, ?, ?, ?)`,
         [
           prod.id,

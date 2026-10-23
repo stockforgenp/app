@@ -58,7 +58,9 @@ export const CONTACT_INFO: ContactInfo = {
     defaultMessageEn: WHATSAPP_DEFAULT_MSG_EN,
     defaultMessageNp: WHATSAPP_DEFAULT_MSG_NP,
     getUrl: (customMessage?: string, isNepali = false): string => {
-      const defaultMsg = isNepali ? WHATSAPP_DEFAULT_MSG_NP : WHATSAPP_DEFAULT_MSG_EN;
+      const defaultMsg = isNepali
+        ? WHATSAPP_DEFAULT_MSG_NP
+        : WHATSAPP_DEFAULT_MSG_EN;
       const text = encodeURIComponent(customMessage || defaultMsg);
       return `https://wa.me/${WHATSAPP_RAW_NUMBER}?text=${text}`;
     },
@@ -82,4 +84,3 @@ export const CONTACT_INFO: ContactInfo = {
 };
 
 export default CONTACT_INFO;
-

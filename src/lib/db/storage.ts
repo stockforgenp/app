@@ -25,6 +25,9 @@ function openStorageDB(): Promise<IDBDatabase> {
 }
 
 export async function saveDatabaseToStorage(data: Uint8Array): Promise<void> {
+  if (typeof indexedDB === 'undefined') {
+    return;
+  }
   try {
     const db = await openStorageDB();
     return new Promise((resolve, reject) => {
@@ -41,6 +44,9 @@ export async function saveDatabaseToStorage(data: Uint8Array): Promise<void> {
 }
 
 export async function loadDatabaseFromStorage(): Promise<Uint8Array | null> {
+  if (typeof indexedDB === 'undefined') {
+    return null;
+  }
   try {
     const db = await openStorageDB();
     return new Promise((resolve, reject) => {
@@ -69,6 +75,9 @@ export async function loadDatabaseFromStorage(): Promise<Uint8Array | null> {
 }
 
 export async function clearDatabaseStorage(): Promise<void> {
+  if (typeof indexedDB === 'undefined') {
+    return;
+  }
   try {
     const db = await openStorageDB();
     return new Promise((resolve, reject) => {

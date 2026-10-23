@@ -3,11 +3,18 @@
  * Enforces light theme as default while offering seamless toggle between light and dark modes.
  * Persists user preference across browser sessions and SQLite settings.
  */
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { saveThemeSetting } from '../lib/services/settingsService.ts';
-import { STORAGE_KEYS } from '../constants/index.ts';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
+import { saveThemeSetting } from "../lib/services/settingsService.ts";
+import { STORAGE_KEYS } from "../constants/index.ts";
 
-export type AppTheme = 'light' | 'dark';
+export type AppTheme = "light" | "dark";
 
 interface ThemeContextType {
   theme: AppTheme;
@@ -25,26 +32,26 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Default to 'light' per user specification
     try {
       const stored = localStorage.getItem(THEME_STORAGE_KEY);
-      if (stored === 'dark' || stored === 'light') {
+      if (stored === "dark" || stored === "light") {
         return stored;
       }
     } catch {
       // Ignore storage errors
     }
-    return 'light';
+    return "light";
   });
 
   const applyThemeToDOM = useCallback((newTheme: AppTheme) => {
     const root = document.documentElement;
-    root.setAttribute('data-theme', newTheme);
-    if (newTheme === 'dark') {
-      root.classList.add('dark');
-      root.classList.remove('light');
-      root.style.colorScheme = 'dark';
+    root.setAttribute("data-theme", newTheme);
+    if (newTheme === "dark") {
+      root.classList.add("dark");
+      root.classList.remove("light");
+      root.style.colorScheme = "dark";
     } else {
-      root.classList.remove('dark');
-      root.classList.add('light');
-      root.style.colorScheme = 'light';
+      root.classList.remove("dark");
+      root.classList.add("light");
+      root.style.colorScheme = "light";
     }
   }, []);
 
@@ -60,11 +67,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         // Safe catch if db not initialized yet
       }
     },
-    [applyThemeToDOM]
+    [applyThemeToDOM],
   );
 
   const toggleTheme = useCallback(() => {
-    setTheme(theme === 'light' ? 'dark' : 'light');
+    setTheme(theme === "light" ? "dark" : "light");
   }, [theme, setTheme]);
 
   // Apply on initial mount
@@ -78,7 +85,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         theme,
         setTheme,
         toggleTheme,
-        isDark: theme === 'dark',
+        isDark: theme === "dark",
       }}
     >
       {children}
@@ -89,7 +96,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 export function useTheme(): ThemeContextType {
   const context = useContext(ThemeContext);
   if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    throw new Error("useTheme must be used within a ThemeProvider");
   }
   return context;
 }

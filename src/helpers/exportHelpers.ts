@@ -8,13 +8,13 @@
 export function downloadFile(
   content: string | Uint8Array,
   filename: string,
-  mimeType: string = 'text/plain;charset=utf-8;'
+  mimeType: string = "text/plain;charset=utf-8;",
 ): void {
   const blob = new Blob([content as BlobPart], { type: mimeType });
   const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
+  const link = document.createElement("a");
   link.href = url;
-  link.setAttribute('download', filename);
+  link.setAttribute("download", filename);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -27,7 +27,7 @@ export function downloadFile(
 export function exportToCSV<T extends Record<string, unknown>>(
   data: T[],
   filename: string,
-  columns?: { key: keyof T; header: string }[]
+  columns?: { key: keyof T; header: string }[],
 ): void {
   if (data.length === 0) return;
 
@@ -44,13 +44,17 @@ export function exportToCSV<T extends Record<string, unknown>>(
     return `"${str}"`;
   };
 
-  const headerRow = cols.map((c) => escapeCSV(c.header)).join(',');
+  const headerRow = cols.map((c) => escapeCSV(c.header)).join(",");
   const dataRows = data.map((item) =>
-    cols.map((c) => escapeCSV(item[c.key])).join(',')
+    cols.map((c) => escapeCSV(item[c.key])).join(","),
   );
 
-  const csvContent = [headerRow, ...dataRows].join('\n');
-  downloadFile(csvContent, filename.endsWith('.csv') ? filename : `${filename}.csv`, 'text/csv;charset=utf-8;');
+  const csvContent = [headerRow, ...dataRows].join("\n");
+  downloadFile(
+    csvContent,
+    filename.endsWith(".csv") ? filename : `${filename}.csv`,
+    "text/csv;charset=utf-8;",
+  );
 }
 
 /**
@@ -58,5 +62,9 @@ export function exportToCSV<T extends Record<string, unknown>>(
  */
 export function exportToJSON(data: unknown, filename: string): void {
   const jsonContent = JSON.stringify(data, null, 2);
-  downloadFile(jsonContent, filename.endsWith('.json') ? filename : `${filename}.json`, 'application/json;charset=utf-8;');
+  downloadFile(
+    jsonContent,
+    filename.endsWith(".json") ? filename : `${filename}.json`,
+    "application/json;charset=utf-8;",
+  );
 }

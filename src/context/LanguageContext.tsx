@@ -3,7 +3,14 @@
  * Provides seamless English (en) <-> Nepali (np) language conversion
  * Persists selection to localStorage and SQLite app_settings
  */
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
 import {
   SupportedLanguage,
   TRANSLATIONS,
@@ -11,11 +18,11 @@ import {
   BilingualPair,
   setI18nLanguage,
   interpolateParams,
-} from '../lib/i18n/translations.ts';
+} from "../lib/i18n/translations.ts";
 import {
   getSavedLanguage,
   syncLanguageAndCurrency,
-} from '../lib/services/settingsService.ts';
+} from "../lib/services/settingsService.ts";
 
 interface LanguageContextType {
   language: SupportedLanguage;
@@ -25,39 +32,41 @@ interface LanguageContextType {
   t: (
     keyOrPair: string | BilingualPair,
     fallbackOrNepaliOrParams?: string | Record<string, string | number>,
-    params?: Record<string, string | number>
+    params?: Record<string, string | number>,
   ) => string;
   tr: (enText: string, npText: string) => string;
   formatNumberByLang: (val: number | string) => string;
   isNepali: boolean;
 }
 
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+const LanguageContext = createContext<LanguageContextType | undefined>(
+  undefined,
+);
 
-const LANGUAGE_STORAGE_KEY = 'stockforge_language';
+const LANGUAGE_STORAGE_KEY = "stockforge_language";
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<SupportedLanguage>(() => {
     try {
       const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-      if (stored === 'en' || stored === 'np') {
+      if (stored === "en" || stored === "np") {
         return stored;
       }
     } catch {
       // Ignore localStorage errors
     }
-    return 'en';
+    return "en";
   });
 
   useEffect(() => {
-    document.documentElement.lang = language === 'np' ? 'ne' : 'en';
+    document.documentElement.lang = language === "np" ? "ne" : "en";
   }, [language]);
 
   // Sync with SQLite on initial mount once DB is available
   useEffect(() => {
     try {
       const savedLang = getSavedLanguage();
-      if (savedLang === 'en' || savedLang === 'np') {
+      if (savedLang === "en" || savedLang === "np") {
         setLanguageState(savedLang);
         setI18nLanguage(savedLang);
         localStorage.setItem(LANGUAGE_STORAGE_KEY, savedLang);
@@ -80,25 +89,25 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleLanguage = useCallback(() => {
-    setLanguage(language === 'en' ? 'np' : 'en');
+    setLanguage(language === "en" ? "np" : "en");
   }, [language, setLanguage]);
 
   const t = useCallback(
     (
       keyOrPair: string | BilingualPair,
       fallbackOrNepaliOrParams?: string | Record<string, string | number>,
-      params?: Record<string, string | number>
+      params?: Record<string, string | number>,
     ): string => {
       // 1. Bilingual object { en: '...', np: '...' }
       if (
-        typeof keyOrPair === 'object' &&
+        typeof keyOrPair === "object" &&
         keyOrPair !== null &&
-        'en' in keyOrPair &&
-        'np' in keyOrPair
+        "en" in keyOrPair &&
+        "np" in keyOrPair
       ) {
-        const raw = language === 'np' ? keyOrPair.np : keyOrPair.en;
+        const raw = language === "np" ? keyOrPair.np : keyOrPair.en;
         const interParams =
-          typeof fallbackOrNepaliOrParams === 'object'
+          typeof fallbackOrNepaliOrParams === "object"
             ? fallbackOrNepaliOrParams
             : params;
         return interpolateParams(raw, interParams, language);
@@ -108,12 +117,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
       // 2. Inline string pair: t('English', 'नेपाली')
       if (
-        typeof fallbackOrNepaliOrParams === 'string' &&
+        typeof fallbackOrNepaliOrParams === "string" &&
         !TRANSLATIONS.en[key] &&
         !TRANSLATIONS.np[key] &&
         /[\u0900-\u097F]/.test(fallbackOrNepaliOrParams)
       ) {
-        const chosen = language === 'np' ? fallbackOrNepaliOrParams : key;
+        const chosen = language === "np" ? fallbackOrNepaliOrParams : key;
         return interpolateParams(chosen, params, language);
       }
 
@@ -121,12 +130,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       let fallback = key;
       let interParams: Record<string, string | number> | undefined;
 
-      if (typeof fallbackOrNepaliOrParams === 'string') {
+      if (typeof fallbackOrNepaliOrParams === "string") {
         fallback = fallbackOrNepaliOrParams;
         interParams = params;
       } else if (
         fallbackOrNepaliOrParams &&
-        typeof fallbackOrNepaliOrParams === 'object'
+        typeof fallbackOrNepaliOrParams === "object"
       ) {
         interParams = fallbackOrNepaliOrParams;
       }
@@ -136,37 +145,37 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
       return interpolateParams(rawText, interParams, language);
     },
-    [language]
+    [language],
   );
 
   const trHook = useCallback(
     (enText: string, npText: string): string => {
-      return language === 'np' ? npText : enText;
+      return language === "np" ? npText : enText;
     },
-    [language]
+    [language],
   );
 
   const formatNumberByLang = useCallback(
     (val: number | string): string => {
-      if (language === 'np') {
+      if (language === "np") {
         return toNepaliDigits(val);
       }
       return String(val);
     },
-    [language]
+    [language],
   );
 
   return (
     <LanguageContext.Provider
       value={{
         language,
-        currencySymbol: language === 'np' ? 'रु.' : 'Rs.',
+        currencySymbol: language === "np" ? "रु." : "Rs.",
         setLanguage,
         toggleLanguage,
         t,
         tr: trHook,
         formatNumberByLang,
-        isNepali: language === 'np',
+        isNepali: language === "np",
       }}
     >
       {children}
@@ -177,7 +186,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 export function useLanguage(): LanguageContextType {
   const context = useContext(LanguageContext);
   if (!context) {
-    throw new Error('useLanguage must be used within a LanguageProvider');
+    throw new Error("useLanguage must be used within a LanguageProvider");
   }
   return context;
 }

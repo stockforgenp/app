@@ -114,7 +114,7 @@ export function createStockWriteOff(input: CreateWriteOffInput): StockWriteOff {
     // 4. Record stock movement
     run(
       `INSERT INTO stock_movements (
-        product_id, type, quantity, reason, created_at
+        product_id, type, quantity, note, created_at
       ) VALUES (?, ?, ?, ?, ?)`,
       [
         prod.id,

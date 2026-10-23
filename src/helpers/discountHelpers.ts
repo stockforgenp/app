@@ -16,13 +16,13 @@ export interface DistributedDiscountResult {
 }
 
 export function calculateDiscountAmount(
-  type: 'FIXED' | 'PERCENT',
+  type: "FIXED" | "PERCENT",
   value: number,
-  baseSubtotalMinor: number
+  baseSubtotalMinor: number,
 ): number {
   if (value <= 0 || baseSubtotalMinor <= 0) return 0;
 
-  if (type === 'PERCENT') {
+  if (type === "PERCENT") {
     const cappedPercent = Math.min(100, Math.max(0, value));
     return Math.round((baseSubtotalMinor * cappedPercent) / 100);
   }
@@ -31,7 +31,10 @@ export function calculateDiscountAmount(
   return Math.min(baseSubtotalMinor, Math.max(0, Math.round(value)));
 }
 
-export function validateDiscount(discountMinor: number, subtotalMinor: number): number {
+export function validateDiscount(
+  discountMinor: number,
+  subtotalMinor: number,
+): number {
   if (discountMinor < 0) return 0;
   if (discountMinor > subtotalMinor) return subtotalMinor;
   return discountMinor;
@@ -43,12 +46,15 @@ export function validateDiscount(discountMinor: number, subtotalMinor: number): 
  */
 export function calculateProportionalDiscounts(
   items: ItemForDiscount[],
-  wholeDiscountMinor: number
+  wholeDiscountMinor: number,
 ): DistributedDiscountResult[] {
   if (items.length === 0) return [];
 
   const wholeDisc = Math.max(0, Math.floor(wholeDiscountMinor));
-  const totalGross = items.reduce((sum, item) => sum + Math.max(0, item.gross), 0);
+  const totalGross = items.reduce(
+    (sum, item) => sum + Math.max(0, item.gross),
+    0,
+  );
 
   if (wholeDisc === 0 || totalGross === 0) {
     return items.map((item) => {
