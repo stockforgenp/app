@@ -851,5 +851,84 @@ export function returnSale(saleId: number): {
  */
 export const deleteSale = returnSale;
 
+/**
+ * Permanently deletes a sale record and cascades inventory & ledger reversals:
+ * 1. Restores physical inventory and batch lots (if sale status !== 'RETURNED').
+ * 2. Deletes associated stock movement records for this sale.
+ * 3. Deletes any customer payments or sale returns referencing this sale.
+ * 4. Permanently deletes the sale row (sale_items cascade automatically).
+ */
+export function hardDeleteSale(saleId: number): {
+  id: number;
+  billNumber: string | null;
+  restoredItemCount: number;
+} {
+  const existing = getSaleWithItems(saleId);
+  if (!existing) {
+    throw new Error(`Sale with ID ${saleId} was not found`);
+  }
+
+  const now = new Date().toISOString();
+
+  return transaction(() => {
+    let restoredItemCount = 0;
+
+    // 1. If the sale was NOT already returned, restore physical inventory and batches
+    if (existing.sale.status !== 'RETURNED') {
+      for (const item of existing.items) {
+        const mult = item.package_multiplier || 1;
+        const baseQty = item.quantity * mult;
+
+        run(
+          `UPDATE products 
+           SET current_stock = current_stock + ?, 
+               updated_at = ? 
+           WHERE id = ?`,
+          [baseQty, now, item.product_id]
+        );
+
+        if (item.batch_id) {
+          run(
+            `UPDATE product_batches 
+             SET quantity = quantity + ?, 
+                 updated_at = ? 
+             WHERE id = ?`,
+            [baseQty, now, item.batch_id]
+          );
+        }
+
+        restoredItemCount++;
+      }
+    }
+
+    // 2. Remove stock movement logs created by this sale or its returns
+    run(
+      `DELETE FROM stock_movements WHERE reference_id = ? AND type IN ('SALE', 'RETURN')`,
+      [saleId]
+    );
+
+    // 3. Remove any customer payments specifically allocated to this sale
+    run(`DELETE FROM customer_payments WHERE sale_id = ?`, [saleId]);
+
+    // 4. Remove any returns linked to this sale
+    const returnRows = query<{ id: number }>(`SELECT id FROM sale_returns WHERE sale_id = ?`, [saleId]);
+    for (const r of returnRows) {
+      run(`DELETE FROM sale_return_items WHERE return_id = ?`, [r.id]);
+      run(`DELETE FROM sale_returns WHERE id = ?`, [r.id]);
+    }
+
+    // 5. Permanently delete the sale record and its line items
+    run(`DELETE FROM sale_items WHERE sale_id = ?`, [saleId]);
+    run(`DELETE FROM sales WHERE id = ?`, [saleId]);
+
+    return {
+      id: saleId,
+      billNumber: existing.sale.bill_number ?? null,
+      restoredItemCount,
+    };
+  });
+}
+
+
 
 

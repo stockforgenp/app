@@ -15,6 +15,7 @@ export interface PurchaseHistoryColumnsOptions {
   onEditPurchase?: (purchase: Purchase) => void;
   onDeletePurchase?: (purchaseId: number) => void;
   onReturnPurchase?: (purchaseId: number) => void;
+  onHardDeletePurchase?: (purchaseId: number) => void;
   onCopyBillNumber?: (billNumber: string) => void;
 }
 
@@ -32,6 +33,7 @@ export function getPurchaseHistoryColumns(
     onEditPurchase,
     onDeletePurchase,
     onReturnPurchase,
+    onHardDeletePurchase,
     onCopyBillNumber,
   } = options;
 
@@ -268,6 +270,15 @@ export function getPurchaseHistoryColumns(
                     color: 'rose',
                     divider: true,
                     action: () => handleReturn(row.id),
+                  }
+                : null,
+              onHardDeletePurchase
+                ? {
+                    label: isNepali ? 'स्थायी मेटाउनुहोस्' : 'Delete Permanently',
+                    icon: Trash2,
+                    color: 'rose',
+                    divider: !handleReturn || isReturned,
+                    action: () => onHardDeletePurchase(row.id),
                   }
                 : null,
             ]}

@@ -20,6 +20,7 @@ import {
   getPurchases,
   getPurchaseWithItems,
   deletePurchase,
+  hardDeletePurchase,
 } from "../lib/services/purchaseService.ts";
 import { PrintPurchaseBillModal } from "../components/common/PrintPurchaseBillModal.tsx";
 import { PrintPurchaseHistoryModal } from "../components/common/PrintPurchaseHistoryModal.tsx";
@@ -62,6 +63,9 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
   } | null>(null);
   const [editPurchaseId, setEditPurchaseId] = useState<number | null>(null);
   const [returningPurchaseId, setReturningPurchaseId] = useState<number | null>(
+    null,
+  );
+  const [deletingPurchaseId, setDeletingPurchaseId] = useState<number | null>(
     null,
   );
   const [printPurchaseId, setPrintPurchaseId] = useState<number | null>(null);
@@ -143,6 +147,9 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
         },
         onDeletePurchase: (purchaseId) => {
           setReturningPurchaseId(purchaseId);
+        },
+        onHardDeletePurchase: (purchaseId) => {
+          setDeletingPurchaseId(purchaseId);
         },
         onCopyBillNumber: (billNumber) => {
           navigator.clipboard.writeText(billNumber);
@@ -654,6 +661,44 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
             : "Are you sure you want to return this purchase? The record will remain in history marked as 'Returned', inflowed quantities will be deducted from inventory, and it will be excluded from spend and dues."
         }
         confirmText={isNepali ? "फिर्ता गर्नुहोस्" : "Return Purchase"}
+        cancelText={isNepali ? "रद्द" : "Cancel"}
+        isDestructive={true}
+      />
+
+      {/* Confirm Permanent Delete Purchase Dialog */}
+      <ConfirmDialog
+        isOpen={deletingPurchaseId !== null}
+        onClose={() => setDeletingPurchaseId(null)}
+        onConfirm={() => {
+          if (!deletingPurchaseId) return;
+          try {
+            const res = hardDeletePurchase(deletingPurchaseId);
+            showToast(
+              isNepali
+                ? `खरिद #${res.billNumber || deletingPurchaseId} स्थायी रूपमा मेटाइयो र मौज्दात समायोजन गरियो!`
+                : `Purchase #${res.billNumber || deletingPurchaseId} permanently deleted and inventory adjusted!`,
+              "success",
+            );
+            if (inspectPurchaseDetail?.purchase.id === deletingPurchaseId) {
+              setInspectPurchaseDetail(null);
+            }
+            setDeletingPurchaseId(null);
+            loadHistory();
+          } catch (err: unknown) {
+            showToast((err as Error).message, "error");
+          }
+        }}
+        title={
+          isNepali
+            ? "खरिद स्थायी रूपमा मेटाउने पुष्टि"
+            : "Confirm Permanent Purchase Delete"
+        }
+        message={
+          isNepali
+            ? "चेतावनी: के तपाईं यो खरिद रेकर्ड स्थायी रूपमा मेटाउन निश्चित हुनुहुन्छ? यो कार्य फिर्ता गर्न सकिँदैन र सम्बन्धित सामानको मौज्दात गोदामबाट घटाइनेछ।"
+            : "Warning: Are you sure you want to permanently delete this purchase record? This action cannot be undone, and inflowed quantities will be deducted from inventory."
+        }
+        confirmText={isNepali ? "स्थायी मेटाउनुहोस्" : "Delete Permanently"}
         cancelText={isNepali ? "रद्द" : "Cancel"}
         isDestructive={true}
       />

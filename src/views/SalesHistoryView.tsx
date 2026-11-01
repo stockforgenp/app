@@ -12,6 +12,7 @@ import {
   getSales,
   getSaleWithItems,
   deleteSale,
+  hardDeleteSale,
 } from "../lib/services/salesService.ts";
 import {
   formatCurrency,
@@ -56,6 +57,9 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
 
   // Return sale confirm state
   const [returningSaleId, setReturningSaleId] = useState<number | null>(null);
+
+  // Hard delete sale confirm state
+  const [deletingSaleId, setDeletingSaleId] = useState<number | null>(null);
 
   // Bill print modal state
   const [printBillSaleId, setPrintBillSaleId] = useState<number | null>(null);
@@ -114,6 +118,9 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
         },
         onDeleteSale: (saleId) => {
           setReturningSaleId(saleId);
+        },
+        onHardDeleteSale: (saleId) => {
+          setDeletingSaleId(saleId);
         },
         onCopySaleId: (saleId) => {
           navigator.clipboard.writeText(`#${saleId}`);
@@ -648,6 +655,51 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
         }
         confirmText={
           isNepali ? "फिर्ता गर्नुहोस्" : t("hist_return_sale", "Return Sale")
+        }
+        cancelText={isNepali ? "रद्द" : "Cancel"}
+        isDestructive={true}
+      />
+
+      {/* Confirm Permanent Delete Sale Dialog */}
+      <ConfirmDialog
+        isOpen={deletingSaleId !== null}
+        onClose={() => setDeletingSaleId(null)}
+        onConfirm={() => {
+          if (!deletingSaleId) return;
+          try {
+            const res = hardDeleteSale(deletingSaleId);
+            showToast(
+              isNepali
+                ? `बिक्री #${res.billNumber || deletingSaleId} स्थायी रूपमा मेटाइयो र मौज्दात पुनर्स्थापना गरियो!`
+                : `Sale #${res.billNumber || deletingSaleId} permanently deleted and inventory restored!`,
+              "success",
+            );
+            if (selectedSaleDetail?.sale.id === deletingSaleId) {
+              setSelectedSaleDetail(null);
+            }
+            setDeletingSaleId(null);
+            loadSales();
+          } catch (err: unknown) {
+            showToast((err as Error).message, "error");
+          }
+        }}
+        title={
+          isNepali
+            ? "बिक्री स्थायी रूपमा मेटाउने पुष्टि"
+            : t("hist_delete_sale_confirm_title", "Confirm Permanent Delete")
+        }
+        message={
+          isNepali
+            ? "चेतावनी: के तपाईं यो बिक्री रेकर्ड स्थायी रूपमा मेटाउन निश्चित हुनुहुन्छ? यो कार्य फिर्ता गर्न सकिँदैन र सम्बन्धित मौज्दात गोदाममा पुनर्स्थापना हुनेछ।"
+            : t(
+                "hist_delete_sale_confirm_msg",
+                "Warning: Are you sure you want to permanently delete this sale record? This action cannot be undone, and sold quantities will be restored back to stock.",
+              )
+        }
+        confirmText={
+          isNepali
+            ? "स्थायी मेटाउनुहोस्"
+            : t("hist_delete_sale_confirm_btn", "Delete Permanently")
         }
         cancelText={isNepali ? "रद्द" : "Cancel"}
         isDestructive={true}

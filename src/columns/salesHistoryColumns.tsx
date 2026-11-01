@@ -16,6 +16,7 @@ export interface SalesHistoryColumnsOptions {
   onEditSale?: (saleId: number) => void;
   onDeleteSale?: (saleId: number) => void;
   onReturnSale?: (saleId: number) => void;
+  onHardDeleteSale?: (saleId: number) => void;
   onInspect?: (sale: Sale) => void;
   onPrint?: (sale: Sale) => void;
 }
@@ -32,6 +33,7 @@ export function getSalesHistoryColumns(
     onEditSale,
     onDeleteSale,
     onReturnSale,
+    onHardDeleteSale,
     onInspect,
     onPrint,
   } = options;
@@ -285,6 +287,15 @@ export function getSalesHistoryColumns(
                       color: 'rose',
                       divider: true,
                       action: () => handleReturn(s.id),
+                    }
+                  : null,
+                onHardDeleteSale
+                  ? {
+                      label: t('hist_hard_delete_sale', 'Delete Permanently (स्थायी मेटाउनुहोस्)'),
+                      icon: Trash2,
+                      color: 'rose',
+                      divider: !handleReturn || isReturned,
+                      action: () => onHardDeleteSale(s.id),
                     }
                   : null,
               ]}

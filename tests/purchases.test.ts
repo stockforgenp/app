@@ -28,6 +28,7 @@ const {
   getPurchasesCount,
   updatePurchase,
   returnPurchase,
+  hardDeletePurchase,
 } = await import("../src/lib/services/purchaseService.ts");
 
 const { createProduct, getProductById } =
@@ -42,7 +43,7 @@ const { createPackaging } =
 const { getBatchesForFEFO } =
   await import("../src/lib/services/batchService.ts");
 
-const { findOrCreateVendor, getVendorTotalDue } =
+const { findOrCreateVendor, getVendorTotalDue, recordVendorPayment } =
   await import("../src/lib/services/vendorService.ts");
 
 const { processPurchaseReturn } =
@@ -676,5 +677,88 @@ describe("Feature 4: Purchases & Restocking", () => {
 
     // Stock for p1 is fully reversed back to 10
     assert.equal(getProductById(p1.id)?.current_stock, 10);
+  });
+
+  test("14. hardDeletePurchase permanently removes purchase, cascades items, deducts inventory, and cleans movements and vendor payments", () => {
+    const product = createProduct({
+      name: "Purchase Delete Test Item",
+      cost_price: 1500,
+      selling_price: 2500,
+      current_stock: 10,
+    });
+
+    const vendor = findOrCreateVendor({
+      name: "Vendor For Deletion",
+      phone: "9811111111",
+    });
+    assert.ok(vendor);
+
+    // Make purchase of 20 items (Total: Rs 30,000, Paid: Rs 20,000, Due: Rs 10,000)
+    const purchase = processPurchase(
+      [
+        makeItem({
+          productId: product.id,
+          quantity: 20,
+          costPrice: 1500,
+          batchNumber: "PUR-DEL-BATCH",
+          expiryDate: "2028-01-01",
+        }),
+      ],
+      {
+        vendorId: vendor.id,
+        paidAmount: 20000,
+        paymentMethod: "Cash",
+        applyVat: false,
+      }
+    );
+
+    // Initial assertions: stock increased from 10 to 30
+    assert.equal(getProductById(product.id)?.current_stock, 30);
+
+    // Stock movements exist
+    const movementsBefore = query("SELECT * FROM stock_movements WHERE reference_id = ?", [purchase.id]);
+    assert.ok(movementsBefore.length > 0);
+
+    // Record vendor payment against this purchase
+    recordVendorPayment({
+      vendorId: vendor.id,
+      amount: 5000,
+      paymentMethod: "Cash",
+      purchaseId: purchase.id,
+    });
+
+    const paymentsBefore = query("SELECT * FROM vendor_payments WHERE purchase_id = ?", [purchase.id]);
+    assert.equal(paymentsBefore.length, 1);
+
+    // Now execute hard delete
+    const result = hardDeletePurchase(purchase.id);
+    assert.equal(result.id, purchase.id);
+    assert.equal(result.deductedItemCount, 1);
+
+    // 1. Purchase record is completely gone from purchases table
+    const dbPurchase = queryOne("SELECT * FROM purchases WHERE id = ?", [purchase.id]);
+    assert.equal(dbPurchase, null, "Purchase record must be deleted from database");
+
+    // 2. Cascade deleted purchase_items
+    const dbItems = query("SELECT * FROM purchase_items WHERE purchase_id = ?", [purchase.id]);
+    assert.equal(dbItems.length, 0, "Purchase items must be cascade deleted");
+
+    // 3. Stock deducted back to 10
+    assert.equal(getProductById(product.id)?.current_stock, 10, "Product stock must be deducted back");
+
+    // 4. Batch quantity deducted
+    const batch = queryOne<{ quantity: number }>("SELECT quantity FROM product_batches WHERE UPPER(batch_number) = ?", ["PUR-DEL-BATCH"]);
+    assert.equal(batch?.quantity, 0, "Batch quantity must be deducted back to 0");
+
+    // 5. Stock movements cleaned up
+    const movementsAfter = query("SELECT * FROM stock_movements WHERE reference_id = ?", [purchase.id]);
+    assert.equal(movementsAfter.length, 0, "Stock movements must be deleted");
+
+    // 6. Linked vendor payment deleted
+    const paymentsAfter = query("SELECT * FROM vendor_payments WHERE purchase_id = ?", [purchase.id]);
+    assert.equal(paymentsAfter.length, 0, "Vendor payment must be deleted");
+
+    // Non-existent purchase throws error
+    assert.throws(() => hardDeletePurchase(999999), /not found/i);
   });
 });

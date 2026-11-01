@@ -29,6 +29,7 @@ const {
   getSalesCount,
   updateSale,
   returnSale,
+  hardDeleteSale,
 } = await import("../src/lib/services/salesService.ts");
 
 const { createProduct, getProductById } =
@@ -43,7 +44,7 @@ const { createPackaging } =
 const { createOrAddBatch, getBatchById } =
   await import("../src/lib/services/batchService.ts");
 
-const { getCustomerTotalDue, findOrCreateCustomer } =
+const { getCustomerTotalDue, findOrCreateCustomer, recordCustomerPayment } =
   await import("../src/lib/services/customerService.ts");
 
 const { processSaleReturn } =
@@ -823,5 +824,98 @@ describe("Feature 3: Sales & Billing", () => {
 
     // Stock for p1 is fully restored back to 40
     assert.equal(getProductById(p1.id)?.current_stock, 40);
+  });
+
+  test("16. hardDeleteSale permanently removes sale, cascades sale_items, cleans movements and customer payments, and restores inventory", () => {
+    const product = createProduct({
+      name: "Permanent Delete Test Item",
+      cost_price: 2000,
+      selling_price: 3500,
+      current_stock: 50,
+    });
+
+    const batch = createOrAddBatch({
+      productId: product.id,
+      batchNumber: "LOT-DEL-01",
+      expiryDate: "2027-12-31",
+      costPrice: 2000,
+      quantity: 50,
+    });
+
+    const customer = findOrCreateCustomer({
+      name: "Customer For Deletion",
+      phone: "9800000001",
+    });
+    assert.ok(customer);
+
+    // Make sale of 10 items (Partially paid: Rs 20,000 paid, Rs 15,000 due)
+    const sale = processSale(
+      [
+        {
+          productId: product.id,
+          quantity: 10,
+          actualSellingPrice: 3500,
+          discount: 0,
+          batchId: batch.id,
+        },
+      ],
+      {
+        customerId: customer.id,
+        paidAmount: 20000,
+        paymentMethod: "Cash",
+        applyVat: false,
+      }
+    );
+
+    // Initial assertions: stock depleted from 50 to 40
+    assert.equal(getProductById(product.id)?.current_stock, 40);
+    const midBatch = queryOne<{ quantity: number }>("SELECT quantity FROM product_batches WHERE id = ?", [batch.id]);
+    assert.equal(midBatch?.quantity, 40);
+
+    // Stock movements and customer payments exist
+    const movementsBefore = query("SELECT * FROM stock_movements WHERE reference_id = ?", [sale.id]);
+    assert.ok(movementsBefore.length > 0);
+
+    // Record a subsequent customer payment against this sale
+    recordCustomerPayment({
+      customerId: customer.id,
+      amount: 5000,
+      paymentMethod: "Cash",
+      saleId: sale.id,
+    });
+
+    const paymentsBefore = query("SELECT * FROM customer_payments WHERE sale_id = ?", [sale.id]);
+    assert.equal(paymentsBefore.length, 1);
+
+    // Now execute hard delete
+    const result = hardDeleteSale(sale.id);
+    assert.equal(result.id, sale.id);
+    assert.equal(result.restoredItemCount, 1);
+
+    // 1. Sale row is completely gone from sales table
+    const dbSale = queryOne("SELECT * FROM sales WHERE id = ?", [sale.id]);
+    assert.equal(dbSale, null, "Sale record must be permanently deleted from sales table");
+
+    // 2. Cascade deleted sale_items
+    const dbItems = query("SELECT * FROM sale_items WHERE sale_id = ?", [sale.id]);
+    assert.equal(dbItems.length, 0, "Sale items must be cascade deleted");
+
+    // 3. Stock is restored in products
+    assert.equal(getProductById(product.id)?.current_stock, 50, "Product stock must be restored");
+
+    // 4. Batch quantity is restored
+    const restoredBatch = queryOne<{ quantity: number }>("SELECT quantity FROM product_batches WHERE id = ?", [batch.id]);
+    assert.equal(restoredBatch?.quantity, 50, "Batch stock must be restored");
+
+    // 5. Stock movements cleaned up
+    const movementsAfter = query("SELECT * FROM stock_movements WHERE reference_id = ?", [sale.id]);
+    assert.equal(movementsAfter.length, 0, "Stock movements must be deleted");
+
+    // 6. Linked customer payment deleted
+    const paymentsAfter = query("SELECT * FROM customer_payments WHERE sale_id = ?", [sale.id]);
+    assert.equal(paymentsAfter.length, 0, "Linked customer payments must be deleted");
+
+    // Calling hardDeleteSale on non-existent sale throws error
+    assert.throws(() => hardDeleteSale(999999), /not found/i);
   });
 });

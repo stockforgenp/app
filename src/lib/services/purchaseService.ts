@@ -898,4 +898,98 @@ export function returnPurchase(purchaseId: number): {
  */
 export const deletePurchase = returnPurchase;
 
+/**
+ * Permanently deletes a purchase record and cascades inventory & ledger reversals:
+ * 1. Checks current stock and deducts restocked inventory (if purchase status !== 'RETURNED').
+ * 2. Deducts batch lots from product_batches.
+ * 3. Deletes associated stock movement records for this purchase.
+ * 4. Deletes any vendor payments or purchase returns referencing this purchase.
+ * 5. Permanently deletes the purchase row (purchase_items cascade automatically).
+ */
+export function hardDeletePurchase(purchaseId: number): {
+  id: number;
+  billNumber: string | null;
+  deductedItemCount: number;
+} {
+  const existing = getPurchaseWithItems(purchaseId);
+  if (!existing) {
+    throw new Error(`Purchase with ID ${purchaseId} was not found`);
+  }
+
+  const settings = getSettings();
+  const now = new Date().toISOString();
+
+  return transaction(() => {
+    let deductedItemCount = 0;
+
+    // 1. If purchase was not RETURNED, deduct restocked inventory and batches
+    if (existing.purchase.status !== 'RETURNED') {
+      // Validate that stock won't go negative if disallow negative stock is enabled
+      for (const item of existing.items) {
+        const mult = item.package_multiplier || 1;
+        const baseQty = item.quantity * mult;
+        const prod = getProductById(item.product_id);
+
+        if (prod && !settings.allow_negative_stock && prod.current_stock < baseQty) {
+          throw new Error(
+            `Cannot delete purchase: "${prod.name}" has only ${prod.current_stock} in stock, but this purchase restocked ${baseQty}. Products have already been sold.`
+          );
+        }
+      }
+
+      for (const item of existing.items) {
+        const mult = item.package_multiplier || 1;
+        const baseQty = item.quantity * mult;
+
+        run(
+          `UPDATE products 
+           SET current_stock = MAX(0, current_stock - ?), 
+               updated_at = ? 
+           WHERE id = ?`,
+          [baseQty, now, item.product_id]
+        );
+
+        if (item.batch_id) {
+          run(
+            `UPDATE product_batches 
+             SET quantity = MAX(0, quantity - ?), 
+                 updated_at = ? 
+             WHERE id = ?`,
+            [baseQty, now, item.batch_id]
+          );
+        }
+
+        deductedItemCount++;
+      }
+    }
+
+    // 2. Remove stock movements for this purchase
+    run(
+      `DELETE FROM stock_movements WHERE reference_id = ? AND type IN ('PURCHASE', 'RETURN', 'RESTOCK')`,
+      [purchaseId]
+    );
+
+    // 3. Remove any vendor payments specifically linked to this purchase
+    run(`DELETE FROM vendor_payments WHERE purchase_id = ?`, [purchaseId]);
+
+    // 4. Remove any purchase returns linked to this purchase
+    const returnRows = query<{ id: number }>(`SELECT id FROM purchase_returns WHERE purchase_id = ?`, [purchaseId]);
+    for (const r of returnRows) {
+      run(`DELETE FROM purchase_return_items WHERE return_id = ?`, [r.id]);
+      run(`DELETE FROM purchase_returns WHERE id = ?`, [r.id]);
+    }
+
+    // 5. Permanently delete the purchase record and its line items
+    run(`DELETE FROM purchase_items WHERE purchase_id = ?`, [purchaseId]);
+    run(`DELETE FROM purchases WHERE id = ?`, [purchaseId]);
+
+    return {
+      id: purchaseId,
+      billNumber: existing.purchase.bill_number ?? null,
+      deductedItemCount,
+    };
+  });
+}
+
+
 
