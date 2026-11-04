@@ -19,6 +19,7 @@ import {
   Edit3,
   RotateCcw,
   Sparkles,
+  Percent,
 } from 'lucide-react';
 import { Purchase, PurchaseItem, AppSettings } from '../../types/index.ts';
 import { getPurchaseWithItems } from '../../lib/services/purchaseService.ts';
@@ -54,6 +55,8 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
   const [settings, setSettings] = useState<AppSettings>(getSettings());
   const [receiptFormat, setReceiptFormat] = useState<'thermal' | 'invoice'>('thermal');
   const [copied, setCopied] = useState(false);
+  const [includeMargin, setIncludeMargin] = useState(false);
+  const [pageMargin, setPageMargin] = useState<'standard' | 'none'>('standard');
   const [isEditingPrices, setIsEditingPrices] = useState(false);
   // Temporary rate overrides: key can be item.id or index, stores unit cost price in minor units
   const [customUnitPrices, setCustomUnitPrices] = useState<Record<string | number, number>>({});
@@ -94,6 +97,8 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
       setSettings(currentSettings);
       setIsEditingPrices(false);
       setCustomUnitPrices({});
+      setIncludeMargin(false);
+      setPageMargin('standard');
 
       if (purchaseData) {
         setDetails(purchaseData);
@@ -104,6 +109,8 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
     } else {
       setDetails(null);
       setCopied(false);
+      setIncludeMargin(false);
+      setPageMargin('standard');
       setIsEditingPrices(false);
       setCustomUnitPrices({});
     }
@@ -268,7 +275,75 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                {/* Margin Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setIncludeMargin((prev) => !prev)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border transition-colors cursor-pointer ${
+                    includeMargin
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-semibold'
+                      : 'bg-neutral-800 text-neutral-300 hover:text-white border-neutral-700'
+                  }`}
+                  title={
+                    includeMargin
+                      ? isNepali
+                        ? 'खरिद र बिक्री दर बीचको मार्जिन बिलमा छापिनेछ'
+                        : 'Markup margin between cost and selling rate included'
+                      : isNepali
+                        ? 'मार्जिन हटाइएको छ'
+                        : 'Margin excluded'
+                  }
+                >
+                  <Percent className="w-3.5 h-3.5" />
+                  <span>
+                    {isNepali
+                      ? includeMargin
+                        ? 'मार्जिन: समावेश'
+                        : 'मार्जिन: हटाइयो'
+                      : includeMargin
+                        ? 'Margin: ON'
+                        : 'Margin: OFF'}
+                  </span>
+                  {includeMargin && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 ml-0.5 animate-pulse" />
+                  )}
+                </button>
+
+                {/* Page Margin Toggle */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPageMargin((prev) =>
+                      prev === 'standard' ? 'none' : 'standard'
+                    )
+                  }
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border transition-colors cursor-pointer ${
+                    pageMargin === 'none'
+                      ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 font-semibold'
+                      : 'bg-neutral-800 text-neutral-300 hover:text-white border-neutral-700'
+                  }`}
+                  title={
+                    pageMargin === 'none'
+                      ? isNepali
+                        ? '०mm कागज मार्जिन (थर्मल प्रिन्टरका लागि)'
+                        : '0mm edge-to-edge paper margin'
+                      : isNepali
+                        ? '६mm सामान्य कागज मार्जिन'
+                        : 'Standard 6mm paper margin'
+                  }
+                >
+                  <span>
+                    {pageMargin === 'none'
+                      ? isNepali
+                        ? 'कागज: ०mm'
+                        : 'Paper: 0mm'
+                      : isNepali
+                        ? 'कागज: ६mm'
+                        : 'Paper: 6mm'}
+                  </span>
+                </button>
+
                 {/* Price Override Toggle Button */}
                 <button
                   type="button"
@@ -381,6 +456,23 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
                 }`}
                 style={{ color: '#111827' }}
               >
+                {pageMargin === 'none' && (
+                  <style>{`
+                    @media print {
+                      @page {
+                        margin: 0mm !important;
+                        size: auto;
+                      }
+                      #printable-bill,
+                      #printable-report,
+                      .printable-area {
+                        margin: 0 !important;
+                        padding: 4mm !important;
+                      }
+                    }
+                  `}</style>
+                )}
+
                 {/* Header */}
                 <div className="text-center pb-3 border-b border-dashed border-gray-300">
                   <h2 className="text-base font-bold tracking-tight text-gray-900 uppercase">
@@ -464,6 +556,9 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
                         <th className="pb-1.5 font-bold">{isNepali ? 'सामान' : 'Item'}</th>
                         <th className="pb-1.5 text-center font-bold">{isNepali ? 'परिमाण' : 'Qty'}</th>
                         <th className="pb-1.5 text-right font-bold">{isNepali ? 'खरिद दर' : 'Rate'}</th>
+                        {includeMargin && (
+                          <th className="pb-1.5 text-right font-bold text-emerald-800">{isNepali ? 'मार्जिन' : 'Margin'}</th>
+                        )}
                         <th className="pb-1.5 text-right font-bold">{isNepali ? 'जम्मा' : 'Total'}</th>
                       </tr>
                     </thead>
@@ -525,6 +620,22 @@ export const PrintPurchaseBillModal: React.FC<PrintPurchaseBillModalProps> = ({
                                 {formatCurrency(it.cost_price, currencySymbol, false)}
                               </div>
                             </td>
+                            {includeMargin && (
+                              <td className="py-1.5 px-1 text-right text-emerald-800 font-mono text-[10px] whitespace-nowrap">
+                                {it.selling_price && it.selling_price > it.cost_price ? (
+                                  <div>
+                                    <span className="font-bold">
+                                      +{formatCurrency(it.selling_price - it.cost_price, currencySymbol, false)}
+                                    </span>
+                                    <span className="text-[9px] text-gray-500 block">
+                                      ({Math.round(((it.selling_price - it.cost_price) / it.selling_price) * 100)}%)
+                                    </span>
+                                  </div>
+                                ) : (
+                                  '-'
+                                )}
+                              </td>
+                            )}
                             <td className="py-1.5 pl-1 text-right font-bold text-gray-900 whitespace-nowrap">
                               {formatCurrency(it.total, currencySymbol, false)}
                             </td>

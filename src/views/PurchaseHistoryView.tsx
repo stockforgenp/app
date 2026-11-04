@@ -4,7 +4,7 @@
  * itemized order details, and bill printing.
  */
 import React, { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Receipt,
   FileText,
@@ -14,17 +14,25 @@ import {
   Truck,
   Edit3,
   Trash2,
+  Layers,
+  Search,
+  RotateCcw,
+  CreditCard,
 } from "lucide-react";
-import { Purchase, PurchaseItem } from "../types/index.ts";
+import { Purchase, PurchaseItem, ItemizedPurchaseRow } from "../types/index.ts";
 import {
   getPurchases,
   getPurchaseWithItems,
+  getItemizedPurchases,
   deletePurchase,
   hardDeletePurchase,
 } from "../lib/services/purchaseService.ts";
 import { PrintPurchaseBillModal } from "../components/common/PrintPurchaseBillModal.tsx";
 import { PrintPurchaseHistoryModal } from "../components/common/PrintPurchaseHistoryModal.tsx";
+import { PrintItemizedLedgerModal } from "../components/common/PrintItemizedLedgerModal.tsx";
 import { EditPurchaseModal } from "../components/common/EditPurchaseModal.tsx";
+import { ItemizedDateLedger } from "../components/common/ItemizedDateLedger.tsx";
+import { DateFilterBar } from "../components/common/DateFilterBar.tsx";
 import { Modal } from "../components/common/Modal.tsx";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
@@ -48,9 +56,18 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
 }) => {
   const { showToast } = useToast();
   const { isNepali, formatNumberByLang } = useLanguage();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // View Mode: 'summary' (Bills table) vs 'itemized' (Date-wise statement/ledger)
+  const [viewMode, setViewMode] = useState<"summary" | "itemized">(() =>
+    searchParams.get("view") === "itemized" ? "itemized" : "summary",
+  );
 
   // Purchases List & Filtering State
   const [historyList, setHistoryList] = useState<Purchase[]>([]);
+  const [itemizedPurchases, setItemizedPurchases] = useState<
+    ItemizedPurchaseRow[]
+  >([]);
   const [historySearch, setHistorySearch] = useState("");
   const [historyDatePreset, setHistoryDatePreset] = useState<DatePreset>("all");
   const [historyStartDate, setHistoryStartDate] = useState("");
@@ -71,6 +88,18 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
   const [printPurchaseId, setPrintPurchaseId] = useState<number | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isPrintHistoryOpen, setIsPrintHistoryOpen] = useState(false);
+  const [isPrintItemizedOpen, setIsPrintItemizedOpen] = useState(false);
+
+  const handleViewModeChange = (mode: "summary" | "itemized") => {
+    setViewMode(mode);
+    const newParams = new URLSearchParams(searchParams);
+    if (mode === "itemized") {
+      newParams.set("view", "itemized");
+    } else {
+      newParams.delete("view");
+    }
+    setSearchParams(newParams, { replace: true });
+  };
 
   const loadHistory = () => {
     try {
@@ -81,6 +110,7 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
       if (historyEndDate) opts.endDate = `${historyEndDate}T23:59:59.999Z`;
       if (historySearch) opts.search = historySearch;
       setHistoryList(getPurchases(opts));
+      setItemizedPurchases(getItemizedPurchases(opts));
     } catch (e) {
       console.error("Error loading purchase history:", e);
     }
@@ -99,12 +129,16 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
     let totalSpend = 0;
     let vatTotal = 0;
     let totalUnitsInflow = 0;
+    let totalPaid = 0;
+    let totalDue = 0;
 
     for (const p of historyList) {
       if (p.status === "RETURNED") continue;
       totalSpend += p.grand_total || p.total;
       vatTotal += p.vat_amount || 0;
       totalUnitsInflow += p.total_units || 0;
+      totalPaid += p.paid_amount ?? p.grand_total ?? p.total ?? 0;
+      totalDue += p.due_amount || 0;
     }
 
     return {
@@ -112,6 +146,8 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
       totalSpend,
       vatTotal,
       totalUnitsInflow,
+      totalPaid,
+      totalDue,
     };
   }, [historyList]);
 
@@ -165,7 +201,7 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-150">
       {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
           <div>
             <p className="text-xs text-neutral-400 font-medium">
@@ -197,20 +233,6 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
           <div>
             <p className="text-xs text-neutral-400 font-medium">
-              {isNepali ? "खरिद भ्याट (१३% VAT)" : "Purchase Input VAT"}
-            </p>
-            <p className="text-xl font-bold font-mono text-amber-400 mt-1">
-              {formatCurrency(historyStats.vatTotal, currencySymbol)}
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
-            <FileText className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-neutral-400 font-medium">
               {isNepali ? "कुल खरिद खर्च" : "Total Purchase Spend"}
             </p>
             <p className="text-xl font-bold font-mono text-emerald-400 mt-1">
@@ -221,66 +243,227 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
             <DollarSign className="w-5 h-5" />
           </div>
         </div>
+
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-neutral-400 font-medium">
+              {isNepali ? "तिर्न बाँकी रकम (Due)" : "Outstanding Due"}
+            </p>
+            <p className="text-xl font-bold font-mono text-amber-400 mt-1">
+              {formatCurrency(historyStats.totalDue, currencySymbol)}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+            <CreditCard className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-neutral-400 font-medium">
+              {isNepali ? "खरिद भ्याट (१३% VAT)" : "Purchase Input VAT"}
+            </p>
+            <p className="text-xl font-bold font-mono text-sky-400 mt-1">
+              {formatCurrency(historyStats.vatTotal, currencySymbol)}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center">
+            <FileText className="w-5 h-5" />
+          </div>
+        </div>
       </div>
 
-      {/* Unified Shared DataTable with Search, Date Filter, Sorting, and Pagination */}
-      <DataTable<Purchase>
-        data={historyList}
-        columns={historyColumns}
-        searchQuery={historySearch}
-        onSearchChange={setHistorySearch}
-        searchPlaceholder={
-          isNepali
-            ? "खरिद बिल नं, आपूर्तिकर्ताको नाम, PAN वा सप्लायर इनभ्वाइस खोज्नुहोस्..."
-            : "Search by purchase bill #, vendor name, PAN/VAT, or supplier invoice..."
-        }
-        extraActionsSlot={
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsPrintHistoryOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
-            >
-              <Printer className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{isNepali ? "इतिहास प्रिन्ट" : "Print History"}</span>
-            </button>
-            <Link
-              to="/purchases"
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-            >
-              <Truck className="w-4 h-4" />
-              <span>
-                {isNepali
-                  ? "नयाँ खरिद दाखिला (New Purchase)"
-                  : "New Purchase Order"}
-              </span>
-            </Link>
+      {/* View Switcher & Action Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        {/* Segmented View Mode Switcher */}
+        <div className="flex items-center p-1 bg-neutral-900 border border-neutral-800 rounded-xl">
+          <button
+            type="button"
+            onClick={() => handleViewModeChange("summary")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              viewMode === "summary"
+                ? "bg-neutral-800 text-white shadow-xs"
+                : "text-neutral-400 hover:text-neutral-200"
+            }`}
+          >
+            <Receipt className="w-4 h-4 text-emerald-400" />
+            <span>{isNepali ? "बिल सारांश" : "Bills Summary"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleViewModeChange("itemized")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              viewMode === "itemized"
+                ? "bg-neutral-800 text-white shadow-xs"
+                : "text-neutral-400 hover:text-neutral-200"
+            }`}
+          >
+            <Layers className="w-4 h-4 text-sky-400" />
+            <span>
+              {isNepali
+                ? "मिति अनुसार वस्तुगत लेजर"
+                : "Itemized Ledger (Date-wise)"}
+            </span>
+          </button>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (viewMode === "itemized") {
+                setIsPrintItemizedOpen(true);
+              } else {
+                setIsPrintHistoryOpen(true);
+              }
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
+          >
+            <Printer className="w-3.5 h-3.5 text-emerald-400" />
+            <span>
+              {viewMode === "itemized"
+                ? isNepali
+                  ? "लेजर प्रिन्ट"
+                  : "Print Ledger"
+                : isNepali
+                  ? "इतिहास प्रिन्ट"
+                  : "Print History"}
+            </span>
+          </button>
+          <Link
+            to="/purchases"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          >
+            <Truck className="w-4 h-4" />
+            <span>
+              {isNepali
+                ? "नयाँ खरिद दाखिला (New Purchase)"
+                : "New Purchase Order"}
+            </span>
+          </Link>
+        </div>
+      </div>
+
+      {/* View Mode: Summary (DataTable) */}
+      {viewMode === "summary" && (
+        <DataTable<Purchase>
+          data={historyList}
+          columns={historyColumns}
+          searchQuery={historySearch}
+          onSearchChange={setHistorySearch}
+          searchPlaceholder={
+            isNepali
+              ? "खरिद बिल नं, आपूर्तिकर्ताको नाम, PAN वा सप्लायर इनभ्वाइस खोज्नुहोस्..."
+              : "Search by purchase bill #, vendor name, PAN/VAT, or supplier invoice..."
+          }
+          dateFilterConfig={{
+            preset: historyDatePreset,
+            onPresetChange: (preset, start, end) => {
+              setHistoryDatePreset(preset);
+              setHistoryStartDate(start);
+              setHistoryEndDate(end);
+            },
+            startDate: historyStartDate,
+            endDate: historyEndDate,
+            onStartDateChange: setHistoryStartDate,
+            onEndDateChange: setHistoryEndDate,
+            onClear: () => {
+              setHistoryDatePreset("all");
+              setHistoryStartDate("");
+              setHistoryEndDate("");
+              setHistorySearch("");
+            },
+          }}
+          emptyMessage={
+            isNepali
+              ? "कुनै खरिद बिल फेला परेन। नयाँ खरिद अर्डर सिर्जना गर्न माथिको बटन प्रयोग गर्नुहोस्।"
+              : "No purchase orders found matching your filters."
+          }
+        />
+      )}
+
+      {/* View Mode: Itemized Date-Wise Ledger */}
+      {viewMode === "itemized" && (
+        <div className="space-y-6">
+          {/* Integrated Search & Date Filter Bar for Itemized Mode */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                placeholder={
+                  isNepali
+                    ? "खरिद बिल नं, आपूर्तिकर्ताको नाम, PAN वा सप्लायर इनभ्वाइस खोज्नुहोस्..."
+                    : "Search by purchase bill #, vendor name, PAN/VAT, or supplier invoice..."
+                }
+                className="w-full pl-10 pr-9 py-2 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50"
+              />
+              {historySearch && (
+                <button
+                  type="button"
+                  onClick={() => setHistorySearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-neutral-500 hover:text-neutral-300 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <DateFilterBar
+              preset={historyDatePreset}
+              onPresetChange={(preset, start, end) => {
+                setHistoryDatePreset(preset);
+                setHistoryStartDate(start);
+                setHistoryEndDate(end);
+              }}
+              startDate={historyStartDate}
+              endDate={historyEndDate}
+              onStartDateChange={setHistoryStartDate}
+              onEndDateChange={setHistoryEndDate}
+              hasActiveFilters={Boolean(
+                historyStartDate ||
+                historyEndDate ||
+                historySearch ||
+                historyDatePreset !== "all",
+              )}
+              onClear={() => {
+                setHistoryDatePreset("all");
+                setHistoryStartDate("");
+                setHistoryEndDate("");
+                setHistorySearch("");
+              }}
+            />
           </div>
-        }
-        dateFilterConfig={{
-          preset: historyDatePreset,
-          onPresetChange: (preset, start, end) => {
-            setHistoryDatePreset(preset);
-            setHistoryStartDate(start);
-            setHistoryEndDate(end);
-          },
-          startDate: historyStartDate,
-          endDate: historyEndDate,
-          onStartDateChange: setHistoryStartDate,
-          onEndDateChange: setHistoryEndDate,
-          onClear: () => {
-            setHistoryDatePreset("all");
-            setHistoryStartDate("");
-            setHistoryEndDate("");
-            setHistorySearch("");
-          },
-        }}
-        emptyMessage={
-          isNepali
-            ? "कुनै खरिद बिल फेला परेन। नयाँ खरिद अर्डर सिर्जना गर्न माथिको बटन प्रयोग गर्नुहोस्।"
-            : "No purchase orders found matching your filters."
-        }
-      />
+
+          <ItemizedDateLedger
+            type="purchases"
+            data={itemizedPurchases}
+            currencySymbol={currencySymbol}
+            onInspectBill={(purchaseId) => {
+              const detailed = getPurchaseWithItems(purchaseId);
+              if (detailed) {
+                setInspectPurchaseDetail(detailed);
+              }
+            }}
+            onPrintBill={(purchaseId) => {
+              setPrintPurchaseId(purchaseId);
+              setIsPrintModalOpen(true);
+            }}
+            onEditBill={(purchaseId) => {
+              setEditPurchaseId(purchaseId);
+            }}
+            onReturnBill={(purchaseId) => {
+              setReturningPurchaseId(purchaseId);
+            }}
+            onHardDeleteBill={(purchaseId) => {
+              setDeletingPurchaseId(purchaseId);
+            }}
+          />
+        </div>
+      )}
 
       {/* Purchase Details Modal */}
       {inspectPurchaseDetail && (
@@ -628,6 +811,21 @@ export const PurchaseHistoryView: React.FC<PurchaseHistoryViewProps> = ({
           startDate: historyStartDate,
           endDate: historyEndDate,
           search: historySearch,
+        }}
+      />
+
+      {/* Professional Itemized Purchase Ledger Printable Report Modal */}
+      <PrintItemizedLedgerModal
+        isOpen={isPrintItemizedOpen}
+        onClose={() => setIsPrintItemizedOpen(false)}
+        type="purchases"
+        data={itemizedPurchases}
+        currencySymbol={currencySymbol}
+        filters={{
+          startDate: historyStartDate,
+          endDate: historyEndDate,
+          search: historySearch,
+          datePreset: historyDatePreset,
         }}
       />
 

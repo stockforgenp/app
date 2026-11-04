@@ -6,11 +6,28 @@
  * - Modal to inspect all line items with snapshot cost, actual selling, discounts, and item profit
  */
 import React, { useState, useEffect, useMemo } from "react";
-import { Receipt, User, Phone, Printer, Edit3, Trash2 } from "lucide-react";
-import { Sale, SaleItem } from "../types/index.ts";
+import { Link, useSearchParams } from "react-router-dom";
+import {
+  Receipt,
+  User,
+  Phone,
+  Printer,
+  Edit3,
+  Trash2,
+  DollarSign,
+  Package,
+  TrendingUp,
+  CreditCard,
+  Layers,
+  Search,
+  RotateCcw,
+  ShoppingCart,
+} from "lucide-react";
+import { Sale, SaleItem, ItemizedSaleRow } from "../types/index.ts";
 import {
   getSales,
   getSaleWithItems,
+  getItemizedSales,
   deleteSale,
   hardDeleteSale,
 } from "../lib/services/salesService.ts";
@@ -18,13 +35,17 @@ import {
   formatCurrency,
   formatDateTime,
   capitalizeWords,
+  formatNumberByLang,
 } from "../lib/utils/format.ts";
 import { Modal } from "../components/common/Modal.tsx";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { PrintBillModal } from "../components/common/PrintBillModal.tsx";
 import { PrintSalesHistoryModal } from "../components/common/PrintSalesHistoryModal.tsx";
+import { PrintItemizedLedgerModal } from "../components/common/PrintItemizedLedgerModal.tsx";
 import { EditSaleModal } from "../components/common/EditSaleModal.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
+import { ItemizedDateLedger } from "../components/common/ItemizedDateLedger.tsx";
+import { DateFilterBar } from "../components/common/DateFilterBar.tsx";
 import { getSalesHistoryColumns } from "../columns/index.ts";
 import { DatePreset } from "../lib/utils/dateFilters.ts";
 import { useToast } from "../context/ToastContext.tsx";
@@ -39,8 +60,16 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
   currencySymbol,
 }) => {
   const { showToast } = useToast();
-  const { t, isNepali } = useLanguage();
+  const { t, isNepali, formatNumberByLang } = useLanguage();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // View Mode: 'summary' (Bills table) vs 'itemized' (Date-wise statement/ledger)
+  const [viewMode, setViewMode] = useState<"summary" | "itemized">(() =>
+    searchParams.get("view") === "itemized" ? "itemized" : "summary",
+  );
+
   const [sales, setSales] = useState<Sale[]>([]);
+  const [itemizedSales, setItemizedSales] = useState<ItemizedSaleRow[]>([]);
   const [search, setSearch] = useState("");
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
   const [startDate, setStartDate] = useState("");
@@ -68,6 +97,20 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
   // Full sales history print modal state
   const [isPrintHistoryOpen, setIsPrintHistoryOpen] = useState(false);
 
+  // Itemized ledger print modal state
+  const [isPrintItemizedOpen, setIsPrintItemizedOpen] = useState(false);
+
+  const handleViewModeChange = (mode: "summary" | "itemized") => {
+    setViewMode(mode);
+    const newParams = new URLSearchParams(searchParams);
+    if (mode === "itemized") {
+      newParams.set("view", "itemized");
+    } else {
+      newParams.delete("view");
+    }
+    setSearchParams(newParams, { replace: true });
+  };
+
   const loadSales = () => {
     try {
       const options: { startDate?: string; endDate?: string; search?: string } =
@@ -82,6 +125,7 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
         options.search = search;
       }
       setSales(getSales(options));
+      setItemizedSales(getItemizedSales(options));
     } catch (e) {
       console.error("Error loading sales history:", e);
     }
@@ -92,6 +136,42 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
     const unsubscribe = subscribeToDbChanges(loadSales);
     return unsubscribe;
   }, [startDate, endDate, search]);
+
+  // Aggregate KPI stats for Sales History (exclude returned sales)
+  const salesStats = useMemo(() => {
+    let totalGrossRevenue = 0;
+    let totalNetRevenue = 0;
+    let totalPaid = 0;
+    let totalDue = 0;
+    let totalProfit = 0;
+    let totalUnits = 0;
+
+    for (const s of sales) {
+      if (s.status === "RETURNED") continue;
+      totalGrossRevenue += s.subtotal || 0;
+      totalNetRevenue += s.grand_total ?? s.total ?? 0;
+      const paid =
+        s.paid_amount !== undefined && s.paid_amount !== null
+          ? s.paid_amount
+          : (s.grand_total ?? s.total ?? 0);
+      totalPaid += paid;
+      totalDue += s.due_amount || 0;
+      totalProfit += s.gross_profit || 0;
+      totalUnits += s.item_count || 0;
+    }
+
+    const completedCount = sales.filter((s) => s.status !== "RETURNED").length;
+
+    return {
+      totalCount: completedCount,
+      totalGrossRevenue,
+      totalNetRevenue,
+      totalPaid,
+      totalDue,
+      totalProfit,
+      totalUnits,
+    };
+  }, [sales]);
 
   const handleOpenSale = (saleId: number) => {
     const details = getSaleWithItems(saleId);
@@ -132,56 +212,262 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-150">
-      {/* Shared DataTable with Search, Date Filter, and Pagination */}
-      <DataTable<Sale>
-        data={sales}
-        columns={columns}
-        searchQuery={search}
-        onSearchChange={setSearch}
-        searchPlaceholder={t(
-          "hist_search_placeholder",
-          "Search by Sale #ID, customer name, phone, or product...",
-        )}
-        extraActionsSlot={
+      {/* Summary KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-neutral-400 font-medium">
+              {isNepali ? "सम्पन्न बिक्री अर्डरहरू" : "Completed Sales"}
+            </p>
+            <p className="text-2xl font-bold text-neutral-100 mt-1">
+              {formatNumberByLang(salesStats.totalCount)}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+            <Receipt className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-neutral-400 font-medium">
+              {isNepali ? "बिक्री भएको सामान (एकाइ)" : "Total Units Sold"}
+            </p>
+            <p className="text-2xl font-bold text-sky-400 mt-1">
+              {formatNumberByLang(salesStats.totalUnits)}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center">
+            <Package className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-neutral-400 font-medium">
+              {isNepali ? "कुल बिक्री आम्दानी" : "Total Net Revenue"}
+            </p>
+            <p className="text-xl font-bold font-mono text-emerald-400 mt-1">
+              {formatCurrency(salesStats.totalNetRevenue, currencySymbol)}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+            <DollarSign className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-neutral-400 font-medium">
+              {isNepali ? "बाँकी रकम (Due)" : "Outstanding Due"}
+            </p>
+            <p className="text-xl font-bold font-mono text-amber-400 mt-1">
+              {formatCurrency(salesStats.totalDue, currencySymbol)}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+            <CreditCard className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-neutral-400 font-medium">
+              {isNepali ? "कुल नाफा (Gross Margin)" : "Total Gross Margin"}
+            </p>
+            <p className="text-xl font-bold font-mono text-emerald-400 mt-1">
+              {formatCurrency(salesStats.totalProfit, currencySymbol)}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+            <TrendingUp className="w-5 h-5" />
+          </div>
+        </div>
+      </div>
+
+      {/* View Switcher & Action Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        {/* Segmented View Mode Switcher */}
+        <div className="flex items-center p-1 bg-neutral-900 border border-neutral-800 rounded-xl">
           <button
             type="button"
-            onClick={() => setIsPrintHistoryOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
+            onClick={() => handleViewModeChange("summary")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              viewMode === "summary"
+                ? "bg-neutral-800 text-white shadow-xs"
+                : "text-neutral-400 hover:text-neutral-200"
+            }`}
+          >
+            <Receipt className="w-4 h-4 text-emerald-400" />
+            <span>{isNepali ? "बिल सारांश" : "Bills Summary"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleViewModeChange("itemized")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              viewMode === "itemized"
+                ? "bg-neutral-800 text-white shadow-xs"
+                : "text-neutral-400 hover:text-neutral-200"
+            }`}
+          >
+            <Layers className="w-4 h-4 text-sky-400" />
+            <span>
+              {isNepali
+                ? "मिति अनुसार वस्तुगत लेजर"
+                : "Itemized Ledger (Date-wise)"}
+            </span>
+          </button>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (viewMode === "itemized") {
+                setIsPrintItemizedOpen(true);
+              } else {
+                setIsPrintHistoryOpen(true);
+              }
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-neutral-200 bg-neutral-800 hover:bg-neutral-700 hover:text-white border border-neutral-700 rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
           >
             <Printer className="w-3.5 h-3.5 text-emerald-400" />
-            <span>{isNepali ? "इतिहास प्रिन्ट" : "Print History"}</span>
+            <span>
+              {viewMode === "itemized"
+                ? isNepali
+                  ? "लेजर प्रिन्ट"
+                  : "Print Ledger"
+                : isNepali
+                ? "इतिहास प्रिन्ट"
+                : "Print History"}
+            </span>
           </button>
-        }
-        dateFilterConfig={{
-          preset: datePreset,
-          onPresetChange: (p, start, end) => {
-            setDatePreset(p);
-            setStartDate(start);
-            setEndDate(end);
-          },
-          startDate,
-          endDate,
-          onStartDateChange: setStartDate,
-          onEndDateChange: setEndDate,
-          hasActiveFilters: Boolean(
-            startDate || endDate || search || datePreset !== "all",
-          ),
-          onClear: () => {
-            setDatePreset("all");
-            setStartDate("");
-            setEndDate("");
-            setSearch("");
-          },
-        }}
-        emptyIcon={Receipt}
-        emptyTitle={t(
-          "hist_no_sales",
-          "No sales transactions found for the specified criteria.",
-        )}
-        enablePagination={true}
-        pageSize={15}
-        pageSizeOptions={[10, 15, 25, 50, 100]}
-      />
+          <Link
+            to="/sales"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          >
+            <ShoppingCart className="w-4 h-4" />
+            <span>{isNepali ? "नयाँ बिक्री (New Sale)" : "New Sale"}</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* View Mode: Summary (DataTable) */}
+      {viewMode === "summary" && (
+        <DataTable<Sale>
+          data={sales}
+          columns={columns}
+          searchQuery={search}
+          onSearchChange={setSearch}
+          searchPlaceholder={t(
+            "hist_search_placeholder",
+            "Search by Sale #ID, customer name, phone, or product...",
+          )}
+          dateFilterConfig={{
+            preset: datePreset,
+            onPresetChange: (p, start, end) => {
+              setDatePreset(p);
+              setStartDate(start);
+              setEndDate(end);
+            },
+            startDate,
+            endDate,
+            onStartDateChange: setStartDate,
+            onEndDateChange: setEndDate,
+            hasActiveFilters: Boolean(
+              startDate || endDate || search || datePreset !== "all",
+            ),
+            onClear: () => {
+              setDatePreset("all");
+              setStartDate("");
+              setEndDate("");
+              setSearch("");
+            },
+          }}
+          emptyIcon={Receipt}
+          emptyTitle={t(
+            "hist_no_sales",
+            "No sales transactions found for the specified criteria.",
+          )}
+          enablePagination={true}
+          pageSize={15}
+          pageSizeOptions={[10, 15, 25, 50, 100]}
+        />
+      )}
+
+      {/* View Mode: Itemized Date-Wise Ledger */}
+      {viewMode === "itemized" && (
+        <div className="space-y-6">
+          {/* Integrated Search & Date Filter Bar for Itemized Mode */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t(
+                  "hist_search_placeholder",
+                  "Search by Sale #ID, customer name, phone, or product...",
+                )}
+                className="w-full pl-10 pr-9 py-2 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-neutral-500 hover:text-neutral-300 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <DateFilterBar
+              preset={datePreset}
+              onPresetChange={(p, start, end) => {
+                setDatePreset(p);
+                setStartDate(start);
+                setEndDate(end);
+              }}
+              startDate={startDate}
+              endDate={endDate}
+              onStartDateChange={setStartDate}
+              onEndDateChange={setEndDate}
+              hasActiveFilters={Boolean(
+                startDate || endDate || search || datePreset !== "all",
+              )}
+              onClear={() => {
+                setDatePreset("all");
+                setStartDate("");
+                setEndDate("");
+                setSearch("");
+              }}
+            />
+          </div>
+
+          <ItemizedDateLedger
+            type="sales"
+            data={itemizedSales}
+            currencySymbol={currencySymbol}
+            onInspectBill={handleOpenSale}
+            onPrintBill={(saleId) => {
+              setPrintBillSaleId(saleId);
+              setIsPrintModalOpen(true);
+            }}
+            onEditBill={(saleId) => {
+              setEditSaleId(saleId);
+            }}
+            onReturnBill={(saleId) => {
+              setReturningSaleId(saleId);
+            }}
+            onHardDeleteBill={(saleId) => {
+              setDeletingSaleId(saleId);
+            }}
+          />
+        </div>
+      )}
 
       {/* Modal: Detailed Sale Inspection */}
       <Modal
@@ -611,6 +897,21 @@ export const SalesHistoryView: React.FC<SalesHistoryViewProps> = ({
         isOpen={isPrintHistoryOpen}
         onClose={() => setIsPrintHistoryOpen(false)}
         sales={sales}
+        currencySymbol={currencySymbol}
+        filters={{
+          startDate,
+          endDate,
+          search,
+          datePreset,
+        }}
+      />
+
+      {/* Professional Itemized Sales Ledger Printable Report Modal */}
+      <PrintItemizedLedgerModal
+        isOpen={isPrintItemizedOpen}
+        onClose={() => setIsPrintItemizedOpen(false)}
+        type="sales"
+        data={itemizedSales}
         currencySymbol={currencySymbol}
         filters={{
           startDate,

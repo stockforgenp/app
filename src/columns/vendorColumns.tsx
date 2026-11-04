@@ -12,6 +12,7 @@ import {
   Trash2,
   FileText,
   DollarSign,
+  Layers,
 } from "lucide-react";
 import { Vendor } from "../types/index.ts";
 import { Column } from "../components/common/DataTable.tsx";
@@ -26,6 +27,7 @@ export interface VendorColumnOptions {
   onCopyPan: (pan: string) => void;
   onViewProducts: (vendor: Vendor) => void;
   onViewPurchases: (vendor: Vendor) => void;
+  onViewItemizedLedger?: (vendor: Vendor) => void;
   onViewStatement?: (vendor: Vendor) => void;
   onSettleDue?: (vendor: Vendor) => void;
   onEdit: (vendor: Vendor) => void;
@@ -43,6 +45,7 @@ export function getVendorColumns(options: VendorColumnOptions): Column<Vendor>[]
     onCopyPan,
     onViewProducts,
     onViewPurchases,
+    onViewItemizedLedger,
     onViewStatement,
     onSettleDue,
     onEdit,
@@ -232,6 +235,16 @@ export function getVendorColumns(options: VendorColumnOptions): Column<Vendor>[]
                   icon: DollarSign,
                   color: "emerald",
                   onClick: () => onSettleDue(vendor),
+                }
+              : null,
+            onViewItemizedLedger
+              ? {
+                  label: isNepali
+                    ? "वस्तुगत खरिद लेजर (Itemized Purchases)"
+                    : "Itemized Purchase Ledger",
+                  icon: Layers,
+                  color: "sky",
+                  onClick: () => onViewItemizedLedger(vendor),
                 }
               : null,
             {

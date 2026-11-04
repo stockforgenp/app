@@ -12,6 +12,7 @@ import {
   Package,
   DollarSign,
   Printer,
+  Layers,
 } from "lucide-react";
 import { Vendor, Product, Purchase } from "../types/index.ts";
 import {
@@ -26,6 +27,7 @@ import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { PrintPurchaseBillModal } from "../components/common/PrintPurchaseBillModal.tsx";
 import { StatementModal } from "../components/common/StatementModal.tsx";
 import { SettleBalanceModal } from "../components/common/SettleBalanceModal.tsx";
+import { ItemizedPartyLedgerModal } from "../components/common/ItemizedPartyLedgerModal.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
 import { getVendorColumns } from "../columns/index.ts";
 import { useToast } from "../context/ToastContext.tsx";
@@ -68,6 +70,7 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
   // Statement & Settle Dues Modals
   const [statementVendor, setStatementVendor] = useState<Vendor | null>(null);
   const [settleVendor, setSettleVendor] = useState<Vendor | null>(null);
+  const [itemizedVendor, setItemizedVendor] = useState<Vendor | null>(null);
 
   const loadVendors = useCallback(() => {
     try {
@@ -195,6 +198,7 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
         onCopyPan: handleCopyPan,
         onViewProducts: handleViewProducts,
         onViewPurchases: handleViewPurchases,
+        onViewItemizedLedger: (v) => setItemizedVendor(v),
         onViewStatement: (v) => setStatementVendor(v),
         onSettleDue: (v) => setSettleVendor(v),
         onEdit: handleOpenEdit,
@@ -500,6 +504,22 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
                 )}
               </p>
             </div>
+            <div>
+              <button
+                type="button"
+                onClick={() => {
+                  const v = inspectPurchasesVendor;
+                  setInspectPurchasesVendor(null);
+                  setItemizedVendor(v);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-neutral-900 hover:bg-neutral-800 text-sky-400 border border-neutral-800 transition-colors cursor-pointer"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>
+                  {isNepali ? "वस्तुगत लेजर / प्रिन्ट" : "Itemized Ledger / Print"}
+                </span>
+              </button>
+            </div>
           </div>
 
           <div className="max-h-72 overflow-y-auto rounded-lg border border-neutral-800">
@@ -674,6 +694,15 @@ export const VendorsView: React.FC<VendorsViewProps> = ({ currencySymbol }) => {
           onSuccess={loadVendors}
         />
       )}
+
+      {/* Itemized Vendor Purchase Ledger Modal */}
+      <ItemizedPartyLedgerModal
+        isOpen={itemizedVendor !== null}
+        onClose={() => setItemizedVendor(null)}
+        type="vendor"
+        party={itemizedVendor}
+        currencySymbol={currencySymbol}
+      />
 
       {/* Print Purchase Bill Modal */}
       <PrintPurchaseBillModal

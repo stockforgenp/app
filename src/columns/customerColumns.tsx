@@ -13,6 +13,7 @@ import {
   Eye,
   FileText,
   DollarSign,
+  Layers,
 } from "lucide-react";
 
 import { Column } from "../components/common/DataTable.tsx";
@@ -28,6 +29,7 @@ export interface CustomerColumnsOptions {
   onEdit: (customer: Customer) => void;
   onDelete: (customer: Customer) => void;
   onViewSales?: (customer: Customer) => void;
+  onViewItemizedLedger?: (customer: Customer) => void;
   onViewStatement?: (customer: Customer) => void;
   onSettleDue?: (customer: Customer) => void;
   onCopyPan: (pan: string) => void;
@@ -46,6 +48,7 @@ export function getCustomerColumns(
     onEdit,
     onDelete,
     onViewSales,
+    onViewItemizedLedger,
     onViewStatement,
     onSettleDue,
     onCopyPan,
@@ -233,6 +236,16 @@ export function getCustomerColumns(
                   icon: DollarSign,
                   color: "emerald",
                   onClick: () => onSettleDue(c),
+                }
+              : null,
+            onViewItemizedLedger
+              ? {
+                  label: isNepali
+                    ? "वस्तुगत बिक्री लेजर (Itemized Sales)"
+                    : "Itemized Sales Ledger",
+                  icon: Layers,
+                  color: "sky",
+                  onClick: () => onViewItemizedLedger(c),
                 }
               : null,
             onViewSales

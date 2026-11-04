@@ -46,6 +46,7 @@ import {
 import { calculateProportionalDiscounts } from "../../helpers/discountHelpers.ts";
 import { useToast } from "../../context/ToastContext.tsx";
 import { useLanguage } from "../../context/LanguageContext.tsx";
+import { PAYMENT_MODE_OPTIONS } from "../../constants/index.ts";
 
 interface EditPurchaseModalProps {
   isOpen: boolean;
@@ -94,6 +95,7 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
   const [paidAmountInput, setPaidAmountInput] = useState("");
   const [wholeDiscountInput, setWholeDiscountInput] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("Cash");
+  const [customPaymentMethod, setCustomPaymentMethod] = useState("");
 
   // Lines State
   const [lines, setLines] = useState<EditablePurchaseLine[]>([]);
@@ -149,7 +151,17 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
             ? details.purchase.paid_amount
             : (details.purchase.grand_total || details.purchase.total);
         setPaidAmountInput(fromMinorUnits(initialPaid).toString());
-        setPaymentMethod(details.purchase.payment_method || "Cash");
+        const existingMethod = details.purchase.payment_method || "Cash";
+        const matchedMethod = PAYMENT_MODE_OPTIONS.find(
+          (o) => o.id === existingMethod || (o.id === "Online / QR" && existingMethod === "Online")
+        );
+        if (matchedMethod) {
+          setPaymentMethod(matchedMethod.id);
+          setCustomPaymentMethod("");
+        } else {
+          setPaymentMethod("Other");
+          setCustomPaymentMethod(existingMethod);
+        }
         setWholeDiscountInput(
           details.purchase.discount
             ? fromMinorUnits(details.purchase.discount).toString()
@@ -338,7 +350,10 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
         notes: purchaseNotes.trim() || null,
         applyVat,
         paidAmount: parsedPaid,
-        paymentMethod,
+        paymentMethod:
+          paymentMethod === "Other" && customPaymentMethod.trim()
+            ? customPaymentMethod.trim()
+            : paymentMethod,
         createdAt: parseDateTimeLocalToIso(purchaseDateTime),
       });
 
@@ -753,37 +768,81 @@ export const EditPurchaseModal: React.FC<EditPurchaseModalProps> = ({
                 />
                 <button
                   type="button"
-                  onClick={() => setPaidAmountInput(fromMinorUnits(calculations.grandTotal).toString())}
+                  onClick={() => {
+                    setPaidAmountInput(fromMinorUnits(calculations.grandTotal).toString());
+                    if (paymentMethod === "Credit / Khata") {
+                      setPaymentMethod("Cash");
+                    }
+                  }}
                   className="text-[10px] px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 cursor-pointer"
                 >
                   {isNepali ? "पूरा चुक्ता" : "Full Paid"}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaidAmountInput("0");
+                    setPaymentMethod("Credit / Khata");
+                  }}
+                  className="text-[10px] px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-rose-300 cursor-pointer"
+                  title={isNepali ? "पूर्ण उधारो (बाँकी)" : "Full Credit (Due)"}
+                >
+                  {isNepali ? "उधारो (०)" : "Credit (0)"}
+                </button>
               </div>
 
-              {/* Payment Mode Selector */}
-              <div className="flex justify-end items-center gap-1.5 pt-1">
-                <span className="text-[11px] text-neutral-400">
-                  {isNepali ? "माध्यम" : "Mode"}:
-                </span>
-                {[
-                  { id: "Cash", label: isNepali ? "नगद" : "Cash" },
-                  { id: "Bank Transfer", label: isNepali ? "बैंक" : "Bank" },
-                  { id: "Online", label: isNepali ? "अनलाइन" : "Online" },
-                  { id: "Cheque", label: isNepali ? "चेक" : "Cheque" },
-                ].map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setPaymentMethod(m.id)}
-                    className={`px-2 py-0.5 text-[10px] rounded border transition-colors cursor-pointer ${
-                      paymentMethod === m.id
-                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                        : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
+              {/* Payment Mode Selector Dropdown */}
+              <div className="pt-2 border-t border-neutral-800 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="edit-purchase-payment-mode-select" className="text-[11px] font-semibold text-neutral-300">
+                    {isNepali ? "भुक्तानी माध्यम (Payment Mode)" : "Payment Mode"}:
+                  </label>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-neutral-800 text-neutral-300 font-mono">
+                    {paymentMethod === "Other" && customPaymentMethod.trim() ? customPaymentMethod.trim() : paymentMethod}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <select
+                      id="edit-purchase-payment-mode-select"
+                      value={paymentMethod}
+                      onChange={(e) => {
+                        const selected = e.target.value;
+                        setPaymentMethod(selected);
+                        if (selected === "Credit / Khata" && parseFloat(paidAmountInput || "0") > 0) {
+                          setPaidAmountInput("0");
+                        } else if (selected !== "Credit / Khata" && parseFloat(paidAmountInput || "0") === 0) {
+                          setPaidAmountInput(fromMinorUnits(calculations.grandTotal).toString());
+                        }
+                      }}
+                      className="w-full pl-3 pr-8 py-1.5 text-xs font-semibold bg-neutral-900 border border-neutral-700 hover:border-neutral-600 rounded-lg text-neutral-100 focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer appearance-none"
+                    >
+                      {PAYMENT_MODE_OPTIONS.map((m) => (
+                        <option key={m.id} value={m.id} className="bg-neutral-900 text-neutral-100">
+                          {isNepali ? `${m.labelNp} (${m.labelEn})` : m.labelEn}
+                        </option>
+                      ))}
+                      <option value="Other" className="bg-neutral-900 text-neutral-100">
+                        {isNepali ? "अन्य (Other / Custom)..." : "Other (Custom)..."}
+                      </option>
+                    </select>
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-neutral-400">
+                      <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20">
+                        <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                      </svg>
+                    </div>
+                  </div>
+                  {paymentMethod === "Other" && (
+                    <input
+                      type="text"
+                      placeholder={isNepali ? "माध्यम (e.g. eSewa)..." : "Specify mode (e.g. eSewa)..."}
+                      value={customPaymentMethod}
+                      onChange={(e) => setCustomPaymentMethod(e.target.value)}
+                      className="flex-1 px-3 py-1.5 text-xs bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-200 focus:outline-none focus:border-emerald-500 placeholder-neutral-500"
+                      autoFocus
+                    />
+                  )}
+                </div>
               </div>
 
               {(() => {

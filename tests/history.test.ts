@@ -48,10 +48,12 @@ const {
 
 const {
   processSale,
+  getItemizedSales,
 } = await import('../src/lib/services/salesService.ts');
 
 const {
   processPurchase,
+  getItemizedPurchases,
 } = await import('../src/lib/services/purchaseService.ts');
 
 const {
@@ -495,5 +497,178 @@ describe('Feature 5: History, Day Book & Audit Logs', () => {
 
     const deletedRow = queryOne('SELECT * FROM expenses WHERE id = ?', [expense.id]);
     assert.equal(deletedRow, null, 'Expense row must be deleted from database');
+  });
+
+  test('11. getItemizedSales retrieves line-item rows with bill info and supports date & search filtering', async () => {
+    // 1. Create two test products
+    const prodA = createProduct({
+      name: 'Organic Honey 500g',
+      sku: 'HONEY-500',
+      cost_price: 40000, // Rs 400
+      selling_price: 60000, // Rs 600
+      current_stock: 50,
+      unit: 'jar',
+    });
+
+    const prodB = createProduct({
+      name: 'Ginger Green Tea',
+      sku: 'TEA-GINGER',
+      cost_price: 15000, // Rs 150
+      selling_price: 25000, // Rs 250
+      current_stock: 50,
+      unit: 'box',
+    });
+
+    // 2. Process a multi-item sale (Sale 1: 2 items)
+    const sale1 = processSale(
+      [
+        {
+          productId: prodA.id,
+          quantity: 2,
+          actualSellingPrice: 60000,
+          discount: 2000, // Rs 20 discount
+        },
+        {
+          productId: prodB.id,
+          quantity: 3,
+          actualSellingPrice: 25000,
+          discount: 0,
+        },
+      ],
+      {
+        customerName: 'Anil Sharma',
+        customerPhone: '9841000111',
+        paymentMethod: 'eSewa',
+        paidAmount: 193000,
+      }
+    );
+
+    // 3. Process a single-item sale (Sale 2: 1 item)
+    const sale2 = processSale(
+      [
+        {
+          productId: prodA.id,
+          quantity: 1,
+          actualSellingPrice: 60000,
+          discount: 0,
+        },
+      ],
+      {
+        customerName: 'Bikram Thapa',
+        customerPhone: '9851000222',
+        paymentMethod: 'Cash',
+        paidAmount: 60000,
+      }
+    );
+
+    // 4. Retrieve all itemized sales
+    const allItemized = getItemizedSales();
+    assert.ok(allItemized.length >= 3, 'Should have at least 3 item rows');
+
+    // Filter to our created sales
+    const sale1Rows = allItemized.filter((r) => r.sale_id === sale1.id);
+    assert.equal(sale1Rows.length, 2, 'Sale 1 should have 2 itemized rows');
+
+    const honeyRow = sale1Rows.find((r) => r.product_id === prodA.id);
+    assert.ok(honeyRow);
+    assert.equal(honeyRow.product_name, 'Organic Honey 500g');
+    assert.equal(honeyRow.product_sku, 'HONEY-500');
+    assert.equal(honeyRow.quantity, 2);
+    assert.equal(honeyRow.selling_price, 60000);
+    assert.equal(honeyRow.cost_price, 40000);
+    assert.equal(honeyRow.item_discount, 2000);
+    assert.equal(honeyRow.item_total, 118000); // (2 * 60000) - 2000
+    assert.equal(honeyRow.gross_profit, 118000 - (2 * 40000)); // 118000 - 80000 = 38000
+    assert.equal(honeyRow.customer_name, 'Anil Sharma');
+    assert.equal(honeyRow.payment_method, 'eSewa');
+    assert.ok(honeyRow.bill_number);
+
+    // 5. Test search filter on itemized sales
+    const searchByName = getItemizedSales({ search: 'Bikram' });
+    assert.ok(searchByName.some((r) => r.sale_id === sale2.id));
+    assert.ok(!searchByName.some((r) => r.sale_id === sale1.id));
+
+    const searchBySku = getItemizedSales({ search: 'TEA-GINGER' });
+    assert.ok(searchBySku.some((r) => r.product_sku === 'TEA-GINGER'));
+  });
+
+  test('12. getItemizedPurchases retrieves line-item rows with bill info and supports date & search filtering', async () => {
+    // 1. Create two test products
+    const prodC = createProduct({
+      name: 'Organic Almonds 1kg',
+      sku: 'ALMOND-1KG',
+      cost_price: 90000,
+      selling_price: 120000,
+      current_stock: 10,
+      unit: 'pack',
+    });
+
+    const prodD = createProduct({
+      name: 'Chia Seeds 250g',
+      sku: 'CHIA-250',
+      cost_price: 20000,
+      selling_price: 35000,
+      current_stock: 10,
+      unit: 'pouch',
+    });
+
+    // 2. Process a purchase with 2 items
+    const pur1 = processPurchase(
+      [
+        {
+          productId: prodC.id,
+          quantity: 5,
+          costPrice: 90000,
+          sellingPrice: 120000,
+          discount: 5000,
+          batchNumber: 'BATCH-ALM-01',
+          expiryDate: '2027-12-31',
+        },
+        {
+          productId: prodD.id,
+          quantity: 10,
+          costPrice: 20000,
+          sellingPrice: 35000,
+          discount: 0,
+          batchNumber: 'BATCH-CHIA-01',
+          expiryDate: '2028-06-30',
+        },
+      ],
+      {
+        vendorName: 'Himalayan Organic Traders',
+        vendorPhone: '9801122334',
+        vendorPanVat: '302918273',
+        invoiceNumber: 'HOT-INV-9901',
+        paymentMethod: 'Bank Transfer',
+        paidAmount: 645000,
+      }
+    );
+
+    // 3. Retrieve all itemized purchases
+    const allItemized = getItemizedPurchases();
+    assert.ok(allItemized.length >= 2, 'Should have at least 2 itemized purchase rows');
+
+    const purRows = allItemized.filter((r) => r.purchase_id === pur1.id);
+    assert.equal(purRows.length, 2, 'Purchase should have 2 itemized rows');
+
+    const almondRow = purRows.find((r) => r.product_id === prodC.id);
+    assert.ok(almondRow);
+    assert.equal(almondRow.product_name, 'Organic Almonds 1kg');
+    assert.equal(almondRow.product_sku, 'ALMOND-1KG');
+    assert.equal(almondRow.quantity, 5);
+    assert.equal(almondRow.cost_price, 90000);
+    assert.equal(almondRow.item_discount, 5000);
+    assert.equal(almondRow.item_total, 445000); // (5 * 90000) - 5000
+    assert.equal(almondRow.vendor_name, 'Himalayan Organic Traders');
+    assert.equal(almondRow.invoice_number, 'HOT-INV-9901');
+    assert.equal(almondRow.batch_number, 'BATCH-ALM-01');
+    assert.equal(almondRow.expiry_date, '2027-12-31');
+
+    // 4. Test search filter on itemized purchases
+    const searchByVendor = getItemizedPurchases({ search: 'Himalayan Organic' });
+    assert.ok(searchByVendor.some((r) => r.purchase_id === pur1.id));
+
+    const searchByInvoice = getItemizedPurchases({ search: 'HOT-INV-9901' });
+    assert.ok(searchByInvoice.some((r) => r.purchase_id === pur1.id));
   });
 });

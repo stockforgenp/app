@@ -175,7 +175,7 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
   const isExistingVendor = value.vendorId !== null;
 
   return (
-    <div className="bg-neutral-900/60 border border-neutral-800 rounded-xl p-3.5 space-y-2.5">
+    <div className="bg-neutral-900/60 border border-neutral-800 rounded-xl p-3.5 space-y-1.5">
       {/* Section Header */}
       <div className="flex items-center justify-between">
         <div className="flex-1 flex items-center gap-2">
@@ -183,7 +183,7 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
             <Building2 className="w-3.5 h-3.5" />
           </div>
           <div>
-            <label className="text-xs font-semibold text-neutral-200">
+            <label className="text-xs font-semibold text-neutral-200 truncate">
               {isNepali
                 ? "आपूर्तिकर्ता / भेन्डर विवरण"
                 : "Vendor / Supplier Details"}{" "}
@@ -195,7 +195,7 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
                 </span>
               )}
             </label>
-            <p className="text-[10px] text-neutral-400">
+            <p className="text-[10px] text-neutral-400 truncate">
               {isNepali
                 ? "नाम, फोन वा PAN बाट खोज्नुहोस् वा नयाँ आपूर्तिकर्ता थप्नुहोस्"
                 : "Search supplier or add new vendor in dialog"}
@@ -307,10 +307,10 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
             <button
               type="button"
               onClick={() => setIsDialogOpen(true)}
-              className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-2 py-1 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer h-7"
             >
               <UserPlus className="w-3.5 h-3.5" />
-              <span>{isNepali ? "नयाँ आपूर्तिकर्ता" : "Add Vendor"}</span>
+              {/* <span>{isNepali ? "नयाँ आपूर्तिकर्ता" : "Add Vendor"}</span> */}
             </button>
           </div>
         </div>
@@ -328,7 +328,8 @@ export const VendorInputSection: React.FC<VendorInputSectionProps> = ({
                 <Building2 className="w-3.5 h-3.5 text-sky-400 shrink-0" />
               )}
               <span className="truncate max-w-[150px] font-semibold text-neutral-100 capitalize">
-                {capitalizeWords(value.name) || (isNepali ? "अनाम आपूर्तिकर्ता" : "Vendor")}
+                {capitalizeWords(value.name) ||
+                  (isNepali ? "अनाम आपूर्तिकर्ता" : "Vendor")}
               </span>
               {isExistingVendor ? (
                 <span className="text-[10px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded shrink-0">

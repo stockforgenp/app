@@ -42,6 +42,7 @@ const {
 const {
   processPurchase,
   getPurchaseWithItems,
+  getItemizedPurchases,
 } = await import('../src/lib/services/purchaseService.ts');
 
 const {
@@ -435,5 +436,86 @@ describe('Feature 7: Vendors & Supplier Ledger', () => {
     const deletedRow = queryOne('SELECT * FROM vendors WHERE id = ?', [vendor.id]);
     assert.equal(deletedRow, null, 'Vendor row must be deleted from database');
     assert.equal(getVendorById(vendor.id), null);
+  });
+
+  test('11. Itemized Purchase Ledger filtered by vendorId (grouped by date with individual items)', () => {
+    const v1 = createVendor({
+      name: 'Kathmandu Wholesalers',
+      phone: '9851122334',
+    });
+    const v2 = createVendor({
+      name: 'Pokhara Traders',
+      phone: '9852233445',
+    });
+
+    const prodA = createProduct({
+      name: 'Sunflower Oil 1L',
+      sku: 'OIL-SUN-1L',
+      cost_price: 25000,
+      selling_price: 30000,
+      current_stock: 0,
+    });
+    const prodB = createProduct({
+      name: 'Mustard Oil 1L',
+      sku: 'OIL-MUS-1L',
+      cost_price: 22000,
+      selling_price: 28000,
+      current_stock: 0,
+    });
+
+    // Process 2 purchases for v1
+    processPurchase(
+      [
+        makePurchaseItem({ productId: prodA.id, quantity: 10, costPrice: 25000 }),
+        makePurchaseItem({ productId: prodB.id, quantity: 5, costPrice: 22000 }),
+      ],
+      {
+        vendorId: v1.id,
+        paidAmount: 360000,
+        applyVat: false,
+        createdAt: '2026-10-01T09:00:00Z',
+        invoiceNumber: 'INV-V1-001',
+      },
+    );
+
+    processPurchase(
+      [
+        makePurchaseItem({ productId: prodA.id, quantity: 4, costPrice: 25000 }),
+      ],
+      {
+        vendorId: v1.id,
+        paidAmount: 100000,
+        applyVat: false,
+        createdAt: '2026-10-03T14:00:00Z',
+        invoiceNumber: 'INV-V1-002',
+      },
+    );
+
+    // Process 1 purchase for v2
+    processPurchase(
+      [
+        makePurchaseItem({ productId: prodB.id, quantity: 20, costPrice: 22000 }),
+      ],
+      {
+        vendorId: v2.id,
+        paidAmount: 440000,
+        applyVat: false,
+        createdAt: '2026-10-03T15:00:00Z',
+        invoiceNumber: 'INV-V2-001',
+      },
+    );
+
+    // Query itemized purchases for v1
+    const v1Purchases = getItemizedPurchases({ vendorId: v1.id });
+    assert.equal(v1Purchases.length, 3, 'Vendor 1 should have exactly 3 itemized rows across 2 purchases');
+    assert.ok(v1Purchases.every(p => p.vendor_id === v1.id));
+    const distinctPurchaseIds = new Set(v1Purchases.map(p => p.purchase_id));
+    assert.equal(distinctPurchaseIds.size, 2, 'Vendor 1 should have 2 distinct purchases');
+
+    // Query itemized purchases for v2
+    const v2Purchases = getItemizedPurchases({ vendorId: v2.id });
+    assert.equal(v2Purchases.length, 1, 'Vendor 2 should have exactly 1 itemized row');
+    assert.equal(v2Purchases[0].vendor_id, v2.id);
+    assert.equal(v2Purchases[0].product_name, 'Mustard Oil 1L');
   });
 });

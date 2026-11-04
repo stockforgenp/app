@@ -33,7 +33,7 @@ const {
 
 const { createProduct } = await import("../src/lib/services/productService.ts");
 
-const { processSale, getSaleWithItems } =
+const { processSale, getSaleWithItems, getItemizedSales } =
   await import("../src/lib/services/salesService.ts");
 
 const { processSaleReturn } =
@@ -586,5 +586,83 @@ describe("Feature 6: Customers & Khata Ledger", () => {
     const deletedRow = queryOne("SELECT * FROM customers WHERE id = ?", [customer.id]);
     assert.equal(deletedRow, null, "Customer row must be deleted from database");
     assert.equal(getCustomerById(customer.id), null);
+  });
+
+  test("11. Itemized Sales Ledger filtered by customerId (grouped by date with individual items)", () => {
+    const cust1 = createCustomer({
+      name: "Pradip Shrestha",
+      phone: "9841112233",
+    });
+    const cust2 = createCustomer({
+      name: "Sita Sharma",
+      phone: "9842223344",
+    });
+
+    const prodA = createProduct({
+      name: "Sugar 1kg",
+      sku: "SUG-1KG",
+      cost_price: 8000,
+      selling_price: 10000,
+      current_stock: 100,
+    });
+    const prodB = createProduct({
+      name: "Salt 1kg",
+      sku: "SALT-1KG",
+      cost_price: 2000,
+      selling_price: 3000,
+      current_stock: 100,
+    });
+
+    // Process 2 sales for cust1 on different dates
+    processSale(
+      [
+        { productId: prodA.id, quantity: 2, actualSellingPrice: 10000, discount: 0 },
+        { productId: prodB.id, quantity: 3, actualSellingPrice: 3000, discount: 0 },
+      ],
+      {
+        customerId: cust1.id,
+        paidAmount: 29000,
+        applyVat: false,
+        createdAt: "2026-10-01T10:00:00Z",
+      },
+    );
+
+    processSale(
+      [
+        { productId: prodA.id, quantity: 1, actualSellingPrice: 10000, discount: 0 },
+      ],
+      {
+        customerId: cust1.id,
+        paidAmount: 10000,
+        applyVat: false,
+        createdAt: "2026-10-02T11:00:00Z",
+      },
+    );
+
+    // Process 1 sale for cust2
+    processSale(
+      [
+        { productId: prodB.id, quantity: 5, actualSellingPrice: 3000, discount: 0 },
+      ],
+      {
+        customerId: cust2.id,
+        paidAmount: 15000,
+        applyVat: false,
+        createdAt: "2026-10-02T12:00:00Z",
+      },
+    );
+
+    // Query itemized sales for cust1
+    const cust1Sales = getItemizedSales({ customerId: cust1.id });
+    assert.equal(cust1Sales.length, 3, "Customer 1 should have exactly 3 itemized rows across 2 bills");
+    assert.ok(cust1Sales.every(s => s.customer_id === cust1.id));
+    const distinctSaleIds = new Set(cust1Sales.map(s => s.sale_id));
+    assert.equal(distinctSaleIds.size, 2, "Customer 1 should have 2 distinct sales");
+
+    // Query itemized sales for cust2
+    const cust2Sales = getItemizedSales({ customerId: cust2.id });
+    assert.equal(cust2Sales.length, 1, "Customer 2 should have exactly 1 itemized row");
+    assert.equal(cust2Sales[0].customer_id, cust2.id);
+    assert.equal(cust2Sales[0].product_name, "Salt 1kg");
   });
 });

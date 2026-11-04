@@ -3,7 +3,7 @@
  * Strictly enforces transaction atomicity, snapshot pricing, item discounts,
  * and stock validation.
  */
-import { Sale, SaleItem, LowStockAlertItem, Product, CreateCustomerInput } from '../../types/index.ts';
+import { Sale, SaleItem, LowStockAlertItem, Product, CreateCustomerInput, ItemizedSaleRow } from '../../types/index.ts';
 import { query, queryOne, run, transaction } from '../db/sqliteEngine.ts';
 import { getProductById } from './productService.ts';
 import { getSettings } from './settingsService.ts';
@@ -409,6 +409,7 @@ export function getSales(options?: {
   endDate?: string;
   search?: string;
   limit?: number;
+  customerId?: number;
 }): Sale[] {
   let sql = `
     SELECT 
@@ -449,6 +450,20 @@ export function getSales(options?: {
   if (options?.endDate) {
     whereClauses.push(`s.created_at <= ?`);
     params.push(options.endDate);
+  }
+
+  if (options?.customerId) {
+    const cust = queryOne<{ phone: string | null }>(
+      `SELECT phone FROM customers WHERE id = ?`,
+      [options.customerId],
+    );
+    if (cust?.phone && cust.phone.trim()) {
+      whereClauses.push(`(s.customer_id = ? OR s.customer_phone = ?)`);
+      params.push(options.customerId, cust.phone.trim());
+    } else {
+      whereClauses.push(`s.customer_id = ?`);
+      params.push(options.customerId);
+    }
   }
 
   if (options?.search && options.search.trim()) {
@@ -927,6 +942,106 @@ export function hardDeleteSale(saleId: number): {
       restoredItemCount,
     };
   });
+}
+
+/**
+ * Retrieves date-wise itemized sale rows with line item details and bill info for ledger/statement views.
+ */
+export function getItemizedSales(options?: {
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+  limit?: number;
+  customerId?: number;
+}): ItemizedSaleRow[] {
+  let sql = `
+    SELECT 
+      s.id as sale_id,
+      s.bill_number,
+      s.created_at,
+      s.customer_id,
+      s.customer_name,
+      s.customer_phone,
+      s.customer_pan_vat,
+      COALESCE(s.payment_method, 'Cash') as payment_method,
+      COALESCE(s.status, 'COMPLETED') as sale_status,
+      s.subtotal as sale_subtotal,
+      COALESCE(s.discount, 0) as sale_discount,
+      COALESCE(s.vat_amount, 0) as sale_vat_amount,
+      COALESCE(s.grand_total, s.total) as sale_grand_total,
+      COALESCE(s.paid_amount, s.grand_total, s.total) as sale_paid_amount,
+      COALESCE(s.due_amount, 0) as sale_due_amount,
+      si.id as item_id,
+      si.product_id,
+      COALESCE(p.name, 'Unknown Item') as product_name,
+      COALESCE(p.sku, '') as product_sku,
+      COALESCE(p.unit, 'pcs') as product_unit,
+      si.packaging_name,
+      si.package_multiplier,
+      si.quantity,
+      si.selling_price,
+      si.cost_price,
+      COALESCE(si.discount, 0) as item_discount,
+      si.total as item_total,
+      (si.total - (si.quantity * si.cost_price)) as gross_profit
+    FROM sale_items si
+    JOIN sales s ON si.sale_id = s.id
+    LEFT JOIN products p ON si.product_id = p.id
+  `;
+
+  const whereClauses: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (options?.startDate) {
+    whereClauses.push(`s.created_at >= ?`);
+    params.push(options.startDate);
+  }
+
+  if (options?.endDate) {
+    whereClauses.push(`s.created_at <= ?`);
+    params.push(options.endDate);
+  }
+
+  if (options?.customerId) {
+    const cust = queryOne<{ phone: string | null }>(
+      `SELECT phone FROM customers WHERE id = ?`,
+      [options.customerId],
+    );
+    if (cust?.phone && cust.phone.trim()) {
+      whereClauses.push(`(s.customer_id = ? OR s.customer_phone = ?)`);
+      params.push(options.customerId, cust.phone.trim());
+    } else {
+      whereClauses.push(`s.customer_id = ?`);
+      params.push(options.customerId);
+    }
+  }
+
+  if (options?.search && options.search.trim()) {
+    whereClauses.push(`(
+      CAST(s.id AS TEXT) LIKE ? OR
+      s.customer_name LIKE ? OR
+      s.customer_phone LIKE ? OR
+      s.customer_pan_vat LIKE ? OR
+      s.bill_number LIKE ? OR
+      p.name LIKE ? OR
+      p.sku LIKE ?
+    )`);
+    const term = `%${options.search.trim()}%`;
+    params.push(term, term, term, term, term, term, term);
+  }
+
+  if (whereClauses.length > 0) {
+    sql += ` WHERE ` + whereClauses.join(' AND ');
+  }
+
+  sql += ` ORDER BY s.created_at DESC, s.id DESC, si.id ASC`;
+
+  if (options?.limit) {
+    sql += ` LIMIT ?`;
+    params.push(options.limit);
+  }
+
+  return query<ItemizedSaleRow>(sql, params);
 }
 
 

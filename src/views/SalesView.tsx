@@ -17,13 +17,7 @@ import {
   AlertTriangle,
   Receipt,
   RotateCcw,
-  Layers,
-  ListChecks,
-  CheckSquare,
-  Square,
   Minus,
-  ScanLine,
-  Percent,
   Printer,
   X,
   Calendar,
@@ -51,7 +45,6 @@ import {
 import { useToast } from "../context/ToastContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
 import { MODIFIER_LABEL } from "../lib/hooks/useGlobalShortcuts.ts";
-import { Modal } from "../components/common/Modal.tsx";
 import { PrintBillModal } from "../components/common/PrintBillModal.tsx";
 import { ReturnsModal } from "../components/common/ReturnsModal.tsx";
 import { ShiftManagementModal } from "../components/common/ShiftManagementModal.tsx";
@@ -63,6 +56,7 @@ import {
 } from "../components/common/CustomerInputSection.tsx";
 import { NepaliDatePicker } from "../components/common/NepaliDatePicker.tsx";
 import { useLanguage } from "../context/LanguageContext.tsx";
+import { PAYMENT_MODE_OPTIONS } from "../constants/index.ts";
 
 interface SalesViewProps {
   currencySymbol: string;
@@ -138,6 +132,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const [paidAmountInput, setPaidAmountInput] = useState("");
   const [isCustomPaid, setIsCustomPaid] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string>("Cash");
+  const [customPaymentMethod, setCustomPaymentMethod] = useState("");
 
   // Bill Printing modal
   const [printSaleId, setPrintSaleId] = useState<number | null>(null);
@@ -156,16 +151,6 @@ export const SalesView: React.FC<SalesViewProps> = ({
     setApplyVat(enableVat !== false);
   }, [enableVat]);
 
-  // Bulk / Whole Discount Modal
-  const [isBulkDiscountModalOpen, setIsBulkDiscountModalOpen] = useState(false);
-  const [bulkDiscountType, setBulkDiscountType] = useState<"fixed" | "percent">(
-    "fixed",
-  );
-  const [bulkDiscountValue, setBulkDiscountValue] = useState("");
-
-  // Multi-Product Batch Mode States
-  const [isBatchMode, setIsBatchMode] = useState(false);
-  const [isMultiProductModalOpen, setIsMultiProductModalOpen] = useState(false);
   const [isReturnsModalOpen, setIsReturnsModalOpen] = useState(false);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [activeShift, setActiveShift] = useState<any>(() => {
@@ -175,10 +160,6 @@ export const SalesView: React.FC<SalesViewProps> = ({
       return null;
     }
   });
-  const [batchQuantities, setBatchQuantities] = useState<
-    Record<number, number>
-  >({});
-  const [modalSearch, setModalSearch] = useState("");
 
   const quickSkuInputRef = useRef<HTMLInputElement>(null);
 
@@ -278,17 +259,6 @@ export const SalesView: React.FC<SalesViewProps> = ({
     );
   }, [products, search, stockFilter]);
 
-  // Filter products for modal
-  const modalFilteredProducts = useMemo(() => {
-    if (!modalSearch.trim()) return products;
-    const q = modalSearch.toLowerCase();
-    return products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.sku && p.sku.toLowerCase().includes(q)),
-    );
-  }, [products, modalSearch]);
-
   const handleAddToCart = (product: Product) => {
     // Check if already in cart
     const existingIndex = cart.findIndex(
@@ -373,247 +343,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
     }
   };
 
-  // Add multiple products to the sale cart in one batch operation
-  const handleBatchAddToCart = (
-    itemsToAdd: Array<{ product: Product; quantity: number }>,
-  ) => {
-    if (itemsToAdd.length === 0) {
-      showToast("No items selected to add", "warning");
-      return;
-    }
-
-    let updatedCart = [...cart];
-    let addedCount = 0;
-    let skippedCount = 0;
-
-    for (const item of itemsToAdd) {
-      const qty = Math.max(1, Math.floor(item.quantity));
-      const existingIndex = updatedCart.findIndex(
-        (ci) => ci.product.id === item.product.id,
-      );
-
-      if (existingIndex >= 0) {
-        const currentQty = updatedCart[existingIndex].quantity;
-        let newQty = currentQty + qty;
-
-        if (!allowNegativeStock && newQty > item.product.current_stock) {
-          if (currentQty >= item.product.current_stock) {
-            skippedCount++;
-            continue;
-          }
-          newQty = item.product.current_stock;
-        }
-
-        updatedCart[existingIndex] = {
-          ...updatedCart[existingIndex],
-          quantity: newQty,
-        };
-        addedCount++;
-      } else {
-        let finalQty = qty;
-        if (!allowNegativeStock && finalQty > item.product.current_stock) {
-          if (item.product.current_stock <= 0) {
-            skippedCount++;
-            continue;
-          }
-          finalQty = item.product.current_stock;
-        }
-
-        updatedCart.push({
-          product: item.product,
-          quantity: finalQty,
-          actual_selling_price: item.product.selling_price,
-          discount: 0,
-        });
-        addedCount++;
-      }
-    }
-
-    setCart(updatedCart);
-
-    if (addedCount > 0) {
-      showToast(
-        `Added ${addedCount} product${addedCount > 1 ? "s" : ""} to transaction`,
-        "success",
-      );
-    }
-    if (skippedCount > 0) {
-      showToast(
-        `${skippedCount} product${skippedCount > 1 ? "s were" : " was"} skipped due to insufficient stock`,
-        "warning",
-      );
-    }
-  };
-
-  // Pre-load products if passed from outside (e.g. ProductsView or InventoryView multi-select)
+  // Pre-load products if passed from outside (e.g. ProductsView or InventoryView)
   useEffect(() => {
     if (initialProducts && initialProducts.length > 0) {
-      handleBatchAddToCart(
-        initialProducts.map((p) => ({
-          product: p.product,
-          quantity: p.quantity || 1,
-        })),
-      );
+      initialProducts.forEach((p) => {
+        handleAddToCart(p.product);
+      });
       onClearInitialProducts?.();
     }
   }, [initialProducts]);
-
-  // Toggle selection for batch map
-  const toggleBatchItem = (productId: number, defaultQty: number = 1) => {
-    setBatchQuantities((prev) => {
-      const next = { ...prev };
-      if (next[productId] !== undefined) {
-        delete next[productId];
-      } else {
-        const prod = products.find((p) => p.id === productId);
-        if (!allowNegativeStock && prod && prod.current_stock <= 0) {
-          showToast(`"${prod.name}" is out of stock.`, "warning");
-          return prev;
-        }
-        const maxStock = prod ? prod.current_stock : Infinity;
-        next[productId] = !allowNegativeStock
-          ? Math.min(defaultQty, Math.max(1, maxStock))
-          : defaultQty;
-      }
-      return next;
-    });
-  };
-
-  const updateBatchQty = (productId: number, qty: number) => {
-    setBatchQuantities((prev) => {
-      const next = { ...prev };
-      if (qty <= 0) {
-        delete next[productId];
-      } else {
-        const prod = products.find((p) => p.id === productId);
-        const maxStock = prod ? prod.current_stock : Infinity;
-        if (!allowNegativeStock && qty > maxStock) {
-          next[productId] = Math.max(1, maxStock);
-          showToast(
-            `Quantity cannot exceed available stock (${maxStock} ${prod?.unit || "pcs"} for "${prod?.name || "Item"}").`,
-            "warning",
-          );
-        } else {
-          next[productId] = qty;
-        }
-      }
-      return next;
-    });
-  };
-
-  const selectAllFilteredInCatalog = () => {
-    setBatchQuantities((prev) => {
-      const next = { ...prev };
-      availableProducts.forEach((p) => {
-        if (!allowNegativeStock && p.current_stock <= 0) return;
-        if (!next[p.id]) {
-          next[p.id] = 1;
-        }
-      });
-      return next;
-    });
-  };
-
-  // Whole bill discount across all current cart items
-  const handleApplyBulkDiscount = () => {
-    const val = parseFloat(bulkDiscountValue);
-    if (isNaN(val) || val <= 0) {
-      showToast("Please enter a valid positive discount value", "warning");
-      return;
-    }
-
-    setWholeDiscountValue(bulkDiscountValue);
-    setWholeDiscountType(bulkDiscountType);
-    setIsBulkDiscountModalOpen(false);
-    setBulkDiscountValue("");
-    showToast(
-      `Applied whole bill discount of ${
-        bulkDiscountType === "fixed"
-          ? formatCurrency(toMinorUnits(val), currencySymbol)
-          : `${val}%`
-      } across ${cart.length} items`,
-      "success",
-    );
-  };
-
-  // Live preview for proportional whole discount in modal
-  const modalProportionalPreview = useMemo(() => {
-    if (!isBulkDiscountModalOpen || cart.length === 0) {
-      return null;
-    }
-    const val = parseFloat(bulkDiscountValue) || 0;
-    if (val <= 0) return null;
-
-    let subtotal = 0;
-    const itemsForDiscount = cart.map((item) => {
-      const gross = item.quantity * item.actual_selling_price;
-      subtotal += gross;
-      return { gross, individualDiscount: 0 };
-    });
-
-    let targetWholeMinor = 0;
-    if (bulkDiscountType === "percent") {
-      targetWholeMinor = Math.round((subtotal * Math.min(100, val)) / 100);
-    } else {
-      targetWholeMinor = Math.min(subtotal, toMinorUnits(val));
-    }
-
-    const distributed = calculateProportionalDiscounts(
-      itemsForDiscount,
-      targetWholeMinor,
-    );
-    return {
-      subtotal,
-      targetWholeMinor,
-      items: cart.map((item, idx) => ({
-        id: item.product.id,
-        name: item.product.name,
-        quantity: item.quantity,
-        unit: item.product.unit || "pcs",
-        gross: itemsForDiscount[idx].gross,
-        allocatedWhole: distributed[idx]?.allocatedWholeDiscount || 0,
-        effectiveNet:
-          distributed[idx]?.effectiveNet || itemsForDiscount[idx].gross,
-      })),
-    };
-  }, [isBulkDiscountModalOpen, cart, bulkDiscountValue, bulkDiscountType]);
-
-  const selectAllFilteredInModal = () => {
-    setBatchQuantities((prev) => {
-      const next = { ...prev };
-      modalFilteredProducts.forEach((p) => {
-        if (!allowNegativeStock && p.current_stock <= 0) return;
-        if (!next[p.id]) {
-          next[p.id] = 1;
-        }
-      });
-      return next;
-    });
-  };
-
-  const clearBatchSelections = () => {
-    setBatchQuantities({});
-  };
-
-  const submitBatchFromQuantities = () => {
-    const itemsToAdd: Array<{ product: Product; quantity: number }> = [];
-    for (const [pIdStr, qty] of Object.entries(batchQuantities)) {
-      const pId = parseInt(pIdStr, 10);
-      const product = products.find((p) => p.id === pId);
-      if (product && qty > 0) {
-        itemsToAdd.push({ product, quantity: qty });
-      }
-    }
-
-    if (itemsToAdd.length === 0) {
-      showToast("Select at least one product with quantity > 0", "warning");
-      return;
-    }
-
-    handleBatchAddToCart(itemsToAdd);
-    setBatchQuantities({});
-    setIsMultiProductModalOpen(false);
-  };
 
   const handleUpdateQuantity = (index: number, qtyStr: string) => {
     const rawQty = parseInt(qtyStr, 10);
@@ -867,7 +605,10 @@ export const SalesView: React.FC<SalesViewProps> = ({
         customerAddress: customerData.address.trim() || undefined,
         applyVat: applyVat,
         paidAmount: effectivePaidAmount,
-        paymentMethod: paymentMethod,
+        paymentMethod:
+          paymentMethod === "Other" && customPaymentMethod.trim()
+            ? customPaymentMethod.trim()
+            : paymentMethod,
         createdAt: parseDateTimeLocalToIso(saleDateTime),
         customerInput: {
           name: customerData.name.trim(),
@@ -936,6 +677,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
       setPaidAmountInput("");
       setIsCustomPaid(false);
       setPaymentMethod("Cash");
+      setCustomPaymentMethod("");
       setCustomerData({
         customerId: null,
         name: "",
@@ -985,20 +727,6 @@ export const SalesView: React.FC<SalesViewProps> = ({
     return () => window.removeEventListener("keydown", handlePosKeyDown);
   }, [cart, calculations.hasStockViolation]);
 
-  // Selected batch items summary stats
-  const batchSelectedCount = Object.keys(batchQuantities).length;
-  const batchTotalUnits = Object.values(batchQuantities).reduce(
-    (acc, q) => acc + q,
-    0,
-  );
-  const batchTotalEst = Object.entries(batchQuantities).reduce(
-    (acc, [pIdStr, q]) => {
-      const p = products.find((prod) => prod.id === parseInt(pIdStr, 10));
-      return acc + (p ? p.selling_price * q : 0);
-    },
-    0,
-  );
-
   return (
     <div className="p-8 flex flex-col gap-6 animate-in fade-in duration-150 h-full min-h-0">
       {/* Main Grid: Left Catalog Picker / Right Active Sale Cart */}
@@ -1009,30 +737,16 @@ export const SalesView: React.FC<SalesViewProps> = ({
             <div className="flex items-center justify-between shrink-0">
               <div>
                 <div className="text-xs font-semibold text-neutral-200">
-                  Catalog & Multi-Product Picker
+                  {isNepali
+                    ? "उत्पादन क्याटलग (सामान छान्नुहोस्)"
+                    : "Product Catalog"}
                 </div>
                 <div className="text-[11px] text-neutral-400 mt-0.5">
-                  Select items to batch add, or click + to add 1
+                  {isNepali
+                    ? "सामान थप्न क्लिक गर्नुहोस्"
+                    : "Click item or + to add to sale cart"}
                 </div>
               </div>
-
-              {/* Multi-Select Inline Toggle */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsBatchMode(!isBatchMode);
-                  if (isBatchMode) setBatchQuantities({});
-                }}
-                className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] rounded-md transition-colors cursor-pointer border ${
-                  isBatchMode
-                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-semibold"
-                    : "bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-neutral-200"
-                }`}
-                title="Toggle batch selection checkboxes"
-              >
-                <ListChecks className="w-3.5 h-3.5" />
-                <span>{isBatchMode ? "Multi-Select: ON" : "Multi-Select"}</span>
-              </button>
             </div>
 
             {/* Quick Filter Tabs & Search */}
@@ -1074,221 +788,203 @@ export const SalesView: React.FC<SalesViewProps> = ({
                 </button>
               </div>
 
-              {/* Quick Search and Multi-Select Helpers */}
-              <div className="flex items-center gap-2">
-                <div className="flex-1">
-                  <Input
-                    type="text"
-                    placeholder={
-                      isNepali
-                        ? "सामानको नाम वा SKU बाट खोज्नुहोस्..."
-                        : "Search catalog or SKU to add..."
-                    }
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    icon={Search}
-                    clearable
-                    onClear={() => setSearch("")}
-                    className="py-1.5 text-xs"
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={selectAllFilteredInCatalog}
-                  className="px-2.5 py-1.5 text-[11px] font-medium text-neutral-300 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 rounded-lg transition-colors cursor-pointer shrink-0"
-                  title="Select all products currently visible"
-                >
-                  Select All
-                </button>
-
-                {batchSelectedCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={clearBatchSelections}
-                    className="px-2 py-1.5 text-[11px] text-neutral-400 hover:text-neutral-200 transition-colors shrink-0"
-                  >
-                    Clear
-                  </button>
-                )}
+              {/* Quick Search */}
+              <div className="shrink-0">
+                <Input
+                  type="text"
+                  placeholder={
+                    isNepali
+                      ? "सामानको नाम वा SKU बाट खोज्नुहोस्..."
+                      : "Search catalog or SKU to add..."
+                  }
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  icon={Search}
+                  clearable
+                  onClear={() => setSearch("")}
+                  className="py-1.5 text-xs"
+                />
               </div>
             </div>
-
-            {/* Quick Multi-Add Sticky Bar if items are selected */}
-            {batchSelectedCount > 0 && (
-              <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-between gap-2 text-xs shrink-0">
-                <div>
-                  <span className="font-semibold text-emerald-300">
-                    {batchSelectedCount} selected
-                  </span>{" "}
-                  <span className="text-neutral-400">
-                    ({batchTotalUnits} units)
-                  </span>
-                  <div className="text-[10px] text-neutral-400 font-mono">
-                    Est: {formatCurrency(batchTotalEst, currencySymbol)}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={submitBatchFromQuantities}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add to Sale</span>
-                </button>
-              </div>
-            )}
 
             {/* Product List */}
             <div className="space-y-1.5 flex-1 min-h-0 overflow-y-auto pr-1">
               {availableProducts.length === 0 ? (
                 <div className="text-center py-8 text-neutral-500 text-xs">
-                  No products found.
+                  {isNepali ? "कुनै सामान भेटिएन।" : "No products found."}
                 </div>
               ) : (
                 availableProducts.map((p) => {
                   const isOutOfStock = p.current_stock <= 0;
-                  const isSelected = batchQuantities[p.id] !== undefined;
-                  const selectedQty = batchQuantities[p.id] || 1;
-                  const inCartItem = cart.find((ci) => ci.product.id === p.id);
+                  const inCartIndex = cart.findIndex(
+                    (ci) => ci.product.id === p.id,
+                  );
+                  const inCartItem =
+                    inCartIndex >= 0 ? cart[inCartIndex] : null;
+                  const cartQty = inCartItem ? inCartItem.quantity : 0;
                   const isMaxInCart =
-                    !allowNegativeStock &&
-                    !!inCartItem &&
-                    inCartItem.quantity >= p.current_stock;
+                    !allowNegativeStock && cartQty >= p.current_stock;
 
                   return (
                     <div
                       key={p.id}
-                      className={`p-2.5 rounded-lg border transition-all flex items-center justify-between select-none ${
-                        isSelected
-                          ? "bg-emerald-950/30 border-emerald-500/50"
+                      onClick={() => {
+                        if (isOutOfStock && !allowNegativeStock) return;
+                        if (isMaxInCart) return;
+                        handleAddToCart(p);
+                      }}
+                      className={`p-2.5 rounded-lg border transition-all flex items-center justify-between select-none cursor-pointer group ${
+                        cartQty > 0
+                          ? "bg-emerald-950/20 border-emerald-500/40 ring-1 ring-emerald-500/20"
                           : isOutOfStock && !allowNegativeStock
-                            ? "bg-neutral-950/40 border-neutral-800/40 opacity-50"
-                            : "bg-neutral-950 border-neutral-800/80 hover:border-neutral-700"
+                            ? "bg-neutral-950/40 border-neutral-800/40 opacity-50 cursor-not-allowed"
+                            : "bg-neutral-950 border-neutral-800/80 hover:border-neutral-700 hover:bg-neutral-900/50"
                       }`}
                     >
-                      {/* Checkbox & Product Info */}
-                      <div
-                        className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
-                        onClick={() => {
-                          if (isOutOfStock && !allowNegativeStock) return;
-                          toggleBatchItem(p.id);
-                        }}
-                      >
-                        {isSelected ? (
-                          <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0" />
-                        ) : (
-                          <Square className="w-4 h-4 text-neutral-600 shrink-0 hover:text-neutral-400" />
-                        )}
-
-                        <div className="min-w-0 flex-1 pr-2">
-                          <div className="text-xs font-semibold text-neutral-200 truncate capitalize">
-                            {p.name}
-                          </div>
-                          <div className="text-[10px] text-neutral-500 font-mono mt-0.5 flex items-center gap-1.5 flex-wrap">
-                            <span className="font-semibold text-neutral-300">
-                              {formatCurrency(p.selling_price, currencySymbol)}
+                      {/* Product Info */}
+                      <div className="min-w-0 flex-1 pr-2">
+                        <div className="text-xs font-semibold text-neutral-200 group-hover:text-emerald-300 truncate capitalize flex items-center gap-1.5">
+                          <span>{p.name}</span>
+                          {cartQty > 0 && (
+                            <span className="text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded border border-emerald-500/30">
+                              {cartQty} {p.unit || "pcs"}
                             </span>
-                            {p.wholesale_price && p.wholesale_price > 0 && (
-                              <span className="text-amber-400 font-normal">
-                                · W:{" "}
-                                {formatCurrency(
-                                  p.wholesale_price,
-                                  currencySymbol,
-                                )}
-                                {p.wholesale_min_qty
-                                  ? ` (≥${p.wholesale_min_qty})`
-                                  : ""}
-                              </span>
-                            )}
-                            <span>·</span>
-                            <span>{p.sku || "No SKU"}</span>
-                            <span>·</span>
-                            <span className="px-1 py-0.2 rounded bg-neutral-900 text-neutral-400 border border-neutral-800">
-                              {p.unit || "pcs"}
+                          )}
+                        </div>
+                        <div className="text-[10px] text-neutral-500 font-mono mt-0.5 flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold text-neutral-300">
+                            {formatCurrency(p.selling_price, currencySymbol)}
+                          </span>
+                          {p.wholesale_price && p.wholesale_price > 0 && (
+                            <span className="text-amber-400 font-normal">
+                              · W:{" "}
+                              {formatCurrency(
+                                p.wholesale_price,
+                                currencySymbol,
+                              )}
+                              {p.wholesale_min_qty
+                                ? ` (≥${p.wholesale_min_qty})`
+                                : ""}
                             </span>
-                            <span>·</span>
-                            <span
-                              className={
-                                p.current_stock <= 5
-                                  ? "text-amber-400 font-semibold"
-                                  : "text-neutral-400"
-                              }
-                            >
-                              Stock: {p.current_stock} {p.unit || "pcs"}
-                            </span>
-                          </div>
+                          )}
+                          <span>·</span>
+                          <span>{p.sku || "No SKU"}</span>
+                          <span>·</span>
+                          <span className="px-1 py-0.2 rounded bg-neutral-900 text-neutral-400 border border-neutral-800">
+                            {p.unit || "pcs"}
+                          </span>
+                          <span>·</span>
+                          <span
+                            className={
+                              p.current_stock <= 5
+                                ? "text-amber-400 font-semibold"
+                                : "text-neutral-400"
+                            }
+                          >
+                            Stock: {p.current_stock}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Right action controls */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        {isSelected ? (
-                          <div className="flex items-center gap-1 bg-neutral-900 border border-neutral-700 rounded">
+                      {/* Right side: Stepper if in cart, or "+ Add" button */}
+                      <div
+                        className="flex items-center gap-1.5 shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {cartQty > 0 ? (
+                          <div className="flex items-center bg-neutral-900 border border-emerald-500/40 rounded-lg p-0.5 shadow-xs">
                             <button
                               type="button"
-                              disabled={selectedQty <= 1}
-                              onClick={() =>
-                                updateBatchQty(p.id, selectedQty - 1)
+                              onClick={() => {
+                                if (cartQty <= 1) {
+                                  handleRemoveFromCart(inCartIndex);
+                                } else {
+                                  handleUpdateQuantity(
+                                    inCartIndex,
+                                    (cartQty - 1).toString(),
+                                  );
+                                }
+                              }}
+                              className="w-7 h-7 flex items-center justify-center text-neutral-300 hover:text-white rounded hover:bg-neutral-800 transition-colors cursor-pointer"
+                              title={
+                                cartQty <= 1
+                                  ? isNepali
+                                    ? "बिक्रीबाट हटाउनुहोस्"
+                                    : "Remove from sale"
+                                  : isNepali
+                                    ? "घटाउनुहोस्"
+                                    : "Decrease quantity"
                               }
-                              className="w-8 h-8 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
-                              <Minus className="w-3 h-3" />
+                              <Minus className="w-3.5 h-3.5" />
                             </button>
                             <input
                               type="number"
-                              min="1"
+                              min="0"
                               max={
                                 !allowNegativeStock
                                   ? Math.max(1, p.current_stock)
                                   : undefined
                               }
-                              value={selectedQty}
+                              value={cartQty}
+                              onFocus={(e) => e.target.select()}
                               onChange={(e) => {
                                 const val = parseInt(e.target.value, 10);
-                                updateBatchQty(p.id, isNaN(val) ? 1 : val);
+                                if (isNaN(val) || val <= 0) {
+                                  handleRemoveFromCart(inCartIndex);
+                                } else {
+                                  handleUpdateQuantity(
+                                    inCartIndex,
+                                    val.toString(),
+                                  );
+                                }
                               }}
-                              className="h-8 border-0 p-0 text-center text-xs font-mono font-bold text-neutral-100 bg-transparent focus:outline-none"
+                              className="w-10 h-7 border-0 p-0 text-center text-xs font-mono font-bold text-emerald-300 bg-transparent focus:outline-none"
                             />
                             <button
                               type="button"
-                              disabled={
-                                !allowNegativeStock &&
-                                selectedQty >= p.current_stock
-                              }
-                              onClick={() =>
-                                updateBatchQty(p.id, selectedQty + 1)
-                              }
+                              disabled={isMaxInCart}
+                              onClick={() => {
+                                if (isMaxInCart) return;
+                                handleUpdateQuantity(
+                                  inCartIndex,
+                                  (cartQty + 1).toString(),
+                                );
+                              }}
                               title={
-                                !allowNegativeStock &&
-                                selectedQty >= p.current_stock
+                                isMaxInCart
                                   ? `Max stock reached (${p.current_stock})`
-                                  : "Increase batch quantity"
+                                  : isNepali
+                                    ? "बढाउनुहोस्"
+                                    : "Increase quantity"
                               }
-                              className="w-8 h-8 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
+                              className="w-7 h-7 flex items-center justify-center text-neutral-300 hover:text-white rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
                             >
-                              <Plus className="w-3 h-3" />
+                              <Plus className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         ) : (
                           <button
                             type="button"
-                            disabled={
-                              (isOutOfStock || isMaxInCart) &&
-                              !allowNegativeStock
-                            }
+                            disabled={isOutOfStock && !allowNegativeStock}
                             onClick={() => handleAddToCart(p)}
                             title={
-                              isMaxInCart
-                                ? `All available stock (${p.current_stock}) already in cart`
-                                : isOutOfStock
-                                  ? "Out of stock"
-                                  : "Add 1 unit to sale cart"
+                              isOutOfStock && !allowNegativeStock
+                                ? "Out of stock"
+                                : "Add to sale"
                             }
-                            className="px-2 py-1 rounded bg-neutral-900 hover:bg-emerald-600 hover:text-white border border-neutral-800 flex items-center gap-1 text-[11px] text-neutral-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="px-2.5 py-1.5 rounded-lg bg-neutral-900 hover:bg-emerald-600 text-neutral-300 hover:text-white border border-neutral-800 hover:border-emerald-500 flex items-center gap-1 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                           >
-                            <Plus className="w-3 h-3" />
-                            <span>{isMaxInCart ? "Max in cart" : "Add"}</span>
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>
+                              {isOutOfStock && !allowNegativeStock
+                                ? isNepali
+                                  ? "सकियो"
+                                  : "Out of Stock"
+                                : isNepali
+                                  ? "थप्नुहोस्"
+                                  : "Add"}
+                            </span>
                           </button>
                         )}
                       </div>
@@ -1297,23 +993,6 @@ export const SalesView: React.FC<SalesViewProps> = ({
                 })
               )}
             </div>
-
-            {/* In-Catalog Multi-Select Action Bar (when Batch Items are selected) */}
-            {batchSelectedCount > 0 && (
-              <div className="pt-2 border-t border-neutral-800 space-y-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={submitBatchFromQuantities}
-                  className="w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>
-                    Add {batchSelectedCount} Selected Products (
-                    {batchTotalUnits} units)
-                  </span>
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
@@ -1321,53 +1000,24 @@ export const SalesView: React.FC<SalesViewProps> = ({
         <div className="lg:col-span-7 h-full min-h-0 flex flex-col">
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden flex flex-col h-full min-h-0">
             {/* Cart Header */}
-            <div className="px-5 py-3.5 border-b border-neutral-800 bg-neutral-950/60 flex items-center justify-between flex-wrap gap-2 shrink-0">
+            <div className="px-3.5 py-2.5 border-b border-neutral-800 bg-neutral-950/70 flex items-center justify-between flex-wrap gap-2 shrink-0">
               <div className="flex items-center gap-2">
                 <Receipt className="w-4 h-4 text-emerald-400" />
                 <span className="text-xs font-semibold text-neutral-200">
-                  Current Transaction Items
+                  {isNepali ? "चालु बिक्री सामानहरू" : "Current Transaction Items"}
                 </span>
-                <span className="text-[11px] text-neutral-400 font-mono ml-2">
+                <span className="text-[11px] text-neutral-400 font-mono ml-1">
                   ({cart.length} {cart.length === 1 ? "item" : "items"} ·{" "}
                   {calculations.totalUnits} units)
                 </span>
               </div>
 
-              <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-                {/* Quick Multiple Products Button */}
-                {cart.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setBulkDiscountValue(wholeDiscountValue);
-                        setBulkDiscountType(wholeDiscountType);
-                        setIsBulkDiscountModalOpen(true);
-                      }}
-                      className={`flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md transition-colors cursor-pointer border ${
-                        calculations.totalDiscount > 0
-                          ? "bg-amber-200/20 text-amber-300 border-amber-500/40 font-semibold"
-                          : "text-amber-300 hover:text-amber-200 bg-amber-300/10 hover:bg-amber-400/20 border-amber-500/30"
-                      }`}
-                      title={
-                        isNepali ? "सम्पूर्ण बिल छुट" : "Whole bill discount"
-                      }
-                    >
-                      <Percent className="w-3 h-3" />
-                      <span>
-                        {calculations.totalDiscount > 0
-                          ? `${isNepali ? "बिल छुट" : "Bill Discount"}: -${formatCurrency(calculations.totalDiscount, currencySymbol)}`
-                          : isNepali
-                            ? "बिल छुट"
-                            : "Bill Discount"}
-                      </span>
-                    </button>
-                  </div>
-                )}
+              <div className="flex items-center gap-1.5 self-start sm:self-auto flex-wrap">
+                {/* Till Shift Button */}
                 <button
                   type="button"
                   onClick={() => setIsShiftModalOpen(true)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer border ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-md shadow-xs transition-colors cursor-pointer border ${
                     activeShift
                       ? "text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30"
                       : "text-neutral-400 bg-neutral-800 hover:bg-neutral-700 border-neutral-700"
@@ -1392,35 +1042,27 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   </span>
                 </button>
 
+                {/* Returns Button */}
                 <button
                   type="button"
                   onClick={() => setIsReturnsModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg shadow-xs transition-colors cursor-pointer"
+                  className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-md shadow-xs transition-colors cursor-pointer"
                   title={
                     isNepali
                       ? "बिक्री फिर्ता तथा क्रेडिट नोट"
                       : "Customer Returns & Credit Note"
                   }
                 >
-                  <RotateCcw className="w-3.5 h-3.5 text-rose-400" />
-                  <span>{isNepali ? "फिर्ता / Credit Note" : "Returns"}</span>
+                  <RotateCcw className="w-3 h-3 text-rose-400" />
+                  <span>{isNepali ? "फिर्ता" : "Returns"}</span>
                 </button>
 
-                <button
-                  onClick={() => {
-                    setBatchQuantities({});
-                    setIsMultiProductModalOpen(true);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-xs transition-colors cursor-pointer"
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>{t("pos_add_multiple")}</span>
-                </button>
-
+                {/* Clear Cart Button */}
                 {cart.length > 0 && (
                   <button
                     onClick={handleClearCart}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-neutral-400 border-rose-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                    className="p-1 text-neutral-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-colors cursor-pointer border border-transparent hover:border-rose-500/30"
+                    title={isNepali ? "कार्ट खाली गर्नुहोस्" : "Clear cart"}
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                   </button>
@@ -1428,721 +1070,792 @@ export const SalesView: React.FC<SalesViewProps> = ({
               </div>
             </div>
 
-            {/* Cart Table */}
-            {cart.length === 0 ? (
-              <div className="p-12 text-center text-xs text-neutral-400 flex-1 min-h-0 flex flex-col items-center justify-center">
-                <Receipt className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
-                Your sale cart is empty. Check multiple items on the catalog, or
-                click{" "}
-                <button
-                  onClick={() => setIsMultiProductModalOpen(true)}
-                  className="text-emerald-400 hover:underline font-semibold cursor-pointer"
-                >
-                  Add Multiple Products
-                </button>{" "}
-                to select several products at once.
-              </div>
-            ) : (
-              <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 min-h-[140px]">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 sticky top-0 z-10">
-                    <tr>
-                      <th className="py-2 px-4">Item</th>
-                      <th className="py-2 px-2 text-center w-28">Qty</th>
-                      <th className="py-2 px-3 text-right font-mono w-28">
-                        Sale Price
-                      </th>
-                      <th className="py-2 px-4 text-right font-mono w-32">
-                        Total
-                      </th>
-                      <th className="py-2 px-3 text-center w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-800/60">
-                    {calculations.itemsWithDiscounts.map((item, index) => {
-                      const multiplier = item.package_multiplier || 1;
-                      const baseQtyNeeded = item.quantity * multiplier;
-                      const isOverStock =
-                        !allowNegativeStock &&
-                        baseQtyNeeded > item.product.current_stock;
+            {/* 1. Main Cart Items Listing (Allocates the whole available space) */}
+            <div className="flex-1 min-h-0 p-3 pb-0 flex flex-col">
+              <div className="flex-1 min-h-[160px] bg-neutral-950/80 border border-neutral-800/80 rounded-lg overflow-hidden flex flex-col">
+                {cart.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-neutral-400 flex-1 min-h-0 flex flex-col items-center justify-center">
+                    <Receipt className="w-8 h-8 text-neutral-600 mb-2" />
+                    <p className="max-w-xs">
+                      {isNepali
+                        ? "बिक्री कार्ट खाली छ। बायाँतर्फको क्याटलगबाट सामान क्लिक गरी थप्नुहोस्।"
+                        : "Your sale cart is empty. Click on any product in the catalog on the left to add it."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-neutral-900/90 text-neutral-400 font-medium border-b border-neutral-800 sticky top-0 z-10 text-[11px]">
+                        <tr>
+                          <th className="py-1.5 px-3">Item</th>
+                          <th className="py-1.5 px-2 text-center w-28">Qty</th>
+                          <th className="py-1.5 px-2 text-right font-mono w-24">Sale Price</th>
+                          <th className="py-1.5 px-3 text-right font-mono w-28">Total</th>
+                          <th className="py-1.5 px-2 text-center w-8"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-800/60">
+                        {calculations.itemsWithDiscounts.map((item, index) => {
+                          const multiplier = item.package_multiplier || 1;
+                          const baseQtyNeeded = item.quantity * multiplier;
+                          const isOverStock =
+                            !allowNegativeStock &&
+                            baseQtyNeeded > item.product.current_stock;
 
-                      return (
-                        <tr
-                          key={item.product.id}
-                          className={`hover:bg-neutral-800/30 transition-colors ${
-                            isOverStock ? "bg-rose-500/5" : ""
-                          }`}
-                        >
-                          {/* Product Info */}
-                          <td className="py-2 px-4">
-                            <div className="font-semibold text-neutral-200 flex items-center gap-1.5">
-                              <span className="capitalize">
-                                {item.product.name}
-                              </span>
-                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-neutral-800 text-neutral-300 border border-neutral-700/60">
-                                {item.product.unit || "pcs"}
-                              </span>
-                              {item.packaging_name && (
-                                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-semibold">
-                                  {item.packaging_name} (×
-                                  {item.package_multiplier})
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[10px] text-neutral-400 font-mono mt-0.5 flex items-center gap-1.5">
-                              <span>
-                                Default:{" "}
-                                {formatCurrency(
-                                  item.product.selling_price,
-                                  currencySymbol,
+                          return (
+                            <tr
+                              key={item.product.id}
+                              className={`hover:bg-neutral-800/30 transition-colors ${
+                                isOverStock ? "bg-rose-500/5" : ""
+                              }`}
+                            >
+                              {/* Product Info */}
+                              <td className="py-2 px-3">
+                                <div className="font-semibold text-neutral-200 flex items-center gap-1.5 flex-wrap">
+                                  <span className="capitalize">{item.product.name}</span>
+                                  <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-neutral-800 text-neutral-300 border border-neutral-700/60">
+                                    {item.product.unit || "pcs"}
+                                  </span>
+                                  {item.packaging_name && (
+                                    <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-semibold">
+                                      {item.packaging_name} (×{item.package_multiplier})
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[10px] text-neutral-400 font-mono mt-0.5 flex items-center gap-1.5">
+                                  <span>
+                                    Default: {formatCurrency(item.product.selling_price, currencySymbol)}
+                                  </span>
+                                  <span>·</span>
+                                  <span className={isOverStock ? "text-rose-400 font-bold" : "text-neutral-400"}>
+                                    Stock: {item.product.current_stock} {item.product.unit || "pcs"}
+                                  </span>
+                                </div>
+                                {isOverStock && (
+                                  <div className="text-[10px] text-rose-400 mt-1 flex items-center gap-1 font-semibold">
+                                    <AlertTriangle className="w-3 h-3 shrink-0" />
+                                    <span>
+                                      Exceeds stock (Needs {baseQtyNeeded}, Available: {item.product.current_stock})
+                                    </span>
+                                  </div>
                                 )}
-                              </span>
-                              <span>·</span>
-                              <span
-                                className={
-                                  isOverStock
-                                    ? "text-rose-400 font-bold"
-                                    : "text-neutral-400"
-                                }
-                              >
-                                Stock: {item.product.current_stock}{" "}
-                                {item.product.unit || "pcs"}
-                              </span>
-                            </div>
-                            {isOverStock && (
-                              <div className="text-[10px] text-rose-400 mt-1 flex items-center gap-1 font-semibold">
-                                <AlertTriangle className="w-3 h-3" />
-                                <span>
-                                  Exceeds available stock (Needs {baseQtyNeeded}{" "}
-                                  {item.product.unit || "pcs"}, Available:{" "}
-                                  {item.product.current_stock})
-                                </span>
-                              </div>
-                            )}
 
-                            {/* Packaging & Batch Controls */}
-                            <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                              {/* Packaging Selection */}
-                              {packagingsByProduct[item.product.id]?.length >
-                                0 && (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-[10px] text-neutral-400 font-medium">
-                                    {isNepali ? "एकाइ:" : "Unit:"}
-                                  </span>
-                                  <select
-                                    value={item.packaging_id ?? ""}
-                                    onChange={(e) => {
-                                      const val = e.target.value
-                                        ? parseInt(e.target.value, 10)
-                                        : null;
-                                      handleSelectPackaging(index, val);
-                                    }}
-                                    className="bg-neutral-900 border border-neutral-700/80 rounded px-1.5 py-0.5 text-[10px] text-cyan-300 font-mono focus:outline-none focus:border-cyan-500"
-                                  >
-                                    <option value="">
-                                      Base ({item.product.unit || "pcs"})
-                                    </option>
-                                    {packagingsByProduct[item.product.id].map(
-                                      (pkg) => (
-                                        <option key={pkg.id} value={pkg.id}>
-                                          {pkg.package_name} (×{pkg.multiplier})
+                                {/* Packaging & Batch Controls */}
+                                <div className="flex flex-wrap items-center gap-2 mt-1">
+                                  {packagingsByProduct[item.product.id]?.length > 0 && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-[10px] text-neutral-400 font-medium">
+                                        {isNepali ? "एकाइ:" : "Unit:"}
+                                      </span>
+                                      <select
+                                        value={item.packaging_id ?? ""}
+                                        onChange={(e) => {
+                                          const val = e.target.value
+                                            ? parseInt(e.target.value, 10)
+                                            : null;
+                                          handleSelectPackaging(index, val);
+                                        }}
+                                        className="bg-neutral-900 border border-neutral-700/80 rounded px-1.5 py-0.5 text-[10px] text-cyan-300 font-mono focus:outline-none focus:border-cyan-500 cursor-pointer"
+                                      >
+                                        <option value="">Base ({item.product.unit || "pcs"})</option>
+                                        {packagingsByProduct[item.product.id].map((pkg) => (
+                                          <option key={pkg.id} value={pkg.id}>
+                                            {pkg.package_name} (×{pkg.multiplier})
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  )}
+
+                                  {batchesByProduct[item.product.id]?.length > 0 && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-[10px] text-neutral-400 font-medium">
+                                        {isNepali ? "ब्याच:" : "Batch:"}
+                                      </span>
+                                      <select
+                                        value={item.batch_id ?? ""}
+                                        onChange={(e) => {
+                                          const val = e.target.value
+                                            ? parseInt(e.target.value, 10)
+                                            : null;
+                                          handleSelectBatch(index, val);
+                                        }}
+                                        className="bg-neutral-900 border border-neutral-700/80 rounded px-1.5 py-0.5 text-[10px] text-amber-300 font-mono focus:outline-none focus:border-amber-500 cursor-pointer"
+                                      >
+                                        <option value="">
+                                          Auto FEFO ({batchesByProduct[item.product.id][0].batch_number})
                                         </option>
-                                      ),
-                                    )}
-                                  </select>
+                                        {batchesByProduct[item.product.id].map((b) => (
+                                          <option key={b.id} value={b.id}>
+                                            {b.batch_number} (Exp: {b.expiry_date}, Stk: {b.quantity})
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                              </td>
 
-                              {/* Batch Selection / FEFO Indicator */}
-                              {batchesByProduct[item.product.id]?.length >
-                                0 && (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-[10px] text-neutral-400 font-medium">
-                                    {isNepali ? "ब्याच:" : "Batch:"}
-                                  </span>
-                                  <select
-                                    value={item.batch_id ?? ""}
-                                    onChange={(e) => {
-                                      const val = e.target.value
-                                        ? parseInt(e.target.value, 10)
-                                        : null;
-                                      handleSelectBatch(index, val);
-                                    }}
-                                    className="bg-neutral-900 border border-neutral-700/80 rounded px-1.5 py-0.5 text-[10px] text-amber-300 font-mono focus:outline-none focus:border-amber-500"
-                                  >
-                                    <option value="">
-                                      Auto FEFO (
-                                      {
-                                        batchesByProduct[item.product.id][0]
-                                          .batch_number
+                              {/* Quantity with in-line stepper */}
+                              <td className="py-2 px-2 text-center">
+                                <div className="flex items-center justify-center bg-neutral-950 border border-neutral-800 rounded-lg w-max mx-auto p-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (item.quantity <= 1) {
+                                        handleRemoveFromCart(index);
+                                      } else {
+                                        handleUpdateQuantity(
+                                          index,
+                                          (item.quantity - 1).toString(),
+                                        );
                                       }
+                                    }}
+                                    className="w-7 h-7 flex items-center justify-center text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded transition-colors cursor-pointer"
+                                    title={
+                                      item.quantity <= 1
+                                        ? isNepali
+                                          ? "बिक्रीबाट हटाउनुहोस्"
+                                          : "Remove from sale"
+                                        : isNepali
+                                          ? "घटाउनुहोस्"
+                                          : "Decrease quantity"
+                                    }
+                                  >
+                                    <Minus className="w-3.5 h-3.5" />
+                                  </button>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max={
+                                      !allowNegativeStock
+                                        ? Math.max(1, item.product.current_stock)
+                                        : undefined
+                                    }
+                                    value={item.quantity}
+                                    onFocus={(e) => e.target.select()}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value, 10);
+                                      if (isNaN(val) || val <= 0) {
+                                        handleRemoveFromCart(index);
+                                      } else {
+                                        handleUpdateQuantity(index, val.toString());
+                                      }
+                                    }}
+                                    className="w-10 h-7 border-0 p-0 text-center text-xs font-mono font-bold text-neutral-100 bg-transparent focus:outline-none"
+                                  />
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      !allowNegativeStock &&
+                                      item.quantity >= item.product.current_stock
+                                    }
+                                    onClick={() =>
+                                      handleUpdateQuantity(
+                                        index,
+                                        (item.quantity + 1).toString(),
                                       )
-                                    </option>
-                                    {batchesByProduct[item.product.id].map(
-                                      (b) => (
-                                        <option key={b.id} value={b.id}>
-                                          {b.batch_number} (Exp: {b.expiry_date}
-                                          , Stk: {b.quantity})
-                                        </option>
-                                      ),
-                                    )}
-                                  </select>
+                                    }
+                                    title={
+                                      !allowNegativeStock &&
+                                      item.quantity >= item.product.current_stock
+                                        ? `Max available stock reached (${item.product.current_stock})`
+                                        : isNepali
+                                          ? "बढाउनुहोस्"
+                                          : "Increase quantity"
+                                    }
+                                    className="w-7 h-7 flex items-center justify-center text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                  >
+                                    <Plus className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
-                              )}
-                            </div>
-                          </td>
+                              </td>
 
-                          {/* Quantity with in-line stepper */}
-                          <td className="py-2 px-2 text-center">
-                            <div className="flex items-center justify-center bg-neutral-950 border border-neutral-800 rounded w-max mx-auto">
-                              <button
-                                type="button"
-                                disabled={item.quantity <= 1}
-                                onClick={() =>
-                                  handleUpdateQuantity(
-                                    index,
-                                    (item.quantity - 1).toString(),
-                                  )
-                                }
-                                className="min-w-8 h-8 flex items-center justify-center text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                              >
-                                <Minus className="w-3 h-3" />
-                              </button>
-                              <input
-                                type="number"
-                                min="1"
-                                max={
-                                  !allowNegativeStock
-                                    ? Math.max(1, item.product.current_stock)
-                                    : undefined
-                                }
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  handleUpdateQuantity(index, e.target.value)
-                                }
-                                className="h-8 border-0 p-0 text-center text-xs font-mono text-neutral-100 focus:outline-none focus:border-none focus:ring-0"
-                              />
-                              <button
-                                type="button"
-                                disabled={
-                                  !allowNegativeStock &&
-                                  item.quantity >= item.product.current_stock
-                                }
-                                onClick={() =>
-                                  handleUpdateQuantity(
-                                    index,
-                                    (item.quantity + 1).toString(),
-                                  )
-                                }
-                                title={
-                                  !allowNegativeStock &&
-                                  item.quantity >= item.product.current_stock
-                                    ? `Max available stock reached (${item.product.current_stock})`
-                                    : "Increase quantity"
-                                }
-                                className="min-w-8 h-8 flex items-center justify-center text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                              >
-                                <Plus className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </td>
+                              {/* Actual Selling Price (Editable) */}
+                              <td className="py-2 px-2 text-right">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={fromMinorUnits(item.actual_selling_price)}
+                                  onChange={(e) =>
+                                    handleUpdateActualPrice(index, e.target.value)
+                                  }
+                                  containerClassName="w-20 ml-auto"
+                                  className="px-1.5 py-1 text-xs text-right font-mono text-neutral-100 h-7"
+                                />
+                                {item.product.wholesale_price &&
+                                  item.product.wholesale_price > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleTogglePricingTier(index)}
+                                      className={`mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono cursor-pointer transition-colors ${
+                                        item.pricing_tier === "WHOLESALE"
+                                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold"
+                                          : "bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-700/60"
+                                      }`}
+                                      title="Click to toggle Retail / Wholesale rate"
+                                    >
+                                      {item.pricing_tier === "WHOLESALE"
+                                        ? isNepali
+                                          ? "थोक"
+                                          : "Wholesale"
+                                        : isNepali
+                                          ? "खुदरा"
+                                          : "Retail"}
+                                    </button>
+                                  )}
+                              </td>
 
-                          {/* Actual Selling Price (Editable!) */}
-                          <td className="py-2 px-3 text-right">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={fromMinorUnits(item.actual_selling_price)}
-                              onChange={(e) =>
-                                handleUpdateActualPrice(index, e.target.value)
-                              }
-                              containerClassName="w-24 ml-auto"
-                              className="px-2 py-1 text-xs text-right font-mono text-neutral-100"
-                            />
-                            {item.product.wholesale_price &&
-                              item.product.wholesale_price > 0 && (
+                              {/* Line Total */}
+                              <td className="py-2 px-3 text-right font-mono tabular-nums">
+                                <div className="font-bold text-neutral-100">
+                                  {formatCurrency(item.netTotal, currencySymbol)}
+                                </div>
+                                {item.allocatedWholeDiscount > 0 && (
+                                  <div className="text-[10px] font-normal text-amber-400 font-mono">
+                                    -{formatCurrency(item.allocatedWholeDiscount, currencySymbol)}
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* Remove */}
+                              <td className="py-2 px-2 text-center">
                                 <button
                                   type="button"
-                                  onClick={() => handleTogglePricingTier(index)}
-                                  className={`mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono cursor-pointer transition-colors ${
-                                    item.pricing_tier === "WHOLESALE"
-                                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold"
-                                      : "bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-700/60"
-                                  }`}
-                                  title="Click to toggle Retail / Wholesale rate"
+                                  onClick={() => handleRemoveFromCart(index)}
+                                  className="text-neutral-500 hover:text-rose-400 transition-colors p-1 rounded hover:bg-neutral-800 cursor-pointer"
+                                  title="Remove item"
                                 >
-                                  {item.pricing_tier === "WHOLESALE"
-                                    ? isNepali
-                                      ? "थोक"
-                                      : "Wholesale"
-                                    : isNepali
-                                      ? "खुदरा"
-                                      : "Retail"}
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </button>
-                              )}
-                          </td>
-
-                          {/* Line Total */}
-                          <td className="py-3 px-4 text-right font-mono tabular-nums">
-                            <div className="font-bold text-neutral-100">
-                              {formatCurrency(item.netTotal, currencySymbol)}
-                            </div>
-                            {item.allocatedWholeDiscount > 0 && (
-                              <div className="text-[10px] font-normal text-amber-400 font-mono">
-                                -
-                                {formatCurrency(
-                                  item.allocatedWholeDiscount,
-                                  currencySymbol,
-                                )}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Remove */}
-                          <td className="py-3 px-3 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveFromCart(index)}
-                              className="text-neutral-500 hover:text-rose-400 transition-colors p-1 rounded hover:bg-neutral-800"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
 
-            {/* Customer Information & Transaction Date */}
-            <div className="p-4 bg-neutral-950/70 border-t border-neutral-800 space-y-3 shrink-0">
-              <CustomerInputSection
-                value={customerData}
-                onChange={setCustomerData}
-              />
+            {/* 2. Customer Information & Two-Column Billing Grid */}
+            <div className="shrink-0 p-3 pt-2.5 space-y-2.5 max-h-[46vh] overflow-y-auto border-t border-neutral-800/80 bg-neutral-900/40">
+              {/* Customer Information & Transaction Date Card */}
+              <div className="p-3 bg-neutral-950/80 border border-neutral-800/80 rounded-lg">
+                <div className="flex flex-col md:flex-row md:items-stretch gap-2.5">
+                  <div className="flex-1 min-w-0">
+                    <CustomerInputSection
+                      value={customerData}
+                      onChange={setCustomerData}
+                    />
+                  </div>
 
-              {/* Transaction Date & Time */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-lg bg-neutral-900/90 border border-neutral-800">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <div>
-                    <div className="text-xs font-medium text-neutral-200 flex items-center gap-1.5">
-                      <span>
-                        {isNepali ? "कारोबार मिति र समय" : "Sale Date & Time"}
-                      </span>
+                  {/* Transaction Date & Time */}
+                  <div className="w-full md:w-auto md:min-w-[270px] shrink-0 p-3 bg-neutral-900/60 border border-neutral-800 rounded-xl flex flex-col justify-between gap-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                          <Calendar className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold text-neutral-200">
+                            {isNepali ? "कारोबार मिति र समय" : "Sale Date & Time"}
+                          </div>
+                          <p className="text-[10px] text-neutral-400">
+                            {isNepali ? "बिल जारी मिति" : "Invoice issue timestamp"}
+                          </p>
+                        </div>
+                      </div>
                       {isCustomSaleDate && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-medium">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-medium shrink-0">
                           {isNepali ? "कस्टम मिति" : "Backdated"}
                         </span>
                       )}
                     </div>
-                    <div className="text-[10px] text-neutral-400">
-                      {isNepali
-                        ? "पहिलेको कारोबार दर्ता गर्न मिति मिलाउनुहोस्"
-                        : "Default is today. Change if entering a past sale."}
+
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <NepaliDatePicker
+                          value={saleDateTime}
+                          showTime={true}
+                          sizeVariant="sm"
+                          onChange={(adDateTime) => setSaleDateTime(adDateTime)}
+                        />
+                      </div>
+                      {isCustomSaleDate && (
+                        <button
+                          type="button"
+                          onClick={() => setSaleDateTime(formatForDateTimeLocal())}
+                          className="px-2 py-1 text-[10px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded transition-colors cursor-pointer shrink-0"
+                          title={isNepali ? "अहिलेको मितिमा फर्काउनुहोस्" : "Reset to current date & time"}
+                        >
+                          {isNepali ? "अहिले" : "Now"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Two-Column Billing Layout on Desktop (xl:grid-cols-2) */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-2.5 min-w-0">
+                {/* Column 1: Discounts & Financial Summary */}
+                <div className="space-y-2 min-w-0">
+                  {/* Summary Breakdown Card */}
+                  <div className="p-2.5 rounded-lg bg-neutral-950/80 border border-neutral-800/80 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between text-neutral-400">
+                      <span>{isNepali ? "उप-जम्मा" : "Subtotal (Gross)"}</span>
+                      <span className="font-mono text-neutral-200">
+                        {formatCurrency(calculations.subtotal, currencySymbol)}
+                      </span>
+                    </div>
+
+                    {calculations.totalDiscount > 0 && (
+                      <div className="flex items-center justify-between text-neutral-300 font-semibold">
+                        <span>{isNepali ? "बिल छुट" : "Bill Discount"}</span>
+                        <span className="font-mono text-amber-400">
+                          -{formatCurrency(calculations.totalDiscount, currencySymbol)}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between text-neutral-400">
+                      <span>{isNepali ? "करयोग्य रकम" : "Taxable Amount"}</span>
+                      <span className="font-mono text-neutral-200">
+                        {formatCurrency(calculations.taxableAmount, currencySymbol)}
+                      </span>
+                    </div>
+
+                    {/* VAT Row with Toggle */}
+                    <div className="flex items-center justify-between text-neutral-400 py-0.5">
+                      <span className="flex items-center gap-1.5">
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                            applyVat
+                              ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                              : "bg-neutral-800 text-neutral-400 border-neutral-700"
+                          }`}
+                        >
+                          {applyVat ? "13% VAT" : "0% VAT"}
+                        </span>
+                        <span>{isNepali ? "मूल्य अभिवृद्धि कर" : "VAT"}</span>
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`font-mono ${applyVat ? "text-sky-400" : "text-neutral-500"}`}
+                        >
+                          {applyVat
+                            ? `+${formatCurrency(calculations.vatAmount, currencySymbol)}`
+                            : formatCurrency(0, currencySymbol)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setApplyVat(!applyVat)}
+                          title={applyVat ? "Disable VAT" : "Apply 13% VAT"}
+                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded transition-all cursor-pointer border ${
+                            applyVat
+                              ? "bg-sky-500/20 text-sky-300 border-sky-500/30 hover:bg-sky-500/30"
+                              : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
+                          }`}
+                        >
+                          {applyVat ? "ON" : "OFF"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="pt-1.5 border-t border-neutral-800 flex items-center justify-between">
+                      <span className="font-bold text-neutral-100">
+                        {isNepali ? "कुल रकम (Grand Total)" : "Grand Total"}
+                      </span>
+                      <span className="text-base font-bold font-mono text-emerald-400 tabular-nums">
+                        {formatCurrency(calculations.grandTotal, currencySymbol)}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="w-64 sm:w-72">
-                    <NepaliDatePicker
-                      value={saleDateTime}
-                      showTime={true}
-                      sizeVariant="sm"
-                      onChange={(adDateTime) => setSaleDateTime(adDateTime)}
-                    />
-                  </div>
-                  {isCustomSaleDate && (
-                    <button
-                      type="button"
-                      onClick={() => setSaleDateTime(formatForDateTimeLocal())}
-                      className="px-2 py-1 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer shrink-0"
-                      title={
-                        isNepali
-                          ? "अहिलेको मितिमा फर्काउनुहोस्"
-                          : "Reset to current date & time"
-                      }
-                    >
-                      {isNepali ? "अहिले (Now)" : "Now"}
-                    </button>
+                {/* Column 2: Payment, Presets & Dues / Outstanding */}
+                <div className="space-y-2 min-w-0">
+                  {cart.length > 0 && (
+                    <div className="p-2.5 rounded-lg bg-neutral-950/80 border border-neutral-800/80 space-y-2.5">
+                      {/* Bill Discount */}
+                      {cart.length > 0 && (
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className="text-xs font-semibold text-neutral-200 shrink-0">
+                            {isNepali ? "सम्पूर्ण बिल छुट" : "Bill Discount"}
+                          </span>
+
+                          <div className="flex items-center gap-1.5">
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                step={
+                                  wholeDiscountType === "fixed" ? "0.01" : "1"
+                                }
+                                min="0"
+                                max={
+                                  wholeDiscountType === "percent"
+                                    ? 100
+                                    : undefined
+                                }
+                                placeholder={
+                                  wholeDiscountType === "fixed"
+                                    ? `Discount (${currencySymbol})`
+                                    : "Discount %"
+                                }
+                                value={wholeDiscountValue}
+                                onChange={(e) =>
+                                  setWholeDiscountValue(e.target.value)
+                                }
+                                className="text-xs font-mono pr-7 focus:border-amber-500 h-7 w-28"
+                              />
+                              {wholeDiscountValue && (
+                                <button
+                                  type="button"
+                                  onClick={() => setWholeDiscountValue("")}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-200 p-0.5 rounded cursor-pointer"
+                                  title="Clear whole discount"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex bg-neutral-900 p-0.5 rounded-lg border border-neutral-800 text-[11px] shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setWholeDiscountType("fixed")}
+                                className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                                  wholeDiscountType === "fixed"
+                                    ? "bg-neutral-800 text-neutral-100 font-semibold"
+                                    : "text-neutral-400 hover:text-neutral-200"
+                                }`}
+                              >
+                                Fixed
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setWholeDiscountType("percent")}
+                                className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                                  wholeDiscountType === "percent"
+                                    ? "bg-neutral-800 text-neutral-100 font-semibold"
+                                    : "text-neutral-400 hover:text-neutral-200"
+                                }`}
+                              >
+                                %
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Paid Amount Input + Presets */}
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="text-xs font-semibold text-neutral-200 shrink-0">
+                          {isNepali
+                            ? "प्राप्त रकम (Paid Amount)"
+                            : "Paid Amount"}
+                        </span>
+
+                        {/* Presets */}
+                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                          <div className="relative">
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              placeholder={`Enter paid amount (${currencySymbol})...`}
+                              value={
+                                isCustomPaid
+                                  ? paidAmountInput
+                                  : fromMinorUnits(calculations.grandTotal)
+                              }
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => {
+                                setIsCustomPaid(true);
+                                setPaidAmountInput(e.target.value);
+                              }}
+                              className="w-28 pl-7 pr-2.5 text-xs font-mono font-bold text-emerald-400 bg-neutral-900 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500 h-7"
+                            />
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-500 pointer-events-none">
+                              {currencySymbol}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsCustomPaid(false);
+                              setPaidAmountInput("");
+                              if (paymentMethod === "Credit / Khata") {
+                                setPaymentMethod("Cash");
+                              }
+                            }}
+                            className={`text-[10px] px-2 py-1 rounded font-medium transition-colors cursor-pointer border ${
+                              !isCustomPaid ||
+                              effectivePaidAmount === calculations.grandTotal
+                                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30 font-semibold"
+                                : "bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-neutral-200"
+                            }`}
+                          >
+                            {isNepali ? "बिल चुक्ता" : "Current Bill"}
+                          </button>
+                          {customerPreviousDue > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsCustomPaid(true);
+                                setPaidAmountInput(
+                                  fromMinorUnits(totalPayableOverall).toString(),
+                                );
+                                if (paymentMethod === "Credit / Khata") {
+                                  setPaymentMethod("Cash");
+                                }
+                              }}
+                              className={`text-[10px] px-2 py-1 rounded font-medium transition-colors cursor-pointer border ${
+                                isCustomPaid &&
+                                effectivePaidAmount === totalPayableOverall
+                                  ? "bg-amber-500/20 text-amber-300 border-amber-500/30 font-semibold"
+                                  : "bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-neutral-200"
+                              }`}
+                              title={
+                                isNepali
+                                  ? "साविक बक्यौता सहित सबै चुक्ता"
+                                  : "Settle current bill + all previous due"
+                              }
+                            >
+                              {isNepali ? "सबै चुक्ता" : "Settle All"}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsCustomPaid(true);
+                              setPaidAmountInput("0");
+                              setPaymentMethod("Credit / Khata");
+                            }}
+                            className={`text-[10px] px-2 py-1 rounded font-medium transition-colors cursor-pointer border ${
+                              isCustomPaid && effectivePaidAmount === 0
+                                ? "bg-rose-500/20 text-rose-300 border-rose-500/30 font-semibold"
+                                : "bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-neutral-200"
+                            }`}
+                            title={
+                              isNepali
+                                ? "कुनै रकम नलिई पूर्ण उधारो"
+                                : "No payment now (Full Credit)"
+                            }
+                          >
+                            {isNepali ? "उधारो (०)" : "Credit (0)"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Payment Mode Dropdown */}
+                      <div className="flex items-center justify-between gap-1.5">
+                        <label
+                          htmlFor="sales-payment-mode-select"
+                          className="text-xs font-semibold text-neutral-200 shrink-0"
+                        >
+                          {isNepali
+                            ? "भुक्तानी माध्यम (Payment Mode)"
+                            : "Payment Mode"}
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <div className="relative">
+                            <select
+                              id="sales-payment-mode-select"
+                              value={paymentMethod}
+                              onChange={(e) => {
+                                const selected = e.target.value;
+                                setPaymentMethod(selected);
+                                if (
+                                  selected === "Credit / Khata" &&
+                                  (!isCustomPaid || effectivePaidAmount > 0)
+                                ) {
+                                  setIsCustomPaid(true);
+                                  setPaidAmountInput("0");
+                                } else if (
+                                  selected !== "Credit / Khata" &&
+                                  effectivePaidAmount === 0 &&
+                                  isCustomPaid
+                                ) {
+                                  setIsCustomPaid(false);
+                                  setPaidAmountInput("");
+                                }
+                              }}
+                              className="w-40 pl-2.5 pr-8 text-xs font-semibold bg-neutral-900 border border-neutral-700 hover:border-neutral-600 rounded-lg text-neutral-100 focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer appearance-none h-7"
+                            >
+                              {PAYMENT_MODE_OPTIONS.map((m) => (
+                                <option
+                                  key={m.id}
+                                  value={m.id}
+                                  className="bg-neutral-900 text-neutral-100"
+                                >
+                                  {isNepali
+                                    ? `${m.labelNp} (${m.labelEn})`
+                                    : m.labelEn}
+                                </option>
+                              ))}
+                              <option
+                                value="Other"
+                                className="bg-neutral-900 text-neutral-100"
+                              >
+                                {isNepali
+                                  ? "अन्य (Other / Custom)..."
+                                  : "Other (Custom)..."}
+                              </option>
+                            </select>
+                            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-neutral-400">
+                              <svg
+                                className="w-4 h-4 fill-current"
+                                viewBox="0 0 20 20"
+                              >
+                                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                              </svg>
+                            </div>
+                          </div>
+                          {paymentMethod === "Other" && (
+                            <input
+                              type="text"
+                              placeholder={
+                                isNepali
+                                  ? "माध्यम (e.g. eSewa)..."
+                                  : "Specify mode (e.g. eSewa)..."
+                              }
+                              value={customPaymentMethod}
+                              onChange={(e) =>
+                                setCustomPaymentMethod(e.target.value)
+                              }
+                              className="w-28 px-2 text-xs bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-200 focus:outline-none focus:border-emerald-500 placeholder-neutral-500 h-7"
+                              autoFocus
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Due Breakdown Summary */}
+                      <div className="space-y-1 text-xs pt-1 border-t border-neutral-800/80">
+                        {changeToReturn > 0 && (
+                          <div className="flex items-center justify-between text-emerald-400">
+                            <span>
+                              {isNepali ? "फिर्ता रकम" : "Change to Return"}:
+                            </span>
+                            <span className="font-mono font-bold">
+                              {formatCurrency(changeToReturn, currencySymbol)}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between text-neutral-300">
+                          <span>
+                            {isNepali ? "यस बिलको बाँकी" : "Current Bill Due"}:
+                          </span>
+                          <span
+                            className={`font-mono font-bold ${currentBillDue > 0 ? "text-rose-400" : "text-neutral-400"}`}
+                          >
+                            {formatCurrency(currentBillDue, currencySymbol)}
+                          </span>
+                        </div>
+
+                        {settlePreviousDue > 0 && (
+                          <div className="flex items-center justify-between text-emerald-400">
+                            <span>
+                              {isNepali ? "साविक चुक्ता" : "Prev. Settled"}:
+                            </span>
+                            <span className="font-mono font-bold">
+                              -
+                              {formatCurrency(
+                                settlePreviousDue,
+                                currencySymbol,
+                              )}
+                            </span>
+                          </div>
+                        )}
+
+                        {customerPreviousDue > 0 && (
+                          <div className="flex items-center justify-between text-amber-400">
+                            <span>
+                              {isNepali ? "साविक बाँकी" : "Previous Due"}:
+                            </span>
+                            <span className="font-mono font-bold">
+                              {formatCurrency(
+                                remainingPreviousDue,
+                                currencySymbol,
+                              )}
+                            </span>
+                          </div>
+                        )}
+
+                        {(remainingPreviousDue > 0 || currentBillDue > 0) && (
+                          <div className="flex items-center justify-between text-neutral-100 font-bold border-t border-neutral-800 pt-1 mt-0.5">
+                            <span className="text-xs">
+                              {isNepali ? "कुल बाँकी" : "Total Due"}:
+                            </span>
+                            <span className="font-mono text-xs font-bold text-rose-400">
+                              {formatCurrency(
+                                totalCustomerDue,
+                                currencySymbol,
+                              )}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Calculations Breakdown */}
-            <div className="p-5 bg-neutral-950 border-t border-neutral-800 space-y-2 shrink-0">
-              {/* Whole Bill Discount (Proportional) Input Card */}
-              {cart.length > 0 && (
-                <div className="p-3 rounded-lg bg-neutral-900 border border-neutral-800 space-y-1 flex justify-between items-center gap-2">
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <Percent className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="text-xs font-semibold text-neutral-200">
-                        {isNepali
-                          ? "सम्पूर्ण बिलमा छुट (Whole Bill Discount)"
-                          : "Whole Bill Discount"}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-neutral-400">
-                      {isNepali
-                        ? "मूल्य अनुसार दामासाही बाँडिने"
-                        : "Divided proportionally by item amount"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1 min-w-20">
-                      <Input
-                        type="number"
-                        step={wholeDiscountType === "fixed" ? "0.01" : "1"}
-                        min="0"
-                        max={wholeDiscountType === "percent" ? 100 : undefined}
-                        placeholder={
-                          wholeDiscountType === "fixed"
-                            ? `Whole discount (${currencySymbol})`
-                            : "Whole discount %"
-                        }
-                        value={wholeDiscountValue}
-                        onChange={(e) => setWholeDiscountValue(e.target.value)}
-                        className="text-xs font-mono pr-7 focus:border-amber-500"
-                      />
-                      {/* {wholeDiscountValue && ( */}
-                      <button
-                        type="button"
-                        onClick={() => setWholeDiscountValue("")}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-200 p-0.5 rounded cursor-pointer"
-                        title="Clear whole discount"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                      {/* )} */}
-                    </div>
-                    <div className="flex bg-neutral-950 p-0.5 rounded-lg border border-neutral-800 text-[11px] shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setWholeDiscountType("fixed")}
-                        className={`px-2.5 py-1.5 rounded transition-colors cursor-pointer ${
-                          wholeDiscountType === "fixed"
-                            ? "bg-neutral-800 text-neutral-100 font-semibold"
-                            : "text-neutral-400 hover:text-neutral-200"
-                        }`}
-                      >
-                        {currencySymbol} Fixed
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setWholeDiscountType("percent")}
-                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
-                          wholeDiscountType === "percent"
-                            ? "bg-neutral-800 text-neutral-100 font-semibold"
-                            : "text-neutral-400 hover:text-neutral-200"
-                        }`}
-                      >
-                        % Percent
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between text-xs text-neutral-400">
-                <span>{isNepali ? "उप-जम्मा" : "Subtotal (Gross)"}</span>
-                <span className="font-mono text-neutral-200">
-                  {formatCurrency(calculations.subtotal, currencySymbol)}
-                </span>
-              </div>
-
-              {calculations.totalDiscount > 0 && (
-                <div className="flex items-center justify-between text-xs text-neutral-300 font-semibold">
-                  <span>
-                    {isNepali
-                      ? "बिल छुट (Whole Bill Discount)"
-                      : "Bill Discount"}
-                  </span>
-                  <span className="font-mono text-amber-400">
-                    -{" "}
-                    {formatCurrency(calculations.totalDiscount, currencySymbol)}
-                  </span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between text-xs text-neutral-400">
-                <span>{isNepali ? "करयोग्य रकम" : "Taxable Amount"}</span>
-                <span className="font-mono text-neutral-200">
-                  {formatCurrency(calculations.taxableAmount, currencySymbol)}
-                </span>
-              </div>
-
-              {/* VAT Row with Toggle */}
-              <div className="flex items-center justify-between text-xs text-neutral-400 py-0.5">
-                <span className="flex items-center gap-1.5">
-                  <span
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors ${
-                      applyVat
-                        ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
-                        : "bg-neutral-800 text-neutral-400 border-neutral-700"
-                    }`}
-                  >
-                    {applyVat ? "13% VAT" : "0% VAT"}
-                  </span>
-                  <span>{isNepali ? "मूल्य अभिवृद्धि कर" : "VAT (13%)"}</span>
-                </span>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`font-mono ${applyVat ? "text-sky-400" : "text-neutral-500"}`}
-                  >
-                    {applyVat
-                      ? `+ ${formatCurrency(calculations.vatAmount, currencySymbol)}`
-                      : formatCurrency(0, currencySymbol)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setApplyVat(!applyVat)}
-                    title={
-                      applyVat
-                        ? isNepali
-                          ? "भ्याट हटाउनुहोस्"
-                          : "Disable VAT for this sale"
-                        : isNepali
-                          ? "१३% भ्याट जोड्नुहोस्"
-                          : "Apply 13% VAT to this sale"
-                    }
-                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded transition-all cursor-pointer border ${
-                      applyVat
-                        ? "bg-sky-500/20 text-sky-300 border-sky-500/30 hover:bg-sky-500/30"
-                        : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200 hover:border-neutral-600"
-                    }`}
-                  >
-                    {applyVat ? "ON" : "OFF"}
-                  </button>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-neutral-800 flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-bold text-neutral-100">
-                    {isNepali ? "कुल भुक्तानी रकम" : "Grand Total"}
-                  </div>
-                  <div className="text-[11px] text-neutral-400">
-                    {applyVat
-                      ? isNepali
-                        ? "१३% भ्याट समावेश"
-                        : "Includes 13% statutory VAT"
-                      : isNepali
-                        ? "भ्याट विना कुल रकम (०%)"
-                        : "Net total (No VAT applied)"}
-                  </div>
-                </div>
-                <div className="text-xl font-bold font-mono text-emerald-400 tabular-nums">
-                  {formatCurrency(calculations.grandTotal, currencySymbol)}
-                </div>
-              </div>
-
-              {/* Payment & Dues Card */}
-              {cart.length > 0 && (
-                <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-neutral-200">
-                      {isNepali ? "प्राप्त रकम (Paid Amount)" : "Paid Amount"}
-                    </span>
-                    <div className="flex gap-2 items-center">
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="any"
-                          min="0"
-                          placeholder={`Enter paid amount (${currencySymbol})...`}
-                          value={
-                            isCustomPaid
-                              ? paidAmountInput
-                              : fromMinorUnits(calculations.grandTotal)
-                          }
-                          onFocus={(e) => {
-                            e.target.select();
-                          }}
-                          onChange={(e) => {
-                            setIsCustomPaid(true);
-                            setPaidAmountInput(e.target.value);
-                          }}
-                          className="w-36 pl-8 pr-3 py-1.5 text-xs font-mono font-bold text-emerald-400 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500"
-                        />
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-500 pointer-events-none">
-                          {currencySymbol}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsCustomPaid(false);
-                            setPaidAmountInput("");
-                          }}
-                          className={`text-[10px] px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer border ${
-                            !isCustomPaid
-                              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                              : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
-                          }`}
-                        >
-                          {isNepali ? "बिल चुक्ता" : "Current Bill"}
-                        </button>
-                        {customerPreviousDue > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsCustomPaid(true);
-                              setPaidAmountInput(
-                                fromMinorUnits(totalPayableOverall).toString(),
-                              );
-                            }}
-                            className={`text-[10px] px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer border ${
-                              isCustomPaid &&
-                              effectivePaidAmount === totalPayableOverall
-                                ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
-                                : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
-                            }`}
-                            title={
-                              isNepali
-                                ? "साविक बक्यौता सहित सबै चुक्ता"
-                                : "Settle current bill + all previous due"
-                            }
-                          >
-                            {isNepali ? "सबै चुक्ता" : "Settle All"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Payment Mode Selector */}
-                    <div className="flex items-center justify-between pt-2 border-t border-neutral-800/60">
-                      <span className="text-[11px] font-semibold text-neutral-300">
-                        {isNepali ? "भुक्तानी माध्यम (Mode)" : "Payment Mode"}
-                      </span>
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {[
-                          { id: "Cash", labelEn: "Cash", labelNp: "नगद" },
-                          {
-                            id: "Online",
-                            labelEn: "Online/QR",
-                            labelNp: "अनलाइन",
-                          },
-                          { id: "Cheque", labelEn: "Cheque", labelNp: "चेक" },
-                          {
-                            id: "Bank Transfer",
-                            labelEn: "Bank",
-                            labelNp: "बैंक",
-                          },
-                        ].map((m) => (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => setPaymentMethod(m.id)}
-                            className={`px-2 py-0.5 text-[10px] font-medium rounded border transition-all cursor-pointer ${
-                              paymentMethod === m.id
-                                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 shadow-xs"
-                                : "bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-neutral-200"
-                            }`}
-                          >
-                            {isNepali ? m.labelNp : m.labelEn}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Due Breakdown */}
-                  <div className="space-y-1.5 text-xs">
-                    {changeToReturn > 0 && (
-                      <div className="flex items-center justify-between text-emerald-400">
-                        <span>
-                          {isNepali
-                            ? "फिर्ता गर्नुपर्ने रकम"
-                            : "Change to Return"}
-                          :
-                        </span>
-                        <span className="font-mono font-bold">
-                          {formatCurrency(changeToReturn, currencySymbol)}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between text-neutral-300">
-                      <span>
-                        {isNepali ? "यस बिलको बाँकी" : "Current Bill Due"}:
-                      </span>
-                      <span
-                        className={`font-mono font-bold ${currentBillDue > 0 ? "text-rose-400" : "text-neutral-400"}`}
-                      >
-                        {formatCurrency(currentBillDue, currencySymbol)}
-                      </span>
-                    </div>
-
-                    {settlePreviousDue > 0 && (
-                      <div className="flex items-center justify-between text-emerald-400">
-                        <span>
-                          {isNepali
-                            ? "साविक बक्यौता चुक्ता (Settled)"
-                            : "Prev. Due Settled"}
-                          :
-                        </span>
-                        <span className="font-mono font-bold">
-                          - {formatCurrency(settlePreviousDue, currencySymbol)}
-                        </span>
-                      </div>
-                    )}
-
-                    {customerPreviousDue > 0 && (
-                      <div className="flex items-center justify-between text-amber-400">
-                        <span>
-                          {isNepali
-                            ? "साविकको बाँकी (Previous Due)"
-                            : "Previous Due / Balance"}
-                          :
-                        </span>
-                        <span className="font-mono font-bold">
-                          {formatCurrency(remainingPreviousDue, currencySymbol)}
-                        </span>
-                      </div>
-                    )}
-
-                    {(remainingPreviousDue > 0 || currentBillDue > 0) && (
-                      <div className="flex items-center justify-between text-neutral-100 font-bold border-t border-neutral-800 pt-1 mt-1">
-                        <span className="text-xs">
-                          {isNepali
-                            ? "कुल बाँकी बक्यौता"
-                            : "Total Outstanding Due"}
-                          :
-                        </span>
-                        <span className="font-mono text-sm text-rose-400">
-                          {formatCurrency(totalCustomerDue, currencySymbol)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
+            {/* 3. Sticky Footer: Bottom Summary & Complete Sale Action */}
+            <div className="shrink-0 border-t border-neutral-800 bg-neutral-950/95 px-3.5 py-2.5 backdrop-blur-md">
               {calculations.hasStockViolation && (
-                <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
+                <div className="p-2 mb-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
                   <span>
-                    Cannot complete sale: one or more items exceed current
-                    inventory. (Adjust quantities or enable "Allow Negative
-                    Stock" in Settings).
+                    Cannot complete sale: one or more items exceed current inventory.
                   </span>
                 </div>
               )}
 
-              <div className="pt-2">
+              <div className="flex items-center justify-between gap-3">
+                {/* Left: Compact billing summary */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div>
+                    <div className="text-[10px] uppercase font-semibold text-neutral-400 leading-tight">
+                      {isNepali ? "कुल रकम" : "Grand Total"}
+                    </div>
+                    <div className="text-base font-bold font-mono text-emerald-400 tabular-nums">
+                      {formatCurrency(calculations.grandTotal, currencySymbol)}
+                    </div>
+                  </div>
+
+                  <div className="h-7 w-[1px] bg-neutral-800 hidden sm:block" />
+
+                  <div className="hidden sm:block text-xs">
+                    <div className="text-[10px] text-neutral-400 flex items-center gap-1.5">
+                      <span>{isNepali ? "माध्यम:" : "Mode:"}</span>
+                      <span className="font-semibold text-neutral-200">{paymentMethod}</span>
+                    </div>
+                    <div className="font-mono text-[11px] font-bold">
+                      {effectivePaidAmount >= calculations.grandTotal ? (
+                        <span className="text-emerald-400">
+                          {isNepali ? "पूर्ण चुक्ता" : "Fully Paid"}
+                        </span>
+                      ) : (
+                        <span className="text-rose-400">
+                          {isNepali ? "बाँकी" : "Due"}: {formatCurrency(currentBillDue, currencySymbol)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Primary Complete Action Button */}
                 <button
                   type="button"
                   disabled={cart.length === 0 || calculations.hasStockViolation}
                   onClick={handleCompleteSale}
-                  className={`w-full py-3 px-4 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer ${
+                  className={`py-2 px-4 rounded-lg text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0 ${
                     cart.length === 0 || calculations.hasStockViolation
                       ? "bg-neutral-800 text-neutral-500 cursor-not-allowed shadow-none"
                       : "bg-emerald-600 hover:bg-emerald-500 text-white active:scale-[0.99]"
@@ -2151,10 +1864,10 @@ export const SalesView: React.FC<SalesViewProps> = ({
                 >
                   <CheckCircle className="w-4 h-4" />
                   <span>
-                    Complete Sale & Deduct Stock (
+                    {isNepali ? "बिक्री सम्पन्न" : "Complete Sale"} (
                     {formatCurrency(calculations.grandTotal, currencySymbol)})
                   </span>
-                  <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono rounded bg-emerald-700/80 text-emerald-100 border border-emerald-500/40">
+                  <kbd className="hidden sm:inline-block px-1.5 py-0.2 text-[10px] font-mono rounded bg-emerald-700/80 text-emerald-100 border border-emerald-500/40">
                     F2
                   </kbd>
                 </button>
@@ -2163,368 +1876,6 @@ export const SalesView: React.FC<SalesViewProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Modal: Add Multiple Products At Once */}
-      <Modal
-        isOpen={isMultiProductModalOpen}
-        onClose={() => setIsMultiProductModalOpen(false)}
-        title="Add Multiple Products to Sale"
-        subtitle="Select multiple products with quantities to add simultaneously to the sale."
-        maxWidth="2xl"
-      >
-        <div className="space-y-3">
-          {/* Modal Search & Quick Actions */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div className="flex-1">
-              <Input
-                type="text"
-                placeholder="Search products by title or SKU..."
-                value={modalSearch}
-                onChange={(e) => setModalSearch(e.target.value)}
-                icon={Search}
-                clearable
-                onClear={() => setModalSearch("")}
-                className="py-1.5 text-xs"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={selectAllFilteredInModal}
-                className="px-2.5 py-1.5 text-[11px] font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors cursor-pointer"
-              >
-                Select All ({modalFilteredProducts.length})
-              </button>
-              {batchSelectedCount > 0 && (
-                <button
-                  type="button"
-                  onClick={clearBatchSelections}
-                  className="px-2.5 py-1.5 text-[11px] text-neutral-400 hover:text-neutral-200 transition-colors"
-                >
-                  Deselect All
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Scrollable Products List with Checkboxes & Quantities */}
-          <div className="border border-neutral-800 rounded-lg max-h-[360px] overflow-y-auto divide-y divide-neutral-800/60 bg-neutral-950/40">
-            {modalFilteredProducts.length === 0 ? (
-              <div className="p-8 text-center text-xs text-neutral-500">
-                No products matching search criteria.
-              </div>
-            ) : (
-              modalFilteredProducts.map((p) => {
-                const isOutOfStock = p.current_stock <= 0;
-                const isSelected = batchQuantities[p.id] !== undefined;
-                const currentQty = batchQuantities[p.id] || 1;
-
-                return (
-                  <div
-                    key={p.id}
-                    className={`p-3 flex items-center justify-between transition-colors ${
-                      isSelected
-                        ? "bg-emerald-950/20"
-                        : "hover:bg-neutral-900/60"
-                    } ${isOutOfStock && !allowNegativeStock ? "opacity-50" : ""}`}
-                  >
-                    {/* Checkbox & Product Details */}
-                    <div
-                      className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer select-none"
-                      onClick={() => {
-                        if (isOutOfStock && !allowNegativeStock) return;
-                        toggleBatchItem(p.id);
-                      }}
-                    >
-                      {isSelected ? (
-                        <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0" />
-                      ) : (
-                        <Square className="w-4 h-4 text-neutral-600 shrink-0" />
-                      )}
-
-                      <div className="min-w-0 flex-1 pr-3">
-                        <div className="text-xs font-semibold text-neutral-200 truncate">
-                          {p.name}
-                        </div>
-                        <div className="text-[11px] text-neutral-400 font-mono mt-0.5 flex items-center gap-2">
-                          <span>SKU: {p.sku || "None"}</span>
-                          <span>·</span>
-                          <span className="px-1 py-0.2 rounded bg-neutral-900 text-neutral-400 border border-neutral-800">
-                            {p.unit || "pcs"}
-                          </span>
-                          <span>·</span>
-                          <span>
-                            Price:{" "}
-                            {formatCurrency(p.selling_price, currencySymbol)}
-                          </span>
-                          <span>·</span>
-                          <span
-                            className={
-                              p.current_stock <= 5
-                                ? "text-amber-400 font-semibold"
-                                : "text-neutral-400"
-                            }
-                          >
-                            Stock: {p.current_stock} {p.unit || "pcs"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Quantity Stepper (Active when selected) */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      {isSelected ? (
-                        <div className="flex items-center gap-1 bg-neutral-900 border border-neutral-700 rounded p-1">
-                          <button
-                            type="button"
-                            disabled={currentQty <= 1}
-                            onClick={() => updateBatchQty(p.id, currentQty - 1)}
-                            className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <Minus className="w-3.5 h-3.5" />
-                          </button>
-                          <Input
-                            type="number"
-                            min="1"
-                            max={
-                              !allowNegativeStock
-                                ? Math.max(1, p.current_stock)
-                                : undefined
-                            }
-                            value={currentQty}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value, 10);
-                              updateBatchQty(p.id, isNaN(val) ? 1 : val);
-                            }}
-                            containerClassName="w-10"
-                            className="border-0 p-0 text-center text-xs font-mono font-bold text-neutral-100 bg-transparent focus:outline-none"
-                          />
-                          <button
-                            type="button"
-                            disabled={
-                              !allowNegativeStock &&
-                              currentQty >= p.current_stock
-                            }
-                            onClick={() => updateBatchQty(p.id, currentQty + 1)}
-                            title={
-                              !allowNegativeStock &&
-                              currentQty >= p.current_stock
-                                ? `Max stock reached (${p.current_stock})`
-                                : "Increase quantity"
-                            }
-                            className="w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-neutral-100 rounded hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={isOutOfStock && !allowNegativeStock}
-                          onClick={() => toggleBatchItem(p.id)}
-                          className="px-2.5 py-1 text-xs text-neutral-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded border border-neutral-800 hover:border-emerald-500/30 transition-colors"
-                        >
-                          Select
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Bottom Summary & Confirmation */}
-          <div className="p-3 bg-neutral-950 rounded-lg border border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div>
-              <span className="text-neutral-400">Selected: </span>
-              <span className="font-semibold text-neutral-200">
-                {batchSelectedCount} products ({batchTotalUnits} units)
-              </span>
-              <span className="mx-2 text-neutral-600">·</span>
-              <span className="text-neutral-400">Est. Subtotal: </span>
-              <span className="font-mono font-bold text-emerald-400">
-                {formatCurrency(batchTotalEst, currencySymbol)}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 justify-end">
-              <button
-                type="button"
-                onClick={() => setIsMultiProductModalOpen(false)}
-                className="px-3 py-1.5 text-xs text-neutral-400 hover:text-neutral-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={batchSelectedCount === 0}
-                onClick={submitBatchFromQuantities}
-                className={`px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  batchSelectedCount === 0
-                    ? "bg-neutral-800 text-neutral-500 cursor-not-allowed"
-                    : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
-                }`}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add {batchSelectedCount} Products to Sale</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal: Whole Bill Discount across all items */}
-      <Modal
-        isOpen={isBulkDiscountModalOpen}
-        onClose={() => setIsBulkDiscountModalOpen(false)}
-        title="Whole Bill Discount"
-        subtitle={`Divide a single whole bill discount proportionally across all ${cart.length} items based on their individual amounts.`}
-        maxWidth="lg"
-      >
-        <div className="space-y-4">
-          {/* Amount Type Selector: Fixed vs Percent */}
-          <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-950 rounded-lg border border-neutral-800 text-xs">
-            <button
-              type="button"
-              onClick={() => setBulkDiscountType("fixed")}
-              className={`py-1.5 rounded font-medium transition-colors cursor-pointer ${
-                bulkDiscountType === "fixed"
-                  ? "bg-neutral-800 text-neutral-100 font-semibold"
-                  : "text-neutral-400 hover:text-neutral-200"
-              }`}
-            >
-              Fixed Amount ({currencySymbol})
-            </button>
-            <button
-              type="button"
-              onClick={() => setBulkDiscountType("percent")}
-              className={`py-1.5 rounded font-medium transition-colors cursor-pointer ${
-                bulkDiscountType === "percent"
-                  ? "bg-neutral-800 text-neutral-100 font-semibold"
-                  : "text-neutral-400 hover:text-neutral-200"
-              }`}
-            >
-              Percentage (%)
-            </button>
-          </div>
-
-          <div>
-            <Input
-              label={
-                bulkDiscountType === "fixed"
-                  ? `Total Whole Discount Amount (${currencySymbol})`
-                  : "Total Whole Discount Percentage (%)"
-              }
-              type="number"
-              step={bulkDiscountType === "fixed" ? "0.01" : "1"}
-              min="0"
-              max={bulkDiscountType === "percent" ? 100 : undefined}
-              placeholder={
-                bulkDiscountType === "fixed" ? "e.g. 100.00" : "e.g. 10"
-              }
-              value={bulkDiscountValue}
-              onChange={(e) => setBulkDiscountValue(e.target.value)}
-              className="font-mono focus:border-amber-500"
-            />
-          </div>
-
-          {/* Proportional Preview Table */}
-          {modalProportionalPreview && (
-            <div className="space-y-2 pt-2 border-t border-neutral-800">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-neutral-300">
-                  Proportional Distribution Preview:
-                </span>
-                <span className="font-mono text-amber-400 font-bold">
-                  Total Whole Discount: -
-                  {formatCurrency(
-                    modalProportionalPreview.targetWholeMinor,
-                    currencySymbol,
-                  )}
-                </span>
-              </div>
-              <div className="max-h-48 overflow-y-auto rounded-lg border border-neutral-800 bg-neutral-950/60">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 sticky top-0">
-                    <tr>
-                      <th className="py-2 px-3">Item</th>
-                      <th className="py-2 px-2 text-right font-mono">
-                        Gross Amount
-                      </th>
-                      <th className="py-2 px-2 text-right font-mono text-amber-400">
-                        Discount Share
-                      </th>
-                      <th className="py-2 px-3 text-right font-mono">
-                        Effective Net
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-800/60 font-mono">
-                    {modalProportionalPreview.items.map((row) => (
-                      <tr key={row.id} className="hover:bg-neutral-800/20">
-                        <td className="py-2 px-3 font-sans text-neutral-200">
-                          {row.name}{" "}
-                          <span className="text-[10px] text-neutral-400">
-                            ({row.quantity} {row.unit})
-                          </span>
-                        </td>
-                        <td className="py-2 px-2 text-right text-neutral-300">
-                          {formatCurrency(row.gross, currencySymbol)}
-                        </td>
-                        <td className="py-2 px-2 text-right text-amber-400 font-semibold">
-                          -{formatCurrency(row.allocatedWhole, currencySymbol)}
-                        </td>
-                        <td className="py-2 px-3 text-right text-neutral-100 font-bold">
-                          {formatCurrency(row.effectiveNet, currencySymbol)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between pt-2 border-t border-neutral-800">
-            {wholeDiscountValue ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setWholeDiscountValue("");
-                  setIsBulkDiscountModalOpen(false);
-                  showToast(
-                    isNepali ? "छुट हटाइयो" : "Discount cleared",
-                    "info",
-                  );
-                }}
-                className="text-xs text-rose-400 hover:text-rose-300 cursor-pointer"
-              >
-                {isNepali ? "छुट हटाउनुहोस्" : "Clear Discount"}
-              </button>
-            ) : (
-              <div />
-            )}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setIsBulkDiscountModalOpen(false)}
-                className="px-4 py-2 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 cursor-pointer"
-              >
-                {isNepali ? "रद्द गर्नुहोस्" : "Cancel"}
-              </button>
-              <button
-                type="button"
-                onClick={handleApplyBulkDiscount}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
-              >
-                {isNepali ? "छुट लागू गर्नुहोस्" : "Apply Discount"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </Modal>
 
       {/* Completed Sale Notification Card */}
       {completedSaleInfo && (

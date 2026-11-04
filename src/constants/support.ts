@@ -46,7 +46,7 @@ export const SUPPORT_CONTACTS: SupportContactInfo = {
   emailDev: CONTACT_INFO.email.address,
   whatsapp: CONTACT_INFO.whatsapp.display,
   whatsappRaw: CONTACT_INFO.whatsapp.number,
-  website: "https://stockforge.dev",
+  website: "https://stockforge.pages.dev",
   addressEn: CONTACT_INFO.address.displayEn,
   addressNp: CONTACT_INFO.address.displayNp,
   addressNe: CONTACT_INFO.address.displayNp,

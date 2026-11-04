@@ -274,6 +274,71 @@ export interface ProcessPurchaseVendorInfo {
   };
 }
 
+export interface ItemizedSaleRow {
+  sale_id: number;
+  bill_number: string | null;
+  created_at: string;
+  customer_id: number | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  customer_pan_vat: string | null;
+  payment_method: string | null;
+  sale_status: string;
+  sale_subtotal: number;
+  sale_discount: number;
+  sale_vat_amount: number;
+  sale_grand_total: number;
+  sale_paid_amount: number;
+  sale_due_amount: number;
+  item_id: number;
+  product_id: number;
+  product_name: string;
+  product_sku: string | null;
+  product_unit: string;
+  packaging_name?: string | null;
+  package_multiplier?: number;
+  quantity: number;
+  selling_price: number;
+  cost_price: number;
+  item_discount: number;
+  item_total: number;
+  gross_profit: number;
+}
+
+export interface ItemizedPurchaseRow {
+  purchase_id: number;
+  bill_number: string | null;
+  invoice_number: string | null;
+  created_at: string;
+  vendor_id: number | null;
+  vendor_name: string | null;
+  vendor_phone: string | null;
+  vendor_pan_vat: string | null;
+  payment_method: string | null;
+  purchase_status: string;
+  purchase_subtotal: number;
+  purchase_discount: number;
+  purchase_vat_amount: number;
+  purchase_grand_total: number;
+  purchase_paid_amount: number;
+  purchase_due_amount: number;
+  notes: string | null;
+  item_id: number;
+  product_id: number;
+  product_name: string;
+  product_sku: string | null;
+  product_unit: string;
+  packaging_name?: string | null;
+  package_multiplier?: number;
+  quantity: number;
+  cost_price: number;
+  selling_price: number;
+  item_discount: number;
+  item_total: number;
+  batch_number: string | null;
+  expiry_date: string | null;
+}
+
 export interface AppSettings {
   currency_symbol: string;
   low_stock_threshold: number;

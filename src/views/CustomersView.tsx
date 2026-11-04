@@ -14,6 +14,7 @@ import {
   DollarSign,
   Receipt,
   UserCheck,
+  Layers,
 } from "lucide-react";
 import { Customer, Sale } from "../types/index.ts";
 import {
@@ -27,6 +28,7 @@ import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { PrintBillModal } from "../components/common/PrintBillModal.tsx";
 import { StatementModal } from "../components/common/StatementModal.tsx";
 import { SettleBalanceModal } from "../components/common/SettleBalanceModal.tsx";
+import { ItemizedPartyLedgerModal } from "../components/common/ItemizedPartyLedgerModal.tsx";
 import { DataTable, Column } from "../components/common/DataTable.tsx";
 import { getCustomerColumns } from "../columns/index.ts";
 import { useToast } from "../context/ToastContext.tsx";
@@ -69,6 +71,9 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
     null,
   );
   const [settleCustomer, setSettleCustomer] = useState<Customer | null>(null);
+  const [itemizedCustomer, setItemizedCustomer] = useState<Customer | null>(
+    null,
+  );
 
   const loadCustomers = useCallback(() => {
     try {
@@ -177,6 +182,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
         formatNumberByLang,
         onCopyPan: handleCopyPan,
         onViewSales: handleViewSales,
+        onViewItemizedLedger: (c) => setItemizedCustomer(c),
         onViewStatement: (c) => setStatementCustomer(c),
         onSettleDue: (c) => setSettleCustomer(c),
         onEdit: handleOpenEdit,
@@ -393,16 +399,32 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                   </span>
                 )}
               </div>
-              <div className="text-right">
-                <span className="text-neutral-400 mr-2">
-                  {isNepali ? "कुल खर्च:" : "Total Spent:"}
-                </span>
-                <span className="font-mono font-bold text-emerald-400">
-                  {formatCurrency(
-                    inspectCustomer.total_spent || 0,
-                    currencySymbol,
-                  )}
-                </span>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <span className="text-neutral-400 mr-2">
+                    {isNepali ? "कुल खर्च:" : "Total Spent:"}
+                  </span>
+                  <span className="font-mono font-bold text-emerald-400">
+                    {formatCurrency(
+                      inspectCustomer.total_spent || 0,
+                      currencySymbol,
+                    )}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const c = inspectCustomer;
+                    setInspectCustomer(null);
+                    setItemizedCustomer(c);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-neutral-900 hover:bg-neutral-800 text-sky-400 border border-neutral-800 transition-colors cursor-pointer"
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>
+                    {isNepali ? "वस्तुगत लेजर / प्रिन्ट" : "Itemized Ledger / Print"}
+                  </span>
+                </button>
               </div>
             </div>
           )}
@@ -569,6 +591,15 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
           onSuccess={loadCustomers}
         />
       )}
+
+      {/* Itemized Customer Sales Ledger Modal */}
+      <ItemizedPartyLedgerModal
+        isOpen={itemizedCustomer !== null}
+        onClose={() => setItemizedCustomer(null)}
+        type="customer"
+        party={itemizedCustomer}
+        currencySymbol={currencySymbol}
+      />
 
       {/* Print Bill Modal */}
       <PrintBillModal

@@ -19,6 +19,7 @@ import {
   RotateCcw,
   Sparkles,
   Info,
+  Percent,
 } from "lucide-react";
 import { Sale, SaleItem, AppSettings } from "../../types/index.ts";
 import { getSaleWithItems } from "../../lib/services/salesService.ts";
@@ -59,6 +60,8 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
     "thermal",
   );
   const [copied, setCopied] = useState(false);
+  const [includeMargin, setIncludeMargin] = useState(false);
+  const [pageMargin, setPageMargin] = useState<"standard" | "none">("standard");
   const [isEditingPrices, setIsEditingPrices] = useState(false);
   // Temporary price overrides: key can be item.id or index, stores unit selling price in major units (string or number)
   const [customUnitPrices, setCustomUnitPrices] = useState<
@@ -102,6 +105,8 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
       setSettings(currentSettings);
       setIsEditingPrices(false);
       setCustomUnitPrices({});
+      setIncludeMargin(false);
+      setPageMargin("standard");
 
       if (saleData) {
         setDetails(saleData);
@@ -112,6 +117,8 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
     } else {
       setDetails(null);
       setCopied(false);
+      setIncludeMargin(false);
+      setPageMargin("standard");
       setIsEditingPrices(false);
       setCustomUnitPrices({});
     }
@@ -191,17 +198,27 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
       if (sale.customer_pan_vat) text += `PAN/VAT: ${sale.customer_pan_vat}\n`;
       if (sale.customer_address) text += `Address: ${sale.customer_address}\n`;
       text += `${lineSeparator}\n`;
-      text += `ITEMS               QTY    PRICE    TOTAL\n`;
+      text += includeMargin
+        ? `ITEMS               QTY    PRICE   MARGIN    TOTAL\n`
+        : `ITEMS               QTY    PRICE    TOTAL\n`;
       text += `${lineSeparator}\n`;
 
       displayItems.forEach((it) => {
         const name = capitalizeWords(it.product_name || "Item")
-          .padEnd(18)
-          .slice(0, 18);
-        const qty = it.quantity.toString().padStart(4);
-        const price = formatCurrency(it.selling_price, "", false).padStart(8);
-        const lineTotal = formatCurrency(it.total, "", false).padStart(9);
-        text += `${name} ${qty} ${price} ${lineTotal}\n`;
+          .padEnd(includeMargin ? 15 : 18)
+          .slice(0, includeMargin ? 15 : 18);
+        const qty = it.quantity.toString().padStart(includeMargin ? 3 : 4);
+        const price = formatCurrency(it.selling_price, "", false).padStart(includeMargin ? 7 : 8);
+        const lineTotal = formatCurrency(it.total, "", false).padStart(includeMargin ? 8 : 9);
+
+        if (includeMargin) {
+          const itemCost = (it.cost_price ?? 0) * it.quantity;
+          const itemProfit = it.total - itemCost;
+          const marginStr = `+${formatCurrency(itemProfit, "", false)}`.padStart(8);
+          text += `${name} ${qty} ${price} ${marginStr} ${lineTotal}\n`;
+        } else {
+          text += `${name} ${qty} ${price} ${lineTotal}\n`;
+        }
       });
 
       text += `${lineSeparator}\n`;
@@ -212,6 +229,19 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
       text += `Taxable Amount: ${formatCurrency(displayTaxableAmount, currencySymbol)}\n`;
       if (hasVat) {
         text += `${vatRate}% VAT:       +${formatCurrency(displayVatAmount, currencySymbol)}\n`;
+      }
+      if (includeMargin) {
+        const totalCost = displayItems.reduce(
+          (acc, it) => acc + (it.cost_price ?? 0) * it.quantity,
+          0,
+        );
+        const netAfterDiscount = displaySubtotal - displayDiscount;
+        const totalProfit = netAfterDiscount - totalCost;
+        const marginPct =
+          netAfterDiscount > 0
+            ? ((totalProfit / netAfterDiscount) * 100).toFixed(1)
+            : "0.0";
+        text += `Profit Margin:  +${formatCurrency(totalProfit, currencySymbol)} (${marginPct}%)\n`;
       }
       const paidAmount =
         sale.paid_amount !== undefined && sale.paid_amount !== null
@@ -301,7 +331,75 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                {/* Profit Margin Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setIncludeMargin((prev) => !prev)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border transition-colors cursor-pointer ${
+                    includeMargin
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-semibold"
+                      : "bg-neutral-800 text-neutral-300 hover:text-white border-neutral-700"
+                  }`}
+                  title={
+                    includeMargin
+                      ? isNepali
+                        ? "नाफा/मार्जिन बिलमा छापिनेछ"
+                        : "Profit margin included on printed bill"
+                      : isNepali
+                        ? "नाफा/मार्जिन लुकाइएको छ (ग्राहक प्रति)"
+                        : "Profit margin excluded (Customer Copy)"
+                  }
+                >
+                  <Percent className="w-3.5 h-3.5" />
+                  <span>
+                    {isNepali
+                      ? includeMargin
+                        ? "मार्जिन: समावेश"
+                        : "मार्जिन: हटाइयो"
+                      : includeMargin
+                        ? "Margin: ON"
+                        : "Margin: OFF"}
+                  </span>
+                  {includeMargin && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 ml-0.5 animate-pulse" />
+                  )}
+                </button>
+
+                {/* Page Margin Toggle */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPageMargin((prev) =>
+                      prev === "standard" ? "none" : "standard",
+                    )
+                  }
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border transition-colors cursor-pointer ${
+                    pageMargin === "none"
+                      ? "bg-purple-500/20 text-purple-300 border-purple-500/40 font-semibold"
+                      : "bg-neutral-800 text-neutral-300 hover:text-white border-neutral-700"
+                  }`}
+                  title={
+                    pageMargin === "none"
+                      ? isNepali
+                        ? "०mm कागज मार्जिन (थर्मल प्रिन्टरका लागि उपयुक्त)"
+                        : "0mm edge-to-edge paper margin (thermal slip)"
+                      : isNepali
+                        ? "६mm सामान्य कागज मार्जिन"
+                        : "Standard 6mm paper margin"
+                  }
+                >
+                  <span>
+                    {pageMargin === "none"
+                      ? isNepali
+                        ? "कागज: ०mm"
+                        : "Paper: 0mm"
+                      : isNepali
+                        ? "कागज: ६mm"
+                        : "Paper: 6mm"}
+                  </span>
+                </button>
+
                 {/* Price Override Toggle Button */}
                 <button
                   type="button"
@@ -425,6 +523,23 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
                 }`}
                 style={{ color: "#111827" }}
               >
+                {pageMargin === "none" && (
+                  <style>{`
+                    @media print {
+                      @page {
+                        margin: 0mm !important;
+                        size: auto;
+                      }
+                      #printable-bill,
+                      #printable-report,
+                      .printable-area {
+                        margin: 0 !important;
+                        padding: 4mm !important;
+                      }
+                    }
+                  `}</style>
+                )}
+
                 {/* Header */}
                 <div className="text-center pb-3 border-b border-dashed border-gray-300">
                   <h2 className="text-base font-bold tracking-tight text-gray-900 uppercase">
@@ -527,6 +642,11 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
                         <th className="pb-1.5 text-right font-bold">
                           {isNepali ? "दर" : "Price"}
                         </th>
+                        {includeMargin && (
+                          <th className="pb-1.5 text-right font-bold text-emerald-800">
+                            {isNepali ? "मार्जिन" : "Margin"}
+                          </th>
+                        )}
                         <th className="pb-1.5 text-right font-bold">
                           {isNepali ? "जम्मा" : "Total"}
                         </th>
@@ -543,7 +663,7 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
                               <div className="font-semibold text-gray-900 leading-tight flex items-center gap-1">
                                 <span className="capitalize">{capitalizeWords(it.product_name)}</span>
                                 {isCustom && (
-                                  <span
+                                   <span
                                     className="print:hidden text-[9px] font-normal px-1 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-300"
                                     title="Custom price for print only"
                                   >
@@ -609,6 +729,28 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
                                 )}
                               </div>
                             </td>
+                            {includeMargin && (
+                              <td className="py-1.5 px-1 text-right text-emerald-800 font-mono text-[10px] whitespace-nowrap">
+                                {(() => {
+                                  const itemCost = (it.cost_price ?? 0) * it.quantity;
+                                  const itemProfit = it.total - itemCost;
+                                  const marginPct =
+                                    it.total > 0
+                                      ? ((itemProfit / it.total) * 100).toFixed(0)
+                                      : "0";
+                                  return (
+                                    <div>
+                                      <span className="font-bold">
+                                        +{formatCurrency(itemProfit, currencySymbol, false)}
+                                      </span>
+                                      <span className="text-[9px] text-gray-500 block">
+                                        ({marginPct}%)
+                                      </span>
+                                    </div>
+                                  );
+                                })()}
+                              </td>
+                            )}
                             <td className="py-1.5 pl-1 text-right font-bold text-gray-900 whitespace-nowrap">
                               {formatCurrency(it.total, currencySymbol, false)}
                             </td>
@@ -655,6 +797,35 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
                       </span>
                       <span>
                         +{formatCurrency(displayVatAmount, currencySymbol)}
+                      </span>
+                    </div>
+                  )}
+
+                  {includeMargin && (
+                    <div className="flex justify-between items-center text-emerald-800 font-bold bg-emerald-50 px-2 py-1.5 rounded border border-emerald-200">
+                      <span>
+                        {isNepali
+                          ? "कुल नाफा / मार्जिन (Gross Margin):"
+                          : "Total Profit Margin:"}
+                      </span>
+                      <span className="font-mono">
+                        {(() => {
+                          const totalCost = displayItems.reduce(
+                            (acc, it) =>
+                              acc + (it.cost_price ?? 0) * it.quantity,
+                            0,
+                          );
+                          const netAfterDiscount =
+                            displaySubtotal - displayDiscount;
+                          const totalProfit = netAfterDiscount - totalCost;
+                          const marginPct =
+                            netAfterDiscount > 0
+                              ? ((totalProfit / netAfterDiscount) * 100).toFixed(
+                                  1,
+                                )
+                              : "0.0";
+                          return `+${formatCurrency(totalProfit, currencySymbol)} (${marginPct}%)`;
+                        })()}
                       </span>
                     </div>
                   )}

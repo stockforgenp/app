@@ -27,6 +27,21 @@ export const DEFAULT_PAYMENT_METHODS: string[] = [
   "Other",
 ];
 
+export interface PaymentModeOption {
+  id: string;
+  labelEn: string;
+  labelNp: string;
+}
+
+export const PAYMENT_MODE_OPTIONS: PaymentModeOption[] = [
+  { id: "Cash", labelEn: "Cash", labelNp: "नगद" },
+  { id: "Online / QR", labelEn: "Online / QR", labelNp: "अनलाइन / QR" },
+  { id: "Bank Transfer", labelEn: "Bank Transfer", labelNp: "बैंक ट्रान्सफर" },
+  { id: "Cheque", labelEn: "Cheque", labelNp: "चेक" },
+  { id: "Credit Card", labelEn: "Card", labelNp: "कार्ड" },
+  { id: "Credit / Khata", labelEn: "Credit / Khata", labelNp: "उधारो / खाता" },
+];
+
 export const DEFAULT_STAFF_ROLES: StaffRole[] = [
   "Store Manager",
   "Cashier",

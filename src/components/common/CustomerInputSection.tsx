@@ -26,7 +26,7 @@ export interface CustomerInputData {
   pan_vat: string;
   address: string;
   notes?: string;
-  customer_type?: 'RETAIL' | 'WHOLESALE';
+  customer_type?: "RETAIL" | "WHOLESALE";
   isNew: boolean;
 }
 
@@ -90,7 +90,7 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
       pan_vat: customer.pan_vat || "",
       address: customer.address || "",
       notes: customer.notes || "",
-      customer_type: customer.customer_type || 'RETAIL',
+      customer_type: customer.customer_type || "RETAIL",
       isNew: false,
     });
   };
@@ -116,7 +116,7 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
         pan_vat: isExactMatch.pan_vat || value.pan_vat,
         address: isExactMatch.address || value.address,
         notes: isExactMatch.notes || value.notes,
-        customer_type: isExactMatch.customer_type || 'RETAIL',
+        customer_type: isExactMatch.customer_type || "RETAIL",
         isNew: false,
       });
     } else {
@@ -290,10 +290,10 @@ export const CustomerInputSection: React.FC<CustomerInputSectionProps> = ({
           <button
             type="button"
             onClick={() => setIsDialogOpen(true)}
-            className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-2 py-1 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer h-7"
           >
             <UserPlus className="w-3.5 h-3.5" />
-            <span>{isNepali ? "नयाँ ग्राहक" : "Add Customer"}</span>
+            {/* <span>{isNepali ? "नयाँ ग्राहक" : "Add Customer"}</span> */}
           </button>
         </div>
       </div>

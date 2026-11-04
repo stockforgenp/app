@@ -4,16 +4,14 @@
  * stock inflow increments, vendor auto-fill/creation, 13% VAT, and sequential bill numbers.
  */
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Link } from "react-router-dom";
 import {
   Truck,
   Search,
   Plus,
+  Minus,
   Trash2,
   CheckCircle,
   Receipt,
-  ListChecks,
-  ScanLine,
   Tag,
   Percent,
   Printer,
@@ -21,6 +19,7 @@ import {
   FileText,
   Calendar,
   RotateCcw,
+  X,
 } from "lucide-react";
 import { Product, PurchaseCartItem, ProductPackaging } from "../types/index.ts";
 import { getAllProducts } from "../lib/services/productService.ts";
@@ -34,11 +33,9 @@ import {
 } from "../components/common/VendorInputSection.tsx";
 import { PrintPurchaseBillModal } from "../components/common/PrintPurchaseBillModal.tsx";
 import { ReturnsModal } from "../components/common/ReturnsModal.tsx";
-import { Modal } from "../components/common/Modal.tsx";
 import { Input } from "../components/common/Input.tsx";
 import {
   formatCurrency,
-  formatDateTime,
   toMinorUnits,
   fromMinorUnits,
   formatForDateTimeLocal,
@@ -46,9 +43,9 @@ import {
 } from "../lib/utils/format.ts";
 import { useToast } from "../context/ToastContext.tsx";
 import { subscribeToDbChanges } from "../lib/db/sqliteEngine.ts";
-import { MODIFIER_LABEL } from "../lib/hooks/useGlobalShortcuts.ts";
 import { NepaliDatePicker } from "../components/common/NepaliDatePicker.tsx";
 import { useLanguage } from "../context/LanguageContext.tsx";
+import { PAYMENT_MODE_OPTIONS } from "../constants/index.ts";
 
 interface PurchasesViewProps {
   currencySymbol: string;
@@ -107,31 +104,13 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
   const [paidAmountInput, setPaidAmountInput] = useState("");
   const [isCustomPaid, setIsCustomPaid] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string>("Cash");
+  const [customPaymentMethod, setCustomPaymentMethod] = useState("");
 
-  // Quick Barcode / SKU Input
-  const [quickSkuInput, setQuickSkuInput] = useState("");
-  const quickSkuInputRef = useRef<HTMLInputElement>(null);
-
-  // Whole Bill Discount Modal & State
-  const [isBulkDiscountModalOpen, setIsBulkDiscountModalOpen] = useState(false);
-  const [bulkDiscountType, setBulkDiscountType] = useState<"fixed" | "percent">(
-    "fixed",
-  );
-  const [bulkDiscountValue, setBulkDiscountValue] = useState("");
+  // Whole Bill Discount State
   const [wholeDiscountValue, setWholeDiscountValue] = useState("");
   const [wholeDiscountType, setWholeDiscountType] = useState<
     "fixed" | "percent"
   >("fixed");
-
-  // Multi-Product Batch Modal
-  const [isMultiProductModalOpen, setIsMultiProductModalOpen] = useState(false);
-  const [batchQuantities, setBatchQuantities] = useState<
-    Record<number, number>
-  >({});
-  const [batchCostPrices, setBatchCostPrices] = useState<
-    Record<number, number>
-  >({});
-  const [modalSearch, setModalSearch] = useState("");
 
   // Completed purchase state & Print bill modal
   const [completedPurchaseInfo, setCompletedPurchaseInfo] = useState<{
@@ -185,7 +164,9 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
       item.packaging_name = null;
       item.cost_price = item.product.cost_price;
     } else {
-      const pkg = packagingsByProduct[item.product.id]?.find((x) => x.id === packagingId);
+      const pkg = packagingsByProduct[item.product.id]?.find(
+        (x) => x.id === packagingId,
+      );
       if (pkg) {
         item.packaging_id = pkg.id;
         item.package_multiplier = pkg.multiplier;
@@ -222,17 +203,6 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         p.id.toString() === q,
     );
   }, [products, search, stockFilter]);
-
-  // Modal filtered products
-  const modalFilteredProducts = useMemo(() => {
-    if (!modalSearch.trim()) return products;
-    const q = modalSearch.toLowerCase();
-    return products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.sku && p.sku.toLowerCase().includes(q)),
-    );
-  }, [products, modalSearch]);
 
   const handleAddToCart = (product: Product, qty = 1, costPrice?: number) => {
     const existingIndex = cart.findIndex(
@@ -295,6 +265,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     setPaidAmountInput("");
     setIsCustomPaid(false);
     setPaymentMethod("Cash");
+    setCustomPaymentMethod("");
     setWholeDiscountValue("");
     setWholeDiscountType("fixed");
     setVendorData({
@@ -308,70 +279,6 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
     });
     setPurchaseDateTime(formatForDateTimeLocal());
   };
-
-  // Whole bill discount across all current purchase items
-  const handleApplyBulkDiscount = () => {
-    const val = parseFloat(bulkDiscountValue);
-    if (isNaN(val) || val <= 0) {
-      showToast("Please enter a valid positive discount value", "warning");
-      return;
-    }
-
-    setWholeDiscountValue(bulkDiscountValue);
-    setWholeDiscountType(bulkDiscountType);
-    setIsBulkDiscountModalOpen(false);
-    setBulkDiscountValue("");
-    showToast(
-      `Applied whole bill discount of ${
-        bulkDiscountType === "fixed"
-          ? formatCurrency(toMinorUnits(val), currencySymbol)
-          : `${val}%`
-      } across ${cart.length} purchase items`,
-      "success",
-    );
-  };
-
-  // Live preview for proportional whole discount in modal
-  const modalProportionalPreview = useMemo(() => {
-    if (!isBulkDiscountModalOpen || cart.length === 0) {
-      return null;
-    }
-    const val = parseFloat(bulkDiscountValue) || 0;
-    if (val <= 0) return null;
-
-    let subtotal = 0;
-    const itemsForDiscount = cart.map((item) => {
-      const gross = item.quantity * item.cost_price;
-      subtotal += gross;
-      return { gross, individualDiscount: 0 };
-    });
-
-    let targetWholeMinor = 0;
-    if (bulkDiscountType === "percent") {
-      targetWholeMinor = Math.round((subtotal * Math.min(100, val)) / 100);
-    } else {
-      targetWholeMinor = Math.min(subtotal, toMinorUnits(val));
-    }
-
-    const distributed = calculateProportionalDiscounts(
-      itemsForDiscount,
-      targetWholeMinor,
-    );
-    return {
-      subtotal,
-      targetWholeMinor,
-      items: cart.map((item, idx) => ({
-        id: item.product.id,
-        name: item.product.name,
-        quantity: item.quantity,
-        unit: item.product.unit || "pcs",
-        gross: itemsForDiscount[idx].gross,
-        allocatedWhole: distributed[idx]?.allocatedWholeDiscount || 0,
-        effectiveNet:
-          distributed[idx]?.effectiveNet || itemsForDiscount[idx].gross,
-      })),
-    };
-  }, [isBulkDiscountModalOpen, cart, bulkDiscountValue, bulkDiscountType]);
 
   // Calculations
   const calculations = useMemo(() => {
@@ -473,19 +380,18 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
   const totalPayableOverall = calculations.grandTotal + vendorPreviousDue;
   const settlePreviousDue =
     vendorPreviousDue > 0 && effectivePaidAmount > calculations.grandTotal
-      ? Math.min(effectivePaidAmount - calculations.grandTotal, vendorPreviousDue)
+      ? Math.min(
+          effectivePaidAmount - calculations.grandTotal,
+          vendorPreviousDue,
+        )
       : 0;
   const remainingPreviousDue = vendorPreviousDue - settlePreviousDue;
   const currentBillDue = Math.max(
     0,
     calculations.grandTotal - effectivePaidAmount,
   );
-  const changeToReturn = Math.max(
-    0,
-    effectivePaidAmount - totalPayableOverall,
-  );
+  const changeToReturn = Math.max(0, effectivePaidAmount - totalPayableOverall);
   const totalVendorDue = currentBillDue + remainingPreviousDue;
-
 
   // Execute Purchase Transaction
   const handleCompletePurchase = () => {
@@ -509,6 +415,11 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         packagingName: item.packaging_name,
       }));
 
+      const finalPaymentMethod =
+        paymentMethod === "Other" && customPaymentMethod.trim()
+          ? customPaymentMethod.trim()
+          : paymentMethod;
+
       const purchase = processPurchase(itemsInput, {
         vendorId: vendorData.vendorId || undefined,
         vendorName: vendorData.name.trim() || undefined,
@@ -517,7 +428,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         vendorPanVat: vendorData.pan_vat.trim() || undefined,
         vendorAddress: vendorData.address.trim() || undefined,
         paidAmount: effectivePaidAmount,
-        paymentMethod: paymentMethod,
+        paymentMethod: finalPaymentMethod,
         invoiceNumber: supplierInvoiceNo.trim() || undefined,
         notes: purchaseNotes.trim() || undefined,
         applyVat: applyVat,
@@ -546,7 +457,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         vatAmount: purchase.vat_amount,
         grandTotal: purchase.grand_total,
         paidAmount: purchase.paid_amount ?? effectivePaidAmount,
-        paymentMethod: purchase.payment_method || paymentMethod,
+        paymentMethod: purchase.payment_method || finalPaymentMethod,
         dueAmount: purchase.due_amount ?? currentBillDue,
         previousDue: vendorPreviousDue,
         totalDue: totalVendorDue,
@@ -582,42 +493,6 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
   }, [cart]);
 
   // Batch selections in modal
-  const submitBatchFromQuantities = () => {
-    const itemsToAdd: Array<{
-      product: Product;
-      quantity: number;
-      costPrice: number;
-    }> = [];
-    for (const [pIdStr, qty] of Object.entries(batchQuantities)) {
-      const pId = parseInt(pIdStr, 10);
-      const product = products.find((p) => p.id === pId);
-      if (product && qty > 0) {
-        itemsToAdd.push({
-          product,
-          quantity: qty,
-          costPrice:
-            batchCostPrices[pId] !== undefined
-              ? batchCostPrices[pId]
-              : product.cost_price,
-        });
-      }
-    }
-
-    if (itemsToAdd.length === 0) {
-      showToast("Select at least one product with quantity > 0", "warning");
-      return;
-    }
-
-    itemsToAdd.forEach((item) => {
-      handleAddToCart(item.product, item.quantity, item.costPrice);
-    });
-
-    setBatchQuantities({});
-    setBatchCostPrices({});
-    setIsMultiProductModalOpen(false);
-    showToast(`Added ${itemsToAdd.length} products to purchase`, "success");
-  };
-
   return (
     <div className="p-8 flex flex-col gap-6 animate-in fade-in duration-150 h-full min-h-0">
       {/* ================= NEW PURCHASE (INFLOW POS) ================= */}
@@ -631,16 +506,11 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                   ? "उत्पादन क्याटलग (सामान छान्नुहोस्)"
                   : "Select Products to Purchase"}
               </span>
-              <button
-                type="button"
-                onClick={() => setIsMultiProductModalOpen(true)}
-                className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors cursor-pointer"
-              >
-                <ListChecks className="w-3.5 h-3.5" />
-                <span>
-                  {isNepali ? "धेरै सामान एकैसाथ" : "Batch Selection"}
-                </span>
-              </button>
+              <span className="text-[11px] text-neutral-400">
+                {isNepali
+                  ? "सामान थप्न क्लिक गर्नुहोस्"
+                  : "Click item or + to add to purchase"}
+              </span>
             </div>
 
             {/* Search Bar */}
@@ -698,9 +568,11 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                 </div>
               ) : (
                 availableProducts.map((p) => {
-                  const inCartCount = cart
-                    .filter((it) => it.product.id === p.id)
-                    .reduce((acc, it) => acc + it.quantity, 0);
+                  const inCartIndex = cart.findIndex(
+                    (it) => it.product.id === p.id,
+                  );
+                  const inCartCount =
+                    inCartIndex >= 0 ? cart[inCartIndex].quantity : 0;
 
                   return (
                     <div
@@ -708,7 +580,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                       onClick={() => handleAddToCart(p, 1)}
                       className={`pt-2 flex items-center justify-between p-2.5 rounded-lg border transition-all cursor-pointer group select-none ${
                         inCartCount > 0
-                          ? "bg-emerald-950/20 border-emerald-500/30"
+                          ? "bg-emerald-950/20 border-emerald-500/40 ring-1 ring-emerald-500/20"
                           : "bg-neutral-950/60 border-neutral-800/60 hover:bg-neutral-800/50 hover:border-neutral-700/60"
                       }`}
                     >
@@ -718,6 +590,11 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                           <span className="text-[10px] font-mono text-neutral-400 bg-neutral-800 px-1 rounded">
                             {p.unit || "pcs"}
                           </span>
+                          {inCartCount > 0 && (
+                            <span className="text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded border border-emerald-500/30">
+                              {inCartCount} in cart
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 mt-1 text-[11px] text-neutral-400 font-mono">
                           <span>
@@ -728,15 +605,79 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                         </div>
                       </div>
 
-                      <div className="shrink-0 flex items-center gap-1.5">
-                        {inCartCount > 0 && (
-                          <span className="text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded">
-                            {inCartCount} in cart
-                          </span>
+                      <div
+                        className="shrink-0 flex items-center gap-1.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {inCartCount > 0 ? (
+                          <div className="flex items-center bg-neutral-900 border border-emerald-500/40 rounded-lg p-0.5 shadow-xs">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (inCartCount <= 1) {
+                                  handleRemoveFromCart(inCartIndex);
+                                } else {
+                                  handleUpdateQuantity(
+                                    inCartIndex,
+                                    (inCartCount - 1).toString(),
+                                  );
+                                }
+                              }}
+                              className="w-7 h-7 flex items-center justify-center text-neutral-300 hover:text-white rounded hover:bg-neutral-800 transition-colors cursor-pointer"
+                              title={
+                                inCartCount <= 1
+                                  ? isNepali
+                                    ? "हटाउनुहोस्"
+                                    : "Remove"
+                                  : isNepali
+                                    ? "घटाउनुहोस्"
+                                    : "Decrease"
+                              }
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              value={inCartCount}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                if (isNaN(val) || val <= 0) {
+                                  handleRemoveFromCart(inCartIndex);
+                                } else {
+                                  handleUpdateQuantity(
+                                    inCartIndex,
+                                    val.toString(),
+                                  );
+                                }
+                              }}
+                              className="w-10 h-7 border-0 p-0 text-center text-xs font-mono font-bold text-emerald-300 bg-transparent focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleUpdateQuantity(
+                                  inCartIndex,
+                                  (inCartCount + 1).toString(),
+                                )
+                              }
+                              className="w-7 h-7 flex items-center justify-center text-neutral-300 hover:text-white rounded hover:bg-neutral-800 transition-colors cursor-pointer"
+                              title={isNepali ? "बढाउनुहोस्" : "Increase"}
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleAddToCart(p, 1)}
+                            className="px-2.5 py-1.5 rounded-lg bg-neutral-900 hover:bg-emerald-600 text-neutral-300 hover:text-white border border-neutral-800 hover:border-emerald-500 flex items-center gap-1 text-xs font-medium transition-colors cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>{isNepali ? "थप्नुहोस्" : "Add"}</span>
+                          </button>
                         )}
-                        <div className="w-6 h-6 rounded-md bg-neutral-800 group-hover:bg-emerald-600 text-neutral-400 group-hover:text-white flex items-center justify-center transition-colors">
-                          <Plus className="w-3.5 h-3.5" />
-                        </div>
                       </div>
                     </div>
                   );
@@ -749,8 +690,8 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         {/* Right Column: Active Purchase Line Items & Summary (7 cols) */}
         <div className="lg:col-span-7 h-full min-h-0 flex flex-col">
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden flex flex-col h-full min-h-0">
-            {/* Header */}
-            <div className="px-5 py-3.5 border-b border-neutral-800 bg-neutral-950/60 flex items-center justify-between flex-wrap gap-2 shrink-0">
+            {/* Cart Header */}
+            <div className="px-3.5 py-2.5 border-b border-neutral-800 bg-neutral-950/70 flex items-center justify-between flex-wrap gap-2 shrink-0">
               <div className="flex items-center gap-2">
                 <Receipt className="w-4 h-4 text-emerald-400" />
                 <span className="text-xs font-semibold text-neutral-200">
@@ -758,1017 +699,1007 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
                     ? "खरिद गरिने सामानहरूको सूची"
                     : "Current Purchase Line Items"}
                 </span>
-                <span className="text-[11px] text-neutral-400 font-mono ml-2">
+                <span className="text-[11px] text-neutral-400 font-mono ml-1">
                   ({cart.length} {cart.length === 1 ? "item" : "items"} ·{" "}
                   {calculations.totalUnits} units)
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 self-start sm:self-auto flex-wrap">
+                {/* Returns Button */}
                 <button
                   type="button"
                   onClick={() => setIsReturnsModalOpen(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg shadow-xs transition-colors cursor-pointer"
-                  title={isNepali ? "खरिद फिर्ता तथा डेबिट नोट" : "Vendor Returns & Debit Note"}
+                  className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-md shadow-xs transition-colors cursor-pointer"
+                  title={
+                    isNepali
+                      ? "खरिद फिर्ता तथा डेबिट नोट"
+                      : "Vendor Returns & Debit Note"
+                  }
                 >
-                  <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{isNepali ? "खरिद फिर्ता / Debit Note" : "Vendor Return"}</span>
+                  <RotateCcw className="w-3 h-3 text-amber-400" />
+                  <span>{isNepali ? "खरिद फिर्ता" : "Vendor Return"}</span>
                 </button>
 
+                {/* Clear Cart Button */}
                 {cart.length > 0 && (
-                  <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setBulkDiscountValue(wholeDiscountValue);
-                      setBulkDiscountType(wholeDiscountType);
-                      setIsBulkDiscountModalOpen(true);
-                    }}
-                    className={`flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md transition-colors cursor-pointer border ${
-                      calculations.totalDiscount > 0
-                        ? "bg-amber-100/20 text-amber-300 border-amber-900/40 font-semibold"
-                        : "text-amber-600 hover:text-amber-700 bg-amber-100/10 hover:bg-amber-200/20 border-amber-500/30"
-                    }`}
-                  >
-                    <Percent className="w-3 h-3" />
-                    <span>
-                      {calculations.totalDiscount > 0
-                        ? `${isNepali ? "बिल छुट" : "Bill Discount"}: -${formatCurrency(calculations.totalDiscount, currencySymbol)}`
-                        : isNepali
-                          ? "बिल छुट"
-                          : "Bill Discount"}
-                    </span>
-                  </button>
-                  {calculations.totalDiscount > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setWholeDiscountValue("");
-                        showToast(
-                          isNepali ? "छुट हटाइयो" : "Discount cleared",
-                          "info",
-                        );
-                      }}
-                      className="text-[10px] text-amber-400 hover:text-amber-300 underline cursor-pointer"
-                      title="Clear discount"
-                    >
-                      {isNepali ? "हटाउनुहोस्" : "Reset"}
-                    </button>
-                  )}
                   <button
                     type="button"
                     onClick={handleClearCart}
-                    className="text-[11px] text-neutral-400 hover:text-rose-400 transition-colors cursor-pointer ml-1"
+                    className="p-1 text-neutral-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-colors cursor-pointer border border-transparent hover:border-rose-500/30"
+                    title={isNepali ? "कार्ट खाली गर्नुहोस्" : "Clear cart"}
                   >
-                    {isNepali ? "सबै हटाउनुहोस्" : "Clear"}
+                    <RotateCcw className="w-3.5 h-3.5" />
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
 
-            {/* Cart Table */}
-            {cart.length === 0 ? (
-              <div className="p-12 text-center text-xs text-neutral-400 flex-1 min-h-0 flex flex-col items-center justify-center">
-                <Truck className="w-8 h-8 text-neutral-600 mx-auto mb-2" />
-                {isNepali
-                  ? "खरिद कार्ट खाली छ। बाँयातर्फबाट सामान छान्नुहोस् वा स्क्यान गर्नुहोस्।"
-                  : "Purchase cart is empty. Click products from catalog or scan SKUs above."}
-              </div>
-            ) : (
-              <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 min-h-[140px]">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-neutral-950 text-neutral-400 font-medium border-b border-neutral-800 sticky top-0 z-10">
-                    <tr>
-                      <th className="py-2.5 px-4">
-                        {isNepali ? "सामान" : "Item"}
-                      </th>
-                      <th className="py-2.5 px-2 text-center w-24">
-                        {isNepali ? "परिमाण" : "Qty"}
-                      </th>
-                      <th className="py-2.5 px-3 text-right font-mono w-30">
-                        {isNepali ? "खरिद दर" : "Purchase Rate"}
-                      </th>
-                      <th className="py-2.5 px-4 text-right font-mono w-28">
-                        {isNepali ? "कुल रकम" : "Line Total"}
-                      </th>
-                      <th className="py-2.5 px-2 text-center w-8"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-800/60">
-                    {calculations.itemsWithDiscounts.map((item, index) => {
-                      return (
-                        <tr
-                          key={item.product.id}
-                          className="hover:bg-neutral-800/30 transition-colors"
-                        >
-                          {/* Product */}
-                          <td className="py-3 px-4">
-                            <div className="font-semibold text-neutral-200 capitalize flex items-center gap-1.5">
-                              <span>{item.product.name}</span>
-                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-neutral-800 text-neutral-300 border border-neutral-700/60">
-                                {item.product.unit || "pcs"}
-                              </span>
-                              {item.packaging_name && (
-                                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-semibold">
-                                  {item.packaging_name} (×{item.package_multiplier})
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[10px] text-neutral-400 font-mono mt-0.5">
-                              Current Stock: {item.product.current_stock}{" "}
-                              {item.product.unit || "pcs"}
-                            </div>
-
-                            {/* Packaging & Batch Controls */}
-                            <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                              {/* Packaging Selection */}
-                              {packagingsByProduct[item.product.id]?.length > 0 && (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-[10px] text-neutral-400 font-medium">
-                                    {isNepali ? "एकाइ:" : "Unit:"}
-                                  </span>
-                                  <select
-                                    value={item.packaging_id ?? ""}
-                                    onChange={(e) => {
-                                      const val = e.target.value
-                                        ? parseInt(e.target.value, 10)
-                                        : null;
-                                      handleSelectPackaging(index, val);
-                                    }}
-                                    className="bg-neutral-900 border border-neutral-700/80 rounded px-1.5 py-0.5 text-[10px] text-cyan-300 font-mono focus:outline-none focus:border-cyan-500"
-                                  >
-                                    <option value="">
-                                      Base ({item.product.unit || "pcs"})
-                                    </option>
-                                    {packagingsByProduct[item.product.id].map((pkg) => (
-                                      <option key={pkg.id} value={pkg.id}>
-                                        {pkg.package_name} (×{pkg.multiplier})
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                              )}
-
-                              {/* Batch Inputs */}
-                              <div className="flex items-center gap-1.5">
-                                <input
-                                  type="text"
-                                  placeholder={isNepali ? "ब्याच नं." : "Batch #"}
-                                  value={item.batch_number || ""}
-                                  onChange={(e) =>
-                                    handleUpdateBatchNumber(index, e.target.value)
-                                  }
-                                  className="bg-neutral-900 border border-neutral-700/80 rounded px-2 py-0.5 text-[11px] text-neutral-200 placeholder:text-neutral-500 font-mono w-28 uppercase focus:border-amber-500/80 focus:outline-none"
-                                />
-                                <input
-                                  type="date"
-                                  value={item.expiry_date || ""}
-                                  onChange={(e) =>
-                                    handleUpdateExpiryDate(index, e.target.value)
-                                  }
-                                  className="bg-neutral-900 border border-neutral-700/80 rounded px-1.5 py-0.5 text-[11px] text-neutral-300 font-mono focus:border-amber-500/80 focus:outline-none"
-                                  title={isNepali ? "म्याद सकिने मिति" : "Expiry Date"}
-                                />
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Qty */}
-                          <td className="py-3 px-2 text-center">
-                            <Input
-                              type="number"
-                              min="1"
-                              value={item.quantity}
-                              onChange={(e) =>
-                                handleUpdateQuantity(index, e.target.value)
-                              }
-                              containerClassName="w-16 mx-auto"
-                              className="px-2 py-1 text-center text-xs font-mono"
-                            />
-                          </td>
-
-                          {/* Purchase Rate / Cost Price */}
-                          <td className="py-3 px-3 text-right">
-                            <Input
-                              type="number"
-                              step="any"
-                              min="0"
-                              value={fromMinorUnits(item.cost_price)}
-                              onChange={(e) =>
-                                handleUpdateCostPrice(index, e.target.value)
-                              }
-                              containerClassName="w-24 ml-auto"
-                              className="px-2 py-1 text-right text-xs font-mono"
-                            />
-                          </td>
-
-                          {/* Line Total */}
-                          <td className="py-3 px-4 text-right font-mono tabular-nums">
-                            <div className="font-bold text-neutral-100">
-                              {formatCurrency(item.netTotal, currencySymbol)}
-                            </div>
-                            {item.allocatedWholeDiscount > 0 && (
-                              <div className="text-[10px] font-normal text-amber-400 font-mono">
-                                -
-                                {formatCurrency(
-                                  item.allocatedWholeDiscount,
-                                  currencySymbol,
-                                )}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Remove */}
-                          <td className="py-3 px-2 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveFromCart(index)}
-                              className="text-neutral-500 hover:text-rose-400 transition-colors p-1"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
+            {/* 1. Main Cart Items Listing (Allocates the whole available space) */}
+            <div className="flex-1 min-h-0 p-3 pb-0 flex flex-col">
+              <div className="flex-1 min-h-[160px] bg-neutral-950/80 border border-neutral-800/80 rounded-lg overflow-hidden flex flex-col">
+                {cart.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-neutral-400 flex-1 min-h-0 flex flex-col items-center justify-center">
+                    <Truck className="w-8 h-8 text-neutral-600 mb-2" />
+                    <p className="max-w-xs">
+                      {isNepali
+                        ? "खरिद कार्ट खाली छ। बायाँतर्फबाट सामान छान्नुहोस् वा स्क्यान गर्नुहोस्।"
+                        : "Purchase cart is empty. Click products from catalog on the left to add to purchase."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-neutral-900/90 text-neutral-400 font-medium border-b border-neutral-800 sticky top-0 z-10 text-[11px]">
+                        <tr>
+                          <th className="py-1.5 px-3">
+                            {isNepali ? "सामान" : "Item"}
+                          </th>
+                          <th className="py-1.5 px-2 text-center w-28">
+                            {isNepali ? "परिमाण" : "Qty"}
+                          </th>
+                          <th className="py-1.5 px-2 text-right font-mono w-24">
+                            {isNepali ? "खरिद दर" : "Cost Rate"}
+                          </th>
+                          <th className="py-1.5 px-3 text-right font-mono w-28">
+                            {isNepali ? "कुल रकम" : "Line Total"}
+                          </th>
+                          <th className="py-1.5 px-2 text-center w-8"></th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-800/60">
+                        {calculations.itemsWithDiscounts.map((item, index) => {
+                          return (
+                            <tr
+                              key={item.product.id}
+                              className="hover:bg-neutral-800/30 transition-colors"
+                            >
+                              {/* Product Info */}
+                              <td className="py-2 px-3">
+                                <div className="font-semibold text-neutral-200 capitalize flex items-center gap-1.5 flex-wrap">
+                                  <span>{item.product.name}</span>
+                                  <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-neutral-800 text-neutral-300 border border-neutral-700/60">
+                                    {item.product.unit || "pcs"}
+                                  </span>
+                                  {item.packaging_name && (
+                                    <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-semibold">
+                                      {item.packaging_name} (×
+                                      {item.package_multiplier})
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[10px] text-neutral-400 font-mono mt-0.5">
+                                  Current Stock: {item.product.current_stock}{" "}
+                                  {item.product.unit || "pcs"}
+                                </div>
+
+                                {/* Packaging & Batch Controls */}
+                                <div className="flex flex-wrap items-center gap-2 mt-1">
+                                  {packagingsByProduct[item.product.id]
+                                    ?.length > 0 && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-[10px] text-neutral-400 font-medium">
+                                        {isNepali ? "एकाइ:" : "Unit:"}
+                                      </span>
+                                      <select
+                                        value={item.packaging_id ?? ""}
+                                        onChange={(e) => {
+                                          const val = e.target.value
+                                            ? parseInt(e.target.value, 10)
+                                            : null;
+                                          handleSelectPackaging(index, val);
+                                        }}
+                                        className="bg-neutral-900 border border-neutral-700/80 rounded px-1.5 py-0.5 text-[10px] text-cyan-300 font-mono focus:outline-none focus:border-cyan-500 cursor-pointer"
+                                      >
+                                        <option value="">
+                                          Base ({item.product.unit || "pcs"})
+                                        </option>
+                                        {packagingsByProduct[
+                                          item.product.id
+                                        ].map((pkg) => (
+                                          <option key={pkg.id} value={pkg.id}>
+                                            {pkg.package_name} (×
+                                            {pkg.multiplier})
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  )}
+
+                                  {/* Batch Inputs */}
+                                  <div className="flex items-center gap-1.5">
+                                    <input
+                                      type="text"
+                                      placeholder={
+                                        isNepali ? "ब्याच नं." : "Batch #"
+                                      }
+                                      value={item.batch_number || ""}
+                                      onChange={(e) =>
+                                        handleUpdateBatchNumber(
+                                          index,
+                                          e.target.value,
+                                        )
+                                      }
+                                      className="bg-neutral-900 border border-neutral-700/80 rounded px-1.5 py-0.5 text-[11px] text-neutral-200 placeholder:text-neutral-500 font-mono w-24 uppercase focus:border-amber-500/80 focus:outline-none h-6"
+                                    />
+                                    <input
+                                      type="date"
+                                      value={item.expiry_date || ""}
+                                      onChange={(e) =>
+                                        handleUpdateExpiryDate(
+                                          index,
+                                          e.target.value,
+                                        )
+                                      }
+                                      className="bg-neutral-900 border border-neutral-700/80 rounded px-1.5 py-0.5 text-[10px] text-neutral-300 font-mono focus:border-amber-500/80 focus:outline-none h-6"
+                                      title={
+                                        isNepali
+                                          ? "म्याद सकिने मिति"
+                                          : "Expiry Date"
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Qty with stepper */}
+                              <td className="py-2 px-2 text-center">
+                                <div className="flex items-center justify-center bg-neutral-950 border border-neutral-800 rounded-lg w-max mx-auto p-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (item.quantity <= 1) {
+                                        handleRemoveFromCart(index);
+                                      } else {
+                                        handleUpdateQuantity(
+                                          index,
+                                          (item.quantity - 1).toString(),
+                                        );
+                                      }
+                                    }}
+                                    className="w-7 h-7 flex items-center justify-center text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded transition-colors cursor-pointer"
+                                    title={
+                                      item.quantity <= 1
+                                        ? isNepali
+                                          ? "हटाउनुहोस्"
+                                          : "Remove"
+                                        : isNepali
+                                          ? "घटाउनुहोस्"
+                                          : "Decrease"
+                                    }
+                                  >
+                                    <Minus className="w-3.5 h-3.5" />
+                                  </button>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={item.quantity}
+                                    onFocus={(e) => e.target.select()}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value, 10);
+                                      if (isNaN(val) || val <= 0) {
+                                        handleRemoveFromCart(index);
+                                      } else {
+                                        handleUpdateQuantity(
+                                          index,
+                                          val.toString(),
+                                        );
+                                      }
+                                    }}
+                                    className="w-10 h-7 border-0 p-0 text-center text-xs font-mono font-bold text-neutral-100 bg-transparent focus:outline-none"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleUpdateQuantity(
+                                        index,
+                                        (item.quantity + 1).toString(),
+                                      )
+                                    }
+                                    className="w-7 h-7 flex items-center justify-center text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded transition-colors cursor-pointer"
+                                    title={isNepali ? "बढाउनुहोस्" : "Increase"}
+                                  >
+                                    <Plus className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+
+                              {/* Purchase Rate / Cost Price */}
+                              <td className="py-2 px-2 text-right">
+                                <Input
+                                  type="number"
+                                  step="any"
+                                  min="0"
+                                  value={fromMinorUnits(item.cost_price)}
+                                  onChange={(e) =>
+                                    handleUpdateCostPrice(index, e.target.value)
+                                  }
+                                  containerClassName="w-20 ml-auto"
+                                  className="px-1.5 py-1 text-right text-xs font-mono h-7"
+                                />
+                              </td>
+
+                              {/* Line Total */}
+                              <td className="py-2 px-3 text-right font-mono tabular-nums">
+                                <div className="font-bold text-neutral-100">
+                                  {formatCurrency(
+                                    item.netTotal,
+                                    currencySymbol,
+                                  )}
+                                </div>
+                                {item.allocatedWholeDiscount > 0 && (
+                                  <div className="text-[10px] font-normal text-amber-400 font-mono">
+                                    -
+                                    {formatCurrency(
+                                      item.allocatedWholeDiscount,
+                                      currencySymbol,
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* Remove */}
+                              <td className="py-2 px-2 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveFromCart(index)}
+                                  className="text-neutral-500 hover:text-rose-400 transition-colors p-1 rounded hover:bg-neutral-800 cursor-pointer"
+                                  title="Remove item"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
 
-            {/* Vendor & Invoice Inputs */}
-            <div className="p-4 bg-neutral-950/70 border-t border-neutral-800 space-y-3 shrink-0">
-              <VendorInputSection value={vendorData} onChange={setVendorData} />
+            {/* 2. Vendor Information & Two-Column Billing Grid */}
+            <div className="shrink-0 p-3 pt-2.5 space-y-2.5 max-h-[46vh] overflow-y-auto border-t border-neutral-800/80 bg-neutral-900/40">
+              {/* Vendor & Invoice Information Card */}
+              <div className="p-3 bg-neutral-950/80 border border-neutral-800/80 rounded-lg space-y-2">
+                <div className="flex flex-col md:flex-row md:items-stretch gap-2.5">
+                  <div className="flex-1 min-w-0">
+                    <VendorInputSection
+                      value={vendorData}
+                      onChange={setVendorData}
+                    />
+                  </div>
 
-              {/* Purchase Date & Time */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-lg bg-neutral-900/90 border border-neutral-800">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <div>
-                    <div className="text-xs font-medium text-neutral-200 flex items-center gap-1.5">
-                      <span>
-                        {isNepali ? "खरिद मिति र समय" : "Purchase Date & Time"}
-                      </span>
+                  {/* Purchase Date & Time */}
+                  <div className="w-full md:w-auto md:min-w-[270px] shrink-0 p-3 bg-neutral-900/60 border border-neutral-800 rounded-xl flex flex-col justify-between gap-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                          <Calendar className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold text-neutral-200">
+                            {isNepali
+                              ? "खरिद मिति र समय"
+                              : "Purchase Date & Time"}
+                          </div>
+                          <p className="text-[10px] text-neutral-400">
+                            {isNepali ? "बिल दर्ता मिति" : "Bill entry timestamp"}
+                          </p>
+                        </div>
+                      </div>
                       {isCustomPurchaseDate && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-medium">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-medium shrink-0">
                           {isNepali ? "कस्टम मिति" : "Backdated"}
                         </span>
                       )}
                     </div>
-                    <div className="text-[10px] text-neutral-400">
-                      {isNepali
-                        ? "पहिले खरिद गरेको सामान आज दर्ता गर्दा मिति मिलाउनुहोस्"
-                        : "Default is today. Change if entering an earlier purchase."}
+
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <NepaliDatePicker
+                          value={purchaseDateTime}
+                          showTime={true}
+                          sizeVariant="sm"
+                          onChange={(adDateTime) =>
+                            setPurchaseDateTime(adDateTime)
+                          }
+                        />
+                      </div>
+                      {isCustomPurchaseDate && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPurchaseDateTime(formatForDateTimeLocal())
+                          }
+                          className="px-2 py-1 text-[10px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded transition-colors cursor-pointer shrink-0"
+                          title={
+                            isNepali
+                              ? "अहिलेको मितिमा फर्काउनुहोस्"
+                              : "Reset to current date & time"
+                          }
+                        >
+                          {isNepali ? "अहिले" : "Now"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="w-64 sm:w-72">
-                    <NepaliDatePicker
-                      value={purchaseDateTime}
-                      showTime={true}
-                      sizeVariant="sm"
-                      onChange={(adDateTime) => setPurchaseDateTime(adDateTime)}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+                  <div>
+                    <Input
+                      label={
+                        <span className="flex items-center gap-1 text-[11px]">
+                          <FileText className="w-3 h-3 text-neutral-500" />
+                          <span>
+                            {isNepali
+                              ? "सप्लायर बीजक नं (Supplier Invoice No)"
+                              : "Supplier Invoice / Bill No"}
+                          </span>
+                        </span>
+                      }
+                      type="text"
+                      placeholder={
+                        isNepali ? "उदा. INV-2081-998" : "e.g. INV-9988"
+                      }
+                      value={supplierInvoiceNo}
+                      onChange={(e) => setSupplierInvoiceNo(e.target.value)}
+                      className="py-1 text-xs font-mono h-8"
                     />
                   </div>
-                  {isCustomPurchaseDate && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPurchaseDateTime(formatForDateTimeLocal())
+
+                  <div>
+                    <Input
+                      label={
+                        <span className="flex items-center gap-1 text-[11px]">
+                          <Tag className="w-3 h-3 text-neutral-500" />
+                          <span>
+                            {isNepali
+                              ? "कैफियत / टिप्पणी"
+                              : "Purchase Remarks / Note"}
+                          </span>
+                        </span>
                       }
-                      className="px-2 py-1 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer shrink-0"
-                      title={
+                      type="text"
+                      placeholder={
                         isNepali
-                          ? "अहिलेको मितिमा फर्काउनुहोस्"
-                          : "Reset to current date & time"
+                          ? "उदा. सामान प्राप्त भयो"
+                          : "e.g. Received via delivery"
                       }
-                    >
-                      {isNepali ? "अहिले (Now)" : "Now"}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <div>
-                  <Input
-                    label={
-                      <span className="flex items-center gap-1">
-                        <FileText className="w-3 h-3 text-neutral-500" />
-                        <span>
-                          {isNepali
-                            ? "सप्लायर बीजक नं (Supplier Invoice No)"
-                            : "Supplier Invoice / Bill No"}
-                        </span>
-                      </span>
-                    }
-                    type="text"
-                    placeholder={
-                      isNepali ? "उदा. INV-2081-998" : "e.g. INV-9988"
-                    }
-                    value={supplierInvoiceNo}
-                    onChange={(e) => setSupplierInvoiceNo(e.target.value)}
-                    className="py-1.5 text-xs font-mono"
-                  />
-                </div>
-
-                <div>
-                  <Input
-                    label={
-                      <span className="flex items-center gap-1">
-                        <Tag className="w-3 h-3 text-neutral-500" />
-                        <span>
-                          {isNepali
-                            ? "कैफियत / टिप्पणी"
-                            : "Purchase Remarks / Note"}
-                        </span>
-                      </span>
-                    }
-                    type="text"
-                    placeholder={
-                      isNepali
-                        ? "उदा. सामान प्राप्त भयो"
-                        : "e.g. Received via Delivery truck"
-                    }
-                    value={purchaseNotes}
-                    onChange={(e) => setPurchaseNotes(e.target.value)}
-                    className="py-1.5 text-xs"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Calculations Breakdown */}
-            <div className="p-5 bg-neutral-950 border-t border-neutral-800 space-y-1.5 shrink-0">
-              <div className="flex items-center justify-between text-xs text-neutral-400">
-                <span>
-                  {isNepali ? "उप-जम्मा (Gross Subtotal)" : "Subtotal (Gross)"}
-                </span>
-                <span className="font-mono text-neutral-200">
-                  {formatCurrency(calculations.subtotal, currencySymbol)}
-                </span>
-              </div>
-
-              {calculations.totalDiscount > 0 && (
-                <div className="flex items-center justify-between text-xs text-neutral-300 font-semibold">
-                  <span>
-                    {isNepali
-                      ? "बिल छुट (Whole Bill Discount)"
-                      : "Bill Discount"}
-                  </span>
-                  <span className="font-mono text-amber-400">
-                    -{" "}
-                    {formatCurrency(calculations.totalDiscount, currencySymbol)}
-                  </span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between text-xs text-neutral-400">
-                <span>
-                  {isNepali ? "करयोग्य रकम (Taxable Amount)" : "Taxable Amount"}
-                </span>
-                <span className="font-mono text-neutral-300">
-                  {formatCurrency(calculations.taxableAmount, currencySymbol)}
-                </span>
-              </div>
-
-              {/* VAT Row with Toggle */}
-              <div className="flex items-center justify-between text-xs text-neutral-400 py-0.5">
-                <span className="flex items-center gap-1.5">
-                  <span
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors ${
-                      applyVat
-                        ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
-                        : "bg-neutral-800 text-neutral-400 border-neutral-700"
-                    }`}
-                  >
-                    {applyVat ? "13% VAT" : "0% VAT"}
-                  </span>
-                  <span>{isNepali ? "मूल्य अभिवृद्धि कर" : "VAT (13%)"}</span>
-                </span>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`font-mono ${applyVat ? "text-sky-400" : "text-neutral-500"}`}
-                  >
-                    {applyVat
-                      ? `+ ${formatCurrency(calculations.vatAmount, currencySymbol)}`
-                      : formatCurrency(0, currencySymbol)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setApplyVat(!applyVat)}
-                    title={
-                      applyVat
-                        ? isNepali
-                          ? "भ्याट हटाउनुहोस्"
-                          : "Disable VAT for this purchase"
-                        : isNepali
-                          ? "१३% भ्याट जोड्नुहोस्"
-                          : "Apply 13% VAT to this purchase"
-                    }
-                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded transition-all cursor-pointer border ${
-                      applyVat
-                        ? "bg-sky-500/20 text-sky-300 border-sky-500/30 hover:bg-sky-500/30"
-                        : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200 hover:border-neutral-600"
-                    }`}
-                  >
-                    {applyVat ? "ON" : "OFF"}
-                  </button>
-                </div>
-              </div>
-
-              <div className="pt-1 border-t border-neutral-800 flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-bold text-neutral-100">
-                    {applyVat
-                      ? isNepali
-                        ? "अन्तिम कुल खरिद रकम (१३% भ्याट सहित)"
-                        : "Grand Total (Inc. 13% VAT)"
-                      : isNepali
-                        ? "अन्तिम कुल खरिद रकम (०% भ्याट)"
-                        : "Grand Total (0% VAT)"}
-                  </div>
-                  <div className="text-[11px] text-neutral-400">
-                    {isNepali
-                      ? "खरिद बिल नं सहित सुरक्षित भई मौज्दात दाखिला हुनेछ"
-                      : "Inventory stock is increased upon completion"}
+                      value={purchaseNotes}
+                      onChange={(e) => setPurchaseNotes(e.target.value)}
+                      className="py-1 text-xs h-8"
+                    />
                   </div>
                 </div>
-                <div className="text-xl font-bold font-mono text-emerald-400 tabular-nums">
-                  {formatCurrency(calculations.grandTotal, currencySymbol)}
-                </div>
               </div>
 
-              {/* Payment & Dues Card */}
-              {cart.length > 0 && (
-                <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-neutral-200">
-                      {isNepali ? "भुक्तानी रकम (Paid Amount)" : "Paid Amount"}
-                    </span>
-                    <div className="flex gap-2 items-center">
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="any"
-                          min="0"
-                          placeholder={`Enter paid amount (${currencySymbol})...`}
-                          value={
-                            isCustomPaid
-                              ? paidAmountInput
-                              : fromMinorUnits(calculations.grandTotal)
-                          }
-                          onFocus={(e) => {
-                            e.target.select();
-                          }}
-                          onChange={(e) => {
-                            setIsCustomPaid(true);
-                            setPaidAmountInput(e.target.value);
-                          }}
-                          className="w-36 pl-8 pr-3 py-1.5 text-xs font-mono font-bold text-emerald-400 bg-neutral-950 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500"
-                        />
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-500 pointer-events-none">
-                          {currencySymbol}
+              {/* Two-Column Billing Layout on Desktop (xl:grid-cols-2) */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-2.5 min-w-0">
+                {/* Column 1: Discounts & Financial Summary */}
+                <div className="space-y-2 min-w-0">
+                  {/* Summary Breakdown Card */}
+                  <div className="p-2.5 rounded-lg bg-neutral-950/80 border border-neutral-800/80 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between text-neutral-400">
+                      <span>{isNepali ? "उप-जम्मा" : "Subtotal (Gross)"}</span>
+                      <span className="font-mono text-neutral-200">
+                        {formatCurrency(calculations.subtotal, currencySymbol)}
+                      </span>
+                    </div>
+
+                    {calculations.totalDiscount > 0 && (
+                      <div className="flex items-center justify-between text-neutral-300 font-semibold">
+                        <span>{isNepali ? "बिल छुट" : "Bill Discount"}</span>
+                        <span className="font-mono text-amber-400">
+                          -
+                          {formatCurrency(
+                            calculations.totalDiscount,
+                            currencySymbol,
+                          )}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                    )}
+
+                    <div className="flex items-center justify-between text-neutral-400">
+                      <span>{isNepali ? "करयोग्य रकम" : "Taxable Amount"}</span>
+                      <span className="font-mono text-neutral-200">
+                        {formatCurrency(
+                          calculations.taxableAmount,
+                          currencySymbol,
+                        )}
+                      </span>
+                    </div>
+
+                    {/* VAT Row with Toggle */}
+                    <div className="flex items-center justify-between text-neutral-400 py-0.5">
+                      <span className="flex items-center gap-1.5">
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                            applyVat
+                              ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                              : "bg-neutral-800 text-neutral-400 border-neutral-700"
+                          }`}
+                        >
+                          {applyVat ? "13% VAT" : "0% VAT"}
+                        </span>
+                        <span>{isNepali ? "मूल्य अभिवृद्धि कर" : "VAT"}</span>
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`font-mono ${applyVat ? "text-sky-400" : "text-neutral-500"}`}
+                        >
+                          {applyVat
+                            ? `+${formatCurrency(calculations.vatAmount, currencySymbol)}`
+                            : formatCurrency(0, currencySymbol)}
+                        </span>
                         <button
                           type="button"
-                          onClick={() => {
-                            setIsCustomPaid(false);
-                            setPaidAmountInput("");
-                          }}
-                          className={`text-[10px] px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer border ${
-                            !isCustomPaid
-                              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                          onClick={() => setApplyVat(!applyVat)}
+                          title={applyVat ? "Disable VAT" : "Apply 13% VAT"}
+                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded transition-all cursor-pointer border ${
+                            applyVat
+                              ? "bg-sky-500/20 text-sky-300 border-sky-500/30 hover:bg-sky-500/30"
                               : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
                           }`}
                         >
-                          {isNepali ? "खरिद चुक्ता" : "Current Bill"}
+                          {applyVat ? "ON" : "OFF"}
                         </button>
-                        {vendorPreviousDue > 0 && (
+                      </div>
+                    </div>
+
+                    <div className="pt-1.5 border-t border-neutral-800 flex items-center justify-between">
+                      <span className="font-bold text-neutral-100">
+                        {isNepali ? "कुल रकम (Grand Total)" : "Grand Total"}
+                      </span>
+                      <span className="text-base font-bold font-mono text-emerald-400 tabular-nums">
+                        {formatCurrency(
+                          calculations.grandTotal,
+                          currencySymbol,
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Column 2: Payment, Presets & Payables / Vendor Due */}
+                <div className="space-y-2 min-w-0">
+                  {cart.length > 0 && (
+                    <div className="p-2.5 rounded-lg bg-neutral-950/80 border border-neutral-800/80 space-y-2.5">
+                      {/* discount */}
+                      {cart.length > 0 && (
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className="text-xs font-semibold text-neutral-200 shrink-0">
+                            {isNepali ? "सम्पूर्ण बिल छुट" : "Bill Discount"}
+                          </span>
+
+                          <div className="flex items-center gap-1.5">
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                step={
+                                  wholeDiscountType === "fixed" ? "0.01" : "1"
+                                }
+                                min="0"
+                                max={
+                                  wholeDiscountType === "percent"
+                                    ? 100
+                                    : undefined
+                                }
+                                placeholder={
+                                  wholeDiscountType === "fixed"
+                                    ? `Discount (${currencySymbol})`
+                                    : "Discount %"
+                                }
+                                value={wholeDiscountValue}
+                                onChange={(e) =>
+                                  setWholeDiscountValue(e.target.value)
+                                }
+                                className="text-xs font-mono pr-7 focus:border-amber-500 h-7 w-28"
+                              />
+                              {wholeDiscountValue && (
+                                <button
+                                  type="button"
+                                  onClick={() => setWholeDiscountValue("")}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-200 p-0.5 rounded cursor-pointer"
+                                  title="Clear whole discount"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex bg-neutral-900 p-0.5 rounded-lg border border-neutral-800 text-[11px] shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setWholeDiscountType("fixed")}
+                                className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                                  wholeDiscountType === "fixed"
+                                    ? "bg-neutral-800 text-neutral-100 font-semibold"
+                                    : "text-neutral-400 hover:text-neutral-200"
+                                }`}
+                              >
+                                Fixed
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setWholeDiscountType("percent")}
+                                className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                                  wholeDiscountType === "percent"
+                                    ? "bg-neutral-800 text-neutral-100 font-semibold"
+                                    : "text-neutral-400 hover:text-neutral-200"
+                                }`}
+                              >
+                                %
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {/* Paid Amount Input + Presets */}
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="text-xs font-semibold text-neutral-200 shrink-0">
+                          {isNepali
+                            ? "भुक्तानी रकम (Paid Amount)"
+                            : "Paid Amount"}
+                        </span>
+
+                        {/* Presets */}
+                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                          <div className="relative">
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              placeholder={`Enter paid amount (${currencySymbol})...`}
+                              value={
+                                isCustomPaid
+                                  ? paidAmountInput
+                                  : fromMinorUnits(calculations.grandTotal)
+                              }
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => {
+                                setIsCustomPaid(true);
+                                setPaidAmountInput(e.target.value);
+                              }}
+                              className="w-28 pl-7 pr-2.5 text-xs font-mono font-bold text-emerald-400 bg-neutral-900 border border-neutral-800 rounded-lg focus:outline-none focus:border-emerald-500 h-7"
+                            />
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-500 pointer-events-none">
+                              {currencySymbol}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsCustomPaid(false);
+                              setPaidAmountInput("");
+                              if (paymentMethod === "Credit / Khata") {
+                                setPaymentMethod("Cash");
+                              }
+                            }}
+                            className={`text-[10px] px-2 py-1 rounded font-medium transition-colors cursor-pointer border ${
+                              !isCustomPaid ||
+                              effectivePaidAmount === calculations.grandTotal
+                                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30 font-semibold"
+                                : "bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-neutral-200"
+                            }`}
+                          >
+                            {isNepali ? "खरिद चुक्ता" : "Current Bill"}
+                          </button>
+                          {vendorPreviousDue > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsCustomPaid(true);
+                                setPaidAmountInput(
+                                  fromMinorUnits(
+                                    totalPayableOverall,
+                                  ).toString(),
+                                );
+                                if (paymentMethod === "Credit / Khata") {
+                                  setPaymentMethod("Cash");
+                                }
+                              }}
+                              className={`text-[10px] px-2 py-1 rounded font-medium transition-colors cursor-pointer border ${
+                                isCustomPaid &&
+                                effectivePaidAmount === totalPayableOverall
+                                  ? "bg-amber-500/20 text-amber-300 border-amber-500/30 font-semibold"
+                                  : "bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-neutral-200"
+                              }`}
+                              title={
+                                isNepali
+                                  ? "साविक बक्यौता सहित सबै चुक्ता"
+                                  : "Settle current bill + all previous vendor due"
+                              }
+                            >
+                              {isNepali ? "सबै चुक्ता" : "Settle All"}
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => {
                               setIsCustomPaid(true);
-                              setPaidAmountInput(fromMinorUnits(totalPayableOverall).toString());
+                              setPaidAmountInput("0");
+                              setPaymentMethod("Credit / Khata");
                             }}
-                            className={`text-[10px] px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer border ${
-                              isCustomPaid && effectivePaidAmount === totalPayableOverall
-                                ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
-                                : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:text-neutral-200"
+                            className={`text-[10px] px-2 py-1 rounded font-medium transition-colors cursor-pointer border ${
+                              isCustomPaid && effectivePaidAmount === 0
+                                ? "bg-rose-500/20 text-rose-300 border-rose-500/30 font-semibold"
+                                : "bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-neutral-200"
                             }`}
-                            title={isNepali ? "साविक बक्यौता सहित सबै चुक्ता" : "Settle current bill + all previous vendor due"}
+                            title={
+                              isNepali
+                                ? "कुनै रकम भुक्तान नगरी पूर्ण उधारो"
+                                : "No payment now (Full Credit)"
+                            }
                           >
-                            {isNepali ? "सबै चुक्ता" : "Settle All"}
+                            {isNepali ? "उधारो (०)" : "Credit (0)"}
                           </button>
+                        </div>
+                      </div>
+
+                      {/* Payment Mode Dropdown */}
+                      <div className="flex items-center justify-between gap-1.5">
+                        <label
+                          htmlFor="purchases-payment-mode-select"
+                          className="text-xs font-semibold text-neutral-200 shrink-0"
+                        >
+                          {isNepali
+                            ? "भुक्तानी माध्यम (Payment Mode)"
+                            : "Payment Mode"}
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <div className="relative">
+                            <select
+                              id="purchases-payment-mode-select"
+                              value={paymentMethod}
+                              onChange={(e) => {
+                                const selected = e.target.value;
+                                setPaymentMethod(selected);
+                                if (
+                                  selected === "Credit / Khata" &&
+                                  (!isCustomPaid || effectivePaidAmount > 0)
+                                ) {
+                                  setIsCustomPaid(true);
+                                  setPaidAmountInput("0");
+                                } else if (
+                                  selected !== "Credit / Khata" &&
+                                  effectivePaidAmount === 0 &&
+                                  isCustomPaid
+                                ) {
+                                  setIsCustomPaid(false);
+                                  setPaidAmountInput("");
+                                }
+                              }}
+                              className="w-40 pl-2.5 pr-8 text-xs font-semibold bg-neutral-900 border border-neutral-700 hover:border-neutral-600 rounded-lg text-neutral-100 focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer appearance-none h-7"
+                            >
+                              {PAYMENT_MODE_OPTIONS.map((m) => (
+                                <option
+                                  key={m.id}
+                                  value={m.id}
+                                  className="bg-neutral-900 text-neutral-100"
+                                >
+                                  {isNepali
+                                    ? `${m.labelNp} (${m.labelEn})`
+                                    : m.labelEn}
+                                </option>
+                              ))}
+                              <option
+                                value="Other"
+                                className="bg-neutral-900 text-neutral-100"
+                              >
+                                {isNepali
+                                  ? "अन्य (Other / Custom)..."
+                                  : "Other (Custom)..."}
+                              </option>
+                            </select>
+                            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-neutral-400">
+                              <svg
+                                className="w-4 h-4 fill-current"
+                                viewBox="0 0 20 20"
+                              >
+                                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                              </svg>
+                            </div>
+                          </div>
+                          {paymentMethod === "Other" && (
+                            <input
+                              type="text"
+                              placeholder={
+                                isNepali
+                                  ? "माध्यम..."
+                                  : "Specify mode..."
+                              }
+                              value={customPaymentMethod}
+                              onChange={(e) =>
+                                setCustomPaymentMethod(e.target.value)
+                              }
+                              className="w-28 px-2 text-xs bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-200 focus:outline-none focus:border-emerald-500 placeholder-neutral-500 h-7"
+                              autoFocus
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Due Breakdown Summary */}
+                      <div className="space-y-1 text-xs pt-1 border-t border-neutral-800/80">
+                        {changeToReturn > 0 && (
+                          <div className="flex items-center justify-between text-emerald-400">
+                            <span>
+                              {isNepali
+                                ? "फिर्ता गर्नुपर्ने रकम"
+                                : "Change to Return"}
+                              :
+                            </span>
+                            <span className="font-mono font-bold">
+                              {formatCurrency(changeToReturn, currencySymbol)}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between text-neutral-300">
+                          <span>
+                            {isNepali
+                              ? "यस खरिदको बाँकी"
+                              : "Current Purchase Due"}
+                            :
+                          </span>
+                          <span
+                            className={`font-mono font-bold ${currentBillDue > 0 ? "text-rose-400" : "text-neutral-400"}`}
+                          >
+                            {formatCurrency(currentBillDue, currencySymbol)}
+                          </span>
+                        </div>
+
+                        {settlePreviousDue > 0 && (
+                          <div className="flex items-center justify-between text-emerald-400">
+                            <span>
+                              {isNepali
+                                ? "साविक बक्यौता भुक्तानी"
+                                : "Prev. Due Settled"}
+                              :
+                            </span>
+                            <span className="font-mono font-bold">
+                              -
+                              {formatCurrency(
+                                settlePreviousDue,
+                                currencySymbol,
+                              )}
+                            </span>
+                          </div>
+                        )}
+
+                        {vendorPreviousDue > 0 && (
+                          <div className="flex items-center justify-between text-amber-400">
+                            <span>
+                              {isNepali ? "साविकको बाँकी" : "Previous Due"}:
+                            </span>
+                            <span className="font-mono font-bold">
+                              {formatCurrency(
+                                remainingPreviousDue,
+                                currencySymbol,
+                              )}
+                            </span>
+                          </div>
+                        )}
+
+                        {(remainingPreviousDue > 0 || currentBillDue > 0) && (
+                          <div className="flex items-center justify-between text-neutral-100 font-bold border-t border-neutral-800 pt-1 mt-0.5">
+                            <span className="text-xs">
+                              {isNepali
+                                ? "कुल तिर्न बाँकी"
+                                : "Total Payable Due"}
+                              :
+                            </span>
+                            <span className="font-mono text-xs font-bold text-rose-400">
+                              {formatCurrency(totalVendorDue, currencySymbol)}
+                            </span>
+                          </div>
                         )}
                       </div>
                     </div>
-
-                    {/* Payment Mode Selector */}
-                    <div className="flex items-center justify-between pt-2 border-t border-neutral-800/60">
-                      <span className="text-[11px] font-semibold text-neutral-300">
-                        {isNepali ? "भुक्तानी माध्यम (Mode)" : "Payment Mode"}
-                      </span>
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {[
-                          { id: "Cash", labelEn: "Cash", labelNp: "नगद" },
-                          { id: "Bank Transfer", labelEn: "Bank", labelNp: "बैंक" },
-                          { id: "Online", labelEn: "Online/QR", labelNp: "अनलाइन" },
-                          { id: "Cheque", labelEn: "Cheque", labelNp: "चेक" },
-                        ].map((m) => (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => setPaymentMethod(m.id)}
-                            className={`px-2 py-0.5 text-[10px] font-medium rounded border transition-all cursor-pointer ${
-                              paymentMethod === m.id
-                                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 shadow-xs"
-                                : "bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-neutral-200"
-                            }`}
-                          >
-                            {isNepali ? m.labelNp : m.labelEn}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Due Breakdown */}
-                  <div className="space-y-1 text-xs">
-                    {changeToReturn > 0 && (
-                      <div className="flex items-center justify-between text-emerald-400">
-                        <span>
-                          {isNepali
-                            ? "फिर्ता गर्नुपर्ने रकम"
-                            : "Change to Return"}
-                          :
-                        </span>
-                        <span className="font-mono font-bold">
-                          {formatCurrency(changeToReturn, currencySymbol)}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between text-neutral-300">
-                      <span>
-                        {isNepali ? "यस खरिदको बाँकी" : "Current Purchase Due"}:
-                      </span>
-                      <span
-                        className={`font-mono font-bold ${currentBillDue > 0 ? "text-rose-400" : "text-neutral-400"}`}
-                      >
-                        {formatCurrency(currentBillDue, currencySymbol)}
-                      </span>
-                    </div>
-
-                    {settlePreviousDue > 0 && (
-                      <div className="flex items-center justify-between text-emerald-400">
-                        <span>
-                          {isNepali
-                            ? "साविक बक्यौता भुक्तानी (Settled)"
-                            : "Prev. Due Settled"}
-                          :
-                        </span>
-                        <span className="font-mono font-bold">
-                          - {formatCurrency(settlePreviousDue, currencySymbol)}
-                        </span>
-                      </div>
-                    )}
-
-                    {vendorPreviousDue > 0 && (
-                      <div className="flex items-center justify-between text-amber-400">
-                        <span>
-                          {isNepali
-                            ? "साविकको बाँकी (Previous Due)"
-                            : "Previous Due / Balance"}
-                          :
-                        </span>
-                        <span className="font-mono font-bold">
-                          {formatCurrency(remainingPreviousDue, currencySymbol)}
-                        </span>
-                      </div>
-                    )}
-
-                    {(remainingPreviousDue > 0 || currentBillDue > 0) && (
-                      <div className="flex items-center justify-between text-neutral-100 font-bold border-t border-neutral-800 pt-1 mt-1">
-                        <span className="text-xs">
-                          {isNepali ? "कुल तिर्न बाँकी" : "Total Payable Due"}:
-                        </span>
-                        <span className="font-mono text-sm text-rose-400">
-                          {formatCurrency(totalVendorDue, currencySymbol)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
+                  )}
                 </div>
-              )}
+              </div>
+            </div>
 
-              <div className="pt-2">
+            {/* Sticky Footer: Bottom Summary & Complete Purchase Action */}
+            <div className="shrink-0 border-t border-neutral-800 bg-neutral-950/95 px-3.5 py-2.5 backdrop-blur-md">
+              <div className="flex items-center justify-between gap-3">
+                {/* Left: Compact billing summary */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div>
+                    <div className="text-[10px] uppercase font-semibold text-neutral-400 leading-tight">
+                      {isNepali ? "कुल रकम" : "Grand Total"}
+                    </div>
+                    <div className="text-base font-bold font-mono text-emerald-400 tabular-nums">
+                      {formatCurrency(calculations.grandTotal, currencySymbol)}
+                    </div>
+                  </div>
+
+                  <div className="h-7 w-[1px] bg-neutral-800 hidden sm:block" />
+
+                  <div className="hidden sm:block text-xs">
+                    <div className="text-[10px] text-neutral-400 flex items-center gap-1.5">
+                      <span>{isNepali ? "माध्यम:" : "Mode:"}</span>
+                      <span className="font-semibold text-neutral-200">
+                        {paymentMethod}
+                      </span>
+                    </div>
+                    <div className="font-mono text-[11px] font-bold">
+                      {effectivePaidAmount >= calculations.grandTotal ? (
+                        <span className="text-emerald-400">
+                          {isNepali ? "पूर्ण चुक्ता" : "Fully Paid"}
+                        </span>
+                      ) : (
+                        <span className="text-rose-400">
+                          {isNepali ? "बाँकी" : "Due"}:{" "}
+                          {formatCurrency(currentBillDue, currencySymbol)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Primary Complete Action Button */}
                 <button
                   type="button"
                   disabled={cart.length === 0}
                   onClick={handleCompletePurchase}
-                  className={`w-full py-3 px-4 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer ${
+                  className={`py-2 px-4 rounded-lg text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0 ${
                     cart.length === 0
                       ? "bg-neutral-800 text-neutral-500 cursor-not-allowed shadow-none"
                       : "bg-emerald-600 hover:bg-emerald-500 text-white active:scale-[0.99]"
                   }`}
+                  title="Complete purchase and add stock (F2 or Enter)"
                 >
                   <CheckCircle className="w-4 h-4" />
                   <span>
-                    {isNepali
-                      ? "खरिद सम्पन्न गरी मौज्दात बढाउनुहोस्"
-                      : "Complete Purchase & Restock"}{" "}
-                    ({formatCurrency(calculations.grandTotal, currencySymbol)})
+                    {isNepali ? "खरिद सम्पन्न" : "Complete Purchase"} (
+                    {formatCurrency(calculations.grandTotal, currencySymbol)})
                   </span>
-                  <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono rounded bg-emerald-700/80 text-emerald-100 border border-emerald-500/40">
+                  <kbd className="hidden sm:inline-block px-1.5 py-0.2 text-[10px] font-mono rounded bg-emerald-700/80 text-emerald-100 border border-emerald-500/40">
                     F2
                   </kbd>
                 </button>
               </div>
             </div>
           </div>
-
-          {/* Completed Purchase Banner */}
-          {completedPurchaseInfo && (
-            <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-between shrink-0 mt-3">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
-                <div>
-                  <div className="text-xs font-bold text-neutral-100 flex items-center flex-wrap gap-x-2">
-                    <span>
-                      Purchase #
-                      {completedPurchaseInfo.billNumber ||
-                        completedPurchaseInfo.id}{" "}
-                      Successfully Inflowed
-                    </span>
-                    {completedPurchaseInfo.vendorName && (
-                      <span className="font-normal text-emerald-300 text-xs">
-                        · Vendor: {completedPurchaseInfo.vendorName}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-neutral-400 mt-0.5">
-                    Grand Total:{" "}
-                    <span className="font-mono text-emerald-300 font-bold">
-                      {formatCurrency(
-                        completedPurchaseInfo.grandTotal ||
-                          completedPurchaseInfo.total,
-                        currencySymbol,
-                      )}
-                    </span>
-                    {" · "}Taxable:{" "}
-                    {formatCurrency(
-                      completedPurchaseInfo.total,
-                      currencySymbol,
-                    )}
-                    {" · "}VAT:{" "}
-                    {formatCurrency(
-                      completedPurchaseInfo.vatAmount || 0,
-                      currencySymbol,
-                    )}
-                    {completedPurchaseInfo.paidAmount !== undefined && (
-                      <span>
-                        {" "}
-                        · Paid:{" "}
-                        <span className="font-mono text-emerald-300 font-medium">
-                          {formatCurrency(
-                            completedPurchaseInfo.paidAmount,
-                            currencySymbol,
-                          )}
-                        </span>
-                        <span className="text-neutral-400 text-[11px] ml-1">
-                          ({completedPurchaseInfo.paymentMethod || "Cash"})
-                        </span>
-                      </span>
-                    )}
-                    {completedPurchaseInfo.dueAmount !== undefined &&
-                      completedPurchaseInfo.dueAmount > 0 && (
-                        <span>
-                          {" "}
-                          · Bill Due:{" "}
-                          <span className="font-mono text-amber-400 font-medium">
-                            {formatCurrency(
-                              completedPurchaseInfo.dueAmount,
-                              currencySymbol,
-                            )}
-                          </span>
-                        </span>
-                      )}
-                    {completedPurchaseInfo.previousDue !== undefined &&
-                      completedPurchaseInfo.previousDue > 0 && (
-                        <span>
-                          {" "}
-                          · Prev Due:{" "}
-                          <span className="font-mono text-amber-300">
-                            {formatCurrency(
-                              completedPurchaseInfo.previousDue,
-                              currencySymbol,
-                            )}
-                          </span>
-                        </span>
-                      )}
-                    {completedPurchaseInfo.totalDue !== undefined &&
-                      completedPurchaseInfo.totalDue > 0 && (
-                        <span>
-                          {" "}
-                          · Total Due:{" "}
-                          <span className="font-mono text-rose-400 font-semibold">
-                            {formatCurrency(
-                              completedPurchaseInfo.totalDue,
-                              currencySymbol,
-                            )}
-                          </span>
-                        </span>
-                      )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setPrintPurchaseId(completedPurchaseInfo.id);
-                    setIsPrintModalOpen(true);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Print Bill</span>
-                </button>
-                <button
-                  onClick={() => setCompletedPurchaseInfo(null)}
-                  className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors px-2 py-1 cursor-pointer"
-                >
-                  Dismiss
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Batch Products Modal */}
-      <Modal
-        isOpen={isMultiProductModalOpen}
-        onClose={() => setIsMultiProductModalOpen(false)}
-        title={
-          isNepali
-            ? "धेरै सामान एकैसाथ खरिद गर्नुहोस्"
-            : "Add Multiple Products to Purchase"
-        }
-        maxWidth="3xl"
-      >
-        <div className="space-y-4">
-          <div>
-            <Input
-              type="text"
-              placeholder="Search products..."
-              value={modalSearch}
-              onChange={(e) => setModalSearch(e.target.value)}
-              icon={Search}
-              clearable
-              onClear={() => setModalSearch("")}
-              className="py-1.5 text-xs"
-            />
-          </div>
-
-          <div className="max-h-72 overflow-y-auto divide-y divide-neutral-800 border border-neutral-800 rounded-lg">
-            {modalFilteredProducts.map((p) => {
-              const qty = batchQuantities[p.id] || 0;
-              const cost =
-                batchCostPrices[p.id] !== undefined
-                  ? batchCostPrices[p.id]
-                  : p.cost_price;
-
-              return (
-                <div
-                  key={p.id}
-                  className="p-2.5 flex items-center justify-between gap-3 text-xs"
-                >
-                  <div className="min-w-0">
-                    <div className="font-semibold text-neutral-200 truncate capitalize">
-                      {p.name}
-                    </div>
-                    <div className="text-[10px] text-neutral-400 font-mono">
-                      Current Stock: {p.current_stock}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-neutral-400">
-                        Rate:
+      {/* Completed Purchase Notification Banner */}
+      {completedPurchaseInfo && (
+        <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+            <div>
+              <div className="text-xs font-bold text-neutral-100 flex items-center flex-wrap gap-x-2">
+                <span>
+                  Purchase #
+                  {completedPurchaseInfo.billNumber || completedPurchaseInfo.id}{" "}
+                  Successfully Inflowed
+                </span>
+                {completedPurchaseInfo.vendorName && (
+                  <span className="font-normal text-emerald-300 text-xs">
+                    · Vendor: {completedPurchaseInfo.vendorName}
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] text-neutral-400 mt-0.5">
+                Grand Total:{" "}
+                <span className="font-mono text-emerald-300 font-bold">
+                  {formatCurrency(
+                    completedPurchaseInfo.grandTotal ||
+                      completedPurchaseInfo.total,
+                    currencySymbol,
+                  )}
+                </span>
+                {" · "}Taxable:{" "}
+                {formatCurrency(completedPurchaseInfo.total, currencySymbol)}
+                {" · "}VAT:{" "}
+                {formatCurrency(
+                  completedPurchaseInfo.vatAmount || 0,
+                  currencySymbol,
+                )}
+                {completedPurchaseInfo.paidAmount !== undefined && (
+                  <span>
+                    {" "}
+                    · Paid:{" "}
+                    <span className="font-mono text-emerald-300 font-medium">
+                      {formatCurrency(
+                        completedPurchaseInfo.paidAmount,
+                        currencySymbol,
+                      )}
+                    </span>
+                    <span className="text-neutral-400 text-[11px] ml-1">
+                      ({completedPurchaseInfo.paymentMethod || "Cash"})
+                    </span>
+                  </span>
+                )}
+                {completedPurchaseInfo.dueAmount !== undefined &&
+                  completedPurchaseInfo.dueAmount > 0 && (
+                    <span>
+                      {" "}
+                      · Bill Due:{" "}
+                      <span className="font-mono text-amber-400 font-medium">
+                        {formatCurrency(
+                          completedPurchaseInfo.dueAmount,
+                          currencySymbol,
+                        )}
                       </span>
-                      <Input
-                        type="number"
-                        step="any"
-                        value={fromMinorUnits(cost)}
-                        onChange={(e) =>
-                          setBatchCostPrices({
-                            ...batchCostPrices,
-                            [p.id]: toMinorUnits(e.target.value),
-                          })
-                        }
-                        containerClassName="w-20"
-                        className="px-2 py-1 text-right text-xs font-mono"
-                      />
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-neutral-400">Qty:</span>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={qty}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value, 10);
-                          setBatchQuantities({
-                            ...batchQuantities,
-                            [p.id]: isNaN(val) ? 0 : val,
-                          });
-                        }}
-                        containerClassName="w-16"
-                        className="px-2 py-1 text-center text-xs font-mono"
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                    </span>
+                  )}
+                {completedPurchaseInfo.previousDue !== undefined &&
+                  completedPurchaseInfo.previousDue > 0 && (
+                    <span>
+                      {" "}
+                      · Prev Due:{" "}
+                      <span className="font-mono text-amber-300">
+                        {formatCurrency(
+                          completedPurchaseInfo.previousDue,
+                          currencySymbol,
+                        )}
+                      </span>
+                    </span>
+                  )}
+                {completedPurchaseInfo.totalDue !== undefined &&
+                  completedPurchaseInfo.totalDue > 0 && (
+                    <span>
+                      {" "}
+                      · Total Due:{" "}
+                      <span className="font-mono text-rose-400 font-semibold">
+                        {formatCurrency(
+                          completedPurchaseInfo.totalDue,
+                          currencySymbol,
+                        )}
+                      </span>
+                    </span>
+                  )}
+              </div>
+            </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-neutral-800">
+          <div className="flex items-center gap-2">
             <button
-              type="button"
-              onClick={() => setIsMultiProductModalOpen(false)}
-              className="px-4 py-2 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 cursor-pointer"
+              onClick={() => {
+                setPrintPurchaseId(completedPurchaseInfo.id);
+                setIsPrintModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-neutral-900 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer"
             >
-              Cancel
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print Bill</span>
             </button>
             <button
-              type="button"
-              onClick={submitBatchFromQuantities}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
+              onClick={() => setCompletedPurchaseInfo(null)}
+              className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors px-2 py-1 cursor-pointer"
             >
-              Add Selected to Purchase
+              Dismiss
             </button>
           </div>
         </div>
-      </Modal>
-
-      {/* Modal: Whole Bill Discount */}
-      <Modal
-        isOpen={isBulkDiscountModalOpen}
-        onClose={() => setIsBulkDiscountModalOpen(false)}
-        title={isNepali ? "सम्पूर्ण खरिद बिल छुट" : "Whole Bill Discount"}
-        subtitle={
-          isNepali
-            ? `यस खरिद बिलका सबै ${cart.length} सामानहरूमा समानुपातिक रूपमा छुट विभाजन गर्नुहोस्।`
-            : `Divide a single whole purchase bill discount proportionally across all ${cart.length} items based on their individual purchase amounts.`
-        }
-        maxWidth="lg"
-      >
-        <div className="space-y-4">
-          {/* Amount Type Selector: Fixed vs Percent */}
-          <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-950 rounded-lg border border-neutral-800 text-xs">
-            <button
-              type="button"
-              onClick={() => setBulkDiscountType("fixed")}
-              className={`py-2 rounded font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
-                bulkDiscountType === "fixed"
-                  ? "bg-neutral-800 text-amber-400 font-semibold"
-                  : "text-neutral-400 hover:text-neutral-200"
-              }`}
-            >
-              <span>Fixed ({currencySymbol})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setBulkDiscountType("percent")}
-              className={`py-2 rounded font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
-                bulkDiscountType === "percent"
-                  ? "bg-neutral-800 text-amber-400 font-semibold"
-                  : "text-neutral-400 hover:text-neutral-200"
-              }`}
-            >
-              <span>Percentage (%)</span>
-            </button>
-          </div>
-
-          <div>
-            <Input
-              label={
-                bulkDiscountType === "fixed"
-                  ? `Total Whole Discount Amount (${currencySymbol})`
-                  : "Total Whole Discount Percentage (%)"
-              }
-              type="number"
-              step={bulkDiscountType === "fixed" ? "0.01" : "1"}
-              min="0"
-              max={bulkDiscountType === "percent" ? "100" : undefined}
-              placeholder={bulkDiscountType === "fixed" ? "0.00" : "0"}
-              value={bulkDiscountValue}
-              onChange={(e) => setBulkDiscountValue(e.target.value)}
-              className="font-mono text-sm"
-              autoFocus
-            />
-          </div>
-
-          {/* Proportional Preview Table */}
-          {modalProportionalPreview && (
-            <div className="space-y-2 pt-2 border-t border-neutral-800">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-neutral-300">
-                  {isNepali
-                    ? "समानुपातिक छुट विभाजन"
-                    : "Proportional Distribution Breakdown"}
-                </span>
-                <span className="text-neutral-400 font-mono">
-                  {isNepali ? "जम्मा छुट:" : "Total Discount:"}{" "}
-                  <strong className="text-amber-400">
-                    {formatCurrency(
-                      modalProportionalPreview.targetWholeMinor,
-                      currencySymbol,
-                    )}
-                  </strong>
-                </span>
-              </div>
-              <div className="max-h-48 overflow-y-auto border border-neutral-800/80 rounded-lg">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-neutral-950 text-neutral-400 border-b border-neutral-800 text-[11px]">
-                    <tr>
-                      <th className="py-1.5 px-3">Item</th>
-                      <th className="py-1.5 px-2 text-right">Gross</th>
-                      <th className="py-1.5 px-2 text-right text-amber-400">
-                        Discount Share
-                      </th>
-                      <th className="py-1.5 px-3 text-right">Effective Net</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-900 font-mono">
-                    {modalProportionalPreview.items.map((row) => (
-                      <tr key={row.id} className="hover:bg-neutral-900/50">
-                        <td className="py-1.5 px-3 font-sans truncate max-w-[150px]">
-                          {row.name}
-                        </td>
-                        <td className="py-1.5 px-2 text-right text-neutral-400">
-                          {formatCurrency(row.gross, currencySymbol)}
-                        </td>
-                        <td className="py-1.5 px-2 text-right text-amber-400 font-semibold">
-                          -{formatCurrency(row.allocatedWhole, currencySymbol)}
-                        </td>
-                        <td className="py-1.5 px-3 text-right text-neutral-100 font-semibold">
-                          {formatCurrency(row.effectiveNet, currencySymbol)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between pt-2 border-t border-neutral-800">
-            {wholeDiscountValue ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setWholeDiscountValue("");
-                  setIsBulkDiscountModalOpen(false);
-                  showToast("Discount cleared", "info");
-                }}
-                className="text-xs text-rose-400 hover:text-rose-300 cursor-pointer"
-              >
-                Clear Discount
-              </button>
-            ) : (
-              <div />
-            )}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setIsBulkDiscountModalOpen(false)}
-                className="px-4 py-2 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleApplyBulkDiscount}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
-              >
-                Apply Discount
-              </button>
-            </div>
-          </div>
-        </div>
-      </Modal>
+      )}
 
       {/* Print Purchase Bill Modal */}
       <PrintPurchaseBillModal

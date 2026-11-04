@@ -10,6 +10,7 @@ import {
   ProcessPurchaseVendorInfo,
   Product,
   CreateVendorInput,
+  ItemizedPurchaseRow,
 } from '../../types/index.ts';
 
 export type { ProcessPurchaseItemInput, ProcessPurchaseVendorInfo };
@@ -990,6 +991,112 @@ export function hardDeletePurchase(purchaseId: number): {
     };
   });
 }
+
+/**
+ * Retrieves date-wise itemized purchase rows with line item details and bill info for ledger/statement views.
+ */
+export function getItemizedPurchases(options?: {
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+  limit?: number;
+  vendorId?: number;
+}): ItemizedPurchaseRow[] {
+  let sql = `
+    SELECT 
+      p.id as purchase_id,
+      p.bill_number,
+      p.invoice_number,
+      p.created_at,
+      p.vendor_id,
+      p.vendor_name,
+      p.vendor_phone,
+      p.vendor_pan_vat,
+      COALESCE(p.payment_method, 'Cash') as payment_method,
+      COALESCE(p.status, 'COMPLETED') as purchase_status,
+      p.subtotal as purchase_subtotal,
+      COALESCE(p.discount, 0) as purchase_discount,
+      COALESCE(p.vat_amount, 0) as purchase_vat_amount,
+      COALESCE(p.grand_total, p.total) as purchase_grand_total,
+      COALESCE(p.paid_amount, p.grand_total, p.total) as purchase_paid_amount,
+      COALESCE(p.due_amount, 0) as purchase_due_amount,
+      p.notes,
+      pi.id as item_id,
+      pi.product_id,
+      COALESCE(pi.product_name, pr.name, 'Unknown Item') as product_name,
+      COALESCE(pi.product_sku, pr.sku, '') as product_sku,
+      COALESCE(pr.unit, 'pcs') as product_unit,
+      pi.packaging_name,
+      pi.package_multiplier,
+      pi.quantity,
+      pi.cost_price,
+      pi.selling_price,
+      COALESCE(pi.discount, 0) as item_discount,
+      pi.total as item_total,
+      pi.batch_number,
+      pi.expiry_date
+    FROM purchase_items pi
+    JOIN purchases p ON pi.purchase_id = p.id
+    LEFT JOIN products pr ON pi.product_id = pr.id
+  `;
+
+  const whereClauses: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (options?.startDate) {
+    whereClauses.push(`p.created_at >= ?`);
+    params.push(options.startDate);
+  }
+
+  if (options?.endDate) {
+    whereClauses.push(`p.created_at <= ?`);
+    params.push(options.endDate);
+  }
+
+  if (options?.vendorId) {
+    const vend = queryOne<{ phone: string | null }>(
+      `SELECT phone FROM vendors WHERE id = ?`,
+      [options.vendorId],
+    );
+    if (vend?.phone && vend.phone.trim()) {
+      whereClauses.push(`(p.vendor_id = ? OR p.vendor_phone = ?)`);
+      params.push(options.vendorId, vend.phone.trim());
+    } else {
+      whereClauses.push(`p.vendor_id = ?`);
+      params.push(options.vendorId);
+    }
+  }
+
+  if (options?.search && options.search.trim()) {
+    whereClauses.push(`(
+      CAST(p.id AS TEXT) LIKE ? OR
+      p.vendor_name LIKE ? OR
+      p.vendor_phone LIKE ? OR
+      p.vendor_pan_vat LIKE ? OR
+      p.bill_number LIKE ? OR
+      p.invoice_number LIKE ? OR
+      pr.name LIKE ? OR
+      pr.sku LIKE ? OR
+      pi.product_name LIKE ?
+    )`);
+    const term = `%${options.search.trim()}%`;
+    params.push(term, term, term, term, term, term, term, term, term);
+  }
+
+  if (whereClauses.length > 0) {
+    sql += ` WHERE ` + whereClauses.join(' AND ');
+  }
+
+  sql += ` ORDER BY p.created_at DESC, p.id DESC, pi.id ASC`;
+
+  if (options?.limit) {
+    sql += ` LIMIT ?`;
+    params.push(options.limit);
+  }
+
+  return query<ItemizedPurchaseRow>(sql, params);
+}
+
 
 
 
