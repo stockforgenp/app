@@ -390,13 +390,16 @@ export function getVendorCount(): number {
  * Records a payment made to a vendor to settle outstanding bills (FIFO or specific purchase).
  */
 export function recordVendorPayment(input: RecordVendorPaymentInput): VendorPayment {
-  const { vendorId, amount, paymentMethod = 'Cash', paymentDate, note, purchaseId } = input;
+  const { vendorId, amount, discountAmount = 0, paymentMethod = 'Cash', paymentDate, note, purchaseId } = input;
 
   if (!vendorId) {
     throw new Error('Vendor ID is required to record payment');
   }
   if (!amount || amount <= 0) {
     throw new Error('Payment amount must be greater than zero');
+  }
+  if (discountAmount < 0) {
+    throw new Error('Discount amount cannot be negative');
   }
 
   const vendor = getVendorById(vendorId);
@@ -406,6 +409,8 @@ export function recordVendorPayment(input: RecordVendorPaymentInput): VendorPaym
 
   const now = new Date().toISOString();
   const dateToRecord = paymentDate ? new Date(paymentDate).toISOString() : now;
+  const validDiscount = discountAmount > 0 ? discountAmount : 0;
+  const totalSettled = amount + validDiscount;
 
   return transaction(() => {
     // Generate sequential receipt/voucher number
@@ -413,15 +418,15 @@ export function recordVendorPayment(input: RecordVendorPaymentInput): VendorPaym
     const nextPayId = (lastPay?.id ?? 0) + 1;
     const receiptNumber = `VCH-V-${nextPayId.toString().padStart(5, '0')}`;
 
-    // 1. Insert vendor payment record
+    // 1. Insert vendor payment record (including settlement discount)
     run(
       `INSERT INTO vendor_payments (
-        vendor_id, purchase_id, amount, payment_method, payment_date, receipt_number, note, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [vendorId, purchaseId ?? null, amount, paymentMethod, dateToRecord, receiptNumber, note?.trim() || null, now]
+        vendor_id, purchase_id, amount, discount_amount, payment_method, payment_date, receipt_number, note, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [vendorId, purchaseId ?? null, amount, validDiscount, paymentMethod, dateToRecord, receiptNumber, note?.trim() || null, now]
     );
 
-    let remainingToAllocate = amount;
+    let remainingToAllocate = totalSettled;
 
     // 2. If a specific purchase was targeted, apply to it first
     if (purchaseId) {
@@ -537,9 +542,9 @@ export function getVendorStatement(vendorId: number): {
     const isPartialReturn = p.status === 'PARTIAL_RETURN';
     const billTotal = p.grand_total ?? p.total;
 
-    // Check subsequent payments applied to this specific purchase
+    // Check subsequent payments applied to this specific purchase (including settlement discounts)
     const subsequentPayments = queryOne<{ total: number }>(
-      `SELECT COALESCE(SUM(amount), 0) as total FROM vendor_payments WHERE purchase_id = ?`,
+      `SELECT COALESCE(SUM(amount + COALESCE(discount_amount, 0)), 0) as total FROM vendor_payments WHERE purchase_id = ?`,
       [p.id]
     )?.total ?? 0;
 
@@ -571,14 +576,19 @@ export function getVendorStatement(vendorId: number): {
   }
 
   for (const v of payments) {
+    const disc = v.discount_amount || 0;
+    const totalSettled = v.amount + disc;
     unsortedRows.push({
       id: `payment-${v.id}`,
       date: v.payment_date || v.created_at,
       type: 'PAYMENT',
       refNumber: v.receipt_number || `VCH-${v.id.toString().padStart(5, '0')}`,
-      description: v.note ? `Payment to Vendor: ${v.note}` : 'Payment Paid (Balance Settlement)',
-      amount: v.amount,
+      description: v.note
+        ? `Payment to Vendor: ${v.note}`
+        : 'Payment Paid (Balance Settlement)',
+      amount: totalSettled,
       paidAmount: v.amount,
+      discountAmount: disc > 0 ? disc : undefined,
       dueAmount: 0,
       paymentMethod: v.payment_method,
       status: 'PAID',

@@ -942,6 +942,38 @@ function migrateDatabaseIfNeeded(db: Database) {
       changed = true;
     }
 
+    // Ensure discount_amount column exists on customer_payments
+    try {
+      const custPayCols = db.exec("PRAGMA table_info(customer_payments);");
+      if (custPayCols.length > 0 && custPayCols[0].values) {
+        const hasDiscount = custPayCols[0].values.some(
+          (col) => col[1] === "discount_amount",
+        );
+        if (!hasDiscount) {
+          db.run(
+            "ALTER TABLE customer_payments ADD COLUMN discount_amount INTEGER DEFAULT 0;",
+          );
+          changed = true;
+        }
+      }
+    } catch {}
+
+    // Ensure discount_amount column exists on vendor_payments
+    try {
+      const vendPayCols = db.exec("PRAGMA table_info(vendor_payments);");
+      if (vendPayCols.length > 0 && vendPayCols[0].values) {
+        const hasDiscount = vendPayCols[0].values.some(
+          (col) => col[1] === "discount_amount",
+        );
+        if (!hasDiscount) {
+          db.run(
+            "ALTER TABLE vendor_payments ADD COLUMN discount_amount INTEGER DEFAULT 0;",
+          );
+          changed = true;
+        }
+      }
+    } catch {}
+
     // Capitalize existing records across products, vendors, customers, staff, sales, and purchases
     try {
       const prods = db.exec(

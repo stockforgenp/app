@@ -658,6 +658,7 @@ export interface CustomerPayment {
   sale_id?: number | null;
   sale_bill_number?: string | null;
   amount: number; // minor units (paisa)
+  discount_amount?: number; // minor units (paisa) - settlement discount allowed
   payment_method: string;
   payment_date: string;
   receipt_number?: string | null;
@@ -672,6 +673,7 @@ export interface VendorPayment {
   purchase_id?: number | null;
   purchase_bill_number?: string | null;
   amount: number; // minor units (paisa)
+  discount_amount?: number; // minor units (paisa) - settlement discount received
   payment_method: string;
   payment_date: string;
   receipt_number?: string | null;
@@ -681,7 +683,8 @@ export interface VendorPayment {
 
 export interface RecordCustomerPaymentInput {
   customerId: number;
-  amount: number; // in minor units
+  amount: number; // in minor units (actual payment)
+  discountAmount?: number; // in minor units (settlement discount allowed)
   paymentMethod?: string;
   paymentDate?: string;
   note?: string;
@@ -690,7 +693,8 @@ export interface RecordCustomerPaymentInput {
 
 export interface RecordVendorPaymentInput {
   vendorId: number;
-  amount: number; // in minor units
+  amount: number; // in minor units (actual payment)
+  discountAmount?: number; // in minor units (settlement discount received)
   paymentMethod?: string;
   paymentDate?: string;
   note?: string;
@@ -705,6 +709,7 @@ export interface StatementRow {
   description: string;
   amount: number; // total amount of bill or payment
   paidAmount: number;
+  discountAmount?: number; // settlement discount
   dueAmount: number;
   paymentMethod?: string;
   status?: string;

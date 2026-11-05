@@ -357,13 +357,16 @@ export function getCustomerCount(): number {
  * Automatically allocates the paid amount to unsettled sales (FIFO or specific sale).
  */
 export function recordCustomerPayment(input: RecordCustomerPaymentInput): CustomerPayment {
-  const { customerId, amount, paymentMethod = 'Cash', paymentDate, note, saleId } = input;
+  const { customerId, amount, discountAmount = 0, paymentMethod = 'Cash', paymentDate, note, saleId } = input;
 
   if (!customerId) {
     throw new Error('Customer ID is required to record payment');
   }
   if (!amount || amount <= 0) {
     throw new Error('Payment amount must be greater than zero');
+  }
+  if (discountAmount < 0) {
+    throw new Error('Discount amount cannot be negative');
   }
 
   const customer = getCustomerById(customerId);
@@ -373,6 +376,8 @@ export function recordCustomerPayment(input: RecordCustomerPaymentInput): Custom
 
   const now = new Date().toISOString();
   const dateToRecord = paymentDate ? new Date(paymentDate).toISOString() : now;
+  const validDiscount = discountAmount > 0 ? discountAmount : 0;
+  const totalSettled = amount + validDiscount;
 
   return transaction(() => {
     // Generate sequential receipt number
@@ -380,15 +385,15 @@ export function recordCustomerPayment(input: RecordCustomerPaymentInput): Custom
     const nextPayId = (lastPay?.id ?? 0) + 1;
     const receiptNumber = `RCP-C-${nextPayId.toString().padStart(5, '0')}`;
 
-    // 1. Insert customer payment record
+    // 1. Insert customer payment record (including settlement discount)
     run(
       `INSERT INTO customer_payments (
-        customer_id, sale_id, amount, payment_method, payment_date, receipt_number, note, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [customerId, saleId ?? null, amount, paymentMethod, dateToRecord, receiptNumber, note?.trim() || null, now]
+        customer_id, sale_id, amount, discount_amount, payment_method, payment_date, receipt_number, note, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [customerId, saleId ?? null, amount, validDiscount, paymentMethod, dateToRecord, receiptNumber, note?.trim() || null, now]
     );
 
-    let remainingToAllocate = amount;
+    let remainingToAllocate = totalSettled;
 
     // 2. If a specific sale was targeted, apply to it first
     if (saleId) {
@@ -504,9 +509,9 @@ export function getCustomerStatement(customerId: number): {
     const isPartialReturn = s.status === 'PARTIAL_RETURN';
     const billTotal = s.grand_total ?? s.total;
 
-    // Check subsequent payments applied to this specific sale
+    // Check subsequent payments applied to this specific sale (including settlement discounts)
     const subsequentPayments = queryOne<{ total: number }>(
-      `SELECT COALESCE(SUM(amount), 0) as total FROM customer_payments WHERE sale_id = ?`,
+      `SELECT COALESCE(SUM(amount + COALESCE(discount_amount, 0)), 0) as total FROM customer_payments WHERE sale_id = ?`,
       [s.id]
     )?.total ?? 0;
 
@@ -538,14 +543,19 @@ export function getCustomerStatement(customerId: number): {
   }
 
   for (const p of payments) {
+    const disc = p.discount_amount || 0;
+    const totalSettled = p.amount + disc;
     unsortedRows.push({
       id: `payment-${p.id}`,
       date: p.payment_date || p.created_at,
       type: 'PAYMENT',
       refNumber: p.receipt_number || `REC-${p.id.toString().padStart(5, '0')}`,
-      description: p.note ? `Payment Settlement: ${p.note}` : 'Payment Received (Balance Settlement)',
-      amount: p.amount,
+      description: p.note
+        ? `Payment Settlement: ${p.note}`
+        : 'Payment Received (Balance Settlement)',
+      amount: totalSettled,
       paidAmount: p.amount,
+      discountAmount: disc > 0 ? disc : undefined,
       dueAmount: 0,
       paymentMethod: p.payment_method,
       status: 'PAID',

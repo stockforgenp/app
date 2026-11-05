@@ -60,6 +60,7 @@ export const SettleBalanceModal: React.FC<SettleBalanceModalProps> = ({
   const { isNepali } = useLanguage();
 
   const [amountInput, setAmountInput] = useState("");
+  const [discountInput, setDiscountInput] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [paymentDate, setPaymentDate] = useState(
     formatForDateTimeLocal().split("T")[0],
@@ -73,6 +74,7 @@ export const SettleBalanceModal: React.FC<SettleBalanceModalProps> = ({
       setAmountInput(
         currentDue > 0 ? fromMinorUnits(currentDue).toString() : "",
       );
+      setDiscountInput("");
       setPaymentMethod("Cash");
       setPaymentDate(formatForDateTimeLocal().split("T")[0]);
       setNotes(
@@ -95,7 +97,14 @@ export const SettleBalanceModal: React.FC<SettleBalanceModalProps> = ({
     return toMinorUnits(val);
   })();
 
-  const remainingDueAfter = Math.max(0, currentDue - parsedAmountMinor);
+  const parsedDiscountMinor = (() => {
+    const val = parseFloat(discountInput.trim());
+    if (isNaN(val) || val <= 0) return 0;
+    return toMinorUnits(val);
+  })();
+
+  const totalSettledMinor = parsedAmountMinor + parsedDiscountMinor;
+  const remainingDueAfter = Math.max(0, currentDue - totalSettledMinor);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,30 +124,42 @@ export const SettleBalanceModal: React.FC<SettleBalanceModalProps> = ({
         const payment = recordCustomerPayment({
           customerId: partyId,
           amount: parsedAmountMinor,
+          discountAmount:
+            parsedDiscountMinor > 0 ? parsedDiscountMinor : undefined,
           paymentMethod,
           paymentDate,
           note: notes.trim() || undefined,
           saleId: specificBillId || undefined,
         });
+        const discText =
+          parsedDiscountMinor > 0
+            ? ` (+ ${formatCurrency(parsedDiscountMinor, currencySymbol)} ${isNepali ? "छुट" : "discount"})`
+            : "";
         showToast(
           isNepali
-            ? `रसिद #${payment.receipt_number}: ${formatCurrency(parsedAmountMinor, currencySymbol)} भुक्तानी प्राप्त भयो!`
-            : `Receipt #${payment.receipt_number}: Payment of ${formatCurrency(parsedAmountMinor, currencySymbol)} recorded successfully!`,
+            ? `रसिद #${payment.receipt_number}: ${formatCurrency(parsedAmountMinor, currencySymbol)}${discText} भुक्तानी प्राप्त भयो!`
+            : `Receipt #${payment.receipt_number}: Payment of ${formatCurrency(parsedAmountMinor, currencySymbol)}${discText} recorded successfully!`,
           "success",
         );
       } else {
         const payment = recordVendorPayment({
           vendorId: partyId,
           amount: parsedAmountMinor,
+          discountAmount:
+            parsedDiscountMinor > 0 ? parsedDiscountMinor : undefined,
           paymentMethod,
           paymentDate,
           note: notes.trim() || undefined,
           purchaseId: specificBillId || undefined,
         });
+        const discText =
+          parsedDiscountMinor > 0
+            ? ` (+ ${formatCurrency(parsedDiscountMinor, currencySymbol)} ${isNepali ? "छुट" : "discount"})`
+            : "";
         showToast(
           isNepali
-            ? `भौचर #${payment.receipt_number}: ${formatCurrency(parsedAmountMinor, currencySymbol)} आपूर्तिकर्तालाई भुक्तानी गरियो!`
-            : `Voucher #${payment.receipt_number}: Payment of ${formatCurrency(parsedAmountMinor, currencySymbol)} paid to vendor!`,
+            ? `भौचर #${payment.receipt_number}: ${formatCurrency(parsedAmountMinor, currencySymbol)}${discText} आपूर्तिकर्तालाई भुक्तानी गरियो!`
+            : `Voucher #${payment.receipt_number}: Payment of ${formatCurrency(parsedAmountMinor, currencySymbol)}${discText} paid to vendor!`,
           "success",
         );
       }
@@ -212,59 +233,128 @@ export const SettleBalanceModal: React.FC<SettleBalanceModalProps> = ({
           )}
         </div>
 
-        {/* Payment Amount Input */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-neutral-300 flex items-center justify-between">
-            <span>
-              {isNepali ? "भुक्तानी रकम (Amount)" : "Payment Amount"} *
-            </span>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() =>
-                  setAmountInput(fromMinorUnits(currentDue).toString())
-                }
-                className="text-[10px] text-emerald-400 hover:underline cursor-pointer"
-              >
-                {isNepali ? "पूरा रकम" : "Full Due"}
-              </button>
-              {currentDue > 0 && (
-                <>
-                  <span className="text-neutral-600">|</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setAmountInput(
-                        fromMinorUnits(Math.round(currentDue / 2)).toString(),
-                      )
-                    }
-                    className="text-[10px] text-sky-400 hover:underline cursor-pointer"
-                  >
-                    50%
-                  </button>
-                </>
-              )}
+        {/* Payment Amount and Settlement Discount Inputs */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Payment Amount */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-neutral-300 flex items-center justify-between">
+              <span>
+                {isNepali ? "भुक्तानी रकम (Amount Paid)" : "Amount Paid"} *
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const disc = parsedDiscountMinor;
+                    const maxPay = Math.max(0, currentDue - disc);
+                    setAmountInput(fromMinorUnits(maxPay).toString());
+                  }}
+                  className="text-[10px] text-emerald-400 hover:underline cursor-pointer"
+                >
+                  {isNepali ? "बाँकी सबै" : "Full Due"}
+                </button>
+                {currentDue > 0 && (
+                  <>
+                    <span className="text-neutral-600">|</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAmountInput(
+                          fromMinorUnits(Math.round(currentDue / 2)).toString(),
+                        )
+                      }
+                      className="text-[10px] text-sky-400 hover:underline cursor-pointer"
+                    >
+                      50%
+                    </button>
+                  </>
+                )}
+              </div>
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                step="any"
+                min="0"
+                required
+                placeholder="0.00"
+                value={amountInput}
+                onChange={(e) => setAmountInput(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm font-mono font-bold text-emerald-400 bg-neutral-900 border border-neutral-700 rounded-lg focus:outline-none focus:border-emerald-500"
+                autoFocus
+              />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-500 pointer-events-none">
+                {currencySymbol}
+              </span>
             </div>
-          </label>
-          <div className="relative">
-            <input
-              type="number"
-              step="any"
-              min="0"
-              required
-              placeholder="0.00"
-              value={amountInput}
-              onChange={(e) => setAmountInput(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm font-mono font-bold text-emerald-400 bg-neutral-900 border border-neutral-700 rounded-lg focus:outline-none focus:border-emerald-500"
-              autoFocus
-            />
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-500 pointer-events-none">
-              {currencySymbol}
+          </div>
+
+          {/* Settlement Discount */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-neutral-300 flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <span>
+                  {partyType === "customer"
+                    ? isNepali
+                      ? "छुट / मिनाहा (Discount)"
+                      : "Discount Allowed"
+                    : isNepali
+                      ? "छुट प्राप्त (Discount)"
+                      : "Discount Received"}
+                </span>
+                <span className="text-[10px] font-normal text-neutral-400">
+                  ({isNepali ? "ऐच्छिक" : "Optional"})
+                </span>
+              </span>
+              {discountInput && (
+                <button
+                  type="button"
+                  onClick={() => setDiscountInput("")}
+                  className="text-[10px] text-neutral-400 hover:text-neutral-200 cursor-pointer"
+                >
+                  {isNepali ? "हटाउनुहोस्" : "Clear"}
+                </button>
+              )}
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                step="any"
+                min="0"
+                placeholder="0.00"
+                value={discountInput}
+                onChange={(e) => setDiscountInput(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm font-mono font-bold text-amber-400 bg-neutral-900 border border-neutral-700 rounded-lg focus:outline-none focus:border-amber-500"
+              />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-500 pointer-events-none">
+                {currencySymbol}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Live Calculation / Projection Card */}
+        <div className="p-2.5 rounded-lg bg-neutral-950/80 border border-neutral-800 text-xs space-y-1">
+          <div className="flex items-center justify-between text-neutral-400">
+            <span>
+              {isNepali
+                ? "कुल हिसाब कट्टा (Total Cleared)"
+                : "Total Cleared (Paid + Discount)"}
+              :
+            </span>
+            <span className="font-mono font-bold text-neutral-100">
+              {formatCurrency(totalSettledMinor, currencySymbol)}
+              {parsedDiscountMinor > 0 && (
+                <span className="text-[11px] font-normal text-amber-400 ml-1.5">
+                  ({formatCurrency(parsedAmountMinor, currencySymbol)} +{" "}
+                  {formatCurrency(parsedDiscountMinor, currencySymbol)}{" "}
+                  {isNepali ? "छुट" : "discount"})
+                </span>
+              )}
             </span>
           </div>
 
-          {/* Balance projection after this payment */}
-          <div className="flex items-center justify-between text-[11px] text-neutral-400 px-1 pt-0.5">
+          <div className="flex items-center justify-between text-neutral-400 pt-1 border-t border-neutral-800/80">
             <span>
               {isNepali
                 ? "भुक्तानी पश्चात बाँकी रहने रकम"
@@ -272,11 +362,11 @@ export const SettleBalanceModal: React.FC<SettleBalanceModalProps> = ({
               :
             </span>
             <span
-              className={`font-mono font-semibold ${remainingDueAfter === 0 ? "text-emerald-400" : "text-amber-400"}`}
+              className={`font-mono font-bold ${remainingDueAfter === 0 ? "text-emerald-400" : "text-rose-400"}`}
             >
               {formatCurrency(remainingDueAfter, currencySymbol)}
               {remainingDueAfter === 0 && (
-                <span className="ml-1 text-[10px] text-emerald-400">
+                <span className="ml-1 text-[10px] text-emerald-400 font-semibold">
                   ({isNepali ? "पूर्ण चुक्ता" : "Fully Settled"})
                 </span>
               )}

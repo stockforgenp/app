@@ -518,4 +518,60 @@ describe('Feature 7: Vendors & Supplier Ledger', () => {
     assert.equal(v2Purchases[0].vendor_id, v2.id);
     assert.equal(v2Purchases[0].product_name, 'Mustard Oil 1L');
   });
+
+  test('12. Debt settlement with settlement discount clears full payable (amount + discount) and reflects in statement', () => {
+    const vendor = createVendor({
+      name: 'Everest Agro Suppliers',
+      phone: '9851099887',
+    });
+
+    const prod = createProduct({
+      name: 'Organic Honey 500g',
+      sku: 'HNY-ORG-500',
+      cost_price: 40000,
+      selling_price: 55000,
+      current_stock: 0,
+    });
+
+    // Purchase of Rs. 400 with Rs. 0 paid -> Due = Rs. 400 (40000 paisa)
+    const purchase = processPurchase(
+      [
+        makePurchaseItem({ productId: prod.id, quantity: 1, costPrice: 40000 }),
+      ],
+      { vendorId: vendor.id, paidAmount: 0, applyVat: false },
+    );
+
+    assert.equal(getVendorTotalDue(vendor.id), 40000);
+
+    // Settle balance: Pay Rs. 380 (38000 paisa) with Rs. 20 (2000 paisa) discount received
+    const payment = recordVendorPayment({
+      vendorId: vendor.id,
+      amount: 38000,
+      discountAmount: 2000,
+      paymentMethod: 'Bank Transfer',
+      note: 'Settlement with discount',
+      purchaseId: purchase.id,
+    });
+
+    assert.equal(payment.amount, 38000);
+    assert.equal(payment.discount_amount, 2000);
+
+    // Total due should now be 0
+    assert.equal(getVendorTotalDue(vendor.id), 0);
+
+    // Purchase due should be 0, paid amount should be 40000
+    const updatedPur = getPurchaseWithItems(purchase.id);
+    assert.equal(updatedPur?.purchase.due_amount, 0);
+    assert.equal(updatedPur?.purchase.paid_amount, 40000);
+
+    // Statement running balance should be 0
+    const stmt = getVendorStatement(vendor.id);
+    assert.equal(stmt.totalDue, 0);
+    const payRow = stmt.rows.find((r) => r.type === 'PAYMENT');
+    assert.ok(payRow);
+    assert.equal(payRow.paidAmount, 38000);
+    assert.equal(payRow.discountAmount, 2000);
+    assert.equal(payRow.amount, 40000);
+    assert.equal(payRow.runningBalance, 0);
+  });
 });

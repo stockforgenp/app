@@ -665,4 +665,65 @@ describe("Feature 6: Customers & Khata Ledger", () => {
     assert.equal(cust2Sales[0].customer_id, cust2.id);
     assert.equal(cust2Sales[0].product_name, "Salt 1kg");
   });
+
+  test("12. Debt settlement with settlement discount clears full due (amount + discount) and reflects in statement", () => {
+    const customer = createCustomer({
+      name: "Binod Chaudhary",
+      phone: "9800011223",
+    });
+
+    const prod = createProduct({
+      name: "Luxury Item",
+      sku: "LUX-001",
+      cost_price: 5000,
+      selling_price: 10000,
+      current_stock: 10,
+    });
+
+    // Sale of Rs. 100 with Rs. 0 paid -> Due = Rs. 100 (10000 paisa)
+    const sale = processSale(
+      [
+        {
+          productId: prod.id,
+          quantity: 1,
+          actualSellingPrice: 10000,
+          discount: 0,
+        },
+      ],
+      { customerId: customer.id, paidAmount: 0, applyVat: false },
+    );
+
+    assert.equal(getCustomerTotalDue(customer.id), 10000);
+
+    // Settle balance: Customer pays Rs. 90 (9000 paisa) with Rs. 10 (1000 paisa) discount
+    const payment = recordCustomerPayment({
+      customerId: customer.id,
+      amount: 9000,
+      discountAmount: 1000,
+      paymentMethod: "Cash",
+      note: "Full settlement with discount",
+      saleId: sale.id,
+    });
+
+    assert.equal(payment.amount, 9000);
+    assert.equal(payment.discount_amount, 1000);
+
+    // Total due should now be 0
+    assert.equal(getCustomerTotalDue(customer.id), 0);
+
+    // Sale due should be 0, paid amount should be 10000
+    const updatedSale = getSaleWithItems(sale.id);
+    assert.equal(updatedSale?.sale.due_amount, 0);
+    assert.equal(updatedSale?.sale.paid_amount, 10000);
+
+    // Statement running balance should be 0
+    const stmt = getCustomerStatement(customer.id);
+    assert.equal(stmt.totalDue, 0);
+    const payRow = stmt.rows.find((r) => r.type === "PAYMENT");
+    assert.ok(payRow);
+    assert.equal(payRow.paidAmount, 9000);
+    assert.equal(payRow.discountAmount, 1000);
+    assert.equal(payRow.amount, 10000);
+    assert.equal(payRow.runningBalance, 0);
+  });
 });

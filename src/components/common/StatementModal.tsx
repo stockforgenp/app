@@ -434,7 +434,15 @@ export const StatementModal: React.FC<StatementModalProps> = ({
                             : formatCurrency(r.amount, currencySymbol)}
                         </td>
                         <td className="py-2 px-3 text-right font-mono text-emerald-400 font-medium">
-                          {formatCurrency(r.paidAmount, currencySymbol)}
+                          <div>
+                            {formatCurrency(r.paidAmount, currencySymbol)}
+                          </div>
+                          {r.discountAmount && r.discountAmount > 0 ? (
+                            <div className="text-[10px] text-amber-400 font-normal">
+                              +{formatCurrency(r.discountAmount, currencySymbol)}{" "}
+                              {isNepali ? "छुट" : "disc"}
+                            </div>
+                          ) : null}
                         </td>
                         <td
                           className={`py-2 px-3 text-right font-mono font-bold ${
