@@ -165,9 +165,7 @@ export const SubscriptionExpiredView: React.FC = () => {
       {/* Main Expired Content */}
       <main className="flex-1 max-w-4xl w-full mx-auto p-6 md:p-8 flex flex-col justify-center gap-6">
         {/* Banner Card */}
-        <div className="bg-gradient-to-b from-amber-950/30 via-neutral-900/60 to-neutral-900/90 border border-amber-500/30 rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
             <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0 text-amber-400 shadow-inner">
               <AlertTriangle className="w-7 h-7" />

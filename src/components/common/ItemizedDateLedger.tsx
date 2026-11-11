@@ -346,7 +346,7 @@ export const ItemizedDateLedger: React.FC<ItemizedDateLedgerProps> = ({
             {/* Date Header Banner */}
             <div
               onClick={() => toggleDateCollapse(group.dateKey)}
-              className="px-5 py-4 bg-gradient-to-r from-neutral-850 to-neutral-900 border-b border-neutral-800 flex flex-wrap items-center justify-between gap-4 cursor-pointer select-none hover:bg-neutral-800/50 transition-colors"
+              className="px-5 py-4 bg-neutral-900 border-b border-neutral-800 flex flex-wrap items-center justify-between gap-4 cursor-pointer select-none hover:bg-neutral-850 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
@@ -697,7 +697,7 @@ export const ItemizedDateLedger: React.FC<ItemizedDateLedgerProps> = ({
                                       {it.product_name}
                                     </div>
                                     {it.product_sku && (
-                                      <div className="text-[10px] font-mono text-neutral-400">
+                                      <div className="print:hidden text-[10px] font-mono text-neutral-400">
                                         SKU: {it.product_sku}
                                       </div>
                                     )}

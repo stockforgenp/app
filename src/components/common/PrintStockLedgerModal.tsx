@@ -184,13 +184,10 @@ export const PrintStockLedgerModal: React.FC<PrintStockLedgerModalProps> = ({
                     <div className="p-3.5 bg-gray-50 border border-gray-200 rounded-lg mb-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <div>
                         <span className="text-[10px] text-gray-500 uppercase font-semibold">
-                          Item Name / SKU
+                          Item Name
                         </span>
                         <p className="font-bold text-gray-900 capitalize text-sm mt-0.5">
                           {capitalizeWords(product.name)}
-                        </p>
-                        <p className="text-[11px] text-gray-500 font-mono">
-                          SKU: {product.sku || 'None'}
                         </p>
                       </div>
                       <div>

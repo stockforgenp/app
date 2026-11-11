@@ -75,7 +75,7 @@ export interface NepaliDatePickerProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
-  sizeVariant?: "sm" | "md";
+  sizeVariant?: "sm" | "md" | "lg";
   required?: boolean;
   title?: string;
   calendarSystemOverride?: "BS" | "AD";
@@ -1019,8 +1019,8 @@ export const NepaliDatePicker: React.FC<NepaliDatePickerProps> = ({
   return (
     <div className={`relative inline-block w-full text-left ${className}`}>
       {label && (
-        <label className="block text-xs font-medium text-neutral-300 mb-1">
-          {label} {required && <span className="text-rose-500">*</span>}
+        <label className="block text-xs font-semibold text-neutral-300 mb-1 flex items-center gap-1.5">
+          {label} {required && <span className="text-rose-400">*</span>}
         </label>
       )}
 
@@ -1031,8 +1031,12 @@ export const NepaliDatePicker: React.FC<NepaliDatePickerProps> = ({
         title={title}
         disabled={disabled}
         onClick={handleToggleOpen}
-        className={`w-full flex items-center justify-between gap-2 px-3 bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-200 transition-colors cursor-pointer hover:border-neutral-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed ${
-          sizeVariant === "sm" ? "py-1.5 text-xs" : "py-2 text-sm"
+        className={`w-full flex items-center justify-between gap-2 bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-200 transition-colors cursor-pointer hover:border-neutral-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed ${
+          sizeVariant === "sm"
+            ? "h-8 px-2.5 text-xs"
+            : sizeVariant === "lg"
+            ? "h-10 px-3.5 text-sm"
+            : "h-9 px-3 text-xs"
         }`}
       >
         <span

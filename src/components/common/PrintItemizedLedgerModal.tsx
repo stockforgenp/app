@@ -643,11 +643,6 @@ export const PrintItemizedLedgerModal: React.FC<
                                           </td>
                                           <td className="py-1 font-medium text-gray-800">
                                             {it.product_name}
-                                            {it.product_sku && (
-                                              <span className="text-gray-400 font-mono text-[10px] ml-1">
-                                                [{it.product_sku}]
-                                              </span>
-                                            )}
                                           </td>
                                           <td className="py-1 text-center text-gray-600">
                                             {it.packaging_name ||

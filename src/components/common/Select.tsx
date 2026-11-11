@@ -299,9 +299,15 @@ export const Select: React.FC<SelectProps> = ({
   };
 
   const sizeClasses = {
-    sm: 'px-2.5 py-1.5 text-xs',
-    md: 'px-3 py-2 text-xs',
-    lg: 'px-3.5 py-2.5 text-sm',
+    sm: 'h-8 px-2.5 text-xs',
+    md: 'h-9 px-3 text-xs',
+    lg: 'h-10 px-3.5 text-sm',
+  };
+
+  const iconSizeClasses = {
+    sm: 'w-3.5 h-3.5',
+    md: 'w-4 h-4',
+    lg: 'w-4.5 h-4.5',
   };
 
   const hasLeftIcon = Boolean(icon);
@@ -470,7 +476,7 @@ export const Select: React.FC<SelectProps> = ({
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {hasLeftIcon && (
             <span className="shrink-0 flex items-center text-neutral-400">
-              {renderIcon(icon, 'w-4 h-4 text-current shrink-0')}
+              {renderIcon(icon, `${iconSizeClasses[sizeVariant]} text-current shrink-0`)}
             </span>
           )}
 
@@ -478,7 +484,7 @@ export const Select: React.FC<SelectProps> = ({
             <div className="truncate flex items-center gap-1.5 text-neutral-100 font-medium">
               {selectedOption.icon && (
                 <span className="shrink-0 flex items-center text-neutral-400">
-                  {renderIcon(selectedOption.icon, 'w-3.5 h-3.5 text-current shrink-0')}
+                  {renderIcon(selectedOption.icon, `${iconSizeClasses[sizeVariant]} text-current shrink-0`)}
                 </span>
               )}
               <span className="truncate">{selectedOption.label}</span>
@@ -495,11 +501,11 @@ export const Select: React.FC<SelectProps> = ({
               className="p-0.5 hover:text-neutral-100 rounded transition-colors"
               title="Clear"
             >
-              <X className="w-3.5 h-3.5 text-current" />
+              <X className={`${iconSizeClasses[sizeVariant]} text-current`} />
             </span>
           )}
           <ChevronDown
-            className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
+            className={`${iconSizeClasses[sizeVariant]} shrink-0 transition-transform duration-200 ${
               isOpen
                 ? 'rotate-180 text-emerald-500'
                 : 'text-neutral-400'

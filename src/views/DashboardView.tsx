@@ -431,7 +431,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
         <button
           onClick={() => onNavigateToTab("sales")}
-          className="p-5 rounded-xl bg-gradient-to-r from-emerald-950/60 to-neutral-900 border border-emerald-500/30 hover:border-emerald-500/50 flex items-center justify-between transition-all group text-left cursor-pointer"
+          className="p-5 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-emerald-500/40 flex items-center justify-between transition-all group text-left cursor-pointer"
         >
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-emerald-300">
@@ -451,7 +451,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           onClick={() => onNavigateToTab("daybook")}
-          className="p-5 rounded-xl bg-gradient-to-r from-cyan-950/40 to-neutral-900 border border-cyan-500/30 hover:border-cyan-500/50 flex items-center justify-between transition-all group text-left cursor-pointer"
+          className="p-5 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-cyan-500/40 flex items-center justify-between transition-all group text-left cursor-pointer"
         >
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-cyan-300">
@@ -475,7 +475,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <button
           onClick={() => onNavigateToTab("expenses")}
-          className="p-5 rounded-xl bg-gradient-to-r from-rose-950/40 to-neutral-900 border border-rose-500/30 hover:border-rose-500/50 flex items-center justify-between transition-all group text-left cursor-pointer"
+          className="p-5 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-rose-500/40 flex items-center justify-between transition-all group text-left cursor-pointer"
         >
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-rose-300">

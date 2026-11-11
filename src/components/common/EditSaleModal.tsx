@@ -388,7 +388,7 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setSaleDateTime(formatForDateTimeLocal())}
-                  className="px-2.5 py-1.5 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer shrink-0"
+                  className="h-8 px-2.5 inline-flex items-center justify-center text-[11px] font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors cursor-pointer shrink-0"
                   title="Reset to current time"
                 >
                   {isNepali ? 'अहिले (Now)' : 'Now'}
@@ -739,7 +739,7 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
                           setPaidAmountInput(fromMinorUnits(calculations.grandTotal).toString());
                         }
                       }}
-                      className="w-full pl-3 pr-8 py-1.5 text-xs font-semibold bg-neutral-900 border border-neutral-700 hover:border-neutral-600 rounded-lg text-neutral-100 focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer appearance-none"
+                      className="w-full h-8 pl-3 pr-8 text-xs font-semibold bg-neutral-900 border border-neutral-700 hover:border-neutral-600 rounded-lg text-neutral-100 focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer appearance-none"
                     >
                       {PAYMENT_MODE_OPTIONS.map((m) => (
                         <option key={m.id} value={m.id} className="bg-neutral-900 text-neutral-100">
@@ -762,7 +762,7 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
                       placeholder={isNepali ? "माध्यम (e.g. eSewa)..." : "Specify mode (e.g. eSewa)..."}
                       value={customPaymentMethod}
                       onChange={(e) => setCustomPaymentMethod(e.target.value)}
-                      className="flex-1 px-3 py-1.5 text-xs bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-200 focus:outline-none focus:border-emerald-500 placeholder-neutral-500"
+                      className="flex-1 h-8 px-3 text-xs bg-neutral-900 border border-neutral-700 rounded-lg text-neutral-200 focus:outline-none focus:border-emerald-500 placeholder-neutral-500"
                       autoFocus
                     />
                   )}

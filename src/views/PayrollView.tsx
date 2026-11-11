@@ -299,20 +299,9 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ currencySymbol }) => {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
-        className="p-6 rounded-2xl bg-neutral-900 border border-neutral-800 relative overflow-hidden shadow-xs space-y-5"
+        className="p-6 rounded-2xl bg-neutral-900 border border-neutral-800 shadow-xs space-y-5"
       >
-        {/* Subtle background glow depending on status */}
-        <div
-          className={`absolute -right-20 -top-20 w-64 h-64 rounded-full blur-3xl pointer-events-none opacity-20 transition-all duration-700 ${
-            monthlyStatus.overall_status === "fully_paid"
-              ? "bg-emerald-500"
-              : monthlyStatus.overall_status === "partially_paid"
-                ? "bg-amber-500"
-                : "bg-rose-500"
-          }`}
-        />
-
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           {/* Left: Period Selector & Dual Status Callouts */}
           <div className="space-y-4 flex-1">
             {/* Period Navigator Controls */}

@@ -219,11 +219,6 @@ export const PrintStockMovementsModal: React.FC<PrintStockMovementsModalProps> =
                             </td>
                             <td className="py-1.5 px-2 font-semibold text-gray-900 capitalize">
                               {capitalizeWords(m.product_name)}
-                              {m.product_sku && (
-                                <span className="block text-[9px] font-normal text-gray-500 font-mono">
-                                  SKU: {m.product_sku}
-                                </span>
-                              )}
                             </td>
                             <td className="py-1.5 px-1 text-center whitespace-nowrap">
                               <span

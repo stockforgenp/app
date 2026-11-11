@@ -167,7 +167,7 @@ export const TechnicalSupportSection: React.FC<
       </div>
 
       {/* Company / Developer Identity Banner */}
-      <div className="p-4 rounded-xl bg-gradient-to-r from-neutral-950 via-neutral-950/80 to-emerald-950/20 border border-neutral-800/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-emerald-400" />

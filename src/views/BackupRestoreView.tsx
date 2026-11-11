@@ -758,11 +758,8 @@ export const BackupRestoreView: React.FC<BackupRestoreViewProps> = ({
       {/* ========================================================= */}
       {/* GOOGLE SHEETS CLOUD SYNC SECTION */}
       {/* ========================================================= */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 relative overflow-hidden shadow-sm">
-        {/* Decorative corner glow */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-3 max-w-2xl">
             {/* Header with Google Brand Badge */}
             <div className="flex items-center gap-3">

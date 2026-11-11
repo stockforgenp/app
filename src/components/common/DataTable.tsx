@@ -407,7 +407,7 @@ export function DataTable<T>({
                       handleSearchChange("");
                       onClearFilters();
                     }}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-200 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 transition-colors cursor-pointer shrink-0"
+                    className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-200 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 transition-colors cursor-pointer shrink-0"
                     title={
                       isNepali ? "फिल्टरहरू रिसेट गर्नुहोस्" : "Reset filters"
                     }
