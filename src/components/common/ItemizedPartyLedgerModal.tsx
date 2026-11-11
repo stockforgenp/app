@@ -322,8 +322,8 @@ export const ItemizedPartyLedgerModal: React.FC<
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={
                   isNepali
-                    ? "बिल नं, सामानको नाम वा SKU खोज्नुहोस्..."
-                    : "Search by bill #, item name, or SKU..."
+                    ? "बिल नं वा सामानको नाम खोज्नुहोस्..."
+                    : "Search by bill # or item name..."
                 }
                 className="w-full pl-9 pr-8 py-1.5 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50"
               />

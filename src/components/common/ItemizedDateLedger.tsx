@@ -341,12 +341,12 @@ export const ItemizedDateLedger: React.FC<ItemizedDateLedgerProps> = ({
         return (
           <div
             key={group.dateKey}
-            className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xs transition-all"
+            className="bg-neutral-900 border border-neutral-700/60 rounded-2xl overflow-hidden shadow-xs transition-all"
           >
             {/* Date Header Banner */}
             <div
               onClick={() => toggleDateCollapse(group.dateKey)}
-              className="px-5 py-4 bg-neutral-900 border-b border-neutral-800 flex flex-wrap items-center justify-between gap-4 cursor-pointer select-none hover:bg-neutral-850 transition-colors"
+              className="px-5 py-4 bg-neutral-900 border-b border-neutral-700/60 flex flex-wrap items-center justify-between gap-4 cursor-pointer select-none hover:bg-neutral-850 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
@@ -434,7 +434,7 @@ export const ItemizedDateLedger: React.FC<ItemizedDateLedgerProps> = ({
 
             {/* List of Bills under this date */}
             {!isCollapsed && (
-              <div className="divide-y divide-neutral-800/80">
+              <div className="divide-y divide-neutral-700/60">
                 {group.bills.map((bill) => {
                   const isReturned = bill.status === "RETURNED";
 
@@ -607,17 +607,17 @@ export const ItemizedDateLedger: React.FC<ItemizedDateLedgerProps> = ({
                       </div>
 
                       {/* Items Table for this Bill */}
-                      <div className="overflow-x-auto rounded-xl border border-neutral-800 bg-neutral-950/70">
+                      <div className="overflow-x-auto rounded-xl border border-neutral-700/60 bg-neutral-950/70">
                         <table className="w-full text-left text-xs text-neutral-300">
-                          <thead className="bg-neutral-900/90 text-neutral-400 text-[11px] uppercase tracking-wider font-semibold border-b border-neutral-800">
+                          <thead className="bg-neutral-900/90 text-neutral-400 text-[11px] uppercase tracking-wider font-semibold border-b border-neutral-700/60">
                             <tr>
                               <th className="py-2.5 px-3 w-10 text-center">
                                 #
                               </th>
                               <th className="py-2.5 px-3">
                                 {isNepali
-                                  ? "सामानको नाम र SKU"
-                                  : "Item / Product & SKU"}
+                                  ? "सामानको नाम"
+                                  : "Item / Product"}
                               </th>
                               <th className="py-2.5 px-3 text-center">
                                 {isNepali
@@ -655,7 +655,7 @@ export const ItemizedDateLedger: React.FC<ItemizedDateLedgerProps> = ({
                               ) : null}
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-neutral-850">
+                          <tbody className="divide-y divide-neutral-700/50">
                             {bill.items.map((it, idx) => {
                               const unitDisplay = it.packaging_name
                                 ? `${it.product_unit} (${it.packaging_name}${
@@ -696,11 +696,6 @@ export const ItemizedDateLedger: React.FC<ItemizedDateLedgerProps> = ({
                                     <div className="font-semibold text-neutral-100">
                                       {it.product_name}
                                     </div>
-                                    {it.product_sku && (
-                                      <div className="print:hidden text-[10px] font-mono text-neutral-400">
-                                        SKU: {it.product_sku}
-                                      </div>
-                                    )}
                                   </td>
                                   <td className="py-2 px-3 text-center text-[11px] text-neutral-300">
                                     {unitDisplay}
@@ -777,7 +772,7 @@ export const ItemizedDateLedger: React.FC<ItemizedDateLedgerProps> = ({
                       </div>
 
                       {/* Bill Subtotal, Tax, and Net Summary Footer */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-neutral-900/60 p-2.5 rounded-lg border border-neutral-800/60">
+                      <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-neutral-900/60 p-2.5 rounded-lg border border-neutral-700/50">
                         <div className="flex items-center gap-3 text-neutral-400 text-[11px]">
                           <span>
                             {isNepali ? "कुल वस्तु रकम:" : "Subtotal:"}{" "}

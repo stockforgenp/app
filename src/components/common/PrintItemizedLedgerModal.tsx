@@ -409,7 +409,7 @@ export const PrintItemizedLedgerModal: React.FC<
                 )}
 
                 {/* Store Header */}
-                <div className="border-b-2 border-gray-900 pb-4 mb-4 flex justify-between items-start">
+                <div className="border-b-2 border-gray-300 pb-4 mb-4 flex justify-between items-start">
                   <div>
                     <h1 className="text-xl font-bold uppercase tracking-tight text-gray-900">
                       {storeName}
